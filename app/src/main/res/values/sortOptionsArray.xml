@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="sortOptions">
+        <item>Popular</item>
+        <item>A-Z</item>
+        <item>Z-A</item>
+        <item>Favourites</item>
+    </string-array>
+</resources>

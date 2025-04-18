@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "336633997023",
+    "firebase_url": "https://smoothradio-8c5d4-default-rtdb.firebaseio.com",
+    "project_id": "smoothradio-8c5d4",
+    "storage_bucket": "smoothradio-8c5d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336633997023:android:65d5a868413d6fd747eb6a",
+        "android_client_info": {
+          "package_name": "com.smoothradio.radio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByk30SASGZ8VjBLS6pjWlT_bvqCxYH1PM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:336633997023:android:93ac0fc9d5c1c45f47eb6a",
+        "android_client_info": {
+          "package_name": "com.smoothradio.radio.debug"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByk30SASGZ8VjBLS6pjWlT_bvqCxYH1PM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

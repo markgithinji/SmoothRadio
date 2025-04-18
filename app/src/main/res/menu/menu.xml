@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:title="sort"
+        android:id="@+id/action_sort"
+        android:titleCondensed="sort"
+        android:icon="@drawable/outline_sort_black_20"
+        app:showAsAction="collapseActionView" />
+    <item android:title="info"
+        android:id="@+id/action_info"
+        android:icon="@drawable/outline_info_black_20"
+        app:showAsAction="collapseActionView"/>
+</menu>

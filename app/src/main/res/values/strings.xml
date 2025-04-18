@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">SmoothRadio</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <!-- Strings used for fragments for navigation -->
+
+    <string name="title_activity_main2">InfoActivity</string>
+
+
+    <string name="info_text">1. Please give a few seconds (depending on your internet connection) for your selected radio station to prepare.\n\n2. Use Refresh Button if playback becomes laggy or choppy.\n\n3. Some stations may have low sound volume by default; This could require you to turn up the volume.\n\n4. All stations are confirmed working. If a station fails to work, usually the owner has stopped streaming; Try again later.\nThis also goes for stations that at times stream empty audio. We update non-working stations from our end.\n\n5. Logos, Links, Content and Station details are property of the listed radio stations.\n\n6. For feedback and assistance, please contact support:</string>
+
+    <string name="tv_app_package">com.kenyatvchannelslive.tvkenya</string>
+    <string name="facebook_url">https://web.facebook.com/Smooth-Radio-App-Kenya-102378815380103</string>
+    <string name="email_address">smoothradioapp@gmail.com</string>
+    <string name="email_subject">SMOOTH RADIO APP FEEDBACK</string>
+    <string name="send_mail">Send Mail...</string>
+    <string name="no_email_client">There is no email client installed.</string>
+    <string name="app_version_label">App Version: </string>
+    <string name="device_name_label">Device Name: </string>
+    <string name="android_version_label">Android Version: </string>
+
+    <string name="toast_station_unreachable">station unreachable</string>
+    <string name="toast_unexpected_error">unexpected error</string>
+    <string name="notification_channel_name">LIVE</string>
+    <string name="stopped">Stopped</string>
+
+    <string name="paused">Paused</string>
+
+</resources>

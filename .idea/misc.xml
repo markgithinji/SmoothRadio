@@ -1,0 +1,24 @@
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/activity_info.xml" value="0.25" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/activity_main.xml" value="0.5" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/activity_splash_screen.xml" value="0.16393442622950818" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/adview.xml" value="0.1" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/categoryitem.xml" value="0.1723684210526316" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/categoryradioitem.xml" value="0.67" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/fragment_discover.xml" value="0.1723684210526316" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/fragment_music_list.xml" value="0.1723684210526316" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/fragment_player.xml" value="0.22" />
+        <entry key="..\:/Users/Penjo/AndroidStudioProjects/TabLayouts/app/src/main/res/layout/radioitem.xml" value="0.2" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="jbr-21" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/svScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scaleType="centerCrop"
+    android:orientation="vertical"
+    tools:context=".feature.about.AboutFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/ivSplash"
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            app:srcCompat="@drawable/splash" />
+
+        <TextView
+            android:id="@+id/tvAppVerion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:fontFamily="@font/source_sans_pro"
+            android:gravity="center_horizontal"
+            android:text="version:  2.10"
+            android:textColor="@color/light_gray"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvInfo3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="60dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginRight="60dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/source_sans_pro"
+            android:gravity="center_horizontal"
+            android:text="Enjoying SmoothRadio? Leave us a rating; A review or comment would be great!"
+            android:textAlignment="gravity"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginLeft="60dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginRight="60dp"
+            android:fontFamily="@font/source_sans_pro"
+            android:gravity="center_horizontal|left"
+            android:text="This shows info service about the app."
+            android:textAlignment="gravity"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvEmail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:fontFamily="@font/source_sans_pro"
+            android:gravity="center_horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="10dp"
+            android:text="smoothradioapp@gmail.com"
+            android:textColor="#6393CD"
+            android:textColorLink="#3F51B5" />
+
+        <ImageView
+            android:id="@+id/ivLine"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:layout_weight="1"
+            app:srcCompat="@drawable/borderline" />
+
+        <TextView
+            android:id="@+id/tvWatchTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:fontFamily="@font/source_sans_pro"
+            android:paddingTop="5dp"
+            android:paddingBottom="10dp"
+            android:text="Watch Kenyan Tv App (34 Tv Stations)"
+            android:textColor="#6393CD"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/ivFb"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:layout_weight="1"
+            app:srcCompat="@drawable/facebooklogo" />
+
+        <TextView
+            android:id="@+id/fbAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackground"
+            android:fontFamily="@font/source_sans_pro"
+            android:gravity="center_horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="10dp"
+            android:text="Smooth Radio App Kenya"
+            android:textColor="#6393CD"
+            android:textSize="14sp" />
+
+
+    </LinearLayout>
+
+</ScrollView>
