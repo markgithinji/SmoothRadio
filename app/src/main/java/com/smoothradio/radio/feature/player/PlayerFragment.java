@@ -37,8 +37,8 @@ import com.google.android.material.timepicker.TimeFormat;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
-import com.smoothradio.radio.service.StreamService;
 import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.service.StreamService;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -110,6 +110,7 @@ public class PlayerFragment extends Fragment {
         //SharedPrefs
         sharedPreferences = fragmentActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);//////////for repository
     }
+
     private void registerBroadcasts() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             fragmentActivity.registerReceiver(new EventReceiver(),
@@ -137,7 +138,10 @@ public class PlayerFragment extends Fragment {
         radioStation = new RadioStation(0, "", "", "", "", stationId);
         int position = mainActivity.radioStationsList.indexOf(radioStation);
 
-        radioStation = mainActivity.radioListRecyclerViewAdapter.stationListCopy.get(position);
+        if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.stationListCopy.isEmpty())) {
+            radioStation = mainActivity.radioListRecyclerViewAdapter.stationListCopy.get(position);
+        }
+
 
         binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
         binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
@@ -185,19 +189,19 @@ public class PlayerFragment extends Fragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             state = intent.getStringExtra(StreamService.EXTRA_STATE);
-            if(state!=null)updateUI();
+            if (state != null) updateUI();
         }
     }
 
     /**
-     *  `MetadataReceiver` is a `BroadcastReceiver` responsible for receiving and displaying metadata
-     *  information about the currently playing audio stream.  It listens for broadcasts from
-     *  `StreamService` containing the title of the current stream and updates the UI accordingly.
-     *
-     *  Specifically, it receives an intent with the extra `StreamService.EXTRA_TITLE`, extracts the
-     *  title string, truncates it to a maximum of 70 characters, and updates a `TextView` with the
-     *  truncated title.  It also uses a `TransitionManager` to animate the UI update for a smoother
-     *  user experience.
+     * `MetadataReceiver` is a `BroadcastReceiver` responsible for receiving and displaying metadata
+     * information about the currently playing audio stream.  It listens for broadcasts from
+     * `StreamService` containing the title of the current stream and updates the UI accordingly.
+     * <p>
+     * Specifically, it receives an intent with the extra `StreamService.EXTRA_TITLE`, extracts the
+     * title string, truncates it to a maximum of 70 characters, and updates a `TextView` with the
+     * truncated title.  It also uses a `TransitionManager` to animate the UI update for a smoother
+     * user experience.
      */
     public class MetadataReceiver extends BroadcastReceiver {
         @Override
@@ -627,6 +631,7 @@ public class PlayerFragment extends Fragment {
             isShowingAd = false;// allow user to click button to attempt to start play again
         }
     }
+
     private void broadcastState(String state) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);
         fragmentActivity.sendBroadcast(eventIntent);
@@ -640,6 +645,7 @@ public class PlayerFragment extends Fragment {
             Toast.makeText(fragmentActivity, "Check Internet", Toast.LENGTH_SHORT).show();
         }
     }
+
     public boolean getIsPlaying() {
         return isPlaying;
     }

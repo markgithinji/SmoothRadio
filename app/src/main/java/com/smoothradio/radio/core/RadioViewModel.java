@@ -1,13 +1,14 @@
 package com.smoothradio.radio.core;
 
 import android.app.Application;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class RadioViewModel extends AndroidViewModel {
@@ -15,18 +16,23 @@ public class RadioViewModel extends AndroidViewModel {
     private final RadioLinkRepository radioLinkRepository;
     private final PlayerPreferencesRepository prefsRepo;
 
-    private final MutableLiveData<List<String>> radioLinksLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Integer> stationIdLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> isFirstTimeLiveData = new MutableLiveData<>();
+    private LiveData<Resource<List<String>>> remoteRadioLinksLiveData;
+    private LiveData<Resource<List<String>>> localRadioLinksLiveData;
+    private LiveData<Resource<Boolean>> isFirstTimeLiveData;
+    private LiveData<Resource<Integer>> stationIdLiveData;
+
 
     public RadioViewModel(@NonNull Application application) {
         super(application);
         radioLinkRepository = new RadioLinkRepository(application.getApplicationContext());
         prefsRepo = new PlayerPreferencesRepository(application.getApplicationContext());
 
-        // Init preference values
-        stationIdLiveData.setValue(prefsRepo.getId());
-        isFirstTimeLiveData.setValue(prefsRepo.isFirstTime());
+        // Init radio links
+        isFirstTime();
+        getStationId();
+        getLocalLinks();
+        getRemoteStreamLinks();
+
     }
 
     // -----------------------
@@ -37,22 +43,20 @@ public class RadioViewModel extends AndroidViewModel {
         radioLinkRepository.createInitialTxt();
     }
 
-    public void loadLinks() {
-        List<String> links = radioLinkRepository.loadLinks();
-        radioLinksLiveData.setValue(links);
+    public void getLocalLinks() {
+        localRadioLinksLiveData = radioLinkRepository.getLocalLinks();
+    }
+    public void getRemoteStreamLinks() {
+        remoteRadioLinksLiveData = radioLinkRepository.getRemoteStreamLinks();
     }
 
-    public void updateLinks(List<String> newLinks) {
-        radioLinkRepository.updateLinks(new ArrayList<>(newLinks));
-        radioLinksLiveData.setValue(newLinks);
+    public LiveData<Resource<List<String>>> getRemoteinksLiveData() {
+        return remoteRadioLinksLiveData;
+    }
+    public LiveData<Resource<List<String>>> getLocalLinksLiveData() {
+        return remoteRadioLinksLiveData;
     }
 
-    public LiveData<List<String>> getRadioLinksLiveData() {
-        return radioLinksLiveData;
-    }
-    public LiveData<Resource<List<String>>> getRemoteStreamLinks() {
-        return radioLinkRepository.getRemoteStreamLinks();
-    }
     public void removeStreamLinkListener() {
         radioLinkRepository.removeListener();
     }
@@ -65,25 +69,26 @@ public class RadioViewModel extends AndroidViewModel {
     // Preferences Logic
     // -----------------------
 
-    public LiveData<Integer> getStationId() {
+    public LiveData<Resource<Integer>> getStationIdLivedata() {
         return stationIdLiveData;
+    }
+
+    public void getStationId() {
+        stationIdLiveData = prefsRepo.getIdLiveData();
     }
 
     public void saveStationId(int id) {
         prefsRepo.setId(id);
-        stationIdLiveData.setValue(id);
     }
 
-    public LiveData<Boolean> getIsFirstTime() {
+    public void isFirstTime() {
+        isFirstTimeLiveData = prefsRepo.isFirstTimeLiveData();
+    }
+    public LiveData<Resource<Boolean>> getIsFirstTimeLiveData() {
         return isFirstTimeLiveData;
     }
 
     public void saveIsFirstTime(boolean value) {
         prefsRepo.setFirstTime(value);
-        isFirstTimeLiveData.setValue(value);
-    }
-
-    public void clearPrefs() {
-        prefsRepo.clear();
     }
 }

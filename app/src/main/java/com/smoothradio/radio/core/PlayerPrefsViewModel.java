@@ -17,9 +17,6 @@ public class PlayerPrefsViewModel extends AndroidViewModel {
     public PlayerPrefsViewModel(@NonNull Application application) {
         super(application);
         prefsRepo = new PlayerPreferencesRepository(application.getApplicationContext());
-
-        id.setValue(prefsRepo.getId());
-        isFirstTime.setValue(prefsRepo.isFirstTime());
     }
 
     public LiveData<Integer> getLogo() {
@@ -37,9 +34,5 @@ public class PlayerPrefsViewModel extends AndroidViewModel {
     public void saveIsFirstTime(boolean value) {
         prefsRepo.setFirstTime(value);
         isFirstTime.setValue(value);
-    }
-
-    public void clearPrefs() {
-        prefsRepo.clear();
     }
 }

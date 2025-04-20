@@ -70,14 +70,17 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         stationListCopyCopy = new ArrayList<>(stationListCopy);
         radioStationItemsWithAds = new ArrayList<>(stationListCopy);
         //for ads
-        radioStationItemsWithAds.add(1, emptyRadioStation);
-        radioStationItemsWithAds.add(9, emptyRadioStation);
-        radioStationItemsWithAds.add(36, emptyRadioStation);
-        radioStationItemsWithAds.add(45, emptyRadioStation);
-        radioStationItemsWithAds.add(54, emptyRadioStation);
-        radioStationItemsWithAds.add(72, emptyRadioStation);
-        radioStationItems.clear();
-        radioStationItems.addAll(radioStationItemsWithAds);
+        if(!stationLogosList.isEmpty())
+        {
+            radioStationItemsWithAds.add(1, emptyRadioStation);
+            radioStationItemsWithAds.add(9, emptyRadioStation);
+            radioStationItemsWithAds.add(36, emptyRadioStation);
+            radioStationItemsWithAds.add(45, emptyRadioStation);
+            radioStationItemsWithAds.add(54, emptyRadioStation);
+            radioStationItemsWithAds.add(72, emptyRadioStation);
+            radioStationItems.clear();
+            radioStationItems.addAll(radioStationItemsWithAds);
+        }
 
     }
 

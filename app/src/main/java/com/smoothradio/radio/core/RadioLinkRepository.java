@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core;
 
 import android.content.Context;
-import android.widget.Toast;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -25,7 +24,6 @@ public class RadioLinkRepository {
     private final Context context;
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
-    private final MutableLiveData<Resource<List<String>>> streamLinksLiveData = new MutableLiveData<>();
     private ListenerRegistration listenerRegistration;
 
     public RadioLinkRepository(Context context) {
@@ -49,8 +47,9 @@ public class RadioLinkRepository {
 
 
     // Method to load links from the file
-    public ArrayList<String> loadLinks() {
-        ArrayList<String> links = new ArrayList<>();
+    public LiveData<Resource<List<String>>> getLocalLinks() {
+        MutableLiveData<Resource<List<String>>> localRadioLinksLiveData = new MutableLiveData<>();
+        List<String> links = new ArrayList<>();
         File file = new File(context.getFilesDir(), FILE_NAME);
         if (file.exists()) {
             try (BufferedReader br = new BufferedReader(new FileReader(file))) {
@@ -58,11 +57,16 @@ public class RadioLinkRepository {
                 while ((line = br.readLine()) != null) {
                     links.add(line);
                 }
+                localRadioLinksLiveData.setValue(Resource.success(links));
             } catch (IOException e) {
                 e.printStackTrace();
+                localRadioLinksLiveData.setValue(Resource.error("Error reading file"));
             }
+        } else {
+            localRadioLinksLiveData.setValue(Resource.error("File does not exist"));
         }
-        return links;
+
+        return localRadioLinksLiveData;
     }
 
     // Method to update the links file with a new set of links
@@ -79,13 +83,14 @@ public class RadioLinkRepository {
     }
 
     public LiveData<Resource<List<String>>> getRemoteStreamLinks() {
-        streamLinksLiveData.postValue(Resource.loading());
+        MutableLiveData<Resource<List<String>>> remoteRadioLinksLiveData = new MutableLiveData<>();
+        remoteRadioLinksLiveData.postValue(Resource.loading());
 
         listenerRegistration = db.collection("links")
                 .orderBy("index")
                 .addSnapshotListener((value, error) -> {
                     if (error != null || value == null || value.isEmpty()) {
-                        streamLinksLiveData.postValue(Resource.error("Error loading links"));
+                        remoteRadioLinksLiveData.postValue(Resource.error("Error loading links"));
                         return;
                     }
 
@@ -96,10 +101,10 @@ public class RadioLinkRepository {
                     }
                     updateLinks(links);
 
-                    streamLinksLiveData.postValue(Resource.success(links));
+                    remoteRadioLinksLiveData.postValue(Resource.success(links));
                 });
 
-        return streamLinksLiveData;
+        return remoteRadioLinksLiveData;
     }
 
     public void removeListener() {

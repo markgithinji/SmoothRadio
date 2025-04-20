@@ -34,12 +34,8 @@ import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
 import com.google.android.ump.UserMessagingPlatform;
 import com.google.firebase.analytics.FirebaseAnalytics;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.smoothradio.radio.core.CacheUtils;
 import com.smoothradio.radio.core.RadioStationsHelper;
 import com.smoothradio.radio.core.RadioViewModel;
@@ -54,10 +50,8 @@ import com.smoothradio.radio.service.StreamService;
 import com.smoothradio.radio.util.SortDialog;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -111,11 +105,9 @@ public class MainActivity extends AppCompatActivity {
 
         radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
 
-        setupObservers();
+        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(radioStationsList);
 
-        //loading animation
-        binding.miniPlayer.loadingAnimationMiniPlayerLayout.playAnimation();
-        binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+        setupObservers();
 
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout);
 
@@ -147,23 +139,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupObservers() {
-        radioViewModel.getRadioLinksLiveData().observe(this, radioLinks -> {
-            // Update the UI with the loaded links
-            linksFromTxt.clear();
-            linksFromTxt.addAll(radioLinks);
-            radioStationsList = RadioStationsHelper.createRadioStations(linksFromTxt);
-            radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(radioStationsList);
+        radioViewModel.getLocalLinksLiveData().observe(this, resource -> {
+            if (resource.status == Resource.Status.SUCCESS) {
+                linksFromTxt.clear();
+                linksFromTxt.addAll(resource.data);
 
-        });
-        radioViewModel.getIsFirstTime().observe(this, isFirstTime -> {
-            if (Boolean.TRUE.equals(isFirstTime)) {
-
-                radioViewModel.createInitialLinks();
-
-                radioViewModel.saveIsFirstTime(false);
+                radioListRecyclerViewAdapter.update( RadioStationsHelper.createRadioStations(linksFromTxt));
+                //update mini player
+                radioViewModel.getStationIdLivedata().observe(this, intResource -> {
+                    if (intResource.status == Resource.Status.SUCCESS) {
+                        Integer stationId = intResource.data;
+                        int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
+                        if (position != -1) { // if list returns -1, it doesn't contain the station
+                            updateMiniPlayer(radioListRecyclerViewAdapter.radioStationItems.get(position));
+                        }
+                    }
+                });
             }
-            radioViewModel.loadLinks();
         });
+        radioViewModel.getIsFirstTimeLiveData().observe(this, resource -> {
+            if (resource.status == Resource.Status.SUCCESS) {
+                Boolean isFirstTime = resource.data;
+                if (Boolean.TRUE.equals(isFirstTime)) {
+                    radioViewModel.createInitialLinks();
+                    radioViewModel.saveIsFirstTime(false);
+                }
+                radioViewModel.getLocalLinks();
+            }
+        });
+
     }
     private void setupViewPagerAndTabs() {
         viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager(), getLifecycle());
@@ -298,41 +302,38 @@ public class MainActivity extends AppCompatActivity {
             binding.ivClearSearch.setVisibility(View.INVISIBLE);
         }
 
-        //update mini player
-        radioViewModel.getStationId().observe(this, stationId -> {
-            int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
-            if (position != -1)// if list returns -1, it doesn't contain the station
-            {
-                Toast.makeText(this, ""+radioStationsList, Toast.LENGTH_SHORT).show();
-                updateMiniPlayer(radioListRecyclerViewAdapter.radioStationItems.get(position));
-            }
-        });
 
-        radioViewModel.getRemoteStreamLinks().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
+
+        radioViewModel.getRemoteinksLiveData().observe(this, resource -> {
+            if (resource == null) return;
+
+            if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
                 List<String> links = resource.data;
                 linksAfterUpdate = new ArrayList<>(links);
 
                 if (!linksFromTxt.equals(linksAfterUpdate)) {
                     linksFromTxt.clear();
                     linksFromTxt.addAll(linksAfterUpdate);
+
                     RadioStationsHelper.createRadioStations(linksFromTxt);
+
                     radioListRecyclerViewAdapter.stationListCopy.clear();
                     radioListRecyclerViewAdapter.stationListCopyCopy.clear();
                     radioListRecyclerViewAdapter.radioStationItems.clear();
+
                     radioListRecyclerViewAdapter.stationListCopy.addAll(radioStationsList);
                     radioListRecyclerViewAdapter.stationListCopyCopy.addAll(radioStationsList);
                     radioListRecyclerViewAdapter.radioStationItems.addAll(radioStationsList);
+
                     radioListRecyclerViewAdapter.sortPopular();
 
-                    Toast.makeText(MainActivity.this, "stations updated", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Stations updated", Toast.LENGTH_SHORT).show();
                 }
-
-                // Update your adapter logic here
             } else if (resource.status == Resource.Status.ERROR) {
-                Toast.makeText(this, resource.message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, resource.message != null ? resource.message : "Error loading stations", Toast.LENGTH_SHORT).show();
             }
         });
+
     }
 
     public void play(RadioStation radioStation) {

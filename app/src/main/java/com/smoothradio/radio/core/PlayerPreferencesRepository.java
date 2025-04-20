@@ -3,37 +3,42 @@ package com.smoothradio.radio.core;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
+
 public class PlayerPreferencesRepository {
 
     private static final String PREF_NAME = "PlayerFragmentSharedPref";
-    private static final String kEY_ID = "stationId";
+    private static final String KEY_ID = "stationId";
     private static final String KEY_IS_FIRST_TIME = "isFirstTime";
 
     private final SharedPreferences prefs;
-    private final SharedPreferences.Editor editor;
+
+    private final MutableLiveData<Resource<Integer>> stationIdLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Resource<Boolean>> isFirstTimeLiveData = new MutableLiveData<>();
 
     public PlayerPreferencesRepository(Context context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        editor = prefs.edit();
     }
 
-    public void setId(int logo) {
-        editor.putInt(kEY_ID, logo).apply();
+    public void setId(int id) {
+        prefs.edit().putInt(KEY_ID, id).apply();
+        stationIdLiveData.setValue(Resource.success(id));
     }
 
-    public int getId() {
-        return prefs.getInt(kEY_ID, 0);
+    public LiveData<Resource<Integer>> getIdLiveData() {
+        setId(prefs.getInt(KEY_ID, 0));
+        return stationIdLiveData;
     }
 
     public void setFirstTime(boolean isFirstTime) {
-        editor.putBoolean(KEY_IS_FIRST_TIME, isFirstTime).apply();
+        prefs.edit().putBoolean(KEY_IS_FIRST_TIME, isFirstTime).apply();
+        isFirstTimeLiveData.setValue(Resource.success(isFirstTime));
     }
 
-    public boolean isFirstTime() {
-        return prefs.getBoolean(KEY_IS_FIRST_TIME, true);
-    }
-
-    public void clear() {
-        editor.clear().apply();
+    public LiveData<Resource<Boolean>> isFirstTimeLiveData() {
+        setFirstTime(prefs.getBoolean(KEY_IS_FIRST_TIME, true));
+        return isFirstTimeLiveData;
     }
 }

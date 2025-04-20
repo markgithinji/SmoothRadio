@@ -75,6 +75,7 @@
         android:id="@+id/loadingAnimationMiniPlayerLayout"
         android:layout_width="34dp"
         android:layout_height="34dp"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/ivPlayMiniPlayerLayout"
         app:layout_constraintEnd_toEndOf="@+id/ivPlayMiniPlayerLayout"
         app:layout_constraintHorizontal_bias="0.5"
