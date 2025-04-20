@@ -78,6 +78,18 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         radioStationItemsWithAds.add(72, emptyRadioStation);
         radioStationItems.clear();
         radioStationItems.addAll(radioStationItemsWithAds);
+
+    }
+
+    public void update(List<RadioStation> radioStationsList)
+    {
+        stationListCopy.clear();
+        stationListCopyCopy.clear();
+        radioStationItems.clear();
+        stationListCopy.addAll(radioStationsList);
+        stationListCopyCopy.addAll(radioStationsList);
+        radioStationItems.addAll(radioStationsList);
+        sortPopular();
     }
 
     @Override
@@ -102,6 +114,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         mainActivity = (MainActivity) parent.getContext();
+
         //sharedpref
         sharedPreferences = mainActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);
         prefsEditor = sharedPreferences.edit();
@@ -129,6 +142,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         int viewType = getItemViewType(position);
         RadioStation radioStation = radioStationItems.get(position);
+
 
         if (viewType == ITEM_VIEW) {
             ItemViewViewHolder itemViewViewHolder = (ItemViewViewHolder) holder;
@@ -346,7 +360,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 } else {
                     snackbar = Snackbar.make(view, "CAN'T add more than 20 favourite stations", Snackbar.LENGTH_LONG);
                 }
-                snackbar.setAnchorView(mainActivity.bottomSheetLayout);
+                snackbar.setAnchorView(mainActivity.binding.miniPlayer.bottomSheetLayout);
                 snackbar.show();
                 mainActivity.hideKeyboard();
             } else {
@@ -355,7 +369,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 favouriteList.remove(radioStation);
                 itemViewViewHolder.ivFavourite.setImageResource(R.drawable.favorite_20px);
                 snackbar = Snackbar.make(view, "removed " + radioStation.getStationName() + " from favourites.", Snackbar.LENGTH_SHORT);
-                snackbar.setAnchorView(mainActivity.bottomSheetLayout);
+                snackbar.setAnchorView(mainActivity.binding.miniPlayer.bottomSheetLayout);
                 snackbar.show();
                 mainActivity.hideKeyboard();
                 if (showingFavourites) {

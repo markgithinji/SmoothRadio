@@ -46,6 +46,7 @@ public class StreamService extends Service {
     public static final String ACTION_EVENT_CHANGE = "SmoothService:EventChangeListener";
     public static final String ACTION_METADATA_CHANGE = "SmoothService:MetadataChangeListener";
     public static final String ACTION_GET_STATE = "SmoothService:GetState";
+    public static final String ACTION_UPDATE_UI = "SmoothService:ReturnState";
     public static final String ACTION_SET_TIMER = "SmoothService:SetTimer";
     private final String ACTION_PLAY_PAUSE = "SmoothService:PlayPause";
     private final String ACTION_REQUEST_AUDIO_FOCUS = "SmoothService:RequestAudioFocus";
@@ -381,7 +382,7 @@ public class StreamService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (player != null) {
-                Intent restoreIntent = new Intent(ACTION_GET_STATE).setPackage(getPackageName());
+                Intent restoreIntent = new Intent(ACTION_UPDATE_UI).setPackage(getPackageName());
                 restoreIntent.putExtra(EXTRA_STATE, stateChange);
                 sendBroadcast(restoreIntent);
                 mediaMetadataOR = player.getMediaMetadata();

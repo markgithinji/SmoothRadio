@@ -67,7 +67,6 @@ public class PlayerFragment extends Fragment {
     String newMetadata = "";
     public LottieAnimationView equalizerAnimation;
     SharedPreferences sharedPreferences;
-    SharedPreferences.Editor prefsEditor;
     boolean isPlaying = false;
     public CoordinatorLayout coordinatorLayout;
     LinearLayout layout;
@@ -109,20 +108,19 @@ public class PlayerFragment extends Fragment {
         serviceIntent = new Intent(fragmentActivity, StreamService.class);
 
         //SharedPrefs
-        sharedPreferences = fragmentActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);
-        prefsEditor = sharedPreferences.edit();
+        sharedPreferences = fragmentActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);//////////for repository
     }
     private void registerBroadcasts() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             fragmentActivity.registerReceiver(new EventReceiver(),
                     new IntentFilter(StreamService.ACTION_EVENT_CHANGE), Context.RECEIVER_NOT_EXPORTED);
             fragmentActivity.registerReceiver(new UpdateUIReceiver(),
-                    new IntentFilter(StreamService.ACTION_GET_STATE), Context.RECEIVER_NOT_EXPORTED);
+                    new IntentFilter(StreamService.ACTION_UPDATE_UI), Context.RECEIVER_NOT_EXPORTED);
             fragmentActivity.registerReceiver(new MetadataReceiver(),
                     new IntentFilter(StreamService.ACTION_METADATA_CHANGE), Context.RECEIVER_NOT_EXPORTED);
         } else {
             fragmentActivity.registerReceiver(new EventReceiver(), new IntentFilter(StreamService.ACTION_EVENT_CHANGE));
-            fragmentActivity.registerReceiver(new UpdateUIReceiver(), new IntentFilter(StreamService.ACTION_GET_STATE));
+            fragmentActivity.registerReceiver(new UpdateUIReceiver(), new IntentFilter(StreamService.ACTION_UPDATE_UI));
             fragmentActivity.registerReceiver(new MetadataReceiver(), new IntentFilter(StreamService.ACTION_METADATA_CHANGE));
         }
     }
@@ -134,7 +132,7 @@ public class PlayerFragment extends Fragment {
             mainActivity = (MainActivity) getContext();
         }
 
-        stationId = sharedPreferences.getInt("stationId", 0);
+        stationId = sharedPreferences.getInt("stationId", 0);///////////for repo
 
         radioStation = new RadioStation(0, "", "", "", "", stationId);
         int position = mainActivity.radioStationsList.indexOf(radioStation);

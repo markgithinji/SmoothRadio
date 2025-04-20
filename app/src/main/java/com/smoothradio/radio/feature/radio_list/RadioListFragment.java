@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
@@ -32,7 +33,8 @@ LinearLayoutManager LLM;
         View root = inflater.inflate(R.layout.fragment_music_list, container, false);
 
         MainActivity mainActivity = (MainActivity) getActivity();
-        adapter= mainActivity.musicListRecyclerViewAdapter;
+        adapter= mainActivity.radioListRecyclerViewAdapter;
+
         rvRadioList = root.findViewById(R.id.rvList);
         rvRadioList.setAdapter(adapter);
         LLM = new LinearLayoutManager(root.getContext());
