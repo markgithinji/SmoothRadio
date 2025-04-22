@@ -27,11 +27,7 @@ public class RadioViewModel extends AndroidViewModel {
         radioLinkRepository = new RadioLinkRepository(application.getApplicationContext());
         prefsRepo = new PlayerPreferencesRepository(application.getApplicationContext());
 
-        // Init radio links
-        isFirstTime();
-        getStationId();
-        getLocalLinks();
-        getRemoteStreamLinks();
+
 
     }
 

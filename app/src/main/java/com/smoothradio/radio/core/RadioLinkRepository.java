@@ -110,7 +110,6 @@ public class RadioLinkRepository {
     public void removeListener() {
         if (listenerRegistration != null) {
             listenerRegistration.remove();
-            listenerRegistration = null;
         }
     }
 

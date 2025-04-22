@@ -2,6 +2,7 @@ package com.smoothradio.radio.feature.radio_list;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -118,11 +119,11 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         mainActivity = (MainActivity) parent.getContext();
 
-        //sharedpref
+//        //sharedpref
         sharedPreferences = mainActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);
-        prefsEditor = sharedPreferences.edit();
-        //for updating last played radio item
-        lastStationId = sharedPreferences.getInt("stationId", 0);
+//        prefsEditor = sharedPreferences.edit();
+//        //for updating last played radio item
+//        lastStationId = sharedPreferences.getInt("stationId", 0);
 
         switch (viewType) {
             case ITEM_VIEW:
@@ -139,6 +140,10 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 View adItemView = adInflater.inflate(R.layout.adview, parent, false);
                 return new AdViewHolder(adItemView);
         }
+    }
+
+    public void setSelectedStationId(int stationId) {
+        lastStationId = stationId;
     }
 
     @Override
@@ -303,11 +308,15 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
+            Toast.makeText(mainActivity, "id: "+radioStation.getId()+" "+radioStation.getStationName(), Toast.LENGTH_SHORT).show();
+            Log.d("Adapter", "playFromMainActivity: " + radioStation.getId()+" "+radioStation.getStationName());
 
             if (stationId == lastStationId) {
                 mainActivity.playerFragment.playOrStop();
                 notifyItemChanged(getPosOfStation(stationId));
+                Log.d("AdapterSame", "playFromMainActivity: " + radioStation.getId());
             } else {
+                Log.d("AdapterDifferent", "playFromMainActivity: " + radioStation.getId());
                 // not necessary but done to make play feel more instant
                 currentItemViewViewHolder.ivPlay.setImageResource(R.drawable.pauseicon);
                 currentItemViewViewHolder.loadingAnimation.setVisibility(View.VISIBLE);

@@ -4,16 +4,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.transition.TransitionManager;
 
 import com.airbnb.lottie.LottieAnimationView;
@@ -36,6 +35,8 @@ import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
+import com.smoothradio.radio.core.RadioViewModel;
+import com.smoothradio.radio.core.Resource;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
@@ -54,11 +55,6 @@ public class PlayerFragment extends Fragment {
     public RadioStation radioStation;
 
     FragmentPlayerBinding binding;
-    //UI
-    ImageView ivPlay;
-    ImageView ivLargeLogo;
-    TextView tvProgress;
-    TextView tvStationName;
     TextView tvMetadata;
 
     public String state = "";
@@ -66,10 +62,8 @@ public class PlayerFragment extends Fragment {
     String metadata = "";
     String newMetadata = "";
     public LottieAnimationView equalizerAnimation;
-    SharedPreferences sharedPreferences;
     boolean isPlaying = false;
     public CoordinatorLayout coordinatorLayout;
-    LinearLayout layout;
     //Ads
     InterstitialAd interstitialAd;
 
@@ -81,6 +75,7 @@ public class PlayerFragment extends Fragment {
     Intent eventIntent;
     int stationId;
     FragmentActivity fragmentActivity;
+    RadioViewModel radioViewModel;
 
     public PlayerFragment() {
     }
@@ -97,18 +92,37 @@ public class PlayerFragment extends Fragment {
         super.onCreate(savedInstanceState);
         mainActivity = (MainActivity) getContext();
 
+        radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
+        radioViewModel.getStationId();
+
         //for ad ui updates
         eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
                 .setPackage(fragmentActivity.getPackageName());
-
 
         registerBroadcasts();
 
         //intent for starting service
         serviceIntent = new Intent(fragmentActivity, StreamService.class);
+    }
 
-        //SharedPrefs
-        sharedPreferences = fragmentActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);//////////for repository
+    private void setupObserver()
+    {
+        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
+            if (intResource.status == Resource.Status.SUCCESS) {
+                stationId = intResource.data;
+
+                radioStation = new RadioStation(0, "", "", "", "", stationId);
+
+                int position = mainActivity.radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
+
+                if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.radioStationItems.isEmpty())) {
+                    radioStation = mainActivity.radioListRecyclerViewAdapter.radioStationItems.get(position);
+                }
+
+                binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
+                binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+            }
+        });
     }
 
     private void registerBroadcasts() {
@@ -133,18 +147,7 @@ public class PlayerFragment extends Fragment {
             mainActivity = (MainActivity) getContext();
         }
 
-        stationId = sharedPreferences.getInt("stationId", 0);///////////for repo
-
-        radioStation = new RadioStation(0, "", "", "", "", stationId);
-        int position = mainActivity.radioStationsList.indexOf(radioStation);
-
-        if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.stationListCopy.isEmpty())) {
-            radioStation = mainActivity.radioListRecyclerViewAdapter.stationListCopy.get(position);
-        }
-
-
-        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+        radioViewModel.getStationId();
 
         //only update if were had started loading ad and we are also playing. If we arent playing, user will see 'preparing audio' when we
         //arent actually doing anything esp after stopping service while loading ad
@@ -165,24 +168,22 @@ public class PlayerFragment extends Fragment {
         binding = FragmentPlayerBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
+        setUpUI();
+
+        setupObserver();
+
+        return root;
+    }
+
+    private void setUpUI() {
         //Banner AD
         AdRequest playerFragAdRequest = new AdRequest.Builder().build();
         binding.adView.loadAd(playerFragAdRequest);
-
-        //equalizerAnimation
-        binding.equalizerAnimation.playAnimation();
-        binding.equalizerAnimation.setVisibility(View.INVISIBLE);
 
         //Adding OnclickListeners
         binding.ivPlayButton.setOnClickListener(new PlayButtonListener());
         binding.ivRefresh.setOnClickListener(new Refresh());
         binding.ivSetTimer.setOnClickListener(new SetTimerOnclickListener());
-
-
-        layout = binding.playerFrag;
-        binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
-
-        return root;
     }
 
     public class UpdateUIReceiver extends BroadcastReceiver {
@@ -210,7 +211,7 @@ public class PlayerFragment extends Fragment {
             if (metadata != null) {
                 newMetadata = metadata.substring(0, Math.min(metadata.length(), 70));
                 tvMetadata.setText(newMetadata);
-                TransitionManager.beginDelayedTransition(layout);
+                TransitionManager.beginDelayedTransition(binding.playerFrag);
             }
         }
     }
@@ -219,8 +220,10 @@ public class PlayerFragment extends Fragment {
     public void playFromMainActivity(RadioStation radioStation) {
         this.radioStation = radioStation;
 
-        ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-        tvStationName.setText(radioStation.getStationName());
+
+
+        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
+        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
 
         //update ui loading ad pre-play
         state = StreamService.StreamStates.PREPARING;
@@ -296,7 +299,19 @@ public class PlayerFragment extends Fragment {
         }
     }
 
-    public void playOrStop() {
+    public void playOrStop( ) {
+        radioStation = new RadioStation(0, "", "", "", "", stationId);
+
+        int position = mainActivity.radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
+
+        if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.radioStationItems.isEmpty())) {
+            radioStation = mainActivity.radioListRecyclerViewAdapter.radioStationItems.get(position);
+        }
+
+        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
+        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+
+        Log.d("PlayerFragment", "playFromMainActivity: " + this.radioStation.getId()+" "+ this.radioStation.getUrl());
         if (isPlaying) {
             fragmentActivity.stopService(serviceIntent);
         } else {
@@ -310,7 +325,7 @@ public class PlayerFragment extends Fragment {
                 loadInterstitialAd();
                 checkInternet();
                 //Analytics
-                mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
+                mainActivity.sendFirebaseAnalytics(this.radioStation.getStationName());
             } else {//if ad already loaded, show it; otherwise nothing will happen so continue waiting for ad to finish loading
 //                showAdWithoutReloading();
             }
@@ -410,7 +425,7 @@ public class PlayerFragment extends Fragment {
     }
 
     void updateUI() {
-        TransitionManager.beginDelayedTransition(layout);
+        TransitionManager.beginDelayedTransition(binding.playerFrag);
 
         if (state.equals(StreamService.StreamStates.PREPARING)) {
             binding.tvProgress.setText(state);

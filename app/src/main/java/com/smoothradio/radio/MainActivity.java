@@ -5,11 +5,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -26,17 +26,12 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.gms.ads.MobileAds;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabLayout;
-import com.google.android.ump.ConsentForm;
-import com.google.android.ump.ConsentInformation;
-import com.google.android.ump.ConsentRequestParameters;
-import com.google.android.ump.UserMessagingPlatform;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.smoothradio.radio.core.CacheUtils;
+import com.smoothradio.radio.core.ConsentHelper;
 import com.smoothradio.radio.core.RadioStationsHelper;
 import com.smoothradio.radio.core.RadioViewModel;
 import com.smoothradio.radio.core.Resource;
@@ -49,45 +44,53 @@ import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 import com.smoothradio.radio.util.SortDialog;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity {
 
+    // View binding
     public ActivityMainBinding binding;
-    ViewPagerAdapter viewPagerAdapter;
 
-    //Consent form
-    private ConsentInformation consentInformation;
-    // Use an atomic boolean to initialize the Google Mobile Ads SDK and load ads once.
-    private final AtomicBoolean isMobileAdsInitializeCalled = new AtomicBoolean(false);
+    // ViewPager
+    private ViewPagerAdapter viewPagerAdapter;
+    private static int currentPage;
+    private static int tabPosition;
 
-    boolean searchVisible = false;
-    static int currentPage;
-    static int tabPosition;
-    static String lifecycleStage = "";
-    EventReceiver eventReceiver;
-    InputMethodManager inputMethodManager;
-    FirebaseFirestore db = FirebaseFirestore.getInstance();
-    public BottomSheetBehavior bottomSheetBehavior;
-    public List<RadioStation> radioStationsList = new ArrayList<>();
-
+    // Fragment
     public PlayerFragment playerFragment;
+
+    // Adapter
     public RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
-    //OnlineDatabase
+
+    // ViewModel
+    public RadioViewModel radioViewModel;
+
+    // Bottom sheet
+    public BottomSheetBehavior bottomSheetBehavior;
+
+    // UI state
+    private boolean searchVisible = false;
+    private static String lifecycleStage = "";
+
+    // Input & keyboard
+    private InputMethodManager inputMethodManager;
+
+    // Firebase
+    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private FirebaseAnalytics firebaseAnalytics;
+
+    // Receiver
+    private EventReceiver eventReceiver;
+
+    // Radio stations (local data)
+    public final List<RadioStation> radioStationsList = new ArrayList<>();
+
+    // Online database (static lists shared across app)
     public static ArrayList<String> linksFromTxt = new ArrayList<>();
     public static ArrayList<String> linksAfterUpdate = new ArrayList<>();
-    ListenerRegistration listenerRegistration;
-    SharedPreferences.Editor prefsEditor;
-    FirebaseAnalytics firebaseAnalytics;
 
-    RadioViewModel radioViewModel;
 
 
     @Override
@@ -101,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(binding.toolbar);
 
-        showConsentForm();
+        new ConsentHelper(this).showConsentForm();
 
         radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
 
@@ -119,12 +122,7 @@ public class MainActivity extends AppCompatActivity {
 
         setupSearchUI();
 
-        binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                miniPlayerPlayPause();
-            }
-        });
+        binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener(v -> miniPlayerPlayPause());
 
         setupBroadcastReceiver();
 
@@ -139,24 +137,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupObservers() {
-        radioViewModel.getLocalLinksLiveData().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                linksFromTxt.clear();
-                linksFromTxt.addAll(resource.data);
+        // Init radio links
+        radioViewModel.isFirstTime();
+        radioViewModel.getStationId();
+        radioViewModel.getLocalLinks();
+        radioViewModel.getRemoteStreamLinks();
 
-                radioListRecyclerViewAdapter.update( RadioStationsHelper.createRadioStations(linksFromTxt));
-                //update mini player
-                radioViewModel.getStationIdLivedata().observe(this, intResource -> {
-                    if (intResource.status == Resource.Status.SUCCESS) {
-                        Integer stationId = intResource.data;
-                        int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
-                        if (position != -1) { // if list returns -1, it doesn't contain the station
-                            updateMiniPlayer(radioListRecyclerViewAdapter.radioStationItems.get(position));
-                        }
-                    }
-                });
-            }
-        });
         radioViewModel.getIsFirstTimeLiveData().observe(this, resource -> {
             if (resource.status == Resource.Status.SUCCESS) {
                 Boolean isFirstTime = resource.data;
@@ -164,7 +150,41 @@ public class MainActivity extends AppCompatActivity {
                     radioViewModel.createInitialLinks();
                     radioViewModel.saveIsFirstTime(false);
                 }
-                radioViewModel.getLocalLinks();
+            }
+        });
+        radioViewModel.getLocalLinksLiveData().observe(this, resource -> {
+            if (resource.status == Resource.Status.SUCCESS) {
+                linksFromTxt.clear();
+                linksFromTxt.addAll(resource.data);
+
+                radioListRecyclerViewAdapter.update( RadioStationsHelper.createRadioStations(linksFromTxt));
+                radioViewModel.getStationId();
+            }
+        });
+        //update mini player
+        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
+            if (intResource.status == Resource.Status.SUCCESS) {
+                int stationId = intResource.data;
+                radioListRecyclerViewAdapter.setSelectedStationId(stationId);
+                int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
+                if (position != -1) { // if list returns -1, it doesn't contain the station
+                    updateMiniPlayer(radioListRecyclerViewAdapter.radioStationItems.get(position));
+                }
+            }
+        });
+        radioViewModel.getRemoteinksLiveData().observe(this, resource -> {
+            if (resource.status == Resource.Status.SUCCESS) {
+                List<String> links = resource.data;
+                linksAfterUpdate = new ArrayList<>(links);
+
+                if (!linksFromTxt.equals(linksAfterUpdate)) {
+                    linksFromTxt.clear();
+                    linksFromTxt.addAll(linksAfterUpdate);
+
+                    radioListRecyclerViewAdapter.update(RadioStationsHelper.createRadioStations(linksFromTxt));
+
+                    Toast.makeText(MainActivity.this, "Stations updated", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -182,12 +202,11 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onTabSelected(TabLayout.Tab tab) {
                 tabPosition = tab.getPosition();
                 binding.viewPager.setCurrentItem(tabPosition);
-                viewPagerAdapter.notifyDataSetChanged();
+                viewPagerAdapter.notifyItemChanged(tabPosition);
                 bottomSheetBehavior.setState(tabPosition == 0
                         ? BottomSheetBehavior.STATE_COLLAPSED
                         : BottomSheetBehavior.STATE_HIDDEN);
             }
-
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
             @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
@@ -302,47 +321,17 @@ public class MainActivity extends AppCompatActivity {
             binding.ivClearSearch.setVisibility(View.INVISIBLE);
         }
 
-
-
-        radioViewModel.getRemoteinksLiveData().observe(this, resource -> {
-            if (resource == null) return;
-
-            if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
-                List<String> links = resource.data;
-                linksAfterUpdate = new ArrayList<>(links);
-
-                if (!linksFromTxt.equals(linksAfterUpdate)) {
-                    linksFromTxt.clear();
-                    linksFromTxt.addAll(linksAfterUpdate);
-
-                    RadioStationsHelper.createRadioStations(linksFromTxt);
-
-                    radioListRecyclerViewAdapter.stationListCopy.clear();
-                    radioListRecyclerViewAdapter.stationListCopyCopy.clear();
-                    radioListRecyclerViewAdapter.radioStationItems.clear();
-
-                    radioListRecyclerViewAdapter.stationListCopy.addAll(radioStationsList);
-                    radioListRecyclerViewAdapter.stationListCopyCopy.addAll(radioStationsList);
-                    radioListRecyclerViewAdapter.radioStationItems.addAll(radioStationsList);
-
-                    radioListRecyclerViewAdapter.sortPopular();
-
-                    Toast.makeText(MainActivity.this, "Stations updated", Toast.LENGTH_SHORT).show();
-                }
-            } else if (resource.status == Resource.Status.ERROR) {
-                Toast.makeText(this, resource.message != null ? resource.message : "Error loading stations", Toast.LENGTH_SHORT).show();
-            }
-        });
-
+        radioViewModel.getRemoteStreamLinks();
     }
 
     public void play(RadioStation radioStation) {
         playerFragment = (PlayerFragment) getSupportFragmentManager().findFragmentByTag("PlayerFragment");
-        assert playerFragment != null;
-        playerFragment.playFromMainActivity(radioStation);
 
-        prefsEditor.putInt("stationId", radioStation.getId());
-        prefsEditor.commit();
+        if (playerFragment != null) {
+            Log.d("Mainactivity", "playFromMainActivity: " + radioStation.getId());
+            playerFragment.playFromMainActivity(radioStation);
+        }
+        radioViewModel.saveStationId(radioStation.getId());
 
         hideKeyboard();
 
@@ -355,15 +344,13 @@ public class MainActivity extends AppCompatActivity {
     public class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra("state");
-            if (state == null) {
-                state = intent.getStringExtra("stateUI");//for restoring ui onResume
-            }
+            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
+
             if (!lifecycleStage.equals("onDestroy")) {
-                if (state.equals("Buffering") || state.equals("Preparing Audio")) {
+                if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
                     binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
                     binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
-                } else if (state.equals("Playing")) {
+                } else if (state.equals(StreamService.StreamStates.PLAYING)) {
                     binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
                     binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
                     binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
@@ -385,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
 
     void miniPlayerPlayPause() {
         playerFragment.playOrStop();
-        if (playerFragment.getIsPlaying())/////notplaying
+        if (playerFragment.getIsPlaying())//if is playing
         {
             binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
         } else {
@@ -402,7 +389,7 @@ public class MainActivity extends AppCompatActivity {
         String event = stationName.toLowerCase().replace(" ", "");
         Bundle bundle = new Bundle();
         bundle.putString("station_name", stationName);
-        firebaseAnalytics.logEvent(event, bundle);//////////////////////////////////////////////////////////////////////////////////////////
+        firebaseAnalytics.logEvent(event, bundle);
     }
 
     public void hideKeyboard() {
@@ -412,70 +399,6 @@ public class MainActivity extends AppCompatActivity {
         searchVisible = false;
     }
 
-
-    void txtToArrayListAfterUpdate() {
-        try {
-            linksAfterUpdate.clear();
-            File file = new File(getFilesDir(), "file.txt");
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-            BufferedReader br = new BufferedReader(reader);
-            for (int index = 0; index < 231; index++) {
-                linksAfterUpdate.add(br.readLine());
-            }
-            //Toast.makeText(MainActivity.this, "file read succeful", Toast.LENGTH_SHORT).show()
-        } catch (IOException e) {
-            e.printStackTrace();
-            //Toast.makeText(MainActivity.this, "ioexcept", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-
-    void showConsentForm() {
-        // Create a ConsentRequestParameters object.
-        ConsentRequestParameters params = new ConsentRequestParameters
-                .Builder()
-                .build();
-
-        consentInformation = UserMessagingPlatform.getConsentInformation(this);
-        consentInformation.requestConsentInfoUpdate(
-                this,
-                params,
-                (ConsentInformation.OnConsentInfoUpdateSuccessListener) () -> {
-                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
-                            this,
-                            (ConsentForm.OnConsentFormDismissedListener) loadAndShowError -> {
-                                if (loadAndShowError != null) {
-                                    // Consent gathering failed.
-
-                                }
-
-                                // Consent has been gathered.
-                                if (consentInformation.canRequestAds()) {
-                                    initializeMobileAdsSdk();
-                                }
-                            }
-                    );
-                },
-                (ConsentInformation.OnConsentInfoUpdateFailureListener) requestConsentError -> {
-                    // Consent gathering failed.
-                });
-
-        // Check if you can initialize the Google Mobile Ads SDK in parallel
-        // while checking for new consent information. Consent obtained in
-        // the previous session can be used to request ads.
-        if (consentInformation.canRequestAds()) {
-            initializeMobileAdsSdk();
-        }
-    }
-
-    private void initializeMobileAdsSdk() {
-        if (isMobileAdsInitializeCalled.getAndSet(true)) {
-            return;
-        }
-
-        // Initialize the Google Mobile Ads SDK.
-        MobileAds.initialize(this);
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

@@ -23,7 +23,7 @@ public class PlayerPreferencesRepository {
     }
 
     public void setId(int id) {
-        prefs.edit().putInt(KEY_ID, id).apply();
+        prefs.edit().putInt(KEY_ID, id).commit();
         stationIdLiveData.setValue(Resource.success(id));
     }
 
@@ -33,7 +33,7 @@ public class PlayerPreferencesRepository {
     }
 
     public void setFirstTime(boolean isFirstTime) {
-        prefs.edit().putBoolean(KEY_IS_FIRST_TIME, isFirstTime).apply();
+        prefs.edit().putBoolean(KEY_IS_FIRST_TIME, isFirstTime).commit();
         isFirstTimeLiveData.setValue(Resource.success(isFirstTime));
     }
 
