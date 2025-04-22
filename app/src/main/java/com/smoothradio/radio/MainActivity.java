@@ -30,12 +30,12 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.smoothradio.radio.core.CacheUtils;
-import com.smoothradio.radio.core.ConsentHelper;
-import com.smoothradio.radio.core.RadioStationsHelper;
-import com.smoothradio.radio.core.RadioViewModel;
-import com.smoothradio.radio.core.Resource;
-import com.smoothradio.radio.core.ViewPagerAdapter;
+import com.smoothradio.radio.core.util.CacheUtil;
+import com.smoothradio.radio.core.util.ConsentHelper;
+import com.smoothradio.radio.core.ui.RadioStationsHelper;
+import com.smoothradio.radio.core.ui.RadioViewModel;
+import com.smoothradio.radio.core.util.Resource;
+import com.smoothradio.radio.core.ui.ViewPagerAdapter;
 import com.smoothradio.radio.databinding.ActivityMainBinding;
 import com.smoothradio.radio.feature.about.AboutFragment;
 import com.smoothradio.radio.feature.radio_list.RadioListRecyclerViewAdapter;
@@ -78,11 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private InputMethodManager inputMethodManager;
 
     // Firebase
-    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private FirebaseAnalytics firebaseAnalytics;
-
-    // Receiver
-    private EventReceiver eventReceiver;
 
     // Radio stations (local data)
     public final List<RadioStation> radioStationsList = new ArrayList<>();
@@ -188,6 +184,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        radioViewModel.getSelectedStation().observe(this, radioStation -> {
+
+            if (radioStation != null) {
+//                radioViewModel.saveStationId(radioStation.getId());
+
+                hideKeyboard();
+
+                //update mini player
+                updateMiniPlayer(radioStation);
+            }else {
+                Toast.makeText(this, "null", Toast.LENGTH_SHORT).show();
+            }
+        });
+
     }
     private void setupViewPagerAndTabs() {
         viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager(), getLifecycle());
@@ -283,7 +293,8 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter eventFilter = new IntentFilter();
         eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
         eventFilter.addAction(StreamService.ACTION_UPDATE_UI);
-        eventReceiver = new EventReceiver();
+
+        EventReceiver eventReceiver = new EventReceiver();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED);
@@ -297,7 +308,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         lifecycleStage = "onDestroy";
-        CacheUtils.clearAppCache(this);
+        CacheUtil.clearAppCache(this);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.util;
 
 public class RadioStationData {
     public static final String[] RADIO_STATIONS = {

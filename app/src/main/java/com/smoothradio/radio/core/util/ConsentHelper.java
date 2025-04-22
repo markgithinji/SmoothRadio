@@ -1,8 +1,6 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.util;
 
 import android.app.Activity;
-import android.content.Context;
-import android.util.Log;
 
 import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
@@ -10,11 +8,7 @@ import com.google.android.ump.UserMessagingPlatform;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import android.app.Activity;
-import android.util.Log;
-
 import com.google.android.gms.ads.MobileAds;
-import com.google.android.gms.ads.RequestConfiguration;
 import com.google.android.ump.ConsentForm;
 
 

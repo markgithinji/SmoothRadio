@@ -25,6 +25,7 @@ import com.google.android.material.snackbar.Snackbar;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
 import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.service.StreamService;
 
 
 import java.util.ArrayList;
@@ -308,24 +309,35 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
-            Toast.makeText(mainActivity, "id: "+radioStation.getId()+" "+radioStation.getStationName(), Toast.LENGTH_SHORT).show();
             Log.d("Adapter", "playFromMainActivity: " + radioStation.getId()+" "+radioStation.getStationName());
 
+
+
             if (stationId == lastStationId) {
-                mainActivity.playerFragment.playOrStop();
+//                mainActivity.playerFragment.playOrStop();
+
+                mainActivity.radioViewModel.setSelectedStation(radioStation);
                 notifyItemChanged(getPosOfStation(stationId));
-                Log.d("AdapterSame", "playFromMainActivity: " + radioStation.getId());
+
+//                Log.d("AdapterSame", "playFromMainActivity: " + radioStation.getId());
+
             } else {
                 Log.d("AdapterDifferent", "playFromMainActivity: " + radioStation.getId());
+
+
                 // not necessary but done to make play feel more instant
                 currentItemViewViewHolder.ivPlay.setImageResource(R.drawable.pauseicon);
                 currentItemViewViewHolder.loadingAnimation.setVisibility(View.VISIBLE);
                 currentItemViewViewHolder.ivPlay.setVisibility(View.INVISIBLE);
                 //
-
+//
+                mainActivity.radioViewModel.setStreamState(StreamService.StreamStates.PREPARING);
                 notifyItemChanged(getPosOfStation(lastStationId));// update prev station item
-                mainActivity.play(radioStation);
-                lastStationId = radioStation.getId();
+                notifyItemChanged(getPosOfStation(stationId));// update current station item
+                mainActivity.radioViewModel.setSelectedStation(radioStation);
+
+//                mainActivity.play(radioStation);
+//                lastStationId = radioStation.getId();
             }
 
         }

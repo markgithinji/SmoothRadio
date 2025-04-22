@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.ui;
 
 
 import androidx.annotation.NonNull;

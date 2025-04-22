@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.ui;
 
 import com.smoothradio.radio.R;
 import com.smoothradio.radio.model.RadioStation;

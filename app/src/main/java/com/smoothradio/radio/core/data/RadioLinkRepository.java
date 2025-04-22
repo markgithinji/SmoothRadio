@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.data;
 
 import android.content.Context;
 
@@ -8,6 +8,8 @@ import androidx.lifecycle.MutableLiveData;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.smoothradio.radio.core.util.RadioStationData;
+import com.smoothradio.radio.core.util.Resource;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -20,7 +22,6 @@ import java.util.List;
 
 public class RadioLinkRepository {
     private static final String FILE_NAME = "file.txt";
-    private static final int RADIO_LINK_COUNT = 231;
     private final Context context;
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();

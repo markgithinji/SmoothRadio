@@ -1,10 +1,12 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.data;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+
+import com.smoothradio.radio.core.util.Resource;
 
 
 public class PlayerPreferencesRepository {

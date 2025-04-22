@@ -23,7 +23,6 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.transition.TransitionManager;
 
-import com.airbnb.lottie.LottieAnimationView;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.FullScreenContentCallback;
@@ -35,8 +34,8 @@ import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
-import com.smoothradio.radio.core.RadioViewModel;
-import com.smoothradio.radio.core.Resource;
+import com.smoothradio.radio.core.ui.RadioViewModel;
+import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
@@ -55,13 +54,11 @@ public class PlayerFragment extends Fragment {
     public RadioStation radioStation;
 
     FragmentPlayerBinding binding;
-    TextView tvMetadata;
 
     public String state = "";
     Boolean info = false;
     String metadata = "";
     String newMetadata = "";
-    public LottieAnimationView equalizerAnimation;
     boolean isPlaying = false;
     public CoordinatorLayout coordinatorLayout;
     //Ads
@@ -92,7 +89,7 @@ public class PlayerFragment extends Fragment {
         super.onCreate(savedInstanceState);
         mainActivity = (MainActivity) getContext();
 
-        radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
+        radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
         radioViewModel.getStationId();
 
         //for ad ui updates
@@ -121,6 +118,22 @@ public class PlayerFragment extends Fragment {
 
                 binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
                 binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+            }
+        });
+        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
+
+            if (station != null) {
+                radioStation = station;
+                if (stationId == radioStation.getId()) {
+                    playOrStop();
+                    Log.d("PlayerFragment", "sameid: " + radioStation.getStationName());
+                }else
+                {Log.d("PlayerFragment", "diffid: " + radioStation.getStationName());
+                    playFromMainActivity(radioStation);
+                }
+                radioViewModel.saveStationId(radioStation.getId());
+            }else {
+                Toast.makeText(mainActivity, "null", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -210,7 +223,7 @@ public class PlayerFragment extends Fragment {
             metadata = intent.getStringExtra(StreamService.EXTRA_TITLE);
             if (metadata != null) {
                 newMetadata = metadata.substring(0, Math.min(metadata.length(), 70));
-                tvMetadata.setText(newMetadata);
+                binding.tvMetadata.setText(newMetadata);
                 TransitionManager.beginDelayedTransition(binding.playerFrag);
             }
         }
@@ -218,6 +231,7 @@ public class PlayerFragment extends Fragment {
 
     //from MainActivity.........
     public void playFromMainActivity(RadioStation radioStation) {
+
         this.radioStation = radioStation;
 
 
@@ -300,16 +314,16 @@ public class PlayerFragment extends Fragment {
     }
 
     public void playOrStop( ) {
-        radioStation = new RadioStation(0, "", "", "", "", stationId);
-
-        int position = mainActivity.radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
-
-        if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.radioStationItems.isEmpty())) {
-            radioStation = mainActivity.radioListRecyclerViewAdapter.radioStationItems.get(position);
-        }
-
-        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+//        radioStation = new RadioStation(0, "", "", "", "", stationId);
+//
+//        int position = mainActivity.radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
+//
+//        if (!(mainActivity.radioListRecyclerViewAdapter==null||mainActivity.radioListRecyclerViewAdapter.radioStationItems.isEmpty())) {
+//            radioStation = mainActivity.radioListRecyclerViewAdapter.radioStationItems.get(position);
+//        }
+//
+//        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
+//        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
 
         Log.d("PlayerFragment", "playFromMainActivity: " + this.radioStation.getId()+" "+ this.radioStation.getUrl());
         if (isPlaying) {
@@ -509,7 +523,9 @@ public class PlayerFragment extends Fragment {
 
     void updateList() {
         if (mainActivity != null && mainActivity.radioListRecyclerViewAdapter != null) {
-            mainActivity.radioListRecyclerViewAdapter.updateStationList();
+            int position = mainActivity.radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
+
+            mainActivity.radioListRecyclerViewAdapter.notifyItemChanged(position);
         }
     }
 

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core;
+package com.smoothradio.radio.core.util;
 
 import android.content.Context;
 import java.io.File;
@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class CacheUtils {
+public class CacheUtil {
 
     /**
      * Deletes the application cache directory (and recreates it)
