@@ -50,7 +50,7 @@
         app:layout_constraintVertical_bias="5" />
 
     <ImageView
-        android:id="@+id/ivFavrite"
+        android:id="@+id/iv_favourite"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="?android:attr/selectableItemBackground"

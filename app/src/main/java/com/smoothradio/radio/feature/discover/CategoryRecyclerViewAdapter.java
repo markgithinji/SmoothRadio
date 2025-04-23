@@ -118,7 +118,7 @@ public class CategoryRecyclerViewAdapter extends RecyclerView.Adapter {
         public void onClick(View view) {
 
             //start playing
-            mainActivity.play(radioStation);
+//            mainActivity.play(radioStation);
             mainActivity.binding.viewPager.setCurrentItem(1);
 
 //            //update ui

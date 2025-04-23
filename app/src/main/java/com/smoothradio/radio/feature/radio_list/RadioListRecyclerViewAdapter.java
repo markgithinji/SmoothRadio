@@ -2,35 +2,29 @@ package com.smoothradio.radio.feature.radio_list;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-
 import androidx.annotation.NonNull;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
-
-import com.airbnb.lottie.LottieAnimationView;
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdView;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.snackbar.Snackbar;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
+import com.smoothradio.radio.databinding.AdviewBinding;
+import com.smoothradio.radio.databinding.RadioitemBinding;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
-
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 
@@ -38,61 +32,54 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     static MainActivity mainActivity;
 
     Boolean reverse = false;//sort asc/desc
-    Boolean showingFavourites = false;
-    Boolean showingAscending = false;
-    Boolean showingDescending = false;
-    Boolean showingSearch = false;
-    Boolean showingPopular = true;
 
     //RVitems
     final int AD_VIEW = 0;
     final int ITEM_VIEW = 1;
     final int EMPTY_FAVOURITE_ITEM = 2;
 
+    private static final int AD_POSITION_1 = 1;
+    private static final int AD_POSITION_2 = 9;
+    private static final int AD_POSITION_3 = 36;
+    private static final int AD_POSITION_4 = 45;
+    private static final int AD_POSITION_5 = 54;
+    private static final int AD_POSITION_6 = 72;
+
     //containers
     List<RadioStation> favouriteList = new ArrayList<>();
     public List<RadioStation> radioStationItems;
-    List<RadioStation> radioStationItemsWithAds;
     public List<RadioStation> stationListCopy;
-    public List<RadioStation> stationListCopyCopy;
+    public List<RadioStation> stationListPopular;
     List<RadioStation> filteredStationNameList = new ArrayList<>();
 
     RadioStation emptyRadioStation = new RadioStation(0, "", "", "", "", 0);
-    //OnclickListener
-    PlayOnclickListener playOnclickListener;
-    FavouriteListener favouriteListener;
+
     //sharedPref
     SharedPreferences sharedPreferences;
-    SharedPreferences.Editor prefsEditor;
+    private DisplayState currentState = DisplayState.POPULAR;
+
     int lastStationId;
 
-    public RadioListRecyclerViewAdapter(List<RadioStation> stationLogosList) {
-        stationListCopy = new ArrayList<>(stationLogosList);
-        radioStationItems = new ArrayList<>(stationListCopy);
-        stationListCopyCopy = new ArrayList<>(stationListCopy);
-        radioStationItemsWithAds = new ArrayList<>(stationListCopy);
-        //for ads
-        if(!stationLogosList.isEmpty())
-        {
-            radioStationItemsWithAds.add(1, emptyRadioStation);
-            radioStationItemsWithAds.add(9, emptyRadioStation);
-            radioStationItemsWithAds.add(36, emptyRadioStation);
-            radioStationItemsWithAds.add(45, emptyRadioStation);
-            radioStationItemsWithAds.add(54, emptyRadioStation);
-            radioStationItemsWithAds.add(72, emptyRadioStation);
-            radioStationItems.clear();
-            radioStationItems.addAll(radioStationItemsWithAds);
-        }
+    BottomSheetBehavior<View> bottomSheetBehavior;
 
+    public RadioListRecyclerViewAdapter(List<RadioStation> radioStations, BottomSheetBehavior<View> bottomSheetBehavior) {
+        this.bottomSheetBehavior = bottomSheetBehavior;
+
+        stationListCopy = new ArrayList<>(radioStations);
+        radioStationItems = new ArrayList<>(radioStations);
+        stationListPopular = new ArrayList<>(radioStations);
+        //for ads
+        if (!radioStations.isEmpty()) {
+            addAdPlaceholders();
+        }
     }
 
-    public void update(List<RadioStation> radioStationsList)
-    {
+    public void update(List<RadioStation> radioStationsList) {
         stationListCopy.clear();
-        stationListCopyCopy.clear();
+        stationListPopular.clear();
         radioStationItems.clear();
         stationListCopy.addAll(radioStationsList);
-        stationListCopyCopy.addAll(radioStationsList);
+        stationListPopular.addAll(radioStationsList);
         radioStationItems.addAll(radioStationsList);
         sortPopular();
     }
@@ -100,16 +87,13 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     @Override
     public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
         super.onAttachedToRecyclerView(recyclerView);
-
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-
                 if (!recyclerView.canScrollVertically(1)) {
-                    mainActivity.bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
                 } else {
-                    mainActivity.bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
                 }
             }
         });
@@ -122,24 +106,19 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
 //        //sharedpref
         sharedPreferences = mainActivity.getSharedPreferences("PlayerFragmentSharedPref", Context.MODE_PRIVATE);
-//        prefsEditor = sharedPreferences.edit();
-//        //for updating last played radio item
-//        lastStationId = sharedPreferences.getInt("stationId", 0);
+
 
         switch (viewType) {
             case ITEM_VIEW:
-                LayoutInflater itemLayoutInflater = LayoutInflater.from(mainActivity);
-                View itemView = itemLayoutInflater.inflate(R.layout.radioitem, parent, false);
-                return new ItemViewViewHolder(itemView);
-            case EMPTY_FAVOURITE_ITEM:
+                RadioitemBinding radioitemBinding = RadioitemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+                return new ItemViewViewHolder(radioitemBinding);
+            case AD_VIEW:
+                AdviewBinding adviewBinding = AdviewBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+                return new AdViewHolder(adviewBinding);
+            default:
                 LayoutInflater emptyFavLayoutInflater = LayoutInflater.from(mainActivity);
                 View emptyFavItemView = emptyFavLayoutInflater.inflate(R.layout.empty_favourities, parent, false);
                 return new EmptyFavouriteListViewHolder(emptyFavItemView);
-            case AD_VIEW:
-            default:
-                LayoutInflater adInflater = LayoutInflater.from(mainActivity);
-                View adItemView = adInflater.inflate(R.layout.adview, parent, false);
-                return new AdViewHolder(adItemView);
         }
     }
 
@@ -156,93 +135,69 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         if (viewType == ITEM_VIEW) {
             ItemViewViewHolder itemViewViewHolder = (ItemViewViewHolder) holder;
 
-            //favslist
-            favouriteList.clear();
-            for (int rsIndex = radioStationItems.size() - 1; rsIndex >= 0; rsIndex--) {
-                String snName = radioStationItems.get(rsIndex).getStationName();
-                if (sharedPreferences.contains("favouriteStationName" + snName)) {
-                    favouriteList.add(radioStationItems.get(rsIndex));
-                }
-            }
+            //favourite stations
+            refreshFavoritesList();
             if (favouriteList.contains(radioStation)) {
-                itemViewViewHolder.ivFavourite.setImageResource(R.drawable.favorite_20px_filled);
+                itemViewViewHolder.binding.ivFavourite.setImageResource(R.drawable.favorite_20px_filled);
             } else {
-                itemViewViewHolder.ivFavourite.setImageResource(R.drawable.favorite_20px);
+                itemViewViewHolder.binding.ivFavourite.setImageResource(R.drawable.favorite_20px);
             }
 
-            /////////
-            itemViewViewHolder.ivChannelLogo.setBackgroundResource(radioStation.getSmallLogo());
-            itemViewViewHolder.tvChannelName.setText(radioStation.getStationName());
-            itemViewViewHolder.tvChannelFrequency.setText(radioStation.getFrequency());
-            itemViewViewHolder.tvChannelLocation.setText(radioStation.getLocation());
-            playOnclickListener = new PlayOnclickListener(radioStation, itemViewViewHolder);
-            itemViewViewHolder.ivPlay.setImageResource(R.drawable.playicon);
+            itemViewViewHolder.binding.ivLogo.setBackgroundResource(radioStation.getSmallLogo());
+            itemViewViewHolder.binding.tvChannelName.setText(radioStation.getStationName());
+            itemViewViewHolder.binding.tvFrequency.setText(radioStation.getFrequency());
+            itemViewViewHolder.binding.tvLocation.setText(radioStation.getLocation());
+            itemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.playicon);
+            itemViewViewHolder.binding.ivPlay.setOnClickListener(new PlayOnclickListener(radioStation, itemViewViewHolder));
+            itemViewViewHolder.binding.ivFavourite.setOnClickListener(new FavouriteListener(radioStation, itemViewViewHolder));
 
-
-            itemViewViewHolder.ivPlay.setOnClickListener(playOnclickListener);
-            favouriteListener = new FavouriteListener(radioStation, itemViewViewHolder);
-            itemViewViewHolder.ivFavourite.setOnClickListener(favouriteListener);
             //scroll animation
-            itemViewViewHolder.clParent.setAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.recyclerviewscrollanimation));
+            itemViewViewHolder.binding.clLayout.setAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.recyclerviewscrollanimation));
 
             //playing
             if (mainActivity.playerFragment.radioStation.getId() == radioStation.getId() && mainActivity.playerFragment.state.equals("Playing")) {
-                itemViewViewHolder.ivPlay.setImageResource(R.drawable.pauseicon);
-                itemViewViewHolder.loadingAnimation.setVisibility(View.INVISIBLE);
-                itemViewViewHolder.ivPlay.setVisibility(View.VISIBLE);
+                itemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.pauseicon);
+                itemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
+                itemViewViewHolder.binding.ivPlay.setVisibility(View.VISIBLE);
             } else if (mainActivity.playerFragment.state.equals("Preparing Audio") && mainActivity.playerFragment.radioStation.getId() == radioStation.getId()) {
-                itemViewViewHolder.loadingAnimation.setVisibility(View.VISIBLE);
-                itemViewViewHolder.ivPlay.setVisibility(View.INVISIBLE);
+                itemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
+                itemViewViewHolder.binding.ivPlay.setVisibility(View.INVISIBLE);
 
             } else if (mainActivity.playerFragment.state.equals("Buffering") && radioStation.getId() == lastStationId) {
-                itemViewViewHolder.loadingAnimation.setVisibility(View.VISIBLE);
-                itemViewViewHolder.ivPlay.setVisibility(View.INVISIBLE);
+                itemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
+                itemViewViewHolder.binding.ivPlay.setVisibility(View.INVISIBLE);
 
             } else {
-                itemViewViewHolder.loadingAnimation.setVisibility(View.INVISIBLE);
-                itemViewViewHolder.ivPlay.setVisibility(View.VISIBLE);
+                itemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
+                itemViewViewHolder.binding.ivPlay.setVisibility(View.VISIBLE);
             }
 
         } else if (viewType == AD_VIEW) {
             AdViewHolder adViewHolder = (AdViewHolder) holder;
             AdRequest adRequest = new AdRequest.Builder().build();
-            adViewHolder.adView.loadAd(adRequest);
-
+            adViewHolder.binding.adViewRecyclerviewItem.loadAd(adRequest);
         }
     }
 
 
     @Override
     public int getItemViewType(int position) {
-        /*
-         * change added ads positions here, at sortPopular, at sortAscending,at sortDescending, at filter() and constuctor
-         */
-        if (showingSearch) {
-            if (!(filteredStationNameList.size() > 0)) {
-                return EMPTY_FAVOURITE_ITEM;
-            }
+        // Empty states
+        if ((currentState.equals(DisplayState.SEARCH) && filteredStationNameList.isEmpty()) ||
+                (currentState.equals(DisplayState.FAVORITES) && favouriteList.isEmpty())) {
+            return EMPTY_FAVOURITE_ITEM;
         }
-        if (showingFavourites) {
-            if (!(favouriteList.size() > 0)) {
-                return EMPTY_FAVOURITE_ITEM;
-            }
+
+        // Ad placeholder check
+        boolean isAdPosition = position == AD_POSITION_1 || position == AD_POSITION_2 ||
+                position == AD_POSITION_3 || position == AD_POSITION_4 ||
+                position == AD_POSITION_5 || position == AD_POSITION_6;
+
+        if ((currentState.equals(DisplayState.POPULAR) || currentState.equals(DisplayState.ASCENDING)
+                || currentState.equals(DisplayState.DESCENDING)) && isAdPosition) {
+            return AD_VIEW;
         }
-        boolean b = position == 1 || position == 9 || position == 36 || position == 45 || position == 54 || position == 72;
-        if (showingDescending) {
-            if (b) {
-                return AD_VIEW;//shows Ads on pos 1 & 9 etc
-            }
-        }
-        if (showingAscending) {
-            if (b) {
-                return AD_VIEW;//shows Ads on pos 1 & 9 etc
-            }
-        }
-        if (showingPopular) {
-            if (b) {
-                return AD_VIEW;//shows Ads on pos 1 & 9 etc
-            }
-        }
+
         return ITEM_VIEW;
     }
 
@@ -252,34 +207,21 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
     class ItemViewViewHolder extends RecyclerView.ViewHolder {
-        TextView tvChannelName;
-        TextView tvChannelLocation;
-        TextView tvChannelFrequency;
-        ImageView ivChannelLogo;
-        ConstraintLayout clParent;
-        ImageView ivFavourite;
-        ImageView ivPlay;
-        LottieAnimationView loadingAnimation;
+        private final RadioitemBinding binding;
 
-        public ItemViewViewHolder(@NonNull View itemView) {
-            super(itemView);
-            tvChannelName = itemView.findViewById(R.id.tvChannelName);
-            tvChannelLocation = itemView.findViewById(R.id.tvLocation);
-            tvChannelFrequency = itemView.findViewById(R.id.tvFrequency);
-            ivChannelLogo = itemView.findViewById(R.id.ivLogo);
-            ivFavourite = itemView.findViewById(R.id.ivFavrite);
-            clParent = itemView.findViewById(R.id.clLayout);
-            ivPlay = itemView.findViewById(R.id.ivPlay);
-            loadingAnimation = itemView.findViewById(R.id.lottie_loading_animation);
+        public ItemViewViewHolder(@NonNull RadioitemBinding binding) {
+            super(binding.getRoot());
+            this.binding = binding;
         }
     }
 
-    class AdViewHolder extends RecyclerView.ViewHolder {
-        AdView adView;
 
-        public AdViewHolder(@NonNull View itemView) {
-            super(itemView);
-            adView = itemView.findViewById(R.id.adViewRecyclerviewItem);
+    public class AdViewHolder extends RecyclerView.ViewHolder {
+        private final AdviewBinding binding;
+
+        public AdViewHolder(@NonNull AdviewBinding binding) {
+            super(binding.getRoot());
+            this.binding = binding;
         }
     }
 
@@ -309,40 +251,25 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
-            Log.d("Adapter", "playFromMainActivity: " + radioStation.getId()+" "+radioStation.getStationName());
-
-
-
             if (stationId == lastStationId) {
-//                mainActivity.playerFragment.playOrStop();
-
                 mainActivity.radioViewModel.setSelectedStation(radioStation);
                 notifyItemChanged(getPosOfStation(stationId));
 
-//                Log.d("AdapterSame", "playFromMainActivity: " + radioStation.getId());
-
             } else {
-                Log.d("AdapterDifferent", "playFromMainActivity: " + radioStation.getId());
-
 
                 // not necessary but done to make play feel more instant
-                currentItemViewViewHolder.ivPlay.setImageResource(R.drawable.pauseicon);
-                currentItemViewViewHolder.loadingAnimation.setVisibility(View.VISIBLE);
-                currentItemViewViewHolder.ivPlay.setVisibility(View.INVISIBLE);
+                currentItemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.pauseicon);
+                currentItemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
+                currentItemViewViewHolder.binding.ivPlay.setVisibility(View.INVISIBLE);
                 //
-//
                 mainActivity.radioViewModel.setStreamState(StreamService.StreamStates.PREPARING);
                 notifyItemChanged(getPosOfStation(lastStationId));// update prev station item
                 notifyItemChanged(getPosOfStation(stationId));// update current station item
                 mainActivity.radioViewModel.setSelectedStation(radioStation);
-
-//                mainActivity.play(radioStation);
-//                lastStationId = radioStation.getId();
             }
 
         }
     }
-
 
 
     public void updateStationList() {
@@ -367,201 +294,241 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
-            favouriteList.clear();
-            for (int rsIndex = radioStationItems.size() - 1; rsIndex >= 0; rsIndex--) {
-                String snName = radioStationItems.get(rsIndex).getStationName();
-                if (sharedPreferences.contains("favouriteStationName" + snName)) {
-                    favouriteList.add(radioStationItems.get(rsIndex));
-                }
-            }
-            if (!favouriteList.contains(radioStation)) {
-                if (favouriteList.size() < 20) {
-                    favouriteList.add(radioStation);
-                    prefsEditor.putString("favouriteStationName" + radioStation.getStationName(), radioStation.getStationName());
-                    prefsEditor.commit();
-                    itemViewViewHolder.ivFavourite.setImageResource(R.drawable.favorite_20px_filled);
-                    snackbar = Snackbar.make(view, "added " + radioStation.getStationName() + " to favourites.", Snackbar.LENGTH_LONG);
-                } else {
-                    snackbar = Snackbar.make(view, "CAN'T add more than 20 favourite stations", Snackbar.LENGTH_LONG);
-                }
-                snackbar.setAnchorView(mainActivity.binding.miniPlayer.bottomSheetLayout);
-                snackbar.show();
-                mainActivity.hideKeyboard();
+            // Check current favorite state
+            boolean isFavorite = isStationFavorite(radioStation);
+            refreshFavoritesList();
+            if (isFavorite) {
+                removeFromFavorites(view);
             } else {
-                prefsEditor.remove("favouriteStationName" + radioStation.getStationName());
-                prefsEditor.commit();
-                favouriteList.remove(radioStation);
-                itemViewViewHolder.ivFavourite.setImageResource(R.drawable.favorite_20px);
-                snackbar = Snackbar.make(view, "removed " + radioStation.getStationName() + " from favourites.", Snackbar.LENGTH_SHORT);
-                snackbar.setAnchorView(mainActivity.binding.miniPlayer.bottomSheetLayout);
-                snackbar.show();
-                mainActivity.hideKeyboard();
-                if (showingFavourites) {
-                    radioStationItems.clear();
-                    radioStationItems.addAll(favouriteList);
-                    Collections.sort(radioStationItems, new Comparator<RadioStation>() {
-                        @Override
-                        public int compare(RadioStation radioStation, RadioStation t1) {
-                            return radioStation.getStationName().replace(" ", "").compareTo(t1.getStationName().replace(" ", ""));
-                        }
-                    });
-                    notifyDataSetChanged();
-                }
+                addToFavorites(view);
+            }
+        }
+
+        private boolean isStationFavorite(RadioStation station) {
+            return sharedPreferences.contains("favouriteStationName" + station.getStationName());
+        }
+
+        private void removeFromFavorites(View view) {
+            sharedPreferences.edit()
+                    .remove("favouriteStationName" + radioStation.getStationName())
+                    .apply();
+            // Update UI
+            itemViewViewHolder.binding.ivFavourite.setImageResource(R.drawable.favorite_20px);
+            showSnackbar(view, "Removed " + radioStation.getStationName() + " from favorites", Snackbar.LENGTH_SHORT);
+
+            handlePostFavoriteAction();
+        }
+
+        private void addToFavorites(View view) {
+            if (favouriteList.size() >= 20) {
+                showSnackbar(view, "Can't add more than 20 favorite stations", Snackbar.LENGTH_LONG);
+                return;
+            }
+            // Add to favorites
+            sharedPreferences.edit()
+                    .putString("favouriteStationName" + radioStation.getStationName(), radioStation.getStationName())
+                    .apply();
+            // Update UI
+            itemViewViewHolder.binding.ivFavourite.setImageResource(R.drawable.favorite_20px_filled);
+            showSnackbar(view, "Added " + radioStation.getStationName() + " to favorites", Snackbar.LENGTH_LONG);
+
+            handlePostFavoriteAction();
+        }
+
+        private void handlePostFavoriteAction() {
+            mainActivity.hideKeyboard();
+            refreshFavoritesList();
+
+            if (currentState.equals(DisplayState.FAVORITES)) {
+                updateFavoritesDisplay();
+            }
+        }
+
+        private void updateFavoritesDisplay() {
+            radioStationItems.clear();
+            radioStationItems.addAll(favouriteList);
+            sortStationsByName(radioStationItems);
+            notifyDataSetChanged();
+        }
+
+        private void showSnackbar(View view, String message, int duration) {
+            snackbar = Snackbar.make(view, message, duration);
+            snackbar.setAnchorView(mainActivity.binding.miniPlayer.bottomSheetLayout);
+            snackbar.show();
+        }
+
+    }
+
+
+    public void filter(String input) {
+        // Reset to popular if currently in special modes
+        if (currentState != DisplayState.POPULAR && currentState != DisplayState.SEARCH) {
+            sortPopular();
+        }
+        // Clear previous results
+        filteredStationNameList.clear();
+
+        if (TextUtils.isEmpty(input)) {
+            handleEmptySearch();
+        } else {
+            handleSearchQuery(input);
+        }
+
+        updateDisplayedResults();
+    }
+
+    private void handleEmptySearch() {
+        currentState = DisplayState.POPULAR;
+        filteredStationNameList.addAll(stationListPopular);
+        addAdPlaceholders(filteredStationNameList);
+    }
+
+    private void handleSearchQuery(String query) {
+        currentState = DisplayState.SEARCH;
+        String lowerQuery = query.toLowerCase();
+
+        for (RadioStation station : stationListPopular) {
+            if (station.getStationName().toLowerCase().contains(lowerQuery)) {
+                filteredStationNameList.add(station);
             }
         }
     }
 
+    private void updateDisplayedResults() {
+        radioStationItems.clear();
 
-
-    public void filter(String input) {
-        if (showingFavourites || showingAscending || showingDescending) {
-            sortPopular();//avoid searching while in other states
-        }
-        filteredStationNameList.clear();
-
-        if (input == null || input.length() == 0) {
-            showingSearch = false;
-            showingPopular = true;
-            filteredStationNameList.addAll(stationListCopyCopy);
-            //ads
-            filteredStationNameList.add(1, emptyRadioStation);
-            filteredStationNameList.add(9, emptyRadioStation);
-            filteredStationNameList.add(36, emptyRadioStation);
-            filteredStationNameList.add(45, emptyRadioStation);
-            filteredStationNameList.add(54, emptyRadioStation);
-            filteredStationNameList.add(72, emptyRadioStation);
+        if (filteredStationNameList.isEmpty()) {
+            radioStationItems.add(emptyRadioStation);
         } else {
-            showingSearch = true;
-            showingPopular = false;
-            for (RadioStation radioStation : stationListCopy) {
-                if (radioStation.getStationName().toLowerCase().contains(input.toLowerCase())) {
-                    filteredStationNameList.add(radioStation);
-                }
+            radioStationItems.addAll(filteredStationNameList);
+        }
+
+        notifyDataSetChanged();
+    }
+
+    // Consolidated ad placement method
+    private void addAdPlaceholders(List<RadioStation> list) {
+        final int[] AD_POSITIONS = {1, 9, 36, 45, 54, 72};
+        for (int position : AD_POSITIONS) {
+            if (position < list.size()) {
+                list.add(position, emptyRadioStation);
             }
         }
+    }
+
+    public void sortAscending() {
+        currentState = DisplayState.ASCENDING;
+
+        // Clear and repopulate the list
         radioStationItems.clear();
-        radioStationItems.addAll(filteredStationNameList);
-        if (!(filteredStationNameList.size() > 0)) {
-            radioStationItems.clear();
-            radioStationItems.add(emptyRadioStation);
-        }
+        radioStationItems.addAll(stationListPopular);
+
+        sortStationsByName(radioStationItems, true);
+
+        notifyDataSetChanged();
+    }
+
+    // Reusable sorting method
+    private void sortStationsByName(List<RadioStation> stations, boolean ascending) {
+        Collections.sort(stations, (s1, s2) -> {
+            String name1 = s1.getStationName().replace(" ", "");
+            String name2 = s2.getStationName().replace(" ", "");
+            int comparison = name1.compareToIgnoreCase(name2);
+            return ascending ? comparison : -comparison; // Reverse for descending
+        });
+    }
+
+
+    public void sortDescending() {
+        // Update state using enum
+        currentState = DisplayState.DESCENDING;
+
+        // Clear and repopulate the list
+        radioStationItems.clear();
+        radioStationItems.addAll(stationListPopular);
+
+        // Sort in descending order
+        sortStationsByName(radioStationItems, false);
+
+        // Notify adapter of changes
         notifyDataSetChanged();
     }
 
     public void sortFavourites() {
-        showingPopular = false;
-        showingSearch = false;
-        showingFavourites = true;
-        showingAscending = false;
-        showingDescending = false;
+        // Update state
+        currentState = DisplayState.FAVORITES;
+
+        // Refresh favorites list from shared preferences
+        refreshFavoritesList();
+
+        if (favouriteList.isEmpty()) {
+            showNoFavoritesMessage();
+            displayEmptyState();
+        } else {
+            displaySortedFavorites();
+        }
+    }
+
+    private void refreshFavoritesList() {
         favouriteList.clear();
-        for (int rsIndex = stationListCopyCopy.size() - 1; rsIndex >= 0; rsIndex--) {
-            String snName = stationListCopyCopy.get(rsIndex).getStationName();
-            if (sharedPreferences.contains("favouriteStationName" + snName)) {
-                favouriteList.add(stationListCopyCopy.get(rsIndex));
+        for (RadioStation station : stationListPopular) {
+            String prefKey = "favouriteStationName" + station.getStationName();
+            if (sharedPreferences.contains(prefKey)) {
+                favouriteList.add(station);
             }
         }
-        if (!(favouriteList.size() > 0)) {
-            Toast.makeText(mainActivity, "no Favourite Stations added!", Toast.LENGTH_SHORT).show();
-            radioStationItems.clear();
-            radioStationItems.add(emptyRadioStation);
-            notifyDataSetChanged();
-        } else {
-            radioStationItems.clear();
-            radioStationItems.addAll(favouriteList);
-            Collections.sort(radioStationItems, new Comparator<RadioStation>() {
-                @Override
-                public int compare(RadioStation radioStation, RadioStation t1) {
-                    return radioStation.getStationName().replace(" ", "").compareTo(t1.getStationName().replace(" ", ""));
-                }
-            });
-            notifyDataSetChanged();
-        }
-
-
     }
 
-    public void sortAscending() {
-        showingPopular = false;
-        showingFavourites = false;
-        showingAscending = true;
-        showingDescending = false;
-        showingSearch = false;
+    private void showNoFavoritesMessage() {
+        if (mainActivity != null) {
+            mainActivity.runOnUiThread(() ->
+                    Toast.makeText(mainActivity, "No favorite stations added!", Toast.LENGTH_SHORT).show()
+            );
+        }
+    }
+
+    private void displayEmptyState() {
         radioStationItems.clear();
-        radioStationItems.addAll(stationListCopyCopy);
-        Collections.sort(radioStationItems, new Comparator<RadioStation>() {
-            @Override
-            public int compare(RadioStation radioStation, RadioStation t1) {
-                return radioStation.getStationName().replace(" ", "").compareTo(t1.getStationName().replace(" ", ""));
-            }
-        });
-        //ads
-        radioStationItems.add(1, emptyRadioStation);
-        radioStationItems.add(9, emptyRadioStation);
-        radioStationItems.add(36, emptyRadioStation);
-        radioStationItems.add(45, emptyRadioStation);
-        radioStationItems.add(54, emptyRadioStation);
-        radioStationItems.add(72, emptyRadioStation);
+        radioStationItems.add(emptyRadioStation);
         notifyDataSetChanged();
-        reverse = true;
     }
 
-    public void sortDescending() {
-        showingPopular = false;
-        showingFavourites = false;
-        showingAscending = false;
-        showingDescending = true;
-        showingSearch = false;
+    private void displaySortedFavorites() {
         radioStationItems.clear();
-        radioStationItems.addAll(stationListCopyCopy);
-        Collections.sort(radioStationItems, new Comparator<RadioStation>() {
-            @Override
-            public int compare(RadioStation radioStation, RadioStation t1) {
-                return radioStation.getStationName().replace(" ", "").compareTo(t1.getStationName().replace(" ", ""));
-            }
-        });
-        reverse = true;
-        if (reverse) {
-            Collections.reverse(radioStationItems);
-            //ads
-            radioStationItems.add(1, emptyRadioStation);
-            radioStationItems.add(9, emptyRadioStation);
-            radioStationItems.add(36, emptyRadioStation);
-            radioStationItems.add(45, emptyRadioStation);
-            radioStationItems.add(54, emptyRadioStation);
-            radioStationItems.add(72, emptyRadioStation);
+        radioStationItems.addAll(favouriteList);
+        sortStationsByName(radioStationItems);
+        notifyDataSetChanged();
+    }
 
-            notifyDataSetChanged();
-            reverse = false;
-        } else {
-            //ads
-            radioStationItems.add(1, emptyRadioStation);
-            radioStationItems.add(9, emptyRadioStation);
-            radioStationItems.add(36, emptyRadioStation);
-            radioStationItems.add(45, emptyRadioStation);
-            radioStationItems.add(54, emptyRadioStation);
-            radioStationItems.add(72, emptyRadioStation);
-            notifyDataSetChanged();
-        }
+    // Reusable sorting utility
+    private void sortStationsByName(List<RadioStation> stations) {
+        Collections.sort(stations, (s1, s2) ->
+                s1.getStationName().replace(" ", "")
+                        .compareToIgnoreCase(s2.getStationName().replace(" ", ""))
+        );
     }
 
     public void sortPopular() {
-        showingPopular = true;
-        showingFavourites = false;
-        showingAscending = false;
-        showingDescending = false;
-        showingSearch = false;
+        currentState = DisplayState.POPULAR;
         radioStationItems.clear();
-        radioStationItems.addAll(stationListCopyCopy);
-        //ads
-        radioStationItems.add(1, emptyRadioStation);
-        radioStationItems.add(9, emptyRadioStation);
-        radioStationItems.add(36, emptyRadioStation);
-        radioStationItems.add(45, emptyRadioStation);
-        radioStationItems.add(54, emptyRadioStation);
-        radioStationItems.add(72, emptyRadioStation);
+        radioStationItems.addAll(stationListPopular);
+        addAdPlaceholders();
         notifyDataSetChanged();
     }
 
+    private enum DisplayState {
+        POPULAR,
+        FAVORITES,
+        ASCENDING,
+        DESCENDING,
+        SEARCH
+    }
 
+    // Helper Methods
+    private void addAdPlaceholders() {
+        int[] adPositions = {AD_POSITION_1, AD_POSITION_2, AD_POSITION_3, AD_POSITION_4, AD_POSITION_5, AD_POSITION_6};
+        for (int pos : adPositions) {
+            radioStationItems.add(pos, emptyRadioStation);
+        }
+    }
 }
