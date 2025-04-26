@@ -9,12 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -49,11 +48,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ViewPager
     private ViewPagerAdapter viewPagerAdapter;
-    private static int currentPage;
-    private static int tabPosition;
-
-    // Fragment
-    public PlayerFragment playerFragment;
+    private int tabPosition;
 
     // Adapter
     public RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
@@ -64,12 +59,9 @@ public class MainActivity extends AppCompatActivity {
     // Bottom sheet
     public BottomSheetBehavior<View> bottomSheetBehavior;
 
-    // UI state
-    private boolean searchVisible = false;
-    private static String lifecycleStage = "";
-
     // Input & keyboard
     private InputMethodManager inputMethodManager;
+    private boolean searchVisible = false;
 
     // Firebase
     private FirebaseAnalytics firebaseAnalytics;
@@ -77,18 +69,15 @@ public class MainActivity extends AppCompatActivity {
     // Radio stations (local data)
     public final List<RadioStation> radioStationsList = new ArrayList<>();
 
-    // Online database (static lists shared across app)
-    public static ArrayList<String> linksFromTxt = new ArrayList<>();
-    public static ArrayList<String> linksAfterUpdate = new ArrayList<>();
-
     private int stationId;
+    private String state;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);// for displaying splash screen
+        SplashScreen.installSplashScreen(this);// for displaying splash screen
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -106,8 +95,7 @@ public class MainActivity extends AppCompatActivity {
         setupObservers();
 
         //Add fragment to get it later. Cannot be added after ViewPager creates fragment
-        playerFragment = new PlayerFragment();
-        getSupportFragmentManager().beginTransaction().add(playerFragment, "PlayerFragment").commit();
+        getSupportFragmentManager().beginTransaction().add(new PlayerFragment(), "PlayerFragment").commit();
 
         setupViewPagerAndTabs();
 
@@ -117,22 +105,18 @@ public class MainActivity extends AppCompatActivity {
 
         setupBroadcastReceiver();
 
-        if (Build.VERSION.SDK_INT >= 33) {
-            requestPermissions();
-        }
+        requestPermissions();
 
         inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);//for Hiding KeyBoard
 
         firebaseAnalytics = FirebaseAnalytics.getInstance(this);
-
     }
 
     private void setupObservers() {
         // Init radio links
         radioViewModel.isFirstTime();
         radioViewModel.getStationId();
-        radioViewModel.getLocalLinks();
-        radioViewModel.getRemoteStreamLinks();
+        radioViewModel.getRemoteLinks();
 
         radioViewModel.getIsFirstTimeLiveData().observe(this, resource -> {
             if (resource.status == Resource.Status.SUCCESS) {
@@ -143,48 +127,38 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        radioViewModel.getLocalLinksLiveData().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                linksFromTxt.clear();////////////////////////////////////////////////////////////////////////////////
-                linksFromTxt.addAll(resource.data);
 
-                radioListRecyclerViewAdapter.update(RadioStationsHelper.createRadioStations(linksFromTxt));
-                radioViewModel.getStationId();
-            }
-        });
-        //update mini player
         radioViewModel.getStationIdLivedata().observe(this, intResource -> {
             if (intResource.status == Resource.Status.SUCCESS) {
                 stationId = intResource.data;
                 radioListRecyclerViewAdapter.setSelectedStationId(stationId);
-                updateMiniPlayer(getLatestStationUsingSavedId());
             }
         });
-        radioViewModel.getRemoteinksLiveData().observe(this, resource -> {
+
+        radioViewModel.getRemoteLinksLiveData().observe(this, resource -> {
             if (resource.status == Resource.Status.SUCCESS) {
-                List<String> links = resource.data;
-                linksAfterUpdate = new ArrayList<>(links);
-
-                if (!linksFromTxt.equals(linksAfterUpdate)) {
-                    linksFromTxt.clear();
-                    linksFromTxt.addAll(linksAfterUpdate);
-
-                    radioListRecyclerViewAdapter.update(RadioStationsHelper.createRadioStations(linksFromTxt));
-
-                    Toast.makeText(MainActivity.this, "Stations updated", Toast.LENGTH_SHORT).show();
-                }
+                List<RadioStation> radioStations = RadioStationsHelper.createRadioStations(resource.data);
+                radioListRecyclerViewAdapter.update(radioStations);
+                updateMiniPlayer(getLatestStationUsingSavedId());
             }
         });
 
         radioViewModel.getSelectedStation().observe(this, radioStation -> {
             hideKeyboard();
-
+            radioListRecyclerViewAdapter.setSelectedStation(radioStation);
             updateMiniPlayer(radioStation);
         });
 
+        radioViewModel.getFavoriteStationNames().observe(this, resource -> {
+            if (resource.status == Resource.Status.SUCCESS) {
+                radioListRecyclerViewAdapter.setFavouriteList(resource.data);
+            }
+        });
     }
 
     private void setupViewPagerAndTabs() {
+
+
         viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager(), getLifecycle());
         viewPagerAdapter.addFragments();
         binding.viewPager.setAdapter(viewPagerAdapter);
@@ -198,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
             public void onTabSelected(TabLayout.Tab tab) {
                 tabPosition = tab.getPosition();
                 binding.viewPager.setCurrentItem(tabPosition);
-                viewPagerAdapter.notifyItemChanged(tabPosition);
+                viewPagerAdapter.notifyDataSetChanged();
                 bottomSheetBehavior.setState(tabPosition == 0
                         ? BottomSheetBehavior.STATE_COLLAPSED
                         : BottomSheetBehavior.STATE_HIDDEN);
@@ -288,24 +262,24 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        lifecycleStage = "onDestroy";
         CacheUtil.clearAppCache(this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        currentPage = binding.viewPager.getCurrentItem();
+        radioViewModel.setCurrentPage(binding.viewPager.getCurrentItem());
         radioViewModel.removeStreamLinkListener();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        lifecycleStage = "onResume";
 
+        Integer currentPage = radioViewModel.getCurrentPage().getValue();
+        binding.viewPager.setCurrentItem(currentPage, false);
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentPage));
-        binding.viewPager.setCurrentItem(currentPage);
+
 
         if (searchVisible && binding.etSearch.getText().length() > 0) {
             binding.ivClearSearch.setVisibility(View.VISIBLE);
@@ -313,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
             binding.ivClearSearch.setVisibility(View.INVISIBLE);
         }
 
-        radioViewModel.getRemoteStreamLinks();
+        radioViewModel.getRemoteLinks();
     }
 
 
@@ -321,21 +295,20 @@ public class MainActivity extends AppCompatActivity {
     public class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
+            state = intent.getStringExtra(StreamService.EXTRA_STATE);
+            radioListRecyclerViewAdapter.setState(state);
 
-            if (!lifecycleStage.equals("onDestroy")) {
-                if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
-                    binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
-                    binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
-                } else if (state.equals(StreamService.StreamStates.PLAYING)) {
-                    binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
-                    binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-                    binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
-                } else {
-                    binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-                    binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
-                    binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
-                }
+            if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
+                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
+                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
+            } else if (state.equals(StreamService.StreamStates.PLAYING)) {
+                binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
+                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
+                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+            } else {
+                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
+                binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
+                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
             }
             //update mini player
             binding.miniPlayer.tvStatusMiniPlayerLayout.setText(state);
@@ -349,29 +322,25 @@ public class MainActivity extends AppCompatActivity {
 
     void miniPlayerPlayPause() {
         radioViewModel.setSelectedStation(getLatestStationUsingSavedId());
-
-        if (playerFragment.getIsPlaying())//if is playing
-        {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
-        } else {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
-        }
     }
 
     RadioStation getLatestStationUsingSavedId() {
         RadioStation radioStation = new RadioStation(0, "", "", "", "", stationId);
-        int position = radioListRecyclerViewAdapter.radioStationItems.indexOf(radioStation);
+        int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
 
-        if (!radioListRecyclerViewAdapter.radioStationItems.isEmpty()) {
-            radioStation = radioListRecyclerViewAdapter.radioStationItems.get(position);
+        if (!(radioListRecyclerViewAdapter.stationListIsEmpty()&&position==-1)) {
+            radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position);
         }
         return radioStation;
     }
 
     void requestPermissions() {
-        String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
-        ActivityCompat.requestPermissions(this, permissions, 0);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
+            ActivityCompat.requestPermissions(this, permissions, 0);
+        }
     }
+
 
     public void sendFirebaseAnalytics(String stationName) {
         String event = stationName.toLowerCase().replace(" ", "");
@@ -390,8 +359,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu, menu);
+        getMenuInflater().inflate(R.menu.menu, menu);
         return true;
     }
 
@@ -408,13 +376,13 @@ public class MainActivity extends AppCompatActivity {
                 sortDialog.show(getSupportFragmentManager(), "dialogueFragment");
                 return true;
             case R.id.action_info:
-
-                Intent intent = new Intent(this, AboutFragment.class);
-                startActivity(intent);
-
+                startActivity(new Intent(this, AboutFragment.class));
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+    public RadioListRecyclerViewAdapter getAdapter(){
+        return radioListRecyclerViewAdapter;
     }
 }

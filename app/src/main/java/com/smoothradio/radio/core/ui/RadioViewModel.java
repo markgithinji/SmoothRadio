@@ -20,13 +20,12 @@ public class RadioViewModel extends AndroidViewModel {
 
     private final RadioLinkRepository radioLinkRepository;
     private final PlayerPreferencesRepository prefsRepo;
-
-    private LiveData<Resource<List<String>>> remoteRadioLinksLiveData;
     private LiveData<Resource<List<String>>> localRadioLinksLiveData;
     private LiveData<Resource<Boolean>> isFirstTimeLiveData;
     private LiveData<Resource<Integer>> stationIdLiveData;
     private final MutableLiveData<RadioStation> selectedStation = new MutableLiveData<>();
     private final MutableLiveData<String> streamState = new MutableLiveData<>(StreamService.StreamStates.IDLE);
+    private final MutableLiveData<Integer> currentPage = new MutableLiveData<>(0);
 
 
     public RadioViewModel(@NonNull Application application) {
@@ -42,27 +41,24 @@ public class RadioViewModel extends AndroidViewModel {
     // Radio Links Logic
     // -----------------------
 
+    // Create default file (e.g. first time launch)
     public void createInitialLinks() {
         radioLinkRepository.createInitialTxt();
     }
 
-    public void getLocalLinks() {
-        localRadioLinksLiveData = radioLinkRepository.getLocalLinks();
-    }
-    public void getRemoteStreamLinks() {
-        remoteRadioLinksLiveData = radioLinkRepository.getRemoteStreamLinks();
+    // Fetch remote links from Firestore and update file only if needed
+    public void getRemoteLinks() {
+        localRadioLinksLiveData = radioLinkRepository.getRemoteStreamLinks();
     }
 
-    public LiveData<Resource<List<String>>> getRemoteinksLiveData() {
-        return remoteRadioLinksLiveData;
-    }
-    public LiveData<Resource<List<String>>> getLocalLinksLiveData() {
-        return remoteRadioLinksLiveData;
+    public LiveData<Resource<List<String>>> getRemoteLinksLiveData() {
+        return localRadioLinksLiveData;
     }
 
     public void removeStreamLinkListener() {
         radioLinkRepository.removeListener();
     }
+
     @Override
     protected void onCleared() {
         super.onCleared();
@@ -103,7 +99,7 @@ public class RadioViewModel extends AndroidViewModel {
     }
 
     public LiveData<RadioStation> getSelectedStation() {
-        Log.d("ViewModel", "setSelectedStation: ");
+
         return selectedStation;
     }
 
@@ -116,4 +112,34 @@ public class RadioViewModel extends AndroidViewModel {
     public void setStreamState(String state) {
         streamState.setValue(state);
     }
+
+    //-------------------------
+    // Favourites Logic
+    //-------------------------
+    // Add a station name to favorites
+    public void addToFavorites(String stationName) {
+        prefsRepo.addFavorite(stationName);
+    }
+
+    // Remove a station name from favorites
+    public void removeFromFavorites(String stationName) {
+        prefsRepo.removeFavorite(stationName);
+    }
+
+    // Observe favorite names list
+    public LiveData<Resource<List<String>>> getFavoriteStationNames() {
+        return prefsRepo.getFavoriteStationNames();
+    }
+
+    //-------------------------
+    // Pager Logic
+    //-------------------------
+    public LiveData<Integer> getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int page) {
+        currentPage.setValue(page);
+    }
+
 }

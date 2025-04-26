@@ -23,7 +23,7 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.smoothradio.radio.debug" />
-                  <option name="mobileSdkAppId" value="1:336633997023:android:93ac0fc9d5c1c45f47eb6a" />
+                  <option name="mobileSdkAppId" value="1:336633997023:android:a6ee833868e6cf2947eb6a" />
                   <option name="projectId" value="smoothradio-8c5d4" />
                   <option name="projectNumber" value="336633997023" />
                 </ConnectionSetting>

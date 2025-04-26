@@ -73,14 +73,15 @@ public class DiscoverFragment extends Fragment {
         if(linksFromTxt.size()==0)
         {
         linksFromTxt.clear();
-        linksFromTxt.addAll(mainActivity.linksFromTxt); }
+//        linksFromTxt.addAll(mainActivity.linksFromTxt);
+        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         linksFromTxt.clear();
-        linksFromTxt.addAll(MainActivity.linksFromTxt);
+//        linksFromTxt.addAll(MainActivity.linksFromTxt);
         if (linksFromTxt.size()>0)
         { addItems();
         // Inflate the layout for this fragment
@@ -107,7 +108,7 @@ public class DiscoverFragment extends Fragment {
                 getActivity().finish();
                 startActivity(intent);
 
-                linksFromTxt.addAll(MainActivity.linksFromTxt);
+//                linksFromTxt.addAll(MainActivity.linksFromTxt);
             }
         });
         return root;

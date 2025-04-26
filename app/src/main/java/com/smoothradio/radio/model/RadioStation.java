@@ -1,5 +1,7 @@
 package com.smoothradio.radio.model;
 
+import java.util.Objects;
+
 public class RadioStation {
     int smallLogo;
     String stationName;
@@ -44,12 +46,16 @@ public class RadioStation {
 
 
     @Override
-    public boolean equals(Object other) {
-        if (!(other instanceof RadioStation))
-            return false;
-        RadioStation p = (RadioStation) other;
-        return p.getId() == this.getId();
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        RadioStation that = (RadioStation) o;
+        return id == that.id;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 
 }

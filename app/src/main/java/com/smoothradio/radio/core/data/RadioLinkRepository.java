@@ -19,6 +19,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class RadioLinkRepository {
     private static final String FILE_NAME = "file.txt";
@@ -48,8 +49,7 @@ public class RadioLinkRepository {
 
 
     // Method to load links from the file
-    public LiveData<Resource<List<String>>> getLocalLinks() {
-        MutableLiveData<Resource<List<String>>> localRadioLinksLiveData = new MutableLiveData<>();
+    private List<String> getLinksFromFile() {
         List<String> links = new ArrayList<>();
         File file = new File(context.getFilesDir(), FILE_NAME);
         if (file.exists()) {
@@ -58,19 +58,15 @@ public class RadioLinkRepository {
                 while ((line = br.readLine()) != null) {
                     links.add(line);
                 }
-                localRadioLinksLiveData.setValue(Resource.success(links));
             } catch (IOException e) {
                 e.printStackTrace();
-                localRadioLinksLiveData.setValue(Resource.error("Error reading file"));
             }
-        } else {
-            localRadioLinksLiveData.setValue(Resource.error("File does not exist"));
         }
-
-        return localRadioLinksLiveData;
+        return links;
     }
 
-    // Method to update the links file with a new set of links
+
+    // Method to update the links file wixz     th a new set of links
     public void updateLinks(List<String> newLinks) {
         File file = new File(context.getFilesDir(), FILE_NAME);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
@@ -95,17 +91,27 @@ public class RadioLinkRepository {
                         return;
                     }
 
-                    List<String> links = new ArrayList<>();
+                    List<String> newLinks = new ArrayList<>();
                     for (DocumentSnapshot doc : value.getDocuments()) {
                         String link = doc.getString("link");
-                        links.add(link != null ? link : "");
+                        newLinks.add(link != null ? link : "");
                     }
-                    updateLinks(links);
 
-                    remoteRadioLinksLiveData.postValue(Resource.success(links));
+                    List<String> currentLinks = getLinksFromFile(); // compare with current local
+
+                    if (shouldUpdate(currentLinks, newLinks)) {
+                        updateLinks(newLinks);
+                        remoteRadioLinksLiveData.postValue(Resource.success(newLinks));
+                    } else {
+                        remoteRadioLinksLiveData.postValue(Resource.success(currentLinks)); // no change
+                    }
                 });
 
         return remoteRadioLinksLiveData;
+    }
+
+    private boolean shouldUpdate(List<String> oldLinks, List<String> newLinks) {
+        return !Objects.equals(oldLinks, newLinks);
     }
 
     public void removeListener() {
