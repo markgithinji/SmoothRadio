@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core.ui;
 
 import android.app.Application;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -86,6 +85,7 @@ public class RadioViewModel extends AndroidViewModel {
     public LiveData<Resource<Boolean>> getIsFirstTimeLiveData() {
         return isFirstTimeLiveData;
     }
+    private final MutableLiveData<RadioStation> stationUpdate = new MutableLiveData<>();
 
     public void saveIsFirstTime(boolean value) {
         prefsRepo.setFirstTime(value);
@@ -102,8 +102,6 @@ public class RadioViewModel extends AndroidViewModel {
 
         return selectedStation;
     }
-
-
 
     public LiveData<String> getStreamState() {
         return streamState;
@@ -140,6 +138,18 @@ public class RadioViewModel extends AndroidViewModel {
 
     public void setCurrentPage(int page) {
         currentPage.setValue(page);
+    }
+
+
+    //------------------------
+    // Station Update Logic
+    //------------------------
+    public MutableLiveData<RadioStation> getStationUpdate() {
+        return stationUpdate;
+    }
+
+    public void notifyStationUpdated(RadioStation station) {
+        stationUpdate.setValue(station);
     }
 
 }

@@ -73,6 +73,8 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
 //    public void update(List<RadioStation> newList) {
 //        recyclerViewItems.clear();
+//        stationList.clear();
+//        stationList.addAll(newList);
 //        recyclerViewItems.addAll(injectAdPlaceholders(newList));
 //        notifyDataSetChanged();
 //    }
@@ -316,6 +318,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 mainActivity.radioViewModel.setStreamState(StreamService.StreamStates.PREPARING);
                 notifyItemChanged(getPosOfStation(lastStationId));// update prev station item
                 notifyItemChanged(getPosOfStation(stationId));// update current station item
+                Log.d("Adapter", "onClick: " + radioStation.getStationName());
                 mainActivity.radioViewModel.setSelectedStation(radioStation);
             }
 
@@ -326,9 +329,17 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         return recyclerViewItems.indexOf(lastRadioStation);
     }
 
+
     public boolean stationListIsEmpty() {
         return stationList.isEmpty();
     }
+    public void updateStation(RadioStation station) {
+        int position = recyclerViewItems.indexOf(station);
+        if (position != RecyclerView.NO_POSITION) {
+            notifyItemChanged(position);
+        }
+    }
+
 
     class FavouriteListener implements View.OnClickListener {
         RadioStation radioStation;

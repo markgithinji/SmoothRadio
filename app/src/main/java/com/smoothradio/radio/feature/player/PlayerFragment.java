@@ -48,11 +48,14 @@ import java.util.concurrent.TimeUnit;
 
 
 public class PlayerFragment extends Fragment {
+    private static final int ERROR_CODE_INVALID_REQUEST = 1;
+    private static final int ERROR_CODE_NO_FILL = 3;
     MainActivity mainActivity;
 
     public RadioStation radioStation;
 
     FragmentPlayerBinding binding;
+    private static final int MAX_AD_LOAD_ATTEMPTS = 2;
 
     public String state = "";
     Boolean info = false;
@@ -70,6 +73,7 @@ public class PlayerFragment extends Fragment {
     int stationId;
     FragmentActivity fragmentActivity;
     RadioViewModel radioViewModel;
+    boolean isObserverSetup = false;
 
     public PlayerFragment() {
     }
@@ -99,11 +103,14 @@ public class PlayerFragment extends Fragment {
     }
 
     private void setupObserver() {
+        if (isObserverSetup) return; // prevent multiple observer setups
+        isObserverSetup = true;
+
         radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
             if (intResource.status == Resource.Status.SUCCESS) {
                 stationId = intResource.data;
 
-                getLatestStationUsingSavedId();
+                if (radioStation == null) getLatestStationUsingSavedId();
 
                 binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
                 binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
@@ -111,20 +118,22 @@ public class PlayerFragment extends Fragment {
         });
         radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
             radioStation = station;
+
             if (stationId == radioStation.getId()) {
                 playOrStop();
             } else {
-                playFromMainActivity(radioStation);
+                playFromMainActivity();
             }
             radioViewModel.saveStationId(radioStation.getId());
         });
     }
+
     private void getLatestStationUsingSavedId() {
         radioStation = new RadioStation(0, "", "", "", "", stationId);
 
         int position = mainActivity.getAdapter().getPosOfStation(stationId);
 
-        if (!(mainActivity.getAdapter().stationListIsEmpty()||position==-1)) {
+        if (!(mainActivity.getAdapter().stationListIsEmpty() || position == -1)) {
             radioStation = mainActivity.getAdapter().getStationAtPosition(position);
         }
     }
@@ -219,36 +228,6 @@ public class PlayerFragment extends Fragment {
         }
     }
 
-    public void playFromMainActivity(RadioStation radioStation) {
-
-        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
-
-        //update ui loading ad pre-play
-        state = StreamService.StreamStates.PREPARING;
-        broadcastState(state);
-
-        isPlaying = true;
-
-        if (!isShowingAd) {//avoid multiple clicks while loading ad
-
-            serviceIntent.setAction(StreamService.ACTION_SHOW_AD);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                fragmentActivity.startForegroundService(serviceIntent);
-            } else {
-                fragmentActivity.startService(serviceIntent);
-            }
-
-            //ads
-            loadInterstitialAd();
-            checkInternet();
-            //Analytics
-            mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
-        } else {//if ad already loaded, show it; otherwise nothing will happen so continue waiting for ad to finish loading
-//            showAdWithoutReloading();
-        }
-    }
 
     //Broadcast Receiver
     public class EventReceiver extends BroadcastReceiver {
@@ -273,12 +252,7 @@ public class PlayerFragment extends Fragment {
                 {
                     serviceIntent.setAction(StreamService.ACTION_SHOW_AD);
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        fragmentActivity.startForegroundService(serviceIntent);
-                    } else {
-                        fragmentActivity.startService(serviceIntent);
-                    }
-
+                    startStreamService();
                 }
 
                 loadInterstitialAd();
@@ -294,27 +268,6 @@ public class PlayerFragment extends Fragment {
         @Override
         public void onClick(View view) {
             playOrStop();
-        }
-    }
-
-    public void playOrStop() {
-        if (isPlaying) {
-            fragmentActivity.stopService(serviceIntent);
-        } else {
-            //update ui pre-play
-            state = StreamService.StreamStates.PREPARING;
-            broadcastState(state);
-            isPlaying = true;
-
-            if (!isShowingAd)// prevent multiple clicks while loading ads
-            {
-                loadInterstitialAd();
-                checkInternet();
-                //Analytics
-                mainActivity.sendFirebaseAnalytics(this.radioStation.getStationName());
-            } else {//if ad already loaded, show it; otherwise nothing will happen so continue waiting for ad to finish loading
-//                showAdWithoutReloading();
-            }
         }
     }
 
@@ -385,29 +338,6 @@ public class PlayerFragment extends Fragment {
                 }
             });
         }
-    }
-
-    void playOnly() {
-        serviceIntent.setAction(StreamService.ACTION_START);
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, radioStation.getUrl());
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getSmallLogo());
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, radioStation.getStationName());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            fragmentActivity.startForegroundService(serviceIntent);
-        } else {
-            fragmentActivity.startService(serviceIntent);
-        }
-        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
-
-        //update ui pre-play
-        state = StreamService.StreamStates.PREPARING;
-        broadcastState(state);
-
-        isPlaying = true;
-
-        loadInterstitialAdWithoutPlay();
     }
 
     void updateUI() {
@@ -494,85 +424,143 @@ public class PlayerFragment extends Fragment {
     }
 
     void updateList() {
-        if (mainActivity != null && mainActivity.radioListRecyclerViewAdapter != null) {
-            int position = mainActivity.radioListRecyclerViewAdapter.recyclerViewItems.indexOf(radioStation);
-
-            mainActivity.radioListRecyclerViewAdapter.notifyItemChanged(position);
-        }
+        radioViewModel.notifyStationUpdated(radioStation);
     }
+
+    private void startStreamService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            fragmentActivity.startForegroundService(serviceIntent);
+            return;
+        }
+        fragmentActivity.startService(serviceIntent);
+    }
+
+    void playOnly() {
+        serviceIntent.setAction(StreamService.ACTION_START);
+        serviceIntent.putExtra(StreamService.EXTRA_LINK, radioStation.getUrl());
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getSmallLogo());
+        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, radioStation.getStationName());
+
+        startStreamService();
+
+//        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
+//        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+
+        //update ui pre-play
+        state = StreamService.StreamStates.PREPARING;
+        broadcastState(state);
+
+        isPlaying = true;
+    }
+
+    public void playFromMainActivity() {
+        isPlaying = true;
+
+        if (isShowingAd) {
+            // Prevent multiple clicks while loading ad
+            return;
+        }
+
+        serviceIntent.setAction(StreamService.ACTION_SHOW_AD);
+        startStreamService();
+
+        loadInterstitialAd();
+        checkInternet();
+
+        // Log the event for analytics
+        mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
+    }
+
+
+    public void playOrStop() {
+        if (isPlaying) {
+            fragmentActivity.stopService(serviceIntent);
+            return;
+        }
+
+        // Start playing: update UI and state
+        state = StreamService.StreamStates.PREPARING;
+        broadcastState(state);
+        isPlaying = true;
+
+        if (isShowingAd) {
+            // Prevent multiple clicks while ad is loading
+            return;
+        }
+
+        loadInterstitialAd();
+        checkInternet();
+
+        // Log the event for analytics
+        mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
+    }
+
+
 
     void loadInterstitialAd() {
         isShowingAd = true;
-        if (interstitialAd == null) {
-            AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-            InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/4028560879", interstitialAdRequest, new InterstitialAdLoadCallback() {
-                @Override
-                public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                    super.onAdLoaded(interstitialAd);
-                    PlayerFragment.this.interstitialAd = interstitialAd;
-                    if (isPlaying)//only show ad if user has pressed play and hasn't stopped the service manually.
-                    {
-                        showAd();
-                    }
-                }
-
-                @Override
-                public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                    super.onAdFailedToLoad(loadAdError);
-                    PlayerFragment.this.interstitialAd = null;
-                    if (loadAdError.getCode() == 1 || loadAdError.getCode() == 3) {// only play when user has seen enough ads or no ad fill
-                        playOnly();
-                        isShowingAd = false;
-                        adFailedCountdown = 0;
-                    } else {
-                        countdownAdFailed();
-                    }
-                }
-
-            });
-        } else {
-            if (isPlaying)//only show ad if user has pressed play and hasn't stopped the service manually.
-            {
-                showAd();
-            }
+        if (interstitialAd != null) {
+            // If the ad is already loaded, show it if the user has pressed play and hasn't stopped the service manually.
+            if (isPlaying) showAd();
+            return;
         }
+
+        AdRequest interstitialAdRequest = new AdRequest.Builder().build();
+        InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/2070618771", interstitialAdRequest, new InterstitialAdLoadCallback() {
+            @Override
+            public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                super.onAdLoaded(interstitialAd);
+                PlayerFragment.this.interstitialAd = interstitialAd;
+                if (isPlaying)
+                    showAd(); // If the ad is already loaded, show it if the user has pressed play and hasn't stopped the service manually.
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                PlayerFragment.this.interstitialAd = null;
+
+                handleAdLoadFailure(loadAdError);
+            }
+
+        });
     }
 
     void showAd() {
-        if (interstitialAd != null) {
-            isShowingAd = true;
-            interstitialAd.show(fragmentActivity);
-            PlayerFragment.this.interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-
-                @Override
-                public void onAdDismissedFullScreenContent() {
-
-                    PlayerFragment.this.interstitialAd = null;
-
-                    playOnly();
-                    isShowingAd = false;
-                    loadInterstitialAdWithoutPlay();
-                }
-
-                @Override
-                public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-
-                    PlayerFragment.this.interstitialAd = null;
-                    isShowingAd = false;
-                    fragmentActivity.stopService(serviceIntent);
-//                    loadInterstitialAd();
-                }
-            });
-        } else {
+        if (interstitialAd == null) {
             loadInterstitialAd();
+            return;
         }
+
+        isShowingAd = true;
+        interstitialAd.show(fragmentActivity);
+        PlayerFragment.this.interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+
+            @Override
+            public void onAdDismissedFullScreenContent() {
+
+                PlayerFragment.this.interstitialAd = null;
+
+                playOnly();
+                isShowingAd = false;
+                preloadInterstitialAd();
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+
+                PlayerFragment.this.interstitialAd = null;
+                isShowingAd = false;
+                fragmentActivity.stopService(serviceIntent);
+            }
+        });
     }
 
-    void loadInterstitialAdWithoutPlay() {
+    void preloadInterstitialAd() {
         if (interstitialAd == null) {
 
             AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-            InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/4028560879", interstitialAdRequest, new InterstitialAdLoadCallback() {
+            InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/2070618771", interstitialAdRequest, new InterstitialAdLoadCallback() {
                 @Override
                 public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
                     super.onAdLoaded(interstitialAd);
@@ -583,57 +571,47 @@ public class PlayerFragment extends Fragment {
                 public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                     super.onAdFailedToLoad(loadAdError);
                     PlayerFragment.this.interstitialAd = null;
-                    loadInterstitialAdWithoutPlay();
+                    preloadInterstitialAd();
                 }
 
             });
         }
     }
 
-//    void showAdWithoutReloading() {
-//        if (interstitialAd != null) {
-//            isShowingAd = true;
-//            interstitialAd.show(mainActivity);
-//            PlayerFragment.this.interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-//                @Override
-//                public void onAdDismissedFullScreenContent() {
-//                    PlayerFragment.this.interstitialAd = null;
-//
-//                    playOnly();
-//                    isShowingAd = false;
-//                    loadInterstitialAdWithoutPlay();
-//                }
-//
-//                @Override
-//                public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-//                    PlayerFragment.this.interstitialAd = null;
-//                    isShowingAd = false;
-//                }
-//            });
-//        } else {
-//            loadInterstitialAdWithoutPlay();
-//        }
-//    }
-
-    void countdownAdFailed()// counts no of times ad failed to load so as to stop trying to load a new ad
-    {
-        adFailedCountdown++;
-        if (adFailedCountdown < 2) {
-            loadInterstitialAd();
-        } else {
-            //update ui
-            fragmentActivity.stopService(serviceIntent);
-
-            state = "";
-            broadcastState(state);
-
-            isPlaying = false;
-            Toast.makeText(fragmentActivity, "Please check your internet and try again", Toast.LENGTH_SHORT).show();
-
+    private void handleAdLoadFailure(LoadAdError loadAdError) {
+        // only play when user has seen enough ads, no ad fill or internal admob error
+        if (loadAdError.getCode() == ERROR_CODE_INVALID_REQUEST ||
+                loadAdError.getCode() == ERROR_CODE_NO_FILL) {
+            playOnly();
+            isShowingAd = false;
             adFailedCountdown = 0;
-            isShowingAd = false;// allow user to click button to attempt to start play again
+        } else {
+            countdownAdFailed();
         }
     }
+    private void countdownAdFailed() {
+        adFailedCountdown++;
+
+        if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
+            // Retry loading the ad
+            loadInterstitialAd();
+            return;
+        }
+
+        // Max attempts reached — stop trying and reset
+        fragmentActivity.stopService(serviceIntent);
+
+        //Sometimes the service stops too fast before the broadcast is sent,
+        // so we resent it here for consistent ended state
+        state = "";
+        broadcastState(state);
+
+        isShowingAd = false;
+        adFailedCountdown = 0;
+
+        Toast.makeText(fragmentActivity, "Please check your internet and try again", Toast.LENGTH_SHORT).show();
+    }
+
 
     private void broadcastState(String state) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);

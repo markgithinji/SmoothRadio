@@ -154,6 +154,11 @@ public class MainActivity extends AppCompatActivity {
                 radioListRecyclerViewAdapter.setFavouriteList(resource.data);
             }
         });
+        //for updating  ratio station item on event change
+        radioViewModel.getStationUpdate().observe(this, station -> {
+            radioListRecyclerViewAdapter.updateStation(station);
+        });
+
     }
 
     private void setupViewPagerAndTabs() {
