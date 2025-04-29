@@ -4,15 +4,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,60 +17,41 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.transition.TransitionManager;
 
-import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.FullScreenContentCallback;
-import com.google.android.gms.ads.LoadAdError;
-import com.google.android.gms.ads.interstitial.InterstitialAd;
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
-import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.timepicker.MaterialTimePicker;
-import com.google.android.material.timepicker.TimeFormat;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
 import com.smoothradio.radio.core.ui.RadioViewModel;
+import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
+import com.smoothradio.radio.core.util.TimerSetterHelper;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
-
 
 public class PlayerFragment extends Fragment {
-    private static final int ERROR_CODE_INVALID_REQUEST = 1;
-    private static final int ERROR_CODE_NO_FILL = 3;
     MainActivity mainActivity;
 
-    public RadioStation radioStation;
+    public RadioStation currentStation;
 
     FragmentPlayerBinding binding;
-    private static final int MAX_AD_LOAD_ATTEMPTS = 2;
 
     public String state = "";
     Boolean info = false;
-    boolean isPlaying = false;
     public CoordinatorLayout coordinatorLayout;
-    //Ads
-    InterstitialAd interstitialAd;
 
-    static boolean isShowingAd;
-    static int adFailedCountdown = 0;
 
     //For starting service
-    Intent serviceIntent;
     Intent eventIntent;
     int stationId;
     FragmentActivity fragmentActivity;
     RadioViewModel radioViewModel;
     boolean isObserverSetup = false;
+
+    PlayerManager playerManager;
 
     public PlayerFragment() {
     }
@@ -92,63 +70,53 @@ public class PlayerFragment extends Fragment {
 
         radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
 
+        playerManager = mainActivity.getPlayerManager();
+
         registerBroadcasts();
 
         //for player state ui updates
         eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
                 .setPackage(fragmentActivity.getPackageName());
-
-        //for starting the stream service
-        serviceIntent = new Intent(fragmentActivity, StreamService.class);
     }
 
     private void setupObserver() {
-        if (isObserverSetup) return; // prevent multiple observer setups
-        isObserverSetup = true;
-
         radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
+            Log.d("PlayerFragment","getStationIdLivedata");
             if (intResource.status == Resource.Status.SUCCESS) {
                 stationId = intResource.data;
 
-                if (radioStation == null) getLatestStationUsingSavedId();
+                if (currentStation == null) getLatestStationUsingSavedId();
 
-                binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-                binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
+                binding.ivLargeLogo.setImageResource(currentStation.getSmallLogo());
+                binding.tvStationNamePlayerFrag.setText(currentStation.getStationName());
             }
         });
-        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
-            radioStation = station;
 
-            if (stationId == radioStation.getId()) {
-                playOrStop();
-            } else {
-                playFromMainActivity();
-            }
-            radioViewModel.saveStationId(radioStation.getId());
+        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
+            currentStation = station;
         });
     }
 
     private void getLatestStationUsingSavedId() {
-        radioStation = new RadioStation(0, "", "", "", "", stationId);
+        currentStation = new RadioStation(0, "", "", "", "", stationId);
 
         int position = mainActivity.getAdapter().getPosOfStation(stationId);
 
-        if (!(mainActivity.getAdapter().stationListIsEmpty() || position == -1)) {
-            radioStation = mainActivity.getAdapter().getStationAtPosition(position);
+        if (!(mainActivity.getAdapter().stationListIsEmpty() || position == RecyclerView.NO_POSITION)) {
+            currentStation = mainActivity.getAdapter().getStationAtPosition(position);
         }
     }
 
     private void registerBroadcasts() {
+        IntentFilter eventFilter = new IntentFilter();
+        eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(new EventReceiver(),
-                    new IntentFilter(StreamService.ACTION_EVENT_CHANGE), Context.RECEIVER_NOT_EXPORTED);
-            fragmentActivity.registerReceiver(new UpdateUIReceiver(),
-                    new IntentFilter(StreamService.ACTION_UPDATE_UI), Context.RECEIVER_NOT_EXPORTED);
+            fragmentActivity.registerReceiver(new EventReceiver(), eventFilter, Context.RECEIVER_NOT_EXPORTED);
             fragmentActivity.registerReceiver(new MetadataReceiver(),
                     new IntentFilter(StreamService.ACTION_METADATA_CHANGE), Context.RECEIVER_NOT_EXPORTED);
         } else {
-            fragmentActivity.registerReceiver(new EventReceiver(), new IntentFilter(StreamService.ACTION_EVENT_CHANGE));
-            fragmentActivity.registerReceiver(new UpdateUIReceiver(), new IntentFilter(StreamService.ACTION_UPDATE_UI));
+            fragmentActivity.registerReceiver(new EventReceiver(), eventFilter);
             fragmentActivity.registerReceiver(new MetadataReceiver(), new IntentFilter(StreamService.ACTION_METADATA_CHANGE));
         }
     }
@@ -159,12 +127,13 @@ public class PlayerFragment extends Fragment {
         if (mainActivity == null) {
             mainActivity = (MainActivity) getContext();
         }
+        radioViewModel.reloadStationId();
 
-        //only update if were had started loading ad and we are also playing. If we arent playing, user will see 'preparing audio' when we
-        //arent actually doing anything esp after stopping service while loading ad
+        //When we request for a ui state form service it doesn't work until the service starts playing. This is unusual/
+        //unexpected behavior so we will manually set the state to preparing here for now.
         state = "";
         broadcastState(state);
-        if (isShowingAd) {
+        if (playerManager.getIsShowingAd()) {
             state = StreamService.StreamStates.PREPARING;
             broadcastState(state);
         } else {
@@ -182,7 +151,7 @@ public class PlayerFragment extends Fragment {
         setUpUI();
 
         radioViewModel.getStationId();
-        setupObserver();// setup after ui elements are created
+        setupObserver();
 
         return root;
     }
@@ -196,14 +165,6 @@ public class PlayerFragment extends Fragment {
         binding.ivPlayButton.setOnClickListener(new PlayButtonListener());
         binding.ivRefresh.setOnClickListener(new Refresh());
         binding.ivSetTimer.setOnClickListener(new SetTimerOnclickListener());
-    }
-
-    public class UpdateUIReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            state = intent.getStringExtra(StreamService.EXTRA_STATE);
-            if (state != null) updateUI();
-        }
     }
 
     /**
@@ -229,7 +190,6 @@ public class PlayerFragment extends Fragment {
     }
 
 
-    //Broadcast Receiver
     public class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -239,104 +199,24 @@ public class PlayerFragment extends Fragment {
     }
 
     public class Refresh implements View.OnClickListener {
-
         @Override
         public void onClick(View view) {
-            //update ui pre-play
-            state = StreamService.StreamStates.PREPARING;
-            broadcastState(state);
-            isPlaying = true;
-
-            if (!isShowingAd) {//avoid multiple clicks while loading ad
-                if (isPlaying)// stop from within service is faster than stopping the whole service as a whole
-                {
-                    serviceIntent.setAction(StreamService.ACTION_SHOW_AD);
-
-                    startStreamService();
-                }
-
-                loadInterstitialAd();
-                checkInternet();
-            } else {//if ad already loaded, show it; otherwise nothing will happen so continue waiting for ad to finish loading
-//                showAdWithoutReloading();
-            }
-            Toast.makeText(fragmentActivity, "refreshed!", Toast.LENGTH_SHORT).show();
+            playerManager.refresh();
         }
     }
 
     public class PlayButtonListener implements View.OnClickListener {
         @Override
         public void onClick(View view) {
-            playOrStop();
+            radioViewModel.setSelectedStation(currentStation);
+            playerManager.playOrStop();
         }
     }
 
     class SetTimerOnclickListener implements View.OnClickListener {
-        Intent setTimerIntent = new Intent();
-        Calendar calendar;
-        String time1;
-        String time2;
-
         @Override
         public void onClick(View view) {
-            calendar = Calendar.getInstance();
-            int hour = calendar.get(Calendar.HOUR_OF_DAY);
-            int minute = calendar.get(Calendar.MINUTE);
-            time1 = java.text.DateFormat.getTimeInstance().format(calendar.getTime());
-            MaterialTimePicker picker = new MaterialTimePicker.Builder()
-                    .setTimeFormat(TimeFormat.CLOCK_12H)
-                    .setHour(hour)
-                    .setMinute(minute)
-                    .setTitleText("Set Time To Turn Off Radio")
-                    .build();
-            picker.show(requireActivity().getSupportFragmentManager(), "SetTimerFrag");
-            picker.addOnPositiveButtonClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    int i = picker.getHour();
-                    int i1 = picker.getMinute();
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                        calendar.set(Calendar.HOUR_OF_DAY, i);
-                        calendar.set(Calendar.MINUTE, i1);
-                        calendar.set(Calendar.SECOND, 0);
-                        Long timeInMillis = calendar.getTimeInMillis();
-                        setTimerIntent.putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis);
-                        setTimerIntent.setAction(StreamService.ACTION_SET_TIMER);
-                        setTimerIntent.setPackage(fragmentActivity.getPackageName());
-                        fragmentActivity.sendBroadcast(setTimerIntent);
-
-                        time2 = java.text.DateFormat.getTimeInstance().format(calendar.getTime());
-                        SimpleDateFormat simpleDateFormat
-                                = new SimpleDateFormat("hh:mm:ss aa", Locale.getDefault());
-                        // Parsing the Time Period
-                        Date date1 = null;
-                        Date date2 = null;
-                        try {
-                            date2 = simpleDateFormat.parse(time1);
-                            date1 = simpleDateFormat.parse(time2);
-                        } catch (ParseException e) {
-                            e.printStackTrace();
-                        }
-                        // Calculating the difference in milliseconds
-                        if (date1 != null || date2 != null) {
-                            long differenceInMilliSeconds = Math.abs(date2.getTime() - date1.getTime());
-                            // Calculating the difference in Hours
-                            long differenceInHours = TimeUnit.MILLISECONDS.toHours(differenceInMilliSeconds);//(differenceInMilliSeconds / (60 * 60 * 1000)) % 24;
-                            // Calculating the difference in Minutes
-                            long differenceInMinutes = TimeUnit.MILLISECONDS.toMinutes(differenceInMilliSeconds) % 60;//(differenceInMilliSeconds / (60 * 1000)) % 60;
-                            // Calculating the difference in Seconds
-                            long differenceInSeconds = TimeUnit.MILLISECONDS.toSeconds(differenceInMilliSeconds) % 60;//differenceInMilliSeconds / 1000) % 60;
-                            // Printing the answer
-                            Snackbar.make(coordinatorLayout, "Radio will Stop after " + differenceInHours + " Hours "
-                                    + differenceInMinutes + " Minutes "
-                                    + differenceInSeconds + " Seconds.", Snackbar.LENGTH_LONG).show();
-                        }
-
-                    } else {
-                        Toast.makeText(mainActivity, "Sorry. Unsupported Android Version", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
+            new TimerSetterHelper(fragmentActivity,coordinatorLayout);
         }
     }
 
@@ -348,38 +228,26 @@ public class PlayerFragment extends Fragment {
             binding.tvMetadata.setText("");
             binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
             binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            updateList();
-            isPlaying = true;
+            playerManager.setISplaying(true);
 
-        } else if (state.equals(StreamService.StreamStates.IDLE)) {
+        } else if (state.equals(StreamService.StreamStates.ENDED)) {
             binding.tvProgress.setText("");
             binding.tvMetadata.setText("");
             binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
             binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            if (info) {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-                info = false;
-            } else {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-            }
 
-            isPlaying = true;
-            updateList();
-            isPlaying = false;
+            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
+
+            playerManager.setISplaying(true);
+            playerManager.setISplaying(false);
         } else if (state.equals(StreamService.StreamStates.PLAYING)) {
             binding.tvProgress.setText(state);
             binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
             binding.equalizerAnimation.setVisibility(View.VISIBLE);
-            if (info) {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon);
-                info = false;
-            } else {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon);
-            }
 
-            isPlaying = true;
+            binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon);
 
-            updateList();
+            playerManager.setISplaying(true);
 
         } else if (state.equals(StreamService.StreamStates.IDLE)) {
             binding.tvProgress.setText(state);
@@ -388,243 +256,32 @@ public class PlayerFragment extends Fragment {
             binding.equalizerAnimation.setVisibility(View.INVISIBLE);
             binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
 
-            isPlaying = true;
-            updateList();
-            isPlaying = false;
+            playerManager.setISplaying(true);
+            playerManager.setISplaying(false);
 
         } else if (state.equals(StreamService.StreamStates.BUFFERING)) {
             binding.tvProgress.setText(state);
             binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
             binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            if (info) {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-                info = false;
-            } else {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-            }
-            isPlaying = true;
-            updateList();
+            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
+
+            playerManager.setISplaying(true);
         } else {
             state = "";
             binding.tvProgress.setText(state);
             binding.tvMetadata.setText("");
             binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
             binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            if (info) {
+            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
 
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-                info = false;
-            } else {
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-            }
-            updateList();
-            isPlaying = false;
+            playerManager.setISplaying(false);
         }
 
     }
-
-    void updateList() {
-        radioViewModel.notifyStationUpdated(radioStation);
-    }
-
-    private void startStreamService() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            fragmentActivity.startForegroundService(serviceIntent);
-            return;
-        }
-        fragmentActivity.startService(serviceIntent);
-    }
-
-    void playOnly() {
-        serviceIntent.setAction(StreamService.ACTION_START);
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, radioStation.getUrl());
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getSmallLogo());
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, radioStation.getStationName());
-
-        startStreamService();
-
-//        binding.ivLargeLogo.setImageResource(radioStation.getSmallLogo());
-//        binding.tvStationNamePlayerFrag.setText(radioStation.getStationName());
-
-        //update ui pre-play
-        state = StreamService.StreamStates.PREPARING;
-        broadcastState(state);
-
-        isPlaying = true;
-    }
-
-    public void playFromMainActivity() {
-        isPlaying = true;
-
-        if (isShowingAd) {
-            // Prevent multiple clicks while loading ad
-            return;
-        }
-
-        serviceIntent.setAction(StreamService.ACTION_SHOW_AD);
-        startStreamService();
-
-        loadInterstitialAd();
-        checkInternet();
-
-        // Log the event for analytics
-        mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
-    }
-
-
-    public void playOrStop() {
-        if (isPlaying) {
-            fragmentActivity.stopService(serviceIntent);
-            return;
-        }
-
-        // Start playing: update UI and state
-        state = StreamService.StreamStates.PREPARING;
-        broadcastState(state);
-        isPlaying = true;
-
-        if (isShowingAd) {
-            // Prevent multiple clicks while ad is loading
-            return;
-        }
-
-        loadInterstitialAd();
-        checkInternet();
-
-        // Log the event for analytics
-        mainActivity.sendFirebaseAnalytics(radioStation.getStationName());
-    }
-
-
-
-    void loadInterstitialAd() {
-        isShowingAd = true;
-        if (interstitialAd != null) {
-            // If the ad is already loaded, show it if the user has pressed play and hasn't stopped the service manually.
-            if (isPlaying) showAd();
-            return;
-        }
-
-        AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-        InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/2070618771", interstitialAdRequest, new InterstitialAdLoadCallback() {
-            @Override
-            public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                super.onAdLoaded(interstitialAd);
-                PlayerFragment.this.interstitialAd = interstitialAd;
-                if (isPlaying)
-                    showAd(); // If the ad is already loaded, show it if the user has pressed play and hasn't stopped the service manually.
-            }
-
-            @Override
-            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                super.onAdFailedToLoad(loadAdError);
-                PlayerFragment.this.interstitialAd = null;
-
-                handleAdLoadFailure(loadAdError);
-            }
-
-        });
-    }
-
-    void showAd() {
-        if (interstitialAd == null) {
-            loadInterstitialAd();
-            return;
-        }
-
-        isShowingAd = true;
-        interstitialAd.show(fragmentActivity);
-        PlayerFragment.this.interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-
-            @Override
-            public void onAdDismissedFullScreenContent() {
-
-                PlayerFragment.this.interstitialAd = null;
-
-                playOnly();
-                isShowingAd = false;
-                preloadInterstitialAd();
-            }
-
-            @Override
-            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-
-                PlayerFragment.this.interstitialAd = null;
-                isShowingAd = false;
-                fragmentActivity.stopService(serviceIntent);
-            }
-        });
-    }
-
-    void preloadInterstitialAd() {
-        if (interstitialAd == null) {
-
-            AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-            InterstitialAd.load(fragmentActivity, "ca-app-pub-9799428944156340/2070618771", interstitialAdRequest, new InterstitialAdLoadCallback() {
-                @Override
-                public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                    super.onAdLoaded(interstitialAd);
-                    PlayerFragment.this.interstitialAd = interstitialAd;
-                }
-
-                @Override
-                public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                    super.onAdFailedToLoad(loadAdError);
-                    PlayerFragment.this.interstitialAd = null;
-                    preloadInterstitialAd();
-                }
-
-            });
-        }
-    }
-
-    private void handleAdLoadFailure(LoadAdError loadAdError) {
-        // only play when user has seen enough ads, no ad fill or internal admob error
-        if (loadAdError.getCode() == ERROR_CODE_INVALID_REQUEST ||
-                loadAdError.getCode() == ERROR_CODE_NO_FILL) {
-            playOnly();
-            isShowingAd = false;
-            adFailedCountdown = 0;
-        } else {
-            countdownAdFailed();
-        }
-    }
-    private void countdownAdFailed() {
-        adFailedCountdown++;
-
-        if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
-            // Retry loading the ad
-            loadInterstitialAd();
-            return;
-        }
-
-        // Max attempts reached — stop trying and reset
-        fragmentActivity.stopService(serviceIntent);
-
-        //Sometimes the service stops too fast before the broadcast is sent,
-        // so we resent it here for consistent ended state
-        state = "";
-        broadcastState(state);
-
-        isShowingAd = false;
-        adFailedCountdown = 0;
-
-        Toast.makeText(fragmentActivity, "Please check your internet and try again", Toast.LENGTH_SHORT).show();
-    }
-
 
     private void broadcastState(String state) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);
         fragmentActivity.sendBroadcast(eventIntent);
-    }
-
-    void checkInternet() {
-        ConnectivityManager cm = (ConnectivityManager) fragmentActivity.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo nInfo = cm.getActiveNetworkInfo();
-        boolean connected = nInfo != null && nInfo.isAvailable() && nInfo.isConnectedOrConnecting();
-        if (!connected) {
-            Toast.makeText(fragmentActivity, "Check Internet", Toast.LENGTH_SHORT).show();
-        }
     }
 }
 

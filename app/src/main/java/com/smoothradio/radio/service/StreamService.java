@@ -15,6 +15,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -92,8 +93,8 @@ public class StreamService extends Service {
     private PendingIntent playPausePI;
 
     // Broadcast Receivers
-    private StopPlayReceiver stopPlayReceiver;
-    private StopPlayerFromTimerReceiver stopPlayerFromTimerReceiver;
+    private StopPlayFromTimerReceiver stopPlayFromTimerReceiver;
+    private SetStopTimerReceiver setStopTimerReceiver;
     private RestoreUIReceiver restoreUIReceiver;
     private PLayPauseReceiver pLayPauseReceiver;
     private RequestFocusReceiver requestFocusReceiver;
@@ -179,25 +180,25 @@ public class StreamService extends Service {
     }
 
     private void registerReceivers() {
-        stopPlayReceiver = new StopPlayReceiver();
-        stopPlayerFromTimerReceiver = new StopPlayerFromTimerReceiver();
+        stopPlayFromTimerReceiver = new StopPlayFromTimerReceiver();
+        setStopTimerReceiver = new SetStopTimerReceiver();
         restoreUIReceiver = new RestoreUIReceiver();
         pLayPauseReceiver = new PLayPauseReceiver();
         requestFocusReceiver = new RequestFocusReceiver();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(stopPlayReceiver, new IntentFilter(ACTION_STOP), RECEIVER_NOT_EXPORTED);
+            registerReceiver(stopPlayFromTimerReceiver, new IntentFilter(ACTION_STOP), RECEIVER_NOT_EXPORTED);
             registerReceiver(restoreUIReceiver, new IntentFilter(ACTION_GET_STATE), RECEIVER_NOT_EXPORTED);
-            registerReceiver(stopPlayerFromTimerReceiver, new IntentFilter(ACTION_SET_TIMER), RECEIVER_NOT_EXPORTED);
+            registerReceiver(setStopTimerReceiver, new IntentFilter(ACTION_SET_TIMER), RECEIVER_NOT_EXPORTED);
             registerReceiver(pLayPauseReceiver, new IntentFilter(ACTION_PLAY_PAUSE), RECEIVER_NOT_EXPORTED);
             registerReceiver(requestFocusReceiver, new IntentFilter(ACTION_REQUEST_AUDIO_FOCUS), RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(stopPlayReceiver, new IntentFilter(ACTION_STOP));
-            registerReceiver(restoreUIReceiver, new IntentFilter(ACTION_GET_STATE));
-            registerReceiver(stopPlayerFromTimerReceiver, new IntentFilter(ACTION_SET_TIMER));
-            registerReceiver(pLayPauseReceiver, new IntentFilter(ACTION_PLAY_PAUSE));
-            registerReceiver(requestFocusReceiver, new IntentFilter(ACTION_REQUEST_AUDIO_FOCUS));
+            return;
         }
+        registerReceiver(stopPlayFromTimerReceiver, new IntentFilter(ACTION_STOP));
+        registerReceiver(restoreUIReceiver, new IntentFilter(ACTION_GET_STATE));
+        registerReceiver(setStopTimerReceiver, new IntentFilter(ACTION_SET_TIMER));
+        registerReceiver(pLayPauseReceiver, new IntentFilter(ACTION_PLAY_PAUSE));
+        registerReceiver(requestFocusReceiver, new IntentFilter(ACTION_REQUEST_AUDIO_FOCUS));
     }
 
     private void cleanupResources() {
@@ -215,8 +216,8 @@ public class StreamService extends Service {
     }
 
     private void unregisterAllReceivers() {
-        unregisterReceiver(stopPlayReceiver);
-        unregisterReceiver(stopPlayerFromTimerReceiver);
+        unregisterReceiver(stopPlayFromTimerReceiver);
+        unregisterReceiver(setStopTimerReceiver);
         unregisterReceiver(restoreUIReceiver);
         unregisterReceiver(pLayPauseReceiver);
         unregisterReceiver(requestFocusReceiver);
@@ -350,7 +351,7 @@ public class StreamService extends Service {
     }
 
 
-    class StopPlayReceiver extends BroadcastReceiver {
+    class StopPlayFromTimerReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             Toast.makeText(context, getString(R.string.stopped), Toast.LENGTH_SHORT).show();
@@ -358,7 +359,7 @@ public class StreamService extends Service {
         }
     }
 
-    class StopPlayerFromTimerReceiver extends BroadcastReceiver {
+    class SetStopTimerReceiver extends BroadcastReceiver {
         Intent stopPlayFromTimerIntent = new Intent(ACTION_STOP).setPackage(getPackageName());
 
         @Override
@@ -382,9 +383,8 @@ public class StreamService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (player != null) {
-                Intent restoreIntent = new Intent(ACTION_UPDATE_UI).setPackage(getPackageName());
-                restoreIntent.putExtra(EXTRA_STATE, stateChange);
-                sendBroadcast(restoreIntent);
+                eventIntent.putExtra(EXTRA_STATE, stateChange);
+                sendBroadcast(eventIntent);
                 mediaMetadataOR = player.getMediaMetadata();
                 getSendMetadata(mediaMetadataOR);
             }

@@ -24,16 +24,16 @@ public class SortDialog extends DialogFragment {
             public void onClick(DialogInterface dialogInterface, int i) {
                 if(i==0)
                 {
-                    mainActivity.radioListRecyclerViewAdapter.sortPopular();//popular
+                    mainActivity.getAdapter().sortPopular();//popular
                 }
                 if(i==1) {
-                    mainActivity.radioListRecyclerViewAdapter.sortAscending();//ascending
+                    mainActivity.getAdapter().sortAscending();//ascending
                 }
                 if(i==2) {
-                    mainActivity.radioListRecyclerViewAdapter.sortDescending();//descending
+                    mainActivity.getAdapter().sortDescending();//descending
                 }
                 if(i==3) {
-                    mainActivity.radioListRecyclerViewAdapter.sortFavourites();//favourites
+                    mainActivity.getAdapter().sortFavourites();//favourites
                 }
 
                 }

@@ -78,6 +78,9 @@ public class RadioViewModel extends AndroidViewModel {
     public void saveStationId(int id) {
         prefsRepo.setId(id);
     }
+    public void reloadStationId() {
+        prefsRepo.reloadStationId();
+    }
 
     public void isFirstTime() {
         isFirstTimeLiveData = prefsRepo.isFirstTimeLiveData();
@@ -138,18 +141,6 @@ public class RadioViewModel extends AndroidViewModel {
 
     public void setCurrentPage(int page) {
         currentPage.setValue(page);
-    }
-
-
-    //------------------------
-    // Station Update Logic
-    //------------------------
-    public MutableLiveData<RadioStation> getStationUpdate() {
-        return stationUpdate;
-    }
-
-    public void notifyStationUpdated(RadioStation station) {
-        stationUpdate.setValue(station);
     }
 
 }

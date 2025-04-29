@@ -19,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -29,10 +30,10 @@ import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.ui.ViewPagerAdapter;
 import com.smoothradio.radio.core.util.CacheUtil;
 import com.smoothradio.radio.core.util.ConsentHelper;
+import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.ActivityMainBinding;
 import com.smoothradio.radio.feature.about.AboutFragment;
-import com.smoothradio.radio.feature.player.PlayerFragment;
 import com.smoothradio.radio.feature.radio_list.RadioListRecyclerViewAdapter;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
@@ -50,9 +51,6 @@ public class MainActivity extends AppCompatActivity {
     private ViewPagerAdapter viewPagerAdapter;
     private int tabPosition;
 
-    // Adapter
-    public RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
-
     // ViewModel
     public RadioViewModel radioViewModel;
 
@@ -65,12 +63,13 @@ public class MainActivity extends AppCompatActivity {
 
     // Firebase
     private FirebaseAnalytics firebaseAnalytics;
+    public RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
 
-    // Radio stations (local data)
-    public final List<RadioStation> radioStationsList = new ArrayList<>();
+    PlayerManager playerManager;
 
-    private int stationId;
-    private String state;
+    private int lastStationId;
+
+    RadioStation currentPlayingStation;
 
 
     @Override
@@ -90,12 +89,11 @@ public class MainActivity extends AppCompatActivity {
 
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout);
 
-        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(radioStationsList, bottomSheetBehavior);
+        playerManager = new PlayerManager(this);
+
+        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(new ArrayList<>());
 
         setupObservers();
-
-        //Add fragment to get it later. Cannot be added after ViewPager creates fragment
-        getSupportFragmentManager().beginTransaction().add(new PlayerFragment(), "PlayerFragment").commit();
 
         setupViewPagerAndTabs();
 
@@ -114,52 +112,41 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupObservers() {
         // Init radio links
-        radioViewModel.isFirstTime();
         radioViewModel.getStationId();
         radioViewModel.getRemoteLinks();
-
-        radioViewModel.getIsFirstTimeLiveData().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                Boolean isFirstTime = resource.data;
-                if (Boolean.TRUE.equals(isFirstTime)) {
-                    radioViewModel.createInitialLinks();
-                    radioViewModel.saveIsFirstTime(false);
-                }
-            }
-        });
-
-        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
-            if (intResource.status == Resource.Status.SUCCESS) {
-                stationId = intResource.data;
-                radioListRecyclerViewAdapter.setSelectedStationId(stationId);
-            }
-        });
 
         radioViewModel.getRemoteLinksLiveData().observe(this, resource -> {
             if (resource.status == Resource.Status.SUCCESS) {
                 List<RadioStation> radioStations = RadioStationsHelper.createRadioStations(resource.data);
                 radioListRecyclerViewAdapter.update(radioStations);
-                updateMiniPlayer(getLatestStationUsingSavedId());
+                updateMiniPlayer(getStationUsingSavedId());
+            }
+        });
+
+        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
+            if (intResource.status == Resource.Status.SUCCESS) {
+                lastStationId = intResource.data;
+                radioListRecyclerViewAdapter.setSelectedStationId(lastStationId);
             }
         });
 
         radioViewModel.getSelectedStation().observe(this, radioStation -> {
-            hideKeyboard();
+            this.currentPlayingStation = radioStation;
+            playerManager.setRadioStation(radioStation);
             radioListRecyclerViewAdapter.setSelectedStation(radioStation);
+
+            if (lastStationId == radioStation.getId()) {
+                playerManager.playOrStop();
+            } else {
+                playerManager.playFromMainActivity();
+            }
+            radioViewModel.saveStationId(radioStation.getId());
+
+            hideKeyboard();
             updateMiniPlayer(radioStation);
         });
-
-        radioViewModel.getFavoriteStationNames().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                radioListRecyclerViewAdapter.setFavouriteList(resource.data);
-            }
-        });
-        //for updating  ratio station item on event change
-        radioViewModel.getStationUpdate().observe(this, station -> {
-            radioListRecyclerViewAdapter.updateStation(station);
-        });
-
     }
+
 
     private void setupViewPagerAndTabs() {
 
@@ -198,10 +185,6 @@ public class MainActivity extends AppCompatActivity {
                 binding.tabLayout.selectTab(binding.tabLayout.getTabAt(position));
             }
         });
-
-        // Force fragment creation
-        binding.viewPager.setCurrentItem(1);
-        binding.viewPager.setCurrentItem(0);
     }
 
 
@@ -293,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         radioViewModel.getRemoteLinks();
+        radioViewModel.getStationId();
     }
 
 
@@ -300,8 +284,9 @@ public class MainActivity extends AppCompatActivity {
     public class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            state = intent.getStringExtra(StreamService.EXTRA_STATE);
+            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
             radioListRecyclerViewAdapter.setState(state);
+            radioListRecyclerViewAdapter.updateStation(currentPlayingStation);
 
             if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
                 binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
@@ -326,14 +311,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void miniPlayerPlayPause() {
-        radioViewModel.setSelectedStation(getLatestStationUsingSavedId());
+        radioViewModel.setSelectedStation(getStationUsingSavedId());
     }
 
-    RadioStation getLatestStationUsingSavedId() {
-        RadioStation radioStation = new RadioStation(0, "", "", "", "", stationId);
-        int position = radioListRecyclerViewAdapter.getPosOfStation(stationId);
+    RadioStation getStationUsingSavedId() {
+        RadioStation radioStation = new RadioStation(0, "", "", "", "", lastStationId);
+        int position = radioListRecyclerViewAdapter.getPosOfStation(lastStationId);
 
-        if (!(radioListRecyclerViewAdapter.stationListIsEmpty()&&position==-1)) {
+        if (!(radioListRecyclerViewAdapter.stationListIsEmpty() || position == RecyclerView.NO_POSITION)) {
             radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position);
         }
         return radioStation;
@@ -387,7 +372,13 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
-    public RadioListRecyclerViewAdapter getAdapter(){
+
+    public RadioListRecyclerViewAdapter getAdapter() {
         return radioListRecyclerViewAdapter;
     }
+
+    public PlayerManager getPlayerManager() {
+        return playerManager;
+    }
+
 }

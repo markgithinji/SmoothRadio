@@ -13,13 +13,12 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.snackbar.Snackbar;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
-
 import com.smoothradio.radio.core.util.StationDiffUtilCallback;
 import com.smoothradio.radio.databinding.AdviewBinding;
+import com.smoothradio.radio.databinding.EmptyFavouritiesBinding;
 import com.smoothradio.radio.databinding.RadioitemBinding;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
@@ -55,14 +54,11 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
     int lastStationId;
 
-    String state="";
+    String state = "";
 
     RadioStation radioStation;
 
-    BottomSheetBehavior<View> bottomSheetBehavior;
-
-    public RadioListRecyclerViewAdapter(List<RadioStation> radioStations, BottomSheetBehavior<View> bottomSheetBehavior) {
-        this.bottomSheetBehavior = bottomSheetBehavior;
+    public RadioListRecyclerViewAdapter(List<RadioStation> radioStations) {
         stationList = new ArrayList<>(radioStations);
         recyclerViewItems = new ArrayList<>(stationList);
         //for ads
@@ -72,14 +68,17 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
 //    public void update(List<RadioStation> newList) {
+//
 //        recyclerViewItems.clear();
 //        stationList.clear();
 //        stationList.addAll(newList);
 //        recyclerViewItems.addAll(injectAdPlaceholders(newList));
+//        Log.d("Adapter", "update: "+recyclerViewItems.size());
 //        notifyDataSetChanged();
 //    }
 
     public void update(List<RadioStation> newList) {
+        Log.d("Adapter", "update: " + newList.size());
         // First-time full refresh
         if (recyclerViewItems.isEmpty()) {
             stationList.addAll(newList);
@@ -100,8 +99,10 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         // Apply update
         recyclerViewItems.clear();
         stationList.clear();
+
         stationList.addAll(newList);
         recyclerViewItems.addAll(newListWithAds);
+
         diffResult.dispatchUpdatesTo(this);
     }
 
@@ -119,23 +120,6 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         return modifiedList;
     }
 
-
-
-    @Override
-    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
-        super.onAttachedToRecyclerView(recyclerView);
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                if (!recyclerView.canScrollVertically(1)) {
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-                } else {
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-                }
-            }
-        });
-    }
-
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -149,28 +133,29 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 AdviewBinding adviewBinding = AdviewBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
                 return new AdViewHolder(adviewBinding);
             default:
-                LayoutInflater emptyFavLayoutInflater = LayoutInflater.from(mainActivity);
-                View emptyFavItemView = emptyFavLayoutInflater.inflate(R.layout.empty_favourities, parent, false);
-                return new EmptyFavouriteListViewHolder(emptyFavItemView);
+                EmptyFavouritiesBinding binding = EmptyFavouritiesBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+                return new EmptyFavouriteListViewHolder(binding);
         }
     }
 
     public void setState(String state) {
         this.state = state;
     }
+
     public void setSelectedStationId(int stationId) {
         lastStationId = stationId;
-        if(radioStation==null)
-        {
+
+        if (radioStation == null) {// used when populating list for the first time
             radioStation = new RadioStation(0, "", "", "", "", stationId);
         }
     }
+
     public void setSelectedStation(RadioStation radioStation) {
         this.radioStation = radioStation;
     }
 
     public RadioStation getStationAtPosition(int position) {
-        return stationList.get(position);
+        return recyclerViewItems.get(position);
     }
 
     public void setFavouriteList(List<String> favouriteListNames) {//TODO: Fix synchronization
@@ -205,8 +190,12 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
             //scroll animation
             itemViewViewHolder.binding.clLayout.setAnimation(AnimationUtils.loadAnimation(holder.itemView.getContext(), R.anim.recyclerviewscrollanimation));
 
+            Log.d("Adapter", "onBindViewHolder:.........." );//last station
+            Log.d("Adapter", "onBindViewHolder: " + this.lastStationId);//last station
+            Log.d("Adapter", "onBindViewHolder: " + radioStation.getId());//station under update
+//            Log.d("Adapter", "onBindViewHolder: " + state);
             //show playing state
-            if (this.radioStation.getId() == radioStation.getId() && this.state.equals(StreamService.StreamStates.PLAYING)) {
+            if (this.state.equals(StreamService.StreamStates.PLAYING) && this.radioStation.getId() == radioStation.getId()) {
                 itemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.pauseicon);
                 itemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
                 itemViewViewHolder.binding.ivPlay.setVisibility(View.VISIBLE);
@@ -223,8 +212,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                 itemViewViewHolder.binding.ivPlay.setVisibility(View.VISIBLE);
             }
 
-        }
-        else if (viewType == AD_VIEW) {
+        } else if (viewType == AD_VIEW) {
             AdViewHolder adViewHolder = (AdViewHolder) holder;
             AdRequest adRequest = new AdRequest.Builder().build();
             adViewHolder.binding.adViewRecyclerviewItem.loadAd(adRequest);
@@ -259,7 +247,6 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
 
-
     class ItemViewViewHolder extends RecyclerView.ViewHolder {
         private final RadioitemBinding binding;
 
@@ -280,8 +267,9 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
     class EmptyFavouriteListViewHolder extends RecyclerView.ViewHolder {
-        public EmptyFavouriteListViewHolder(@NonNull View itemView) {
-            super(itemView);
+        EmptyFavouritiesBinding binding;
+        public EmptyFavouriteListViewHolder(@NonNull EmptyFavouritiesBinding binding) {
+            super(binding.getRoot());
         }
     }
 
@@ -305,25 +293,28 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
+            Log.d("Adapter", "onclick: " + (stationId == lastStationId));
             if (stationId == lastStationId) {
+                state = StreamService.StreamStates.PREPARING;
                 mainActivity.radioViewModel.setSelectedStation(radioStation);
                 notifyItemChanged(getPosOfStation(stationId));
 
             } else {
                 // not necessary but done to make play feel more instant
-//                currentItemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.pauseicon);
-//                currentItemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
-//                currentItemViewViewHolder.binding.ivPlay.setVisibility(View.INVISIBLE);
+                currentItemViewViewHolder.binding.ivPlay.setImageResource(R.drawable.pauseicon);
+                currentItemViewViewHolder.binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
+                currentItemViewViewHolder.binding.ivPlay.setVisibility(View.INVISIBLE);
                 //
-                mainActivity.radioViewModel.setStreamState(StreamService.StreamStates.PREPARING);
+
                 notifyItemChanged(getPosOfStation(lastStationId));// update prev station item
+                state = StreamService.StreamStates.PREPARING;
                 notifyItemChanged(getPosOfStation(stationId));// update current station item
-                Log.d("Adapter", "onClick: " + radioStation.getStationName());
                 mainActivity.radioViewModel.setSelectedStation(radioStation);
             }
 
         }
     }
+
     public int getPosOfStation(int stationId) {
         RadioStation lastRadioStation = new RadioStation(0, "", "", "", "", stationId);
         return recyclerViewItems.indexOf(lastRadioStation);
@@ -333,6 +324,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     public boolean stationListIsEmpty() {
         return stationList.isEmpty();
     }
+
     public void updateStation(RadioStation station) {
         int position = recyclerViewItems.indexOf(station);
         if (position != RecyclerView.NO_POSITION) {

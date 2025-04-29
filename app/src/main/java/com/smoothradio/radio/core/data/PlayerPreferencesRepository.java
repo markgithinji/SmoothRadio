@@ -51,6 +51,10 @@ public class PlayerPreferencesRepository {
         return stationIdLiveData;
     }
 
+    public void reloadStationId() {
+        int id = prefs.getInt(KEY_ID, 0);
+        stationIdLiveData.setValue(Resource.success(id));
+    }
     public void setFirstTime(boolean isFirstTime) {
         prefs.edit().putBoolean(KEY_IS_FIRST_TIME, isFirstTime).apply();
         isFirstTimeLiveData.setValue(Resource.success(isFirstTime));

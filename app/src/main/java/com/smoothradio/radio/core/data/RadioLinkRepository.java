@@ -87,7 +87,7 @@ public class RadioLinkRepository {
                 .orderBy("index")
                 .addSnapshotListener((value, error) -> {
                     if (error != null || value == null || value.isEmpty()) {
-                        remoteRadioLinksLiveData.postValue(Resource.error("Error loading links"));
+                        remoteRadioLinksLiveData.setValue(Resource.error("Error loading links"));
                         return;
                     }
 
@@ -101,9 +101,9 @@ public class RadioLinkRepository {
 
                     if (shouldUpdate(currentLinks, newLinks)) {
                         updateLinks(newLinks);
-                        remoteRadioLinksLiveData.postValue(Resource.success(newLinks));
+                        remoteRadioLinksLiveData.setValue(Resource.success(newLinks));
                     } else {
-                        remoteRadioLinksLiveData.postValue(Resource.success(currentLinks)); // no change
+                        remoteRadioLinksLiveData.setValue(Resource.success(currentLinks)); // no change
                     }
                 });
 
