@@ -3,21 +3,42 @@ package com.smoothradio.radio.model;
 import java.util.Objects;
 
 public class RadioStation {
-    int smallLogo;
+    int logoResource;
     String stationName;
     String frequency;
     String location;
     String url;
     int id;
 
-    public RadioStation(int smallLogo, String stationName, String frequency, String location, String url, int id) {
-        this.smallLogo = smallLogo;
+    boolean isPlaying;
+
+    public RadioStation(int id, int logoResource, String stationName, String frequency, String location, String url,boolean isPlaying ) {
+        this.logoResource = logoResource;
         this.stationName = stationName;
         this.frequency = frequency;
         this.location = location;
         this.url = url;
         this.id = id;
+        this.isPlaying = isPlaying;
 
+    }
+
+    public RadioStation(RadioStation other) {
+        this.id = other.id;
+        this.logoResource = other.logoResource;
+        this.stationName = other.stationName;
+        this.frequency = other.frequency;
+        this.location = other.location;
+        this.url = other.url;
+        this.isPlaying = other.isPlaying;
+    }
+
+    public void setPlaying(boolean playing) {
+        isPlaying = playing;
+    }
+
+    public boolean isPlaying() {
+        return isPlaying;
     }
 
     public int getId() {
@@ -28,8 +49,8 @@ public class RadioStation {
         return url;
     }
 
-    public int getSmallLogo() {
-        return smallLogo;
+    public int getLogoResource() {
+        return logoResource;
     }
 
     public String getStationName() {

@@ -73,7 +73,7 @@ public class CategoryRecyclerViewAdapter extends RecyclerView.Adapter {
         }
 
         /////////
-        itemViewViewHolder.ivChannelLogo.setBackgroundResource(radioStation.getSmallLogo());
+        itemViewViewHolder.ivChannelLogo.setBackgroundResource(radioStation.getLogoResource());
         itemViewViewHolder.tvChannelName.setText(radioStation.getStationName());
         playOnclickListener = new PlayOnclickListener(radioStation);
         itemViewViewHolder.ivPlay.setBackgroundResource(R.drawable.playicon);

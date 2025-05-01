@@ -9,11 +9,9 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
-import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
@@ -22,9 +20,6 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.R;
-import com.smoothradio.radio.feature.player.PlayerFragment;
-import com.smoothradio.radio.feature.radio_list.RadioListFragment;
 import com.smoothradio.radio.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
@@ -104,7 +99,7 @@ public class PlayerManager {
     void playOnly() {
         serviceIntent.setAction(StreamService.ACTION_START);
         serviceIntent.putExtra(StreamService.EXTRA_LINK, radioStation.getUrl());
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getSmallLogo());
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getLogoResource());
         serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, radioStation.getStationName());
 
         startStreamService();
@@ -156,8 +151,8 @@ public class PlayerManager {
             return;
         }
 
-        AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-        InterstitialAd.load(activity, "ca-app-pub-9799428", interstitialAdRequest, new InterstitialAdLoadCallback() {
+        AdRequest interstitialAdRequest = new AdRequest.Builder().build();//ca-app-pub-9799428944156340/2070618771
+        InterstitialAd.load(activity, "ca-app-pub-979942", interstitialAdRequest, new InterstitialAdLoadCallback() {
             @Override
             public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
                 super.onAdLoaded(interstitialAd);
@@ -243,8 +238,8 @@ public class PlayerManager {
     void preloadInterstitialAd() {
         if (interstitialAd == null) {
 
-            AdRequest interstitialAdRequest = new AdRequest.Builder().build();
-            InterstitialAd.load(activity, "ca-app-pub-97994289441563", interstitialAdRequest, new InterstitialAdLoadCallback() {
+            AdRequest interstitialAdRequest = new AdRequest.Builder().build();//ca-app-pub-9799428944156340/2070618771
+            InterstitialAd.load(activity, "ca-app-pub-9799", interstitialAdRequest, new InterstitialAdLoadCallback() {
                 @Override
                 public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
                     super.onAdLoaded(interstitialAd);

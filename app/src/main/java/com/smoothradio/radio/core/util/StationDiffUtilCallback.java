@@ -34,7 +34,7 @@ public class StationDiffUtilCallback extends DiffUtil.Callback {
     @Override
     public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
         boolean isSame = oldList.get(oldItemPosition).getId() == newList.get(newItemPosition).getId();
-        Log.d("DiffUtil", "areItemsTheSame " + isSame);
+        Log.d("DiffUtil", "isPlaying changed? " + !isSame + " for station ID " + oldList.get(oldItemPosition).getId());
         return isSame;
     }
 
@@ -43,11 +43,12 @@ public class StationDiffUtilCallback extends DiffUtil.Callback {
         RadioStation oldItem = oldList.get(oldItemPosition);
         RadioStation newItem = newList.get(newItemPosition);
 
-        boolean isSame = oldItem.getSmallLogo() == newItem.getSmallLogo()
+        boolean isSame = oldItem.getLogoResource() == newItem.getLogoResource()
                 && Objects.equals(oldItem.getStationName(), newItem.getStationName())
                 && Objects.equals(oldItem.getFrequency(), newItem.getFrequency())
                 && Objects.equals(oldItem.getLocation(), newItem.getLocation())
-                && Objects.equals(oldItem.getUrl(), newItem.getUrl());
+                && Objects.equals(oldItem.getUrl(), newItem.getUrl())
+                && oldItem.isPlaying() == newItem.isPlaying();
 
         Log.d("DiffUtil", "areContentsTheSame " + isSame);
         return isSame;

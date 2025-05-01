@@ -143,4 +143,19 @@ public class RadioViewModel extends AndroidViewModel {
         currentPage.setValue(page);
     }
 
+    //------------------------
+    // Update Mini Player Trigger
+    //------------------------
+    private final MutableLiveData<Boolean> updateMiniPlayerEvent = new MutableLiveData<>();
+
+    public LiveData<Boolean> getUpdateMiniPlayerEvent() {
+        return updateMiniPlayerEvent;
+    }
+
+    // Call this when remote links are loaded successfully
+    public void onRemoteLinksLoaded() {
+        updateMiniPlayerEvent.setValue(true);
+    }
+
+
 }

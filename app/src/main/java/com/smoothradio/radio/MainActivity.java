@@ -9,7 +9,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,7 +24,6 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.analytics.FirebaseAnalytics;
-import com.smoothradio.radio.core.ui.RadioStationsHelper;
 import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.ui.ViewPagerAdapter;
 import com.smoothradio.radio.core.util.CacheUtil;
@@ -69,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int lastStationId;
 
-    RadioStation currentPlayingStation;
+    List<RadioStation> radioStationList = new ArrayList<>();
 
 
     @Override
@@ -115,33 +113,17 @@ public class MainActivity extends AppCompatActivity {
         radioViewModel.getStationId();
         radioViewModel.getRemoteLinks();
 
-        radioViewModel.getRemoteLinksLiveData().observe(this, resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                List<RadioStation> radioStations = RadioStationsHelper.createRadioStations(resource.data);
-                radioListRecyclerViewAdapter.update(radioStations);
-                updateMiniPlayer(getStationUsingSavedId());
-            }
+        radioViewModel.getUpdateMiniPlayerEvent().observe(this,trigger->{
+            updateMiniPlayer(getStationUsingSavedId());
         });
 
         radioViewModel.getStationIdLivedata().observe(this, intResource -> {
             if (intResource.status == Resource.Status.SUCCESS) {
                 lastStationId = intResource.data;
-                radioListRecyclerViewAdapter.setSelectedStationId(lastStationId);
             }
         });
 
         radioViewModel.getSelectedStation().observe(this, radioStation -> {
-            this.currentPlayingStation = radioStation;
-            playerManager.setRadioStation(radioStation);
-            radioListRecyclerViewAdapter.setSelectedStation(radioStation);
-
-            if (lastStationId == radioStation.getId()) {
-                playerManager.playOrStop();
-            } else {
-                playerManager.playFromMainActivity();
-            }
-            radioViewModel.saveStationId(radioStation.getId());
-
             hideKeyboard();
             updateMiniPlayer(radioStation);
         });
@@ -235,7 +217,6 @@ public class MainActivity extends AppCompatActivity {
     private void setupBroadcastReceiver() {
         IntentFilter eventFilter = new IntentFilter();
         eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
-        eventFilter.addAction(StreamService.ACTION_UPDATE_UI);
 
         EventReceiver eventReceiver = new EventReceiver();
 
@@ -276,17 +257,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         radioViewModel.getRemoteLinks();
-        radioViewModel.getStationId();
     }
 
 
-    //Broadcast Receiver
     public class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String state = intent.getStringExtra(StreamService.EXTRA_STATE);
-            radioListRecyclerViewAdapter.setState(state);
-            radioListRecyclerViewAdapter.updateStation(currentPlayingStation);
 
             if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
                 binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
@@ -306,7 +283,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void updateMiniPlayer(RadioStation radioStation) {
-        binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.getSmallLogo());
+        binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.getLogoResource());
         binding.miniPlayer.tvStationNameMiniPlayerLayout.setText(radioStation.getStationName());
     }
 
@@ -314,11 +291,11 @@ public class MainActivity extends AppCompatActivity {
         radioViewModel.setSelectedStation(getStationUsingSavedId());
     }
 
-    RadioStation getStationUsingSavedId() {
-        RadioStation radioStation = new RadioStation(0, "", "", "", "", lastStationId);
-        int position = radioListRecyclerViewAdapter.getPosOfStation(lastStationId);
+    public RadioStation getStationUsingSavedId() {
+        RadioStation radioStation = new RadioStation(lastStationId,0, "", "", "", "", false);
+        int position = radioListRecyclerViewAdapter.getPositionOfStation(lastStationId);
 
-        if (!(radioListRecyclerViewAdapter.stationListIsEmpty() || position == RecyclerView.NO_POSITION)) {
+        if (!(radioListRecyclerViewAdapter.listIsEmpty() || position == RecyclerView.NO_POSITION)) {
             radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position);
         }
         return radioStation;

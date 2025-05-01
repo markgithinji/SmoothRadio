@@ -40,7 +40,6 @@ public class PlayerFragment extends Fragment {
     FragmentPlayerBinding binding;
 
     public String state = "";
-    Boolean info = false;
     public CoordinatorLayout coordinatorLayout;
 
 
@@ -49,7 +48,6 @@ public class PlayerFragment extends Fragment {
     int stationId;
     FragmentActivity fragmentActivity;
     RadioViewModel radioViewModel;
-    boolean isObserverSetup = false;
 
     PlayerManager playerManager;
 
@@ -87,7 +85,7 @@ public class PlayerFragment extends Fragment {
 
                 if (currentStation == null) getLatestStationUsingSavedId();
 
-                binding.ivLargeLogo.setImageResource(currentStation.getSmallLogo());
+                binding.ivLargeLogo.setImageResource(currentStation.getLogoResource());
                 binding.tvStationNamePlayerFrag.setText(currentStation.getStationName());
             }
         });
@@ -98,11 +96,11 @@ public class PlayerFragment extends Fragment {
     }
 
     private void getLatestStationUsingSavedId() {
-        currentStation = new RadioStation(0, "", "", "", "", stationId);
+        currentStation = new RadioStation(stationId,0, "", "", "", "",true );
 
-        int position = mainActivity.getAdapter().getPosOfStation(stationId);
+        int position = mainActivity.getAdapter().getPositionOfStation(stationId);
 
-        if (!(mainActivity.getAdapter().stationListIsEmpty() || position == RecyclerView.NO_POSITION)) {
+        if (!(mainActivity.getAdapter().listIsEmpty() || position == RecyclerView.NO_POSITION)) {
             currentStation = mainActivity.getAdapter().getStationAtPosition(position);
         }
     }
@@ -131,8 +129,6 @@ public class PlayerFragment extends Fragment {
 
         //When we request for a ui state form service it doesn't work until the service starts playing. This is unusual/
         //unexpected behavior so we will manually set the state to preparing here for now.
-        state = "";
-        broadcastState(state);
         if (playerManager.getIsShowingAd()) {
             state = StreamService.StreamStates.PREPARING;
             broadcastState(state);
@@ -223,60 +219,36 @@ public class PlayerFragment extends Fragment {
     void updateUI() {
         TransitionManager.beginDelayedTransition(binding.playerFrag);
 
-        if (state.equals(StreamService.StreamStates.PREPARING)) {
-            binding.tvProgress.setText(state);
-            binding.tvMetadata.setText("");
+        binding.tvProgress.setText(state);
+        binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
+        binding.equalizerAnimation.setVisibility(View.INVISIBLE);
+        binding.tvMetadata.setText("");
+        binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
+
+        if (StreamService.StreamStates.PREPARING.equals(state)) {
             binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
-            binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            playerManager.setISplaying(true);
-
-        } else if (state.equals(StreamService.StreamStates.ENDED)) {
-            binding.tvProgress.setText("");
-            binding.tvMetadata.setText("");
-            binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
-            binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-
-            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-
-            playerManager.setISplaying(true);
-            playerManager.setISplaying(false);
-        } else if (state.equals(StreamService.StreamStates.PLAYING)) {
-            binding.tvProgress.setText(state);
-            binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
-            binding.equalizerAnimation.setVisibility(View.VISIBLE);
-
-            binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon);
-
-            playerManager.setISplaying(true);
-
-        } else if (state.equals(StreamService.StreamStates.IDLE)) {
-            binding.tvProgress.setText(state);
-            binding.tvMetadata.setText("");
-            binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
-            binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-
-            playerManager.setISplaying(true);
-            playerManager.setISplaying(false);
-
-        } else if (state.equals(StreamService.StreamStates.BUFFERING)) {
-            binding.tvProgress.setText(state);
-            binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
-            binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-
-            playerManager.setISplaying(true);
-        } else {
-            state = "";
-            binding.tvProgress.setText(state);
-            binding.tvMetadata.setText("");
-            binding.lottieLoadingAnimation.setVisibility(View.INVISIBLE);
-            binding.equalizerAnimation.setVisibility(View.INVISIBLE);
-            binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon);
-
-            playerManager.setISplaying(false);
+            return;
         }
 
+        if (StreamService.StreamStates.PLAYING.equals(state)) {
+            binding.equalizerAnimation.setVisibility(View.VISIBLE);
+            binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon);
+            return;
+        }
+
+        if (StreamService.StreamStates.BUFFERING.equals(state)) {
+            binding.lottieLoadingAnimation.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        if (StreamService.StreamStates.ENDED.equals(state) ||
+                StreamService.StreamStates.IDLE.equals(state)) {
+            return;
+        }
+
+        // If unknown state
+        binding.tvProgress.setText("");
+        binding.tvMetadata.setText("");
     }
 
     private void broadcastState(String state) {
