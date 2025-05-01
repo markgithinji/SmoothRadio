@@ -35,20 +35,29 @@ import com.smoothradio.radio.service.StreamService;
 import java.util.List;
 
 
-public class RadioListFragment extends Fragment {
-    RadioViewModel radioViewModel;
-    private int lastStationId;
-    RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
-    MainActivity mainActivity;
-    FragmentActivity fragmentActivity;
+public class RadioListFragment extends Fragment{
+    // View Binding
+    private FragmentMusicListBinding binding;
 
-    private List<RadioStation>radioStationList;
+    // ViewModel
+    private RadioViewModel radioViewModel;
 
-    PlayerManager playerManager;
-    RadioStation currentStation;
+    // Adapter
+    private RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
 
-    FragmentMusicListBinding binding;
-    Intent eventIntent;
+    // Components
+    private PlayerManager playerManager;
+    private final BroadcastReceiver eventReceiver = new EventReceiver();
+    private Intent eventIntent;
+
+    // State
+    private int lastStationId = -1;
+    private RadioStation currentStation;
+    private List<RadioStation> radioStationList;
+
+    // Activity references
+    private MainActivity mainActivity;
+    private FragmentActivity fragmentActivity;
 
     public RadioListFragment() {
         // Required empty public constructor
@@ -66,12 +75,11 @@ public class RadioListFragment extends Fragment {
         mainActivity = (MainActivity) getContext();
 
         setupBroadcastReceiver();
-
+        initializeComponents();
+    }
+    private void initializeComponents() {
         radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
-
         playerManager = mainActivity.getPlayerManager();
-
-        //for player state ui updates
         eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
                 .setPackage(fragmentActivity.getPackageName());
     }
@@ -125,7 +133,6 @@ public class RadioListFragment extends Fragment {
         radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
             if (intResource.status == Resource.Status.SUCCESS) {
                 lastStationId = intResource.data;
-                radioListRecyclerViewAdapter.setSelectedStationId(lastStationId);
             }
         });
         radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
@@ -153,7 +160,7 @@ public class RadioListFragment extends Fragment {
         binding.rvList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                BottomSheetBehavior<View> bottomSheetBehavior = ((MainActivity) requireActivity()).bottomSheetBehavior;
+                BottomSheetBehavior<View> bottomSheetBehavior = mainActivity.bottomSheetBehavior;
 
                 if (!recyclerView.canScrollVertically(1)) {
                     bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
@@ -208,4 +215,5 @@ public class RadioListFragment extends Fragment {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);
         fragmentActivity.sendBroadcast(eventIntent);
     }
+
 }

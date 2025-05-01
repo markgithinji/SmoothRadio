@@ -11,6 +11,7 @@ import androidx.fragment.app.DialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
+import com.smoothradio.radio.feature.radio_list.RadioListRecyclerViewAdapter;
 
 public class SortDialog extends DialogFragment {
     MainActivity mainActivity;
@@ -27,10 +28,10 @@ public class SortDialog extends DialogFragment {
                     mainActivity.getAdapter().sortPopular();//popular
                 }
                 if(i==1) {
-                    mainActivity.getAdapter().sortAscending();//ascending
+                    mainActivity.getAdapter().sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.ASCENDING);
                 }
                 if(i==2) {
-                    mainActivity.getAdapter().sortDescending();//descending
+                    mainActivity.getAdapter().sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.DESCENDING);
                 }
                 if(i==3) {
                     mainActivity.getAdapter().sortFavourites();//favourites

@@ -13,6 +13,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -22,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.smoothradio.radio.core.ui.RadioViewModel;
@@ -38,36 +40,31 @@ import com.smoothradio.radio.service.StreamService;
 import com.smoothradio.radio.util.SortDialog;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-
-    // View binding
-    public ActivityMainBinding binding;
-
-    // ViewPager
-    private ViewPagerAdapter viewPagerAdapter;
-    private int tabPosition;
+    // View Binding
+    private ActivityMainBinding binding;
 
     // ViewModel
-    public RadioViewModel radioViewModel;
+    private RadioViewModel radioViewModel;
 
-    // Bottom sheet
-    public BottomSheetBehavior<View> bottomSheetBehavior;
+    // Adapters
+    private ViewPagerAdapter viewPagerAdapter;
+    private RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
 
-    // Input & keyboard
+    // Services & Managers
+    private PlayerManager playerManager;
     private InputMethodManager inputMethodManager;
-    private boolean searchVisible = false;
-
-    // Firebase
     private FirebaseAnalytics firebaseAnalytics;
-    public RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
 
-    PlayerManager playerManager;
+    // State
+    private int tabPosition = 0;
+    private int lastStationId = 0;
+    private boolean isSearchVisible = false;
 
-    private int lastStationId;
-
-    List<RadioStation> radioStationList = new ArrayList<>();
+    // Components
+    public BottomSheetBehavior<View> bottomSheetBehavior;
+    private final BroadcastReceiver eventReceiver = new EventReceiver();
 
 
     @Override
@@ -79,33 +76,29 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        setSupportActionBar(binding.toolbar);
+        initializeComponents();
+        setupObservers();
+        setupUI();
+        setupBroadcastReceiver();
+        requestPermissions();
+    }
 
-        new ConsentHelper(this).showConsentForm();
-
+    private void initializeComponents() {
         radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
-
+        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(new ArrayList<>()
+                ,new RadioStationActionHandler(radioViewModel));
+        playerManager = new PlayerManager(this);
+        inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);//for Hiding KeyBoard
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this);
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout);
 
-        playerManager = new PlayerManager(this);
-
-        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(new ArrayList<>());
-
-        setupObservers();
-
+        new ConsentHelper(this).showConsentForm();
+    }
+    private void setupUI() {
+        setSupportActionBar(binding.toolbar);
         setupViewPagerAndTabs();
-
         setupSearchUI();
-
         binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener(v -> miniPlayerPlayPause());
-
-        setupBroadcastReceiver();
-
-        requestPermissions();
-
-        inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);//for Hiding KeyBoard
-
-        firebaseAnalytics = FirebaseAnalytics.getInstance(this);
     }
 
     private void setupObservers() {
@@ -172,10 +165,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupSearchUI() {
         binding.ivSearch.setOnClickListener(view -> {
-            if (searchVisible) {
+            if (isSearchVisible) {
                 binding.etSearch.setVisibility(View.INVISIBLE);
                 binding.ivClearSearch.setVisibility(View.INVISIBLE);
-                searchVisible = false;
+                isSearchVisible = false;
                 hideKeyboard();
             } else {
                 if (tabPosition != 0) {
@@ -188,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
                 });
 
                 binding.etSearch.setVisibility(View.VISIBLE);
-                searchVisible = true;
+                isSearchVisible = true;
                 if (binding.etSearch.getText().length() > 0) {
                     binding.ivClearSearch.setVisibility(View.VISIBLE);
                 }
@@ -250,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentPage));
 
 
-        if (searchVisible && binding.etSearch.getText().length() > 0) {
+        if (isSearchVisible && binding.etSearch.getText().length() > 0) {
             binding.ivClearSearch.setVisibility(View.VISIBLE);
         } else {
             binding.ivClearSearch.setVisibility(View.INVISIBLE);
@@ -259,35 +252,19 @@ public class MainActivity extends AppCompatActivity {
         radioViewModel.getRemoteLinks();
     }
 
-
-    public class EventReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
-
-            if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
-                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
-                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
-            } else if (state.equals(StreamService.StreamStates.PLAYING)) {
-                binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
-                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
-            } else {
-                binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-                binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
-                binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
-            }
-            //update mini player
-            binding.miniPlayer.tvStatusMiniPlayerLayout.setText(state);
-        }
+    private void hideKeyboard() {
+        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.getWindowToken(), 0);
+        binding.etSearch.setVisibility(View.INVISIBLE);
+        binding.ivClearSearch.setVisibility(View.INVISIBLE);
+        isSearchVisible = false;
     }
 
-    void updateMiniPlayer(RadioStation radioStation) {
+    private void updateMiniPlayer(RadioStation radioStation) {
         binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.getLogoResource());
         binding.miniPlayer.tvStationNameMiniPlayerLayout.setText(radioStation.getStationName());
     }
 
-    void miniPlayerPlayPause() {
+    private void miniPlayerPlayPause() {
         radioViewModel.setSelectedStation(getStationUsingSavedId());
     }
 
@@ -300,8 +277,21 @@ public class MainActivity extends AppCompatActivity {
         }
         return radioStation;
     }
+    public void sendFirebaseAnalytics(String stationName) {
+        String event = stationName.toLowerCase().replace(" ", "");
+        Bundle bundle = new Bundle();
+        bundle.putString("station_name", stationName);
+        firebaseAnalytics.logEvent(event, bundle);
+    }
+    public RadioListRecyclerViewAdapter getAdapter() {
+        return radioListRecyclerViewAdapter;
+    }
 
-    void requestPermissions() {
+    public PlayerManager getPlayerManager() {
+        return playerManager;
+    }
+
+    private void requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
             ActivityCompat.requestPermissions(this, permissions, 0);
@@ -309,20 +299,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void sendFirebaseAnalytics(String stationName) {
-        String event = stationName.toLowerCase().replace(" ", "");
-        Bundle bundle = new Bundle();
-        bundle.putString("station_name", stationName);
-        firebaseAnalytics.logEvent(event, bundle);
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    public void hideKeyboard() {
-        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.getWindowToken(), 0);
-        binding.etSearch.setVisibility(View.INVISIBLE);
-        binding.ivClearSearch.setVisibility(View.INVISIBLE);
-        searchVisible = false;
-    }
+    public class EventReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
 
+            if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
+                showBufferingState();
+            } else if (state.equals(StreamService.StreamStates.PLAYING)) {
+                showPlayingState();
+            } else {
+                showStoppedState();
+            }
+            //update mini player
+            binding.miniPlayer.tvStatusMiniPlayerLayout.setText(state);
+        }
+        private void showBufferingState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
+        }
+
+        private void showPlayingState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+        }
+
+        private void showStoppedState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -349,13 +361,36 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
+    public class RadioStationActionHandler implements RadioListRecyclerViewAdapter.RadioStationActionListener {
+        private final RadioViewModel radioViewModel;
 
-    public RadioListRecyclerViewAdapter getAdapter() {
-        return radioListRecyclerViewAdapter;
-    }
+        public RadioStationActionHandler(RadioViewModel radioViewModel) {
+            this.radioViewModel = radioViewModel;
+        }
 
-    public PlayerManager getPlayerManager() {
-        return playerManager;
+        @Override
+        public void onStationSelected(RadioStation station) {
+            radioViewModel.setSelectedStation(station);
+        }
+
+        @Override
+        public void onAddToFavorites(String stationName) {
+            radioViewModel.addToFavorites(stationName);
+        }
+
+        @Override
+        public void onRemoveFromFavorites(String stationName) {
+            radioViewModel.removeFromFavorites(stationName);
+        }
+        @Override
+        public void onRequestHideKeyboard() {
+            hideKeyboard();
+        }
+
+        @Override
+        public void onRequestshowToast(String message) {
+            showToast(message);
+        }
     }
 
 }
