@@ -1,10 +1,10 @@
-package com.smoothradio.radio.core.util;
+package com.smoothradio.radio.feature.radio_list.util;
 
 import android.util.Log;
 
 import androidx.recyclerview.widget.DiffUtil;
 
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,11 +43,7 @@ public class StationDiffUtilCallback extends DiffUtil.Callback {
         RadioStation oldItem = oldList.get(oldItemPosition);
         RadioStation newItem = newList.get(newItemPosition);
 
-        boolean isSame = oldItem.getLogoResource() == newItem.getLogoResource()
-                && Objects.equals(oldItem.getStationName(), newItem.getStationName())
-                && Objects.equals(oldItem.getFrequency(), newItem.getFrequency())
-                && Objects.equals(oldItem.getLocation(), newItem.getLocation())
-                && Objects.equals(oldItem.getUrl(), newItem.getUrl())
+        boolean isSame =Objects.equals(oldItem.getUrl(), newItem.getUrl())
                 && oldItem.isPlaying() == newItem.isPlaying();
 
         Log.d("DiffUtil", "areContentsTheSame " + isSame);

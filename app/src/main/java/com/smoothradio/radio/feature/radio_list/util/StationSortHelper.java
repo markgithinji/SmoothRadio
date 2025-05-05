@@ -1,6 +1,6 @@
-package com.smoothradio.radio.core.ui;
+package com.smoothradio.radio.feature.radio_list.util;
 
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation;
 
 import java.util.Collections;
 import java.util.List;

@@ -7,7 +7,6 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.model.RadioStation;
 
 import java.util.ArrayList;
 import java.util.List;

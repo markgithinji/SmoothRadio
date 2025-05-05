@@ -10,7 +10,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.smoothradio.radio.core.data.PlayerPreferencesRepository;
 import com.smoothradio.radio.core.data.RadioLinkRepository;
 import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
 import java.util.List;
@@ -156,6 +156,4 @@ public class RadioViewModel extends AndroidViewModel {
     public void onRemoteLinksLoaded() {
         updateMiniPlayerEvent.setValue(true);
     }
-
-
 }

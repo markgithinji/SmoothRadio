@@ -1,4 +1,4 @@
-package com.smoothradio.radio.model;
+package com.smoothradio.radio.core.model;
 
 import java.util.Objects;
 

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.ui;
+package com.smoothradio.radio.core.ui.adapter;
 
 
 import android.util.Log;
@@ -11,9 +11,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.smoothradio.radio.feature.discover.DiscoverFragment;
-import com.smoothradio.radio.feature.radio_list.RadioListFragment;
-import com.smoothradio.radio.feature.player.PlayerFragment;
+import com.smoothradio.radio.feature.discover.ui.DiscoverFragment;
+import com.smoothradio.radio.feature.radio_list.ui.RadioListFragment;
+import com.smoothradio.radio.feature.player.ui.PlayerFragment;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;

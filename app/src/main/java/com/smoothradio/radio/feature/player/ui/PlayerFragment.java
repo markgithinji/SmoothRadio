@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.player;
+package com.smoothradio.radio.feature.player.ui;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -26,9 +26,9 @@ import com.smoothradio.radio.R;
 import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.core.util.TimerSetterHelper;
+import com.smoothradio.radio.feature.player.util.TimerSetterHelper;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
 

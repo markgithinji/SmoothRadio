@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:scaleType="centerCrop"
     android:orientation="vertical"
-    tools:context=".feature.about.AboutFragment">
+    tools:context=".feature.about.ui.AboutFragment">
 
     <LinearLayout
         android:layout_width="match_parent"

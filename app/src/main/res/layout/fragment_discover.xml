@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".feature.discover.DiscoverFragment">
+    tools:context=".feature.discover.ui.DiscoverFragment">
 
 
     <androidx.recyclerview.widget.RecyclerView

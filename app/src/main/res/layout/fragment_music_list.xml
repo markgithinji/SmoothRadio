@@ -10,7 +10,7 @@
     android:foregroundGravity="center_horizontal"
     android:orientation="vertical"
     app:layout_anchorGravity="center_horizontal"
-    tools:context=".feature.radio_list.RadioListFragment">
+    tools:context=".feature.radio_list.ui.RadioListFragment">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvList"

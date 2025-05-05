@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list;
+package com.smoothradio.radio.feature.radio_list.ui.adapter;
 
 import static com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING;
 import static com.smoothradio.radio.service.StreamService.StreamStates.PLAYING;
@@ -9,22 +9,20 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.ads.AdRequest;
-import com.google.android.material.snackbar.Snackbar;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
-import com.smoothradio.radio.core.ui.StationSortHelper;
-import com.smoothradio.radio.core.util.StationDiffUtilCallback;
+import com.smoothradio.radio.feature.radio_list.util.StationSortHelper;
+import com.smoothradio.radio.feature.radio_list.util.StationDiffUtilCallback;
 import com.smoothradio.radio.databinding.AdviewBinding;
 import com.smoothradio.radio.databinding.EmptyFavouritiesBinding;
 import com.smoothradio.radio.databinding.RadioitemBinding;
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -228,7 +226,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         @Override
         public void onClick(View view) {
             radioStationActionHandler.onStationSelected(radioStation);
-            setPlayingStation(stationId); // uses DiffUtil internally
+            setPlayingStation(stationId);
         }
     }
 
@@ -291,9 +289,10 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         }
 
         private void updateFavoritesDisplay() {
-            List<RadioStation> sortedList = new ArrayList<>(favouriteList);
-            StationSortHelper.sortByName(sortedList);
-            update(sortedList);
+            recyclerViewItems.clear();
+            recyclerViewItems.addAll(favouriteList);
+            StationSortHelper.sortByName(recyclerViewItems);
+            notifyDataSetChanged();
         }
 
     }
@@ -342,6 +341,15 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         List<RadioStation> favoriteStations = getFavoriteStationsFromNames(stationList, favouriteListNames);
         favouriteList.clear();
         favouriteList.addAll(favoriteStations);
+    }
+    private List<RadioStation> getFavoriteStationsFromNames(List<RadioStation> allStations, List<String> favoriteNames) {
+        List<RadioStation> favoriteStations = new ArrayList<>();
+        for (RadioStation station : allStations) {
+            if (favoriteNames.contains(station.getStationName())) {
+                favoriteStations.add(station);
+            }
+        }
+        return favoriteStations;
     }
 
 
@@ -438,16 +446,6 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         }
 
         notifyDataSetChanged();
-    }
-
-    private List<RadioStation> getFavoriteStationsFromNames(List<RadioStation> allStations, List<String> favoriteNames) {
-        List<RadioStation> favoriteStations = new ArrayList<>();
-        for (RadioStation station : allStations) {
-            if (favoriteNames.contains(station.getStationName())) {
-                favoriteStations.add(station);
-            }
-        }
-        return favoriteStations;
     }
 
     //--------------------

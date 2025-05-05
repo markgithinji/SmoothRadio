@@ -1,6 +1,5 @@
-package com.smoothradio.radio.core.util;
+package com.smoothradio.radio.feature.player.util;
 
-import android.content.Context;
 import android.content.Intent;
 import android.view.View;
 import android.widget.Toast;

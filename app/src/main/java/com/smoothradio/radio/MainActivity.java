@@ -23,21 +23,20 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.smoothradio.radio.core.ui.RadioViewModel;
-import com.smoothradio.radio.core.ui.ViewPagerAdapter;
+import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter;
 import com.smoothradio.radio.core.util.CacheUtil;
 import com.smoothradio.radio.core.util.ConsentHelper;
 import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.ActivityMainBinding;
-import com.smoothradio.radio.feature.about.AboutFragment;
-import com.smoothradio.radio.feature.radio_list.RadioListRecyclerViewAdapter;
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.feature.about.ui.AboutFragment;
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
+import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
-import com.smoothradio.radio.util.SortDialog;
+import com.smoothradio.radio.feature.player.util.SortDialog;
 
 import java.util.ArrayList;
 

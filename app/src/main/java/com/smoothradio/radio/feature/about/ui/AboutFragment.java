@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.about;
+package com.smoothradio.radio.feature.about.ui;
 
 import android.content.ActivityNotFoundException;
 import android.content.Intent;

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.util;
+package com.smoothradio.radio.feature.player.util;
 
 import android.app.Dialog;
 import android.content.DialogInterface;
@@ -11,7 +11,7 @@ import androidx.fragment.app.DialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
-import com.smoothradio.radio.feature.radio_list.RadioListRecyclerViewAdapter;
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
 
 public class SortDialog extends DialogFragment {
     MainActivity mainActivity;

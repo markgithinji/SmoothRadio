@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list;
+package com.smoothradio.radio.feature.radio_list.ui;
 
 import static android.content.Context.RECEIVER_NOT_EXPORTED;
 
@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,12 +23,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.core.ui.RadioStationsHelper;
+import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper;
 import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.FragmentMusicListBinding;
-import com.smoothradio.radio.model.RadioStation;
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
+import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
 import java.util.List;

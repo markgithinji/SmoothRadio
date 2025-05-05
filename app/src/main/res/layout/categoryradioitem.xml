@@ -49,14 +49,14 @@
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@id/ivCategoryBackground"
-        app:layout_constraintEnd_toStartOf="@+id/ivCategoryFavrite"
+        app:layout_constraintEnd_toStartOf="@+id/ivCategoryFavourite"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@id/ivCategoryBackground"
         app:layout_constraintTop_toTopOf="@id/ivCategoryBackground"
         app:layout_constraintVertical_bias="1.0" />
 
     <ImageView
-        android:id="@+id/ivCategoryFavrite"
+        android:id="@+id/ivCategoryFavourite"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="?android:attr/selectableItemBackground"
@@ -69,10 +69,22 @@
         app:srcCompat="@drawable/favorite_20px" />
 
     <ImageView
+        android:id="@+id/ivBackground"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/ivCategoryLogo"
+        app:layout_constraintEnd_toEndOf="@+id/ivCategoryLogo"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="@+id/ivCategoryLogo"
+        app:layout_constraintTop_toTopOf="@+id/ivCategoryLogo"
+        app:layout_constraintVertical_bias="0.5"
+        app:srcCompat="@drawable/radio_item_background_category_radio_item" />
+
+    <ImageView
         android:id="@+id/ivCategoryPlay"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
-        android:layout_marginBottom="19dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+
         android:background="?android:attr/selectableItemBackground"
         android:padding="6dp"
         android:visibility="visible"
@@ -81,5 +93,20 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/ivCategoryLogo"
         app:layout_constraintTop_toTopOf="@+id/ivCategoryLogo"
-        app:layout_constraintVertical_bias="1.0" />
+        app:layout_constraintVertical_bias="0.5" />
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/lottie_loading_animation"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/ivCategoryPlay"
+        app:layout_constraintEnd_toEndOf="@id/ivCategoryPlay"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="@id/ivCategoryPlay"
+        app:layout_constraintTop_toTopOf="@id/ivCategoryPlay"
+        app:layout_constraintVertical_bias="0.5"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_rawRes="@raw/loading2" />
 </androidx.constraintlayout.widget.ConstraintLayout>
