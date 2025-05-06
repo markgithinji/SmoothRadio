@@ -3,16 +3,17 @@ package com.smoothradio.radio.core.model;
 import java.util.Objects;
 
 public class RadioStation {
-    int logoResource;
-    String stationName;
-    String frequency;
-    String location;
-    String url;
-    int id;
+    private int logoResource;
+    private String stationName;
+    private String frequency;
+    private String location;
+    private String url;
+    private int id;
 
-    boolean isPlaying;
+    private boolean isPlaying;
+    private boolean isFavorite;
 
-    public RadioStation(int id, int logoResource, String stationName, String frequency, String location, String url,boolean isPlaying ) {
+    public RadioStation(int id, int logoResource, String stationName, String frequency, String location, String url, boolean isPlaying) {
         this.logoResource = logoResource;
         this.stationName = stationName;
         this.frequency = frequency;
@@ -20,7 +21,7 @@ public class RadioStation {
         this.url = url;
         this.id = id;
         this.isPlaying = isPlaying;
-
+        this.isFavorite = false;
     }
 
     public RadioStation(RadioStation other) {
@@ -31,14 +32,23 @@ public class RadioStation {
         this.location = other.location;
         this.url = other.url;
         this.isPlaying = other.isPlaying;
+        this.isFavorite = other.isFavorite;
+    }
+
+    public boolean isPlaying() {
+        return isPlaying;
     }
 
     public void setPlaying(boolean playing) {
         isPlaying = playing;
     }
 
-    public boolean isPlaying() {
-        return isPlaying;
+    public boolean isFavorite() {
+        return isFavorite;
+    }
+
+    public void setFavorite(boolean favorite) {
+        isFavorite = favorite;
     }
 
     public int getId() {
@@ -65,7 +75,6 @@ public class RadioStation {
         return location;
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -78,5 +87,4 @@ public class RadioStation {
     public int hashCode() {
         return Objects.hash(id);
     }
-
 }

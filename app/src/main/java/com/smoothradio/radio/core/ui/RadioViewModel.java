@@ -128,8 +128,19 @@ public class RadioViewModel extends AndroidViewModel {
     }
 
     // Observe favorite names list
+    private final MutableLiveData<Resource<List<String>>> _favoriteStations =
+            new MutableLiveData<>(Resource.loading()); // Initial state
+
     public LiveData<Resource<List<String>>> getFavoriteStationNames() {
-        return prefsRepo.getFavoriteStationNames();
+        return _favoriteStations;
+    }
+
+    public void loadFavoriteStations() {
+        prefsRepo.getFavoriteStationNames().observeForever(result -> {
+            if (result != null) {
+                _favoriteStations.postValue(result);
+            }
+        });
     }
 
     //-------------------------
@@ -156,4 +167,20 @@ public class RadioViewModel extends AndroidViewModel {
     public void onRemoteLinksLoaded() {
         updateMiniPlayerEvent.setValue(true);
     }
+
+    //------------------------
+    // Get RemoteList Trigger
+    //------------------------
+    private final MutableLiveData<Boolean> getRemoteListEvent = new MutableLiveData<>();
+
+    public LiveData<Boolean> getGetRemoteListEvent() {
+        return getRemoteListEvent;
+    }
+
+    // Call this when remote links are loaded successfully
+    public void onGetRemoteList() {
+        getRemoteListEvent.setValue(true);
+    }
+
+
 }

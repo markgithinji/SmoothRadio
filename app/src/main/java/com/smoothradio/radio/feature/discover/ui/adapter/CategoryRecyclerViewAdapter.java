@@ -10,12 +10,14 @@ import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.smoothradio.radio.R;
 import com.smoothradio.radio.databinding.CategoryradioitemBinding;
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment;
 import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.feature.radio_list.util.StationDiffUtilCallback;
 import com.smoothradio.radio.service.StreamService;
 
 import java.util.ArrayList;
@@ -171,11 +173,21 @@ public class CategoryRecyclerViewAdapter extends RecyclerView.Adapter {
         holder.binding.ivCategoryFavourite.setImageResource(resId);
     }
 
-    public void setFavouriteStations(List<String> favouriteListNames) {
-        List<RadioStation> favoriteStations = getFavoriteStationsFromNames(radioStationItems, favouriteListNames);
-        favouriteStations.clear();
-        favouriteStations.addAll(favoriteStations);
+    public void setFavoriteStations(List<String> favouriteListNames) {
+        List<RadioStation> oldList = new ArrayList<>(radioStationItems);
+
+        // Update the favorite status for each radio station in the category
+        for (RadioStation station : radioStationItems) {
+            station.setFavorite(favouriteListNames.contains(station.getStationName()));
+        }
+
+        // Use DiffUtil to update only the changed stations
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new StationDiffUtilCallback(oldList, radioStationItems));
+
+        // Apply the diff result
+        diffResult.dispatchUpdatesTo(this);  // This will update only the changed items
     }
+
 
     private List<RadioStation> getFavoriteStationsFromNames(List<RadioStation> allStations, List<String> favoriteNames) {
         List<RadioStation> favoriteStations = new ArrayList<>();

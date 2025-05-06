@@ -44,7 +44,8 @@ public class StationDiffUtilCallback extends DiffUtil.Callback {
         RadioStation newItem = newList.get(newItemPosition);
 
         boolean isSame =Objects.equals(oldItem.getUrl(), newItem.getUrl())
-                && oldItem.isPlaying() == newItem.isPlaying();
+                && oldItem.isPlaying() == newItem.isPlaying()
+                && oldItem.isFavorite() == newItem.isFavorite();
 
         Log.d("DiffUtil", "areContentsTheSame " + isSame);
         return isSame;

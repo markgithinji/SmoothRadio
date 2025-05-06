@@ -5,6 +5,7 @@ import static com.smoothradio.radio.service.StreamService.StreamStates.PLAYING;
 import static com.smoothradio.radio.service.StreamService.StreamStates.PREPARING;
 
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,7 +45,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     private static final int AD_POSITION_6 = 72;
 
     // Data collections
-    private final List<RadioStation> favouriteList = new ArrayList<>();
+    public final List<RadioStation> favouriteList = new ArrayList<>();
     private final List<RadioStation> filteredStationNameList = new ArrayList<>();
     private final List<RadioStation> stationList;
     private final List<RadioStation> recyclerViewItems;
@@ -104,12 +105,13 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
     private void bindRadioStation(@NonNull ItemViewViewHolder holder, @NonNull RadioStation radioStation) {
+
         // Favorite icon
-        int favIconRes = favouriteList.contains(radioStation)
+        int favIconRes = radioStation.isFavorite()
                 ? R.drawable.favorite_20px_filled
                 : R.drawable.favorite_20px;
         holder.binding.ivFavourite.setImageResource(favIconRes);
-
+        Log.d("RadioListRecyclerViewAdapter", "bindRadioStation: " + favouriteList.size());
         // Basic UI
         holder.binding.ivLogo.setBackgroundResource(radioStation.getLogoResource());
         holder.binding.tvChannelName.setText(radioStation.getStationName());
@@ -242,20 +244,17 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View view) {
-            // Check current favorite state
-            boolean isFavorite = isStationFavorite(radioStation);
+            boolean isFavorite = radioStation.isFavorite();
+            radioStation.setFavorite(!isFavorite);
+
             if (isFavorite) {
-                removeFromFavorites(view);
+                removeFromFavorites();
             } else {
-                addToFavorites(view);
+                addToFavorites();
             }
         }
 
-        private boolean isStationFavorite(RadioStation station) {
-            return favouriteList.contains(station);
-        }
-
-        private void removeFromFavorites(View view) {
+        private void removeFromFavorites() {
             radioStationActionHandler.onRemoveFromFavorites(radioStation.getStationName());
 
             // Update UI
@@ -265,7 +264,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
             handlePostFavoriteAction();
         }
 
-        private void addToFavorites(View view) {
+        private void addToFavorites() {
             if (favouriteList.size() >= 20) {
                 radioStationActionHandler.onRequestshowToast( "Can't add more than 20 favorite stations");
                 return;
@@ -338,10 +337,21 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     }
 
     public void setFavouriteList(List<String> favouriteListNames) {
-        List<RadioStation> favoriteStations = getFavoriteStationsFromNames(stationList, favouriteListNames);
-        favouriteList.clear();
-        favouriteList.addAll(favoriteStations);
+        List<RadioStation> updatedList = new ArrayList<>();
+        for (RadioStation station : stationList) {
+            RadioStation updatedStation = new RadioStation(station);
+            updatedStation.setFavorite(favouriteListNames.contains(station.getStationName()));
+            updatedList.add(updatedStation);
+        }
+        update(updatedList);
     }
+
+
+//    public void setFavouriteList(List<String> favouriteListNames) {
+//        List<RadioStation> favoriteStations = getFavoriteStationsFromNames(stationList, favouriteListNames);
+//        favouriteList.clear();
+//        favouriteList.addAll(favoriteStations);
+//    }
     private List<RadioStation> getFavoriteStationsFromNames(List<RadioStation> allStations, List<String> favoriteNames) {
         List<RadioStation> favoriteStations = new ArrayList<>();
         for (RadioStation station : allStations) {

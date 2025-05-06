@@ -105,8 +105,11 @@ public class DiscoverFragment extends Fragment {
 
         radioViewModel.getFavoriteStationNames().observe(getViewLifecycleOwner(), resource -> {
             if (resource.status == Resource.Status.SUCCESS) {
-//                radioListRecyclerViewAdapter.setFavouriteList(resource.data);
+                discoverRecyclerViewAdapter.setFavouriteList(resource.data);
             }
+        });
+        radioViewModel.getUpdateMiniPlayerEvent().observe(getViewLifecycleOwner(),trigger->{
+            radioViewModel.loadFavoriteStations();
         });
     }
 

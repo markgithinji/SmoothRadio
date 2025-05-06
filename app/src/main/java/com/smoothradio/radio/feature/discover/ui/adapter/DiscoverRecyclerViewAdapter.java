@@ -111,6 +111,16 @@ public class DiscoverRecyclerViewAdapter extends RecyclerView.Adapter {
         }
     }
 
+    public void setFavouriteList(List<String> favouriteListNames) {
+        // Now, pass the favorite stations list to each category adapter
+        for (CategoryRecyclerViewAdapter adapter : categoryAdapters) {
+            // Each category adapter has its own list of stations (stationList)
+            adapter.setFavoriteStations(favouriteListNames);
+        }
+    }
+
+
+
     public List<CategoryRecyclerViewAdapter> getCategoryAdapters() {
         return categoryAdapters;
     }
