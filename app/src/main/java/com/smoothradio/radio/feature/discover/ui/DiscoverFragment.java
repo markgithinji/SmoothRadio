@@ -42,10 +42,10 @@ public class DiscoverFragment extends Fragment {
     private FragmentDiscoverBinding binding;
     private DiscoverRecyclerViewAdapter discoverRecyclerViewAdapter;
     private RadioViewModel radioViewModel;
-
     private FragmentActivity fragmentActivity;
     private MainActivity mainActivity;
     private EventReceiver eventReceiver;
+    private Intent eventIntent;
     private RadioStation currentStation;
 
     public DiscoverFragment() {
@@ -62,6 +62,8 @@ public class DiscoverFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mainActivity = (MainActivity) getActivity();
+        eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
+                .setPackage(fragmentActivity.getPackageName());
         setupBroadcastReceiver();
     }
 
@@ -83,33 +85,14 @@ public class DiscoverFragment extends Fragment {
     }
 
     private void setupObservers() {
-        // Init radio links
-        radioViewModel.getStationId();
-        radioViewModel.getRemoteLinks();
 
-
-        radioViewModel.getRemoteLinksLiveData().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                List<RadioStation> radioStations = RadioStationsHelper.createRadioStations(resource.data);
-                List<Category> categoryList = CategoryHelper.createCategories(radioStations);
-                discoverRecyclerViewAdapter.updateCategoryList(categoryList);
-            }
+        radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
+            List<Category> categoryList = CategoryHelper.createCategories(stations);
+            discoverRecyclerViewAdapter.updateCategoryList(categoryList);
         });
 
         radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
             this.currentStation = radioStation;
-            mainActivity.getPlayerManager().setRadioStation(radioStation);
-            discoverRecyclerViewAdapter.setSelectedStation(radioStation);
-            radioViewModel.saveStationId(radioStation.getId());
-        });
-
-        radioViewModel.getFavoriteStationNames().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                discoverRecyclerViewAdapter.setFavouriteList(resource.data);
-            }
-        });
-        radioViewModel.getUpdateMiniPlayerEvent().observe(getViewLifecycleOwner(),trigger->{
-            radioViewModel.loadFavoriteStations();
         });
     }
 
@@ -132,6 +115,22 @@ public class DiscoverFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+        if (mainActivity.getPlayerManager().getIsShowingAd()) {
+            broadcastState(StreamService.StreamStates.PREPARING);
+        } else {
+            Intent getStateFromServiceIntent = new Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.getPackageName());
+            fragmentActivity.sendBroadcast(getStateFromServiceIntent);//get ui state from service
+        }
+    }
+    private void broadcastState(String state) {
+        eventIntent.putExtra(StreamService.EXTRA_STATE, state);
+        fragmentActivity.sendBroadcast(eventIntent);
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         fragmentActivity.unregisterReceiver(eventReceiver);
@@ -141,11 +140,9 @@ public class DiscoverFragment extends Fragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             String state = intent.getStringExtra(StreamService.EXTRA_STATE);
-
-            discoverRecyclerViewAdapter.updateStationInPlayingCategory(currentStation,state);
+            discoverRecyclerViewAdapter.setSelectedStationWithState(currentStation, state);
         }
     }
-
 
     public class RadioStationActionHandler implements CategoryRecyclerViewAdapter.RadioStationActionListener {
         private final RadioViewModel radioViewModel;
@@ -160,14 +157,10 @@ public class DiscoverFragment extends Fragment {
         }
 
         @Override
-        public void onAddToFavorites(String stationName) {
-            radioViewModel.addToFavorites(stationName);
+        public void onToggleFavorite(RadioStation station, boolean isFavorite) {
+            radioViewModel.updateFavoriteStatus(station.getId(), isFavorite);
         }
 
-        @Override
-        public void onRemoveFromFavorites(String stationName) {
-            radioViewModel.removeFromFavorites(stationName);
-        }
 
         @Override
         public void onRequestshowToast(String message) {

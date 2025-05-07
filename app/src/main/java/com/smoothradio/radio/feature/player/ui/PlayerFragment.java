@@ -96,7 +96,7 @@ public class PlayerFragment extends Fragment {
     }
 
     private void getLatestStationUsingSavedId() {
-        currentStation = new RadioStation(stationId,0, "", "", "", "",true );
+        currentStation = new RadioStation(stationId,0, "", "", "", "",true,false );
 
         int position = mainActivity.getAdapter().getPositionOfStation(stationId);
 

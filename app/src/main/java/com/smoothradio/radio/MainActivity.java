@@ -63,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
 
     // Components
     public BottomSheetBehavior<View> bottomSheetBehavior;
-    private final BroadcastReceiver eventReceiver = new EventReceiver();
 
 
     @Override
@@ -103,9 +102,8 @@ public class MainActivity extends AppCompatActivity {
     private void setupObservers() {
         // Init radio links
         radioViewModel.getStationId();
-        radioViewModel.getRemoteLinks();
 
-        radioViewModel.getUpdateMiniPlayerEvent().observe(this,trigger->{
+        radioViewModel.getOnRemoteLinksLoadedEvent().observe(this, trigger->{
             updateMiniPlayer(getStationUsingSavedId());
         });
 
@@ -121,10 +119,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
     private void setupViewPagerAndTabs() {
-
-
         viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager(), getLifecycle());
         viewPagerAdapter.addFragments();
         binding.viewPager.setAdapter(viewPagerAdapter);
@@ -219,6 +214,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
+            ActivityCompat.requestPermissions(this, permissions, 0);
+        }
+    }
 
     @Override
     protected void onDestroy() {
@@ -268,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public RadioStation getStationUsingSavedId() {
-        RadioStation radioStation = new RadioStation(lastStationId,0, "", "", "", "", false);
+        RadioStation radioStation = new RadioStation(lastStationId,0, "", "", "", "", false,false);
         int position = radioListRecyclerViewAdapter.getPositionOfStation(lastStationId);
 
         if (!(radioListRecyclerViewAdapter.listIsEmpty() || position == RecyclerView.NO_POSITION)) {
@@ -290,19 +291,8 @@ public class MainActivity extends AppCompatActivity {
         return playerManager;
     }
 
-    private void requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
-            ActivityCompat.requestPermissions(this, permissions, 0);
-        }
-    }
 
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-    }
-
-    public class EventReceiver extends BroadcastReceiver {
+    private class EventReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String state = intent.getStringExtra(StreamService.EXTRA_STATE);
@@ -373,14 +363,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onAddToFavorites(String stationName) {
-            radioViewModel.addToFavorites(stationName);
+        public void onToggleFavorite(RadioStation station, boolean isFavorite) {
+            radioViewModel.updateFavoriteStatus(station.getId(), isFavorite);
         }
 
-        @Override
-        public void onRemoveFromFavorites(String stationName) {
-            radioViewModel.removeFromFavorites(stationName);
-        }
         @Override
         public void onRequestHideKeyboard() {
             hideKeyboard();
@@ -390,6 +376,11 @@ public class MainActivity extends AppCompatActivity {
         public void onRequestshowToast(String message) {
             showToast(message);
         }
+
+        private void showToast(String message) {
+            Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+        }
+
     }
 
 }

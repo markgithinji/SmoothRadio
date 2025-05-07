@@ -1,19 +1,24 @@
 package com.smoothradio.radio.core.model;
 
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+
 import java.util.Objects;
 
-public class RadioStation {
+@Entity(tableName = "radio_stations")
+public class RadioStation implements ListItem{
+    @PrimaryKey
+    private int id;
     private int logoResource;
     private String stationName;
     private String frequency;
     private String location;
     private String url;
-    private int id;
 
     private boolean isPlaying;
     private boolean isFavorite;
 
-    public RadioStation(int id, int logoResource, String stationName, String frequency, String location, String url, boolean isPlaying) {
+    public RadioStation(int id, int logoResource, String stationName, String frequency, String location, String url, boolean isPlaying, boolean isFavorite) {
         this.logoResource = logoResource;
         this.stationName = stationName;
         this.frequency = frequency;
@@ -21,8 +26,9 @@ public class RadioStation {
         this.url = url;
         this.id = id;
         this.isPlaying = isPlaying;
-        this.isFavorite = false;
+        this.isFavorite = isFavorite;
     }
+
 
     public RadioStation(RadioStation other) {
         this.id = other.id;

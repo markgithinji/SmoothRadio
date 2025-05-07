@@ -1,6 +1,6 @@
 package com.smoothradio.radio.core.util;
 
-public class RadioStationData {
+public class RadioStationLinksHelper {
     public static final String[] RADIO_STATIONS = {
             "http://freeuk28.listen2myradio.com:15203/;stream.nsv", // 0
             "http://stream.group8.africa:44001/soundcityfmnrb", // 1

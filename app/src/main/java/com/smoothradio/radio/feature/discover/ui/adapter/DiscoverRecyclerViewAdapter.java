@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.discover.ui.adapter;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
@@ -9,11 +10,11 @@ import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.smoothradio.radio.feature.discover.util.CategoryDiffUtilCallback;
-import com.smoothradio.radio.databinding.CategoryitemBinding;
-import com.smoothradio.radio.feature.discover.ui.DiscoverFragment;
 import com.smoothradio.radio.core.model.Category;
 import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.databinding.CategoryitemBinding;
+import com.smoothradio.radio.feature.discover.ui.DiscoverFragment;
+import com.smoothradio.radio.feature.discover.util.CategoryDiffUtilCallback;
 import com.smoothradio.radio.service.StreamService;
 
 import java.util.ArrayList;
@@ -21,8 +22,6 @@ import java.util.List;
 
 public class DiscoverRecyclerViewAdapter extends RecyclerView.Adapter {
     private final List<Category> categoryList;
-    private RadioStation lastStation = new RadioStation(0, 0, "", "", "", "", true);
-    private CategoryRecyclerViewAdapter playingCategoryAdapter;
     private DiscoverFragment.RadioStationActionHandler radioStationActionHandler;
     private final List<CategoryRecyclerViewAdapter> categoryAdapters = new ArrayList<>();
 
@@ -46,17 +45,17 @@ public class DiscoverRecyclerViewAdapter extends RecyclerView.Adapter {
 
         categoryItemViewHolder.binding.tvCategoryLabel.setText(category.getLabel());
 
-        CategoryRecyclerViewAdapter adapter =
-                new CategoryRecyclerViewAdapter(this, category.getCategoryRadioStationList(), radioStationActionHandler);
+        CategoryRecyclerViewAdapter adapter = categoryAdapters.get(position);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(categoryItemViewHolder.itemView.getContext());
         linearLayoutManager.setOrientation(RecyclerView.HORIZONTAL);
 
-        categoryItemViewHolder.binding.rvCategory.setAdapter(adapter);
-        categoryItemViewHolder.binding.rvCategory.setLayoutManager(linearLayoutManager);
-        categoryItemViewHolder.binding.rvCategory.setHasFixedSize(true);
-        categoryItemViewHolder.binding.rvCategory
-                .addItemDecoration(new DividerItemDecoration(categoryItemViewHolder.itemView.getContext(), DividerItemDecoration.HORIZONTAL
-                ));
+        RecyclerView rvCategory = categoryItemViewHolder.binding.rvCategory;
+        rvCategory.setAdapter(adapter);
+        rvCategory.setLayoutManager(linearLayoutManager);
+        rvCategory.setHasFixedSize(true);
+        if (rvCategory.getItemDecorationCount() == 0) {
+            rvCategory.addItemDecoration(new DividerItemDecoration(rvCategory.getContext(), DividerItemDecoration.VERTICAL));
+        }
 
         categoryAdapters.add(adapter);
     }
@@ -72,57 +71,26 @@ public class DiscoverRecyclerViewAdapter extends RecyclerView.Adapter {
 
     public void updateCategoryList(List<Category> newCategoryList) {
         CategoryDiffUtilCallback diffUtilCallback = new CategoryDiffUtilCallback(this.categoryList, newCategoryList);
-
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(diffUtilCallback);
 
         this.categoryList.clear();
         this.categoryList.addAll(newCategoryList);
 
+        this.categoryAdapters.clear();
+        for (Category category : newCategoryList) {
+            CategoryRecyclerViewAdapter adapter =
+                    new CategoryRecyclerViewAdapter(category.getCategoryRadioStationList(), radioStationActionHandler);
+            this.categoryAdapters.add(adapter);
+        }
+
         diffResult.dispatchUpdatesTo(this);
     }
 
-    public void setPlayingCategoryAdapter(CategoryRecyclerViewAdapter adapter) {
-        if (playingCategoryAdapter != null && playingCategoryAdapter.isPlaying()) {
-            playingCategoryAdapter.setState(StreamService.StreamStates.ENDED);
-            lastStation.setPlaying(false);
-            playingCategoryAdapter.updateStation(lastStation);
-            playingCategoryAdapter.updateCategory();
+    public void setSelectedStationWithState(RadioStation station, String state) {
+        for (CategoryRecyclerViewAdapter categoryAdapter : categoryAdapters) {
+            categoryAdapter.setSelectedStationWithState(station, state);
         }
-        this.playingCategoryAdapter = adapter;
-    }
-
-    public void updateStationInPlayingCategory(RadioStation radioStation, String state) {
-
-        if (playingCategoryAdapter != null) {
-            playingCategoryAdapter.setState(state);
-
-            radioStation.setPlaying(true);
-            playingCategoryAdapter.updateStation(radioStation);
-
-            playingCategoryAdapter.updateCategory();
-        }
-
-    }
-
-    public void setSelectedStation(RadioStation radioStation) {
-        lastStation = radioStation;
-        if (playingCategoryAdapter != null) {
-            playingCategoryAdapter.setSelectedStation(radioStation);
-        }
-    }
-
-    public void setFavouriteList(List<String> favouriteListNames) {
-        // Now, pass the favorite stations list to each category adapter
-        for (CategoryRecyclerViewAdapter adapter : categoryAdapters) {
-            // Each category adapter has its own list of stations (stationList)
-            adapter.setFavoriteStations(favouriteListNames);
-        }
-    }
-
-
-
-    public List<CategoryRecyclerViewAdapter> getCategoryAdapters() {
-        return categoryAdapters;
+        notifyDataSetChanged();
     }
 
     class CategoryItemViewHolder extends RecyclerView.ViewHolder {

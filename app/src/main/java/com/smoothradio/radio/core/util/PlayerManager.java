@@ -96,7 +96,7 @@ public class PlayerManager {
         activity.sendFirebaseAnalytics(radioStation.getStationName());
     }
 
-    void playOnly() {
+    private void playOnly() {
         serviceIntent.setAction(StreamService.ACTION_START);
         serviceIntent.putExtra(StreamService.EXTRA_LINK, radioStation.getUrl());
         serviceIntent.putExtra(StreamService.EXTRA_LOGO, radioStation.getLogoResource());
@@ -143,7 +143,7 @@ public class PlayerManager {
         activity.startService(serviceIntent);
     }
 
-    void loadInterstitialAd() {
+    private void loadInterstitialAd() {
         isShowingAd = true;
         if (interstitialAd != null) {
             // If the ad is already loaded, show it if the user has pressed play and hasn't stopped the service manually.
@@ -172,7 +172,7 @@ public class PlayerManager {
         });
     }
 
-    void showAd() {
+    private void showAd() {
         if (interstitialAd == null) {
             loadInterstitialAd();
             return;
@@ -235,7 +235,7 @@ public class PlayerManager {
 
         Toast.makeText(activity, "Please check your internet and try again", Toast.LENGTH_SHORT).show();
     }
-    void preloadInterstitialAd() {
+    private void preloadInterstitialAd() {
         if (interstitialAd == null) {
 
             AdRequest interstitialAdRequest = new AdRequest.Builder().build();//ca-app-pub-9799428944156340/2070618771
@@ -261,7 +261,7 @@ public class PlayerManager {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);
         activity.sendBroadcast(eventIntent);
     }
-    void checkInternet() {
+    private void checkInternet() {
         ConnectivityManager cm = (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo nInfo = cm.getActiveNetworkInfo();
         boolean connected = nInfo != null && nInfo.isAvailable() && nInfo.isConnectedOrConnecting();

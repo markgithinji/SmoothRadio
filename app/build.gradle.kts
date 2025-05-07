@@ -50,19 +50,24 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.legacy.support.v4)
+    implementation (libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.splashscreen)
-
     implementation(libs.androidx.coordinatorlayout)
+
     implementation(libs.exoplayer)
     implementation(libs.lottie)
+    implementation (libs.androidx.room.runtime)
+    annotationProcessor (libs.androidx.room.compiler)
 
     implementation(libs.play.services.ads)
     implementation(libs.facebook)
     implementation(libs.user.messaging.platform)
 
-    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.google.firebase.analytics)
     implementation(libs.google.firebase.firestore)
+
+
+
 }

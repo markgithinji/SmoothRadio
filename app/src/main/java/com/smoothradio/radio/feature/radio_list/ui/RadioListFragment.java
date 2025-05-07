@@ -23,39 +23,29 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper;
+import com.smoothradio.radio.core.model.ListItem;
 import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.util.PlayerManager;
 import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.FragmentMusicListBinding;
 import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
 import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper;
 import com.smoothradio.radio.service.StreamService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
 public class RadioListFragment extends Fragment{
-    // View Binding
     private FragmentMusicListBinding binding;
-
-    // ViewModel
     private RadioViewModel radioViewModel;
-
-    // Adapter
     private RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
-
-    // Components
     private PlayerManager playerManager;
     private final BroadcastReceiver eventReceiver = new EventReceiver();
     private Intent eventIntent;
-
-    // State
     private int lastStationId = -1;
     private RadioStation currentStation;
-    private List<RadioStation> radioStationList;
-
-    // Activity references
     private MainActivity mainActivity;
     private FragmentActivity fragmentActivity;
 
@@ -100,67 +90,15 @@ public class RadioListFragment extends Fragment{
     }
 
     private void setupRecyclerView() {
-        binding.rvList.setAdapter(radioListRecyclerViewAdapter);
-        binding.rvList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
-        binding.rvList.setHasFixedSize(true);
-        binding.rvList.addItemDecoration(new DividerItemDecoration(getContext(), 0));
+        binding.rvRadioList.setAdapter(radioListRecyclerViewAdapter);
+        binding.rvRadioList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+        binding.rvRadioList.setHasFixedSize(true);
+        binding.rvRadioList.addItemDecoration(new DividerItemDecoration(getContext(), 0));
         setupRecyclerViewScrollBehavior();
     }
 
-    private void setupObservers() {
-        // Init radio links
-        radioViewModel.isFirstTime();
-        radioViewModel.getStationId();
-        radioViewModel.getRemoteLinks();
-
-        radioViewModel.getIsFirstTimeLiveData().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                Boolean isFirstTime = resource.data;
-                if (Boolean.TRUE.equals(isFirstTime)) {
-                    radioViewModel.createInitialLinks();
-                    radioViewModel.saveIsFirstTime(false);
-                }
-            }
-        });
-        radioViewModel.getRemoteLinksLiveData().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                radioStationList = RadioStationsHelper.createRadioStations(resource.data);
-                radioListRecyclerViewAdapter.update(radioStationList);
-                radioViewModel.onRemoteLinksLoaded();
-            }
-        });
-
-        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
-            if (intResource.status == Resource.Status.SUCCESS) {
-                lastStationId = intResource.data;
-            }
-        });
-        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
-            this.currentStation = radioStation;
-            playerManager.setRadioStation(radioStation);
-            radioListRecyclerViewAdapter.setSelectedStation(radioStation);
-
-            if (lastStationId == radioStation.getId()) {
-                playerManager.playOrStop();
-            } else {
-                playerManager.playFromMainActivity();
-            }
-            radioViewModel.saveStationId(radioStation.getId());
-        });
-
-        radioViewModel.getFavoriteStationNames().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS) {
-                radioListRecyclerViewAdapter.setFavouriteList(resource.data);
-            }
-        });
-
-        radioViewModel.getUpdateMiniPlayerEvent().observe(getViewLifecycleOwner(),trigger->{
-            radioViewModel.loadFavoriteStations();
-        });
-    }
-
     private void setupRecyclerViewScrollBehavior() {
-        binding.rvList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        binding.rvRadioList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 BottomSheetBehavior<View> bottomSheetBehavior = mainActivity.bottomSheetBehavior;
@@ -173,6 +111,63 @@ public class RadioListFragment extends Fragment{
             }
         });
     }
+    private void setupObservers() {
+        // Init radio links
+        radioViewModel.getStationId();
+
+        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
+            if (intResource.status == Resource.Status.SUCCESS) {
+                lastStationId = intResource.data;
+            }
+        });
+
+        radioViewModel.getRemoteLinksLiveData().observe(getViewLifecycleOwner(), resource -> {
+            if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
+                List<String> newLinks = resource.data;
+                List<RadioStation> localStations = radioViewModel.getAllStations().getValue();
+
+                List<RadioStation> newStations = RadioStationsHelper.createRadioStations(newLinks, localStations);
+
+                radioViewModel.insertStations(newStations);
+            }
+        });
+
+        radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
+            List<RadioStation> mergedList = new ArrayList<>();
+            for (RadioStation newStation : stations) {
+                // find matching station in adapter list that was playing
+                for (ListItem item : radioListRecyclerViewAdapter.getRecyclerViewItems()) {
+                    if (item instanceof RadioStation) {
+                        RadioStation oldStation = (RadioStation) item;
+                        if (oldStation.getId() == newStation.getId() && oldStation.isPlaying()) {
+                            newStation.setPlaying(true); // restore playing flag
+                        }
+                    }
+                }
+                mergedList.add(newStation);
+            }
+            radioListRecyclerViewAdapter.update(stations);
+            radioViewModel.onRemoteLinksLoaded();
+        });
+
+        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
+            this.currentStation = radioStation;
+            playerManager.setRadioStation(radioStation);
+
+            if (lastStationId == radioStation.getId()) {
+                playerManager.playOrStop();
+            } else {
+                playerManager.playFromMainActivity();
+            }
+            radioViewModel.saveStationId(radioStation.getId());
+        });
+
+        radioViewModel.getFavoriteStations().observe(getViewLifecycleOwner(), favorites -> {
+            radioListRecyclerViewAdapter.setFavouriteStations(favorites);
+        });
+
+    }
+
     private void setupBroadcastReceiver() {
         IntentFilter eventFilter = new IntentFilter();
         eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
@@ -206,17 +201,27 @@ public class RadioListFragment extends Fragment{
 
         if(currentStation == null) currentStation  = mainActivity.getStationUsingSavedId();
 
+        // Manually trigger adapter update on resume
 
+        if (currentStation != null) {
+            radioListRecyclerViewAdapter.setPlayingStation(currentStation.getId());//update playing station
+        }
         if (playerManager.getIsShowingAd()) {
             broadcastState(StreamService.StreamStates.PREPARING);
         } else {
             Intent getStateFromServiceIntent = new Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.getPackageName());
-            fragmentActivity.sendBroadcast(getStateFromServiceIntent);//get ui state from service
+            fragmentActivity.sendBroadcast(getStateFromServiceIntent);//update ui state from service
         }
     }
     private void broadcastState(String state) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state);
         fragmentActivity.sendBroadcast(eventIntent);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        fragmentActivity.unregisterReceiver(eventReceiver);
     }
 
 }
