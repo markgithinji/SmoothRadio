@@ -101,17 +101,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupObservers() {
         // Init radio links
-        radioViewModel.getStationId();
+//        radioViewModel.getStationId();
+
+        radioViewModel.getPlayingStation().observe(this, radioStation -> {
+            if (radioStation != null) {
+                lastStationId = radioStation.getId();
+            }
+        });
 
         radioViewModel.getOnRemoteLinksLoadedEvent().observe(this, trigger->{
             updateMiniPlayer(getStationUsingSavedId());
         });
 
-        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
-            if (intResource.status == Resource.Status.SUCCESS) {
-                lastStationId = intResource.data;
-            }
-        });
+//        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
+//            if (intResource.status == Resource.Status.SUCCESS) {
+//                lastStationId = intResource.data;
+//            }
+//        });
 
         radioViewModel.getSelectedStation().observe(this, radioStation -> {
             hideKeyboard();

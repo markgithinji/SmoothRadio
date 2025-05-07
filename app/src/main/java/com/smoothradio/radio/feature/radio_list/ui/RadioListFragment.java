@@ -113,11 +113,16 @@ public class RadioListFragment extends Fragment{
     }
     private void setupObservers() {
         // Init radio links
-        radioViewModel.getStationId();
-
-        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
-            if (intResource.status == Resource.Status.SUCCESS) {
-                lastStationId = intResource.data;
+//        radioViewModel.getStationId();
+//
+//        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
+//            if (intResource.status == Resource.Status.SUCCESS) {
+//                lastStationId = intResource.data;
+//            }
+//        });
+        radioViewModel.getPlayingStation().observe(getViewLifecycleOwner(), radioStation -> {
+            if (radioStation != null) {
+                lastStationId = radioStation.getId();
             }
         });
 
@@ -133,19 +138,6 @@ public class RadioListFragment extends Fragment{
         });
 
         radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
-            List<RadioStation> mergedList = new ArrayList<>();
-            for (RadioStation newStation : stations) {
-                // find matching station in adapter list that was playing
-                for (ListItem item : radioListRecyclerViewAdapter.getRecyclerViewItems()) {
-                    if (item instanceof RadioStation) {
-                        RadioStation oldStation = (RadioStation) item;
-                        if (oldStation.getId() == newStation.getId() && oldStation.isPlaying()) {
-                            newStation.setPlaying(true); // restore playing flag
-                        }
-                    }
-                }
-                mergedList.add(newStation);
-            }
             radioListRecyclerViewAdapter.update(stations);
             radioViewModel.onRemoteLinksLoaded();
         });
@@ -159,7 +151,7 @@ public class RadioListFragment extends Fragment{
             } else {
                 playerManager.playFromMainActivity();
             }
-            radioViewModel.saveStationId(radioStation.getId());
+            radioViewModel.savePlayingStationId(radioStation.getId());
         });
 
         radioViewModel.getFavoriteStations().observe(getViewLifecycleOwner(), favorites -> {

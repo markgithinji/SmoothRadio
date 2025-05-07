@@ -50,6 +50,12 @@ public class RadioViewModel extends AndroidViewModel {
     public LiveData<List<RadioStation>> getFavoriteStations() {
         return favoriteStations;
     }
+    public void savePlayingStationId(int id) {
+        repository.setPlayingStation(id);
+    }
+    public LiveData<RadioStation> getPlayingStation() {
+        return repository.getPlayingStation();
+    }
     public void insertStations(List<RadioStation> stations) {
         repository.insertStations(stations);
     }

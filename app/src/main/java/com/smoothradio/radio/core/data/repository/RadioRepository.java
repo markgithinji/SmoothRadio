@@ -28,15 +28,22 @@ public class RadioRepository {
         return dao.getFavoriteStations();
     }
 
+    public void setPlayingStation(int id) {
+        executor.execute(() -> {
+            dao.clearPlayingState();
+            dao.updatePlayingStation(id);
+        });
+    }
+
+    public LiveData<RadioStation> getPlayingStation() {
+        return dao.getPlayingStation();
+    }
+
     public void insertStations(List<RadioStation> stations) {
         executor.execute(() -> dao.insertStations(stations));
     }
 
     public void updateFavoriteStatus(int id, boolean isFav) {
         executor.execute(() -> dao.updateFavoriteStatus(id, isFav));
-    }
-
-    public void clearAll() {
-        executor.execute(dao::clearAll);
     }
 }
