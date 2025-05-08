@@ -244,12 +244,18 @@ public class RadioStationsHelper {
         if (localStations != null) {
             for (RadioStation newStation : radioStationsList) {
                 for (RadioStation local : localStations) {
-                    if (newStation.getId() == local.getId() && local.isFavorite()) {
-                        newStation.setFavorite(true);
+                    if (newStation.getId() == local.getId()) {
+                        if (local.isFavorite()) {
+                            newStation.setFavorite(true);
+                        }
+                        if (local.isPlaying()) {
+                            newStation.setPlaying(true);
+                        }
                     }
                 }
             }
         }
+
 
         return radioStationsList;
     }

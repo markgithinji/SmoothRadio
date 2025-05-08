@@ -23,35 +23,27 @@ import androidx.transition.TransitionManager;
 import com.google.android.gms.ads.AdRequest;
 import com.smoothradio.radio.MainActivity;
 import com.smoothradio.radio.R;
+import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.core.ui.RadioViewModel;
 import com.smoothradio.radio.core.util.PlayerManager;
-import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.feature.player.util.TimerSetterHelper;
 import com.smoothradio.radio.databinding.FragmentPlayerBinding;
-import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.feature.player.util.TimerSetterHelper;
 import com.smoothradio.radio.service.StreamService;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
 @AndroidEntryPoint
 public class PlayerFragment extends Fragment {
-    MainActivity mainActivity;
-
-    public RadioStation currentStation;
-
-    FragmentPlayerBinding binding;
-
-    public String state = "";
-    public CoordinatorLayout coordinatorLayout;
-
-
-    //For starting service
-    Intent eventIntent;
-    int stationId;
-    FragmentActivity fragmentActivity;
-    RadioViewModel radioViewModel;
-
-    PlayerManager playerManager;
+    private MainActivity mainActivity;
+    private RadioStation currentStation;
+    private FragmentPlayerBinding binding;
+    private String state = "";
+    private CoordinatorLayout coordinatorLayout;
+    private Intent eventIntent;
+    private int stationId;
+    private FragmentActivity fragmentActivity;
+    private RadioViewModel radioViewModel;
+    private PlayerManager playerManager;
 
     public PlayerFragment() {
     }
@@ -81,23 +73,19 @@ public class PlayerFragment extends Fragment {
 
     private void setupObserver() {
         radioViewModel.getPlayingStation().observe(getViewLifecycleOwner(), radioStation -> {
-            Log.d("PlayerFragment", "setupObserver: " + radioStation);
             if (radioStation != null) {
                 currentStation = radioStation;
                 stationId = radioStation.getId();
-
-                binding.ivLargeLogo.setImageResource(currentStation.getLogoResource());
-                binding.tvStationNamePlayerFrag.setText(currentStation.getStationName());
+            } else {
+               getLatestStationUsingSavedId();
             }
+            binding.ivLargeLogo.setImageResource(currentStation.getLogoResource());
+            binding.tvStationNamePlayerFrag.setText(currentStation.getStationName());
         });
-
-//        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
-//            currentStation = station;
-//        });
     }
 
     private void getLatestStationUsingSavedId() {
-        currentStation = new RadioStation(stationId,0, "", "", "", "",true,false );
+        currentStation = new RadioStation(stationId, 0, "", "", "", "", true, false);
 
         int position = mainActivity.getAdapter().getPositionOfStation(stationId);
 
@@ -124,11 +112,10 @@ public class PlayerFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (mainActivity == null) {
-            mainActivity = (MainActivity) getContext();
+            mainActivity = (MainActivity) requireActivity();
         }
-//        radioViewModel.reloadStationId();
 
-        //When we request for a ui state form service it doesn't work until the service starts playing. This is unusual/
+        //When we request for a ui state form service it doesn't work until the service starts playing. This is unusual and
         //unexpected behavior so we will manually set the state to preparing here for now.
         if (playerManager.getIsShowingAd()) {
             state = StreamService.StreamStates.PREPARING;
@@ -143,14 +130,11 @@ public class PlayerFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentPlayerBinding.inflate(inflater, container, false);
-        View root = binding.getRoot();
 
         setUpUI();
-
-//        radioViewModel.getStationId();
         setupObserver();
 
-        return root;
+        return binding.getRoot();
     }
 
     private void setUpUI() {
@@ -213,7 +197,7 @@ public class PlayerFragment extends Fragment {
     class SetTimerOnclickListener implements View.OnClickListener {
         @Override
         public void onClick(View view) {
-            new TimerSetterHelper(fragmentActivity,coordinatorLayout);
+            new TimerSetterHelper(fragmentActivity, coordinatorLayout);
         }
     }
 
