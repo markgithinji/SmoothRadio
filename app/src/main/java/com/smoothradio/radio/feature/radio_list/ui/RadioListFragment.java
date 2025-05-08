@@ -36,7 +36,9 @@ import com.smoothradio.radio.service.StreamService;
 import java.util.ArrayList;
 import java.util.List;
 
+import dagger.hilt.android.AndroidEntryPoint;
 
+@AndroidEntryPoint
 public class RadioListFragment extends Fragment{
     private FragmentMusicListBinding binding;
     private RadioViewModel radioViewModel;
@@ -61,7 +63,7 @@ public class RadioListFragment extends Fragment{
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mainActivity = (MainActivity) getContext();
+        mainActivity = (MainActivity) requireActivity();
 
         setupBroadcastReceiver();
         initializeComponents();

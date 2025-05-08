@@ -36,7 +36,9 @@ import com.smoothradio.radio.service.StreamService;
 import java.util.ArrayList;
 import java.util.List;
 
+import dagger.hilt.android.AndroidEntryPoint;
 
+@AndroidEntryPoint
 public class DiscoverFragment extends Fragment {
 
     private FragmentDiscoverBinding binding;
@@ -61,7 +63,7 @@ public class DiscoverFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mainActivity = (MainActivity) getActivity();
+        mainActivity = (MainActivity) requireActivity();
         eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
                 .setPackage(fragmentActivity.getPackageName());
         setupBroadcastReceiver();

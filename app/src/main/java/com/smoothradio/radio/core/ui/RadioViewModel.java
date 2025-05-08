@@ -7,15 +7,18 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.smoothradio.radio.core.data.repository.PlayerPreferencesRepository;
 import com.smoothradio.radio.core.data.repository.RadioLinkRepository;
 import com.smoothradio.radio.core.data.repository.RadioRepository;
 import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.core.model.RadioStation;
-import com.smoothradio.radio.service.StreamService;
 
 import java.util.List;
 
+import javax.inject.Inject;
+
+import dagger.hilt.android.lifecycle.HiltViewModel;
+
+@HiltViewModel
 public class RadioViewModel extends AndroidViewModel {
     private final RadioLinkRepository radioLinkRepository;
     private final RadioRepository repository;
@@ -26,10 +29,13 @@ public class RadioViewModel extends AndroidViewModel {
     private final MutableLiveData<Integer> currentPage = new MutableLiveData<>(0);
 
 
-    public RadioViewModel(@NonNull Application application) {
+    @Inject
+    public RadioViewModel(@NonNull Application application,
+                          RadioLinkRepository radioLinkRepository,
+                          RadioRepository repository) {
         super(application);
-        radioLinkRepository = new RadioLinkRepository();
-        repository = new RadioRepository(application);
+        this.radioLinkRepository = radioLinkRepository;
+        this.repository = repository;
 
         allStations = repository.getAllStations();
         favoriteStations = repository.getFavoriteStations();

@@ -31,7 +31,9 @@ import com.smoothradio.radio.databinding.FragmentPlayerBinding;
 import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
 
+import dagger.hilt.android.AndroidEntryPoint;
 
+@AndroidEntryPoint
 public class PlayerFragment extends Fragment {
     MainActivity mainActivity;
 
@@ -64,7 +66,7 @@ public class PlayerFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mainActivity = (MainActivity) getContext();
+        mainActivity = (MainActivity) requireActivity();
 
         radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
 
@@ -79,6 +81,7 @@ public class PlayerFragment extends Fragment {
 
     private void setupObserver() {
         radioViewModel.getPlayingStation().observe(getViewLifecycleOwner(), radioStation -> {
+            Log.d("PlayerFragment", "setupObserver: " + radioStation);
             if (radioStation != null) {
                 currentStation = radioStation;
                 stationId = radioStation.getId();

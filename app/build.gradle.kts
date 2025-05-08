@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
 }
 
@@ -58,6 +59,9 @@ dependencies {
     implementation(libs.lottie)
     implementation (libs.androidx.room.runtime)
     annotationProcessor (libs.androidx.room.compiler)
+
+    implementation(libs.hilt.android)
+    annotationProcessor(libs.hilt.compiler)
 
     implementation(libs.play.services.ads)
     implementation(libs.facebook)

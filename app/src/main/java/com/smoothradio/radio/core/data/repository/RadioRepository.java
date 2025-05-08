@@ -11,13 +11,15 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class RadioRepository {
-    private RadioStationDao dao;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
+import javax.inject.Inject;
 
-    public RadioRepository(Application app) {
-        AppDatabase db = AppDatabase.getInstance(app);
-        dao = db.radioStationDao();
+public class RadioRepository {
+    private final RadioStationDao dao;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    @Inject
+    public RadioRepository(RadioStationDao dao) {
+        this.dao = dao;
     }
 
     public LiveData<List<RadioStation>> getAllStations() {

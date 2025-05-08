@@ -40,6 +40,9 @@ import com.smoothradio.radio.feature.radio_list.util.SortDialog;
 
 import java.util.ArrayList;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class MainActivity extends AppCompatActivity {
     // View Binding
     private ActivityMainBinding binding;

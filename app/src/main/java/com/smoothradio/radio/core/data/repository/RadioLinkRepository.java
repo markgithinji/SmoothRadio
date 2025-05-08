@@ -1,7 +1,5 @@
 package com.smoothradio.radio.core.data.repository;
 
-import android.content.Context;
-
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -11,29 +9,26 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.smoothradio.radio.core.util.RadioStationLinksHelper;
 import com.smoothradio.radio.core.util.Resource;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+
+import javax.inject.Inject;
 
 public class RadioLinkRepository {
-    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final FirebaseFirestore firebaseFirestore;
     private ListenerRegistration listenerRegistration;
 
-    public RadioLinkRepository() {
+    @Inject
+    public RadioLinkRepository(FirebaseFirestore firebaseFirestore) {
+        this.firebaseFirestore = firebaseFirestore;
     }
 
     public LiveData<Resource<List<String>>> getRemoteStreamLinks() {
         MutableLiveData<Resource<List<String>>> remoteRadioLinksLiveData = new MutableLiveData<>();
         remoteRadioLinksLiveData.postValue(Resource.loading());
 
-        listenerRegistration = db.collection("links")
+        listenerRegistration = firebaseFirestore.collection("links")
                 .orderBy("index")
                 .addSnapshotListener((value, error) -> {
                     if (error != null || value == null || value.isEmpty()) {
