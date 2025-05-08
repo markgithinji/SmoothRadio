@@ -36,7 +36,7 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     // Constants for view types
     private static final int AD_VIEW = 0;
     private static final int ITEM_VIEW = 1;
-    private static final int EMPTY_FAVOURITE_ITEM = 2;
+    private static final int EMPTY_ITEM = 2;
 
     // Constants for Advertisement Positions
     private static final int AD_POSITION_1 = 1;
@@ -165,13 +165,15 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
     public int getItemViewType(int position) {
         ListItem item = recyclerViewItems.get(position);
 
-        if (item instanceof RadioStation) {
-            return ITEM_VIEW;
-        } else if (item instanceof AdItem) {
-            return AD_VIEW;
-        } else {
-            return EMPTY_FAVOURITE_ITEM;
+        // Empty states
+        if ((currentState.equals(DisplayState.SEARCH) && filteredStationNameList.isEmpty()) ||
+                (currentState.equals(DisplayState.FAVORITES) && favouriteList.isEmpty())) {
+            return EMPTY_ITEM;
         }
+        if (item instanceof AdItem) {
+            return AD_VIEW;
+        }
+        return ITEM_VIEW;
     }
 
 
@@ -246,21 +248,15 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
                     isFavorite ? R.drawable.favorite_20px : R.drawable.favorite_20px_filled
             );
 
-            handlePostFavoriteAction();
+//            handlePostFavoriteAction();
         }
 
         private void handlePostFavoriteAction() {
             radioStationActionHandler.onRequestHideKeyboard();
 
             if (currentState.equals(DisplayState.FAVORITES)) {
-                updateFavoritesDisplay();
+                sortFavourites();
             }
-        }
-
-        private void updateFavoritesDisplay() {
-            recyclerViewItems.clear();
-            recyclerViewItems.addAll(favouriteList);
-            notifyDataSetChanged();
         }
 
     }
@@ -307,43 +303,55 @@ public class RadioListRecyclerViewAdapter extends RecyclerView.Adapter {
         update(updatedList);
     }
 
-    public List<ListItem> getRecyclerViewItems() {
-        return recyclerViewItems;
-    }
-
     public void setFavouriteStations(List<RadioStation> favouriteStations) {
+        Log.d("RadioListRecyclerViewAdapter", "setFavouriteStations: " + favouriteStations.size() );
         favouriteList.clear();
         favouriteList.addAll(favouriteStations);
+        if (currentState == DisplayState.FAVORITES) {
+//            sortFavourites();
+        }
     }
 
     public void update(List<RadioStation> newList) {
-        Log.d("RadioListRecyclerViewAdapter", "update: " + newList.size());
-        // First-time full refresh
+        stationList.clear();
+        stationList.addAll(newList);
+
+        if (currentState == DisplayState.FAVORITES) return;
+
+        List<ListItem> oldList = new ArrayList<>(recyclerViewItems);
+        List<ListItem> newListWithAds = injectAdItems(newList);
+
         if (recyclerViewItems.isEmpty()) {
-            stationList.addAll(newList);
-            recyclerViewItems.addAll(injectAdItems(newList));
+            recyclerViewItems.addAll(newListWithAds);
             notifyDataSetChanged();
             return;
         }
 
-        // Prepare lists for diffing
-        List<ListItem> oldList = new ArrayList<>(recyclerViewItems);
-        List<ListItem> newListWithAds = injectAdItems(newList);
-
-
-        // Calculate diff
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
                 new StationDiffUtilCallback(oldList, newListWithAds)
         );
 
-        // Apply update
         recyclerViewItems.clear();
         recyclerViewItems.addAll(newListWithAds);
 
-        if (currentState == DisplayState.POPULAR) {
-            stationList.clear();
-            stationList.addAll(newList);
-        }
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    public void updateFavorites(List<RadioStation> newFavorites) {
+        favouriteList.clear();
+        favouriteList.addAll(newFavorites);
+
+        if (currentState == DisplayState.POPULAR) return;
+
+        List<ListItem> oldList = new ArrayList<>(recyclerViewItems);
+        List<ListItem> newFavoriteList = new ArrayList<>(newFavorites);
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
+                new StationDiffUtilCallback(oldList, newFavoriteList)
+        );
+
+        recyclerViewItems.clear();
+        recyclerViewItems.addAll(newFavoriteList);
 
         diffResult.dispatchUpdatesTo(this);
     }

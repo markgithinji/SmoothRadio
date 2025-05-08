@@ -247,9 +247,6 @@ public class RadioStationsHelper {
                     if (newStation.getId() == local.getId() && local.isFavorite()) {
                         newStation.setFavorite(true);
                     }
-//                    if (newStation.getId() == playingStationId) {
-//                        newStation.setPlaying(true);
-//                    }
                 }
             }
         }

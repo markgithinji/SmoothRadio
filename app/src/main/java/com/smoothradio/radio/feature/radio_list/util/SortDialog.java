@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.player.util;
+package com.smoothradio.radio.feature.radio_list.util;
 
 import android.app.Dialog;
 import android.content.DialogInterface;

@@ -18,23 +18,17 @@ import java.util.List;
 
 public class RadioViewModel extends AndroidViewModel {
     private final RadioLinkRepository radioLinkRepository;
-    private final PlayerPreferencesRepository prefsRepo;
     private final RadioRepository repository;
-
     private LiveData<Resource<List<String>>> localRadioLinksLiveData;
-    private LiveData<Resource<Integer>> stationIdLiveData;
     private LiveData<List<RadioStation>> allStations;
     private final LiveData<List<RadioStation>> favoriteStations;
-
     private final MutableLiveData<RadioStation> selectedStation = new MutableLiveData<>();
     private final MutableLiveData<Integer> currentPage = new MutableLiveData<>(0);
-    private final MutableLiveData<Boolean> updateMiniPlayerEvent = new MutableLiveData<>();
 
 
     public RadioViewModel(@NonNull Application application) {
         super(application);
         radioLinkRepository = new RadioLinkRepository();
-        prefsRepo = new PlayerPreferencesRepository(application.getApplicationContext());
         repository = new RadioRepository(application);
 
         allStations = repository.getAllStations();
@@ -85,24 +79,6 @@ public class RadioViewModel extends AndroidViewModel {
         super.onCleared();
         radioLinkRepository.removeListener();
     }
-    // -----------------------
-    // Preferences Logic
-    // -----------------------
-    public LiveData<Resource<Integer>> getStationIdLivedata() {
-        return stationIdLiveData;
-    }
-
-    public void getStationId() {
-        stationIdLiveData = prefsRepo.getIdLiveData();
-    }
-
-    public void saveStationId(int id) {
-        prefsRepo.setId(id);
-    }
-    public void reloadStationId() {
-        prefsRepo.reloadStationId();
-    }
-
 
     // -----------------------
     // PLayer Logic
@@ -124,17 +100,5 @@ public class RadioViewModel extends AndroidViewModel {
 
     public void setCurrentPage(int page) {
         currentPage.setValue(page);
-    }
-
-    //------------------------
-    // Update Mini Player Trigger
-    //------------------------
-    public LiveData<Boolean> getOnRemoteLinksLoadedEvent() {
-        return updateMiniPlayerEvent;
-    }
-
-    // Call this when remote links are loaded successfully
-    public void onRemoteLinksLoaded() {
-        updateMiniPlayerEvent.setValue(true);
     }
 }

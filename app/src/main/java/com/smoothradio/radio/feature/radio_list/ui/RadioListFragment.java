@@ -44,7 +44,6 @@ public class RadioListFragment extends Fragment{
     private PlayerManager playerManager;
     private final BroadcastReceiver eventReceiver = new EventReceiver();
     private Intent eventIntent;
-    private int lastStationId = -1;
     private RadioStation currentStation;
     private MainActivity mainActivity;
     private FragmentActivity fragmentActivity;
@@ -83,7 +82,6 @@ public class RadioListFragment extends Fragment{
         radioListRecyclerViewAdapter = mainActivity.getAdapter();
 
         setupObservers();
-
         setupRecyclerView();
 
         return binding.getRoot();
@@ -112,19 +110,6 @@ public class RadioListFragment extends Fragment{
         });
     }
     private void setupObservers() {
-        // Init radio links
-//        radioViewModel.getStationId();
-//
-//        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
-//            if (intResource.status == Resource.Status.SUCCESS) {
-//                lastStationId = intResource.data;
-//            }
-//        });
-        radioViewModel.getPlayingStation().observe(getViewLifecycleOwner(), radioStation -> {
-            if (radioStation != null) {
-                lastStationId = radioStation.getId();
-            }
-        });
 
         radioViewModel.getRemoteLinksLiveData().observe(getViewLifecycleOwner(), resource -> {
             if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
@@ -139,14 +124,13 @@ public class RadioListFragment extends Fragment{
 
         radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
             radioListRecyclerViewAdapter.update(stations);
-            radioViewModel.onRemoteLinksLoaded();
         });
 
         radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
-            this.currentStation = radioStation;
+            currentStation = radioStation;
             playerManager.setRadioStation(radioStation);
 
-            if (lastStationId == radioStation.getId()) {
+            if (radioStation.isPlaying()) {
                 playerManager.playOrStop();
             } else {
                 playerManager.playFromMainActivity();
@@ -155,7 +139,7 @@ public class RadioListFragment extends Fragment{
         });
 
         radioViewModel.getFavoriteStations().observe(getViewLifecycleOwner(), favorites -> {
-            radioListRecyclerViewAdapter.setFavouriteStations(favorites);
+            radioListRecyclerViewAdapter.updateFavorites(favorites);
         });
 
     }

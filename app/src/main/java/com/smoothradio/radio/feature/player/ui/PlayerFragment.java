@@ -78,21 +78,19 @@ public class PlayerFragment extends Fragment {
     }
 
     private void setupObserver() {
-        radioViewModel.getStationIdLivedata().observe(getViewLifecycleOwner(), intResource -> {
-            Log.d("PlayerFragment","getStationIdLivedata");
-            if (intResource.status == Resource.Status.SUCCESS) {
-                stationId = intResource.data;
-
-                if (currentStation == null) getLatestStationUsingSavedId();
+        radioViewModel.getPlayingStation().observe(getViewLifecycleOwner(), radioStation -> {
+            if (radioStation != null) {
+                currentStation = radioStation;
+                stationId = radioStation.getId();
 
                 binding.ivLargeLogo.setImageResource(currentStation.getLogoResource());
                 binding.tvStationNamePlayerFrag.setText(currentStation.getStationName());
             }
         });
 
-        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
-            currentStation = station;
-        });
+//        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), station -> {
+//            currentStation = station;
+//        });
     }
 
     private void getLatestStationUsingSavedId() {
@@ -125,7 +123,7 @@ public class PlayerFragment extends Fragment {
         if (mainActivity == null) {
             mainActivity = (MainActivity) getContext();
         }
-        radioViewModel.reloadStationId();
+//        radioViewModel.reloadStationId();
 
         //When we request for a ui state form service it doesn't work until the service starts playing. This is unusual/
         //unexpected behavior so we will manually set the state to preparing here for now.
@@ -146,7 +144,7 @@ public class PlayerFragment extends Fragment {
 
         setUpUI();
 
-        radioViewModel.getStationId();
+//        radioViewModel.getStationId();
         setupObserver();
 
         return root;

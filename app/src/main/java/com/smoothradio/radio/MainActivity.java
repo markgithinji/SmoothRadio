@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -30,13 +31,12 @@ import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter;
 import com.smoothradio.radio.core.util.CacheUtil;
 import com.smoothradio.radio.core.util.ConsentHelper;
 import com.smoothradio.radio.core.util.PlayerManager;
-import com.smoothradio.radio.core.util.Resource;
 import com.smoothradio.radio.databinding.ActivityMainBinding;
 import com.smoothradio.radio.feature.about.ui.AboutFragment;
 import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
 import com.smoothradio.radio.core.model.RadioStation;
 import com.smoothradio.radio.service.StreamService;
-import com.smoothradio.radio.feature.player.util.SortDialog;
+import com.smoothradio.radio.feature.radio_list.util.SortDialog;
 
 import java.util.ArrayList;
 
@@ -100,28 +100,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupObservers() {
-        // Init radio links
-//        radioViewModel.getStationId();
 
-        radioViewModel.getPlayingStation().observe(this, radioStation -> {
-            if (radioStation != null) {
-                lastStationId = radioStation.getId();
+        radioViewModel.getPlayingStation().observe(this, station -> {
+            if (station != null) {
+                Log.d("MainActivity", "setupObservers: playing station found: " + station.getStationName());
+                lastStationId = station.getId();
+                updateMiniPlayer(station);
+            } else {
+                Log.d("MainActivity", "setupObservers: no playing station in Room, loading from saved ID");
+                RadioStation savedStation = getStationUsingSavedId();
+                updateMiniPlayer(savedStation);
             }
         });
 
-        radioViewModel.getOnRemoteLinksLoadedEvent().observe(this, trigger->{
-            updateMiniPlayer(getStationUsingSavedId());
-        });
-
-//        radioViewModel.getStationIdLivedata().observe(this, intResource -> {
-//            if (intResource.status == Resource.Status.SUCCESS) {
-//                lastStationId = intResource.data;
-//            }
-//        });
-
         radioViewModel.getSelectedStation().observe(this, radioStation -> {
             hideKeyboard();
-            updateMiniPlayer(radioStation);
         });
     }
 
