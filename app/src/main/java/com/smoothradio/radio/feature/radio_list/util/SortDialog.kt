@@ -1,44 +1,30 @@
-package com.smoothradio.radio.feature.radio_list.util;
+package com.smoothradio.radio.feature.radio_list.util
 
-import android.app.Dialog;
-import android.content.DialogInterface;
-import android.os.Bundle;
+import android.app.Dialog
+import android.os.Bundle
+import androidx.fragment.app.DialogFragment
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.smoothradio.radio.MainActivity
+import com.smoothradio.radio.R
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.DialogFragment;
+class SortDialog : DialogFragment() {
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.R;
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
+    private var mainActivity: MainActivity? = null
 
-public class SortDialog extends DialogFragment {
-    MainActivity mainActivity;
-    @NonNull
-    @Override
-    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        mainActivity=(MainActivity) getActivity();
-        MaterialAlertDialogBuilder builder=new MaterialAlertDialogBuilder(mainActivity);
-        builder.setTitle("Sort By:").setItems(R.array.sortOptions, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                if(i==0)
-                {
-                    mainActivity.getAdapter().sortPopular();//popular
-                }
-                if(i==1) {
-                    mainActivity.getAdapter().sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.ASCENDING);
-                }
-                if(i==2) {
-                    mainActivity.getAdapter().sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.DESCENDING);
-                }
-                if(i==3) {
-                    mainActivity.getAdapter().sortFavourites();//favourites
-                }
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        mainActivity = activity as? MainActivity
 
+        return MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Sort By:")
+            .setItems(R.array.sortOptions) { _, i ->
+                when (i) {
+                    0 -> mainActivity?.radioListRecyclerViewAdapter?.sortPopular()
+                    1 -> mainActivity?.radioListRecyclerViewAdapter?.sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.ASCENDING)
+                    2 -> mainActivity?.radioListRecyclerViewAdapter?.sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.DESCENDING)
+                    3 -> mainActivity?.radioListRecyclerViewAdapter?.sortFavourites()
                 }
-        });
-        return builder.create();
+            }
+            .create()
     }
 }

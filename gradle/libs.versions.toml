@@ -4,7 +4,10 @@ coordinatorlayout = "1.3.0"
 datastorePreferences = "1.1.5"
 exoplayer = "2.19.1"
 facebook = "6.19.0.1"
-kotlin = "2.0.0"
+hiltCompiler = "2.55"
+hiltCompilerVersion = "2.56.2"
+ksp = "2.1.20-2.0.1"
+kotlinVersion = "2.1.20"
 
 # AndroidX
 appcompat = "1.7.0"
@@ -22,7 +25,7 @@ material = "1.12.0"
 firebaseCrashlytics = "3.0.3"
 
 # Hilt & Dependency Injection
-hilt = "2.55"
+hilt = "2.56.2"
 hiltAndroidTesting = "2.55"
 
 # UI & Animation
@@ -55,7 +58,6 @@ profileinstaller = "1.4.1"
 
 # Lifecycle
 lifecycle = "2.8.7"
-kotlinVersion = "2.1.20"
 coreKtx = "1.16.0"
 userMessagingPlatform = "3.2.0"
 
@@ -73,7 +75,6 @@ androidx-fragment-testing = { module = "androidx.fragment:fragment-testing", ver
 androidx-fragment-testing-manifest = { module = "androidx.fragment:fragment-testing-manifest", version.ref = "fragmentTesting" }
 androidx-legacy-support-v4 = { module = "androidx.legacy:legacy-support-v4", version.ref = "legacySupportV4" }
 androidx-media = { module = "androidx.media:media", version.ref = "media" }
-
 androidx-navigation-fragment-ktx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigationFragmentKtx" }
 androidx-navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationFragmentKtx" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
@@ -86,6 +87,7 @@ facebook = { module = "com.google.ads.mediation:facebook", version.ref = "facebo
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 google-firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 google-firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompilerVersion" }
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 picasso = { module = "com.squareup.picasso:picasso", version.ref = "picasso" }
@@ -98,7 +100,6 @@ firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 # Hilt (Dependency Injection)
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hiltAndroidTesting" }
-hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 # Testing
 androidx-junit = { module = "androidx.test.ext:junit", version.ref = "junitVersion" }
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -126,6 +127,8 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlytics" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlinVersion" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlinVersion" }
 android-test = { id = "com.android.test", version.ref = "agp" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
 

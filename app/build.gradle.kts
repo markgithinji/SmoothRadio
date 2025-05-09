@@ -1,8 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
+
 }
 
 android {
@@ -44,6 +48,9 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 }
 
 dependencies {
@@ -54,14 +61,17 @@ dependencies {
     implementation (libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.coordinatorlayout)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.lifecycle.viewmodel.ktx)
+
 
     implementation(libs.exoplayer)
     implementation(libs.lottie)
-    implementation (libs.androidx.room.runtime)
-    annotationProcessor (libs.androidx.room.compiler)
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
 
-    implementation(libs.hilt.android)
-    annotationProcessor(libs.hilt.compiler)
+    implementation (libs.hilt.android)
+    kapt (libs.hilt.compiler)
 
     implementation(libs.play.services.ads)
     implementation(libs.facebook)

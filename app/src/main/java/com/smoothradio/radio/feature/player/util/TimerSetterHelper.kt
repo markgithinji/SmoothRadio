@@ -1,97 +1,87 @@
-package com.smoothradio.radio.feature.player.util;
+package com.smoothradio.radio.feature.player.util
 
-import android.content.Intent;
-import android.view.View;
-import android.widget.Toast;
+import android.content.Intent
+import android.view.View
+import android.widget.Toast
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.fragment.app.FragmentActivity
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
+import com.smoothradio.radio.service.StreamService
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.fragment.app.FragmentActivity;
+class TimerSetterHelper(
+    private val fragmentActivity: FragmentActivity,
+    private val coordinatorLayout: CoordinatorLayout
+) {
+    private var time1: String? = null
+    private var time2: String? = null
+    private val setTimerIntent = Intent()
 
-import com.google.android.material.snackbar.Snackbar;
-import com.google.android.material.timepicker.MaterialTimePicker;
-import com.google.android.material.timepicker.TimeFormat;
-import com.smoothradio.radio.service.StreamService;
+    fun showTimerPicker() {
+        val calendar = Calendar.getInstance()
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(Calendar.MINUTE)
+        time1 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
+        val picker = MaterialTimePicker.Builder()
+            .setTimeFormat(TimeFormat.CLOCK_12H)
+            .setHour(hour)
+            .setMinute(minute)
+            .setTitleText("Set Time To Turn Off Radio")
+            .build()
 
-public class TimerSetterHelper {
-    private final FragmentActivity fragmentActivity;
-    private final CoordinatorLayout coordinatorLayout;
+        picker.show(fragmentActivity.supportFragmentManager, "SetTimerFrag")
 
-    private String time1;
-    private String time2;
-    private final Intent setTimerIntent = new Intent();
-
-    public TimerSetterHelper(FragmentActivity fragmentActivity, CoordinatorLayout coordinatorLayout) {
-        this.fragmentActivity = fragmentActivity;
-        this.coordinatorLayout = coordinatorLayout;
+        picker.addOnPositiveButtonClickListener {
+            handleTimerSet(picker)
+        }
     }
 
-    public void showTimerPicker() {
-        Calendar calendar = Calendar.getInstance();
-        int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-        time1 = java.text.DateFormat.getTimeInstance().format(calendar.getTime());
+    private fun handleTimerSet(picker: MaterialTimePicker) {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, picker.hour)
+            set(Calendar.MINUTE, picker.minute)
+            set(Calendar.SECOND, 0)
+        }
 
-        MaterialTimePicker picker = new MaterialTimePicker.Builder()
-                .setTimeFormat(TimeFormat.CLOCK_12H)
-                .setHour(hour)
-                .setMinute(minute)
-                .setTitleText("Set Time To Turn Off Radio")
-                .build();
+        val timeInMillis = calendar.timeInMillis
+        setTimerIntent.putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+        setTimerIntent.action = StreamService.ACTION_SET_TIMER
+        setTimerIntent.setPackage(fragmentActivity.packageName)
+        fragmentActivity.sendBroadcast(setTimerIntent)
 
-        picker.show(fragmentActivity.getSupportFragmentManager(), "SetTimerFrag");
-
-        picker.addOnPositiveButtonClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                handleTimerSet(picker);
-            }
-        });
+        time2 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
+        showTimeDifference()
     }
 
-    private void handleTimerSet(MaterialTimePicker picker) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, picker.getHour());
-        calendar.set(Calendar.MINUTE, picker.getMinute());
-        calendar.set(Calendar.SECOND, 0);
-
-        long timeInMillis = calendar.getTimeInMillis();
-        setTimerIntent.putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis);
-        setTimerIntent.setAction(StreamService.ACTION_SET_TIMER);
-        setTimerIntent.setPackage(fragmentActivity.getPackageName());
-        fragmentActivity.sendBroadcast(setTimerIntent);
-
-        time2 = java.text.DateFormat.getTimeInstance().format(calendar.getTime());
-        showTimeDifference();
-    }
-    private void showTimeDifference() {
+    private fun showTimeDifference() {
         try {
-            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("hh:mm:ss aa", Locale.getDefault());
-            Date date1 = simpleDateFormat.parse(time1);
-            Date date2 = simpleDateFormat.parse(time2);
+            val simpleDateFormat = SimpleDateFormat("hh:mm:ss aa", Locale.getDefault())
+            val date1: Date? = simpleDateFormat.parse(time1 ?: "")
+            val date2: Date? = simpleDateFormat.parse(time2 ?: "")
 
             if (date1 != null && date2 != null) {
-                long differenceInMilliSeconds = Math.abs(date2.getTime() - date1.getTime());
+                val differenceInMillis = kotlin.math.abs(date2.time - date1.time)
 
-                long hours = TimeUnit.MILLISECONDS.toHours(differenceInMilliSeconds);
-                long minutes = TimeUnit.MILLISECONDS.toMinutes(differenceInMilliSeconds) % 60;
-                long seconds = TimeUnit.MILLISECONDS.toSeconds(differenceInMilliSeconds) % 60;
+                val hours = TimeUnit.MILLISECONDS.toHours(differenceInMillis)
+                val minutes = TimeUnit.MILLISECONDS.toMinutes(differenceInMillis) % 60
+                val seconds = TimeUnit.MILLISECONDS.toSeconds(differenceInMillis) % 60
 
-                Snackbar.make(coordinatorLayout,
-                        "Radio will Stop after " + hours + " Hours "
-                                + minutes + " Minutes "
-                                + seconds + " Seconds.",
-                        Snackbar.LENGTH_LONG
-                ).show();
+                Snackbar.make(
+                    coordinatorLayout,
+                    "Radio will Stop after $hours Hours $minutes Minutes $seconds Seconds.",
+                    Snackbar.LENGTH_LONG
+                ).show()
             }
-        } catch (ParseException e) {
-            Toast.makeText(fragmentActivity, "Failed to parse time", Toast.LENGTH_SHORT).show();
+        } catch (e: ParseException) {
+            Toast.makeText(fragmentActivity, "Failed to parse time", Toast.LENGTH_SHORT).show()
         }
     }
 }

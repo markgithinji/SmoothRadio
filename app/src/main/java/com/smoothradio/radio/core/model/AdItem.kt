@@ -1,4 +1,3 @@
-package com.smoothradio.radio.core.model;
+package com.smoothradio.radio.core.model
 
-public class AdItem implements ListItem{
-}
+class AdItem : ListItem

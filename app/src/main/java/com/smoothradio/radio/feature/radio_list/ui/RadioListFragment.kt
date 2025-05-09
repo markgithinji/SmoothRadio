@@ -1,205 +1,197 @@
-package com.smoothradio.radio.feature.radio_list.ui;
+package com.smoothradio.radio.feature.radio_list.ui
 
-import static android.content.Context.RECEIVER_NOT_EXPORTED;
-
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Build;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.DividerItemDecoration;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.core.model.ListItem;
-import com.smoothradio.radio.core.ui.RadioViewModel;
-import com.smoothradio.radio.core.util.PlayerManager;
-import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.databinding.FragmentMusicListBinding;
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
-import com.smoothradio.radio.core.model.RadioStation;
-import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper;
-import com.smoothradio.radio.service.StreamService;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import dagger.hilt.android.AndroidEntryPoint;
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.smoothradio.radio.MainActivity
+import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.util.PlayerManager
+import com.smoothradio.radio.core.util.Resource
+import com.smoothradio.radio.databinding.FragmentMusicListBinding
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
+import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper
+import com.smoothradio.radio.service.StreamService
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-public class RadioListFragment extends Fragment{
-    private FragmentMusicListBinding binding;
-    private RadioViewModel radioViewModel;
-    private RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
-    private PlayerManager playerManager;
-    private final BroadcastReceiver eventReceiver = new EventReceiver();
-    private Intent eventIntent;
-    private RadioStation currentStation;
-    private MainActivity mainActivity;
-    private FragmentActivity fragmentActivity;
+class RadioListFragment : Fragment() {
 
-    public RadioListFragment() {
-        // Required empty public constructor
+    private var _binding: FragmentMusicListBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var radioViewModel: RadioViewModel
+    private lateinit var radioListRecyclerViewAdapter: RadioListRecyclerViewAdapter
+    private lateinit var playerManager: PlayerManager
+    private val eventReceiver = EventReceiver()
+    private lateinit var eventIntent: Intent
+    private var currentStation: RadioStation? = null
+    private lateinit var mainActivity: MainActivity
+    private lateinit var fragmentActivity: FragmentActivity
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        fragmentActivity = context as FragmentActivity
     }
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        fragmentActivity = (FragmentActivity) context;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        mainActivity = requireActivity() as MainActivity
+        setupBroadcastReceiver()
+        initializeComponents()
     }
 
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mainActivity = (MainActivity) requireActivity();
-
-        setupBroadcastReceiver();
-        initializeComponents();
-    }
-    private void initializeComponents() {
-        radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
-        playerManager = mainActivity.getPlayerManager();
-        eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
-                .setPackage(fragmentActivity.getPackageName());
+    private fun initializeComponents() {
+        radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
+        playerManager = mainActivity.playerManager
+        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
     }
 
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-
-        binding = FragmentMusicListBinding.inflate(inflater, container, false);
-
-        radioListRecyclerViewAdapter = mainActivity.getAdapter();
-
-        setupObservers();
-        setupRecyclerView();
-
-        return binding.getRoot();
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = FragmentMusicListBinding.inflate(inflater, container, false)
+        radioListRecyclerViewAdapter = mainActivity.getAdapter()
+        setupObservers()
+        setupRecyclerView()
+        return binding.root
     }
 
-    private void setupRecyclerView() {
-        binding.rvRadioList.setAdapter(radioListRecyclerViewAdapter);
-        binding.rvRadioList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
-        binding.rvRadioList.setHasFixedSize(true);
-        binding.rvRadioList.addItemDecoration(new DividerItemDecoration(getContext(), 0));
-        setupRecyclerViewScrollBehavior();
+    private fun setupRecyclerView() {
+        binding.rvRadioList.apply {
+            adapter = radioListRecyclerViewAdapter
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+            setHasFixedSize(true)
+            addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
+        }
+        setupRecyclerViewScrollBehavior()
     }
 
-    private void setupRecyclerViewScrollBehavior() {
-        binding.rvRadioList.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                BottomSheetBehavior<View> bottomSheetBehavior = mainActivity.bottomSheetBehavior;
-
+    private fun setupRecyclerViewScrollBehavior() {
+        binding.rvRadioList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                val bottomSheetBehavior = mainActivity.bottomSheetBehavior
                 if (!recyclerView.canScrollVertically(1)) {
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                    bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                 } else {
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                    bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
                 }
             }
-        });
-    }
-    private void setupObservers() {
-
-        radioViewModel.getRemoteLinksLiveData().observe(getViewLifecycleOwner(), resource -> {
-            if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
-                List<String> newLinks = resource.data;
-                List<RadioStation> localStations = radioViewModel.getAllStations().getValue();
-
-                List<RadioStation> newStations = RadioStationsHelper.createRadioStations(newLinks, localStations);
-
-                radioViewModel.insertStations(newStations);
-            }
-        });
-
-        radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
-            radioListRecyclerViewAdapter.update(stations);
-        });
-
-        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
-            currentStation = radioStation;
-            playerManager.setRadioStation(radioStation);
-
-            if (radioStation.isPlaying()) {
-                playerManager.playOrStop();
-            } else {
-                playerManager.playFromMainActivity();
-            }
-            radioViewModel.savePlayingStationId(radioStation.getId());
-        });
-
-        radioViewModel.getFavoriteStations().observe(getViewLifecycleOwner(), favorites -> {
-            radioListRecyclerViewAdapter.updateFavorites(favorites);
-        });
-
+        })
     }
 
-    private void setupBroadcastReceiver() {
-        IntentFilter eventFilter = new IntentFilter();
-        eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
+    private fun setupObservers() {
+        // Remote links observer
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                radioViewModel.remoteLinks.collect { resource ->
+                    if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
+                        val newLinks = resource.data
+                        val localStations = radioViewModel.allStations.value
+                        val newStations = RadioStationsHelper.createRadioStations(newLinks, localStations)
+                        radioViewModel.insertStations(newStations)
+                    }
+                }
+            }
+        }
 
-        EventReceiver eventReceiver = new EventReceiver();
+        // All stations observer
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                radioViewModel.allStations.collect { stations ->
+                    radioListRecyclerViewAdapter.update(stations)
+                }
+            }
+        }
 
+        // Selected station observer
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                radioViewModel.selectedStation.collect { radioStation ->
+                    radioStation?.let { station ->
+                        currentStation = station
+                        playerManager.setRadioStation(station)
+
+                        if (station.isPlaying) {
+                            playerManager.playOrStop()
+                        } else {
+                            playerManager.playFromMainActivity()
+                        }
+                        radioViewModel.savePlayingStationId(station.id)
+                    }
+                }
+            }
+        }
+
+        // Favorite stations observer
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                radioViewModel.favoriteStations.collect { favorites ->
+                    radioListRecyclerViewAdapter.updateFavorites(favorites)
+                }
+            }
+        }
+    }
+
+    private fun setupBroadcastReceiver() {
+        val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED);
+            fragmentActivity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter);
+            fragmentActivity.registerReceiver(eventReceiver, eventFilter)
         }
     }
 
-
-    public class EventReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
-
-            radioListRecyclerViewAdapter.setState(state);
-            radioListRecyclerViewAdapter.updateStation(currentStation);
+    inner class EventReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val state = intent?.getStringExtra(StreamService.EXTRA_STATE) ?: ""
+            radioListRecyclerViewAdapter.setState(state)
+            currentStation?.let { radioListRecyclerViewAdapter.updateStation(it) }
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
+    override fun onResume() {
+        super.onResume()
         if (mainActivity == null) {
-            mainActivity = (MainActivity) getContext();
+            mainActivity = requireActivity() as MainActivity
         }
-
-        if(currentStation == null) currentStation  = mainActivity.getStationUsingSavedId();
-
-        // Manually trigger adapter update on resume
-
-        if (currentStation != null) {
-            radioListRecyclerViewAdapter.setPlayingStation(currentStation.getId());//update playing station
+        if (currentStation == null) {
+            currentStation = mainActivity.getStationUsingSavedId()
         }
-        if (playerManager.getIsShowingAd()) {
-            broadcastState(StreamService.StreamStates.PREPARING);
+        currentStation?.let {
+            radioListRecyclerViewAdapter.setPlayingStation(it.id)
+        }
+        if (playerManager.isShowingAd) {
+            broadcastState(StreamService.StreamStates.PREPARING)
         } else {
-            Intent getStateFromServiceIntent = new Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.getPackageName());
-            fragmentActivity.sendBroadcast(getStateFromServiceIntent);//update ui state from service
+            val getStateFromServiceIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
+            fragmentActivity.sendBroadcast(getStateFromServiceIntent)
         }
     }
-    private void broadcastState(String state) {
-        eventIntent.putExtra(StreamService.EXTRA_STATE, state);
-        fragmentActivity.sendBroadcast(eventIntent);
+
+    private fun broadcastState(state: String) {
+        eventIntent.putExtra(StreamService.EXTRA_STATE, state)
+        fragmentActivity.sendBroadcast(eventIntent)
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        fragmentActivity.unregisterReceiver(eventReceiver);
+    override fun onDestroy() {
+        super.onDestroy()
+        fragmentActivity.unregisterReceiver(eventReceiver)
+        _binding = null
     }
-
 }

@@ -1,51 +1,31 @@
-package com.smoothradio.radio.core.data.repository;
+package com.smoothradio.radio.core.data.repository
 
-import android.app.Application;
-import androidx.lifecycle.LiveData;
+import com.smoothradio.radio.core.data.local.RadioStationDao
+import com.smoothradio.radio.core.model.RadioStation
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-import com.smoothradio.radio.core.data.local.AppDatabase;
-import com.smoothradio.radio.core.data.local.RadioStationDao;
-import com.smoothradio.radio.core.model.RadioStation;
+@Singleton
+class RadioRepository @Inject constructor(
+    private val dao: RadioStationDao
+) {
+    // Read operations
+    val allStations: Flow<List<RadioStation>> = dao.getAllStations()
+    val favoriteStations: Flow<List<RadioStation>> = dao.getFavoriteStations()
+    val playingStation: Flow<RadioStation?> = dao.getPlayingStation()
 
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import javax.inject.Inject;
-
-public class RadioRepository {
-    private final RadioStationDao dao;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
-    @Inject
-    public RadioRepository(RadioStationDao dao) {
-        this.dao = dao;
+    // Write operations
+    suspend fun setPlayingStation(id: Int) {
+        dao.clearPlayingState()
+        dao.updatePlayingStation(id)
     }
 
-    public LiveData<List<RadioStation>> getAllStations() {
-        return dao.getAllStations();
+    suspend fun insertStations(stations: List<RadioStation>) {
+        dao.insertStations(stations)
     }
 
-    public LiveData<List<RadioStation>> getFavoriteStations() {
-        return dao.getFavoriteStations();
-    }
-
-    public void setPlayingStation(int id) {
-        executor.execute(() -> {
-            dao.clearPlayingState();
-            dao.updatePlayingStation(id);
-        });
-    }
-
-    public LiveData<RadioStation> getPlayingStation() {
-        return dao.getPlayingStation();
-    }
-
-    public void insertStations(List<RadioStation> stations) {
-        executor.execute(() -> dao.insertStations(stations));
-    }
-
-    public void updateFavoriteStatus(int id, boolean isFav) {
-        executor.execute(() -> dao.updateFavoriteStatus(id, isFav));
+    suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
+        dao.updateFavoriteStatus(id, isFav)
     }
 }

@@ -1,388 +1,352 @@
-package com.smoothradio.radio;
+package com.smoothradio.radio
 
-
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Build;
-import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.Toast;
-
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.splashscreen.SplashScreen;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.viewpager2.widget.ViewPager2;
-
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.tabs.TabLayout;
-import com.google.firebase.analytics.FirebaseAnalytics;
-import com.smoothradio.radio.core.ui.RadioViewModel;
-import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter;
-import com.smoothradio.radio.core.util.CacheUtil;
-import com.smoothradio.radio.core.util.ConsentHelper;
-import com.smoothradio.radio.core.util.PlayerManager;
-import com.smoothradio.radio.databinding.ActivityMainBinding;
-import com.smoothradio.radio.feature.about.ui.AboutFragment;
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter;
-import com.smoothradio.radio.core.model.RadioStation;
-import com.smoothradio.radio.service.StreamService;
-import com.smoothradio.radio.feature.radio_list.util.SortDialog;
-
-import java.util.ArrayList;
-
-import dagger.hilt.android.AndroidEntryPoint;
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.tabs.TabLayout
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter
+import com.smoothradio.radio.core.util.CacheUtil
+import com.smoothradio.radio.core.util.ConsentHelper
+import com.smoothradio.radio.core.util.PlayerManager
+import com.smoothradio.radio.databinding.ActivityMainBinding
+import com.smoothradio.radio.feature.about.ui.AboutFragment
+import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
+import com.smoothradio.radio.feature.radio_list.util.SortDialog
+import com.smoothradio.radio.service.StreamService
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-public class MainActivity extends AppCompatActivity {
-    // View Binding
-    private ActivityMainBinding binding;
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var radioViewModel: RadioViewModel
 
-    // ViewModel
-    private RadioViewModel radioViewModel;
+    private lateinit var viewPagerAdapter: ViewPagerAdapter
+    lateinit var radioListRecyclerViewAdapter: RadioListRecyclerViewAdapter
 
-    // Adapters
-    private ViewPagerAdapter viewPagerAdapter;
-    private RadioListRecyclerViewAdapter radioListRecyclerViewAdapter;
+    lateinit var playerManager: PlayerManager
+    private lateinit var inputMethodManager: InputMethodManager
+    lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
-    // Services & Managers
-    private PlayerManager playerManager;
-    private InputMethodManager inputMethodManager;
-    private FirebaseAnalytics firebaseAnalytics;
+    private var tabPosition = 0
+    private var lastStationId = 0
+    private var isSearchVisible = false
 
-    // State
-    private int tabPosition = 0;
-    private int lastStationId = 0;
-    private boolean isSearchVisible = false;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-    // Components
-    public BottomSheetBehavior<View> bottomSheetBehavior;
+        installSplashScreen()
 
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        SplashScreen.installSplashScreen(this);// for displaying splash screen
-
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        initializeComponents();
-        setupObservers();
-        setupUI();
-        setupBroadcastReceiver();
-        requestPermissions();
+        initializeComponents()
+        setupObservers()
+        setupUI()
+        setupBroadcastReceiver()
+        requestPermissions()
     }
 
-    private void initializeComponents() {
-        radioViewModel = new ViewModelProvider(this).get(RadioViewModel.class);
-        radioListRecyclerViewAdapter = new RadioListRecyclerViewAdapter(new ArrayList<>()
-                ,new RadioStationActionHandler(radioViewModel));
-        playerManager = new PlayerManager(this);
-        inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);//for Hiding KeyBoard
-        firebaseAnalytics = FirebaseAnalytics.getInstance(this);
-        bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout);
+    private fun initializeComponents() {
+        radioViewModel = ViewModelProvider(this).get(RadioViewModel::class.java)
+        radioListRecyclerViewAdapter = RadioListRecyclerViewAdapter(
+            mutableListOf(),
+            RadioStationActionHandler(radioViewModel)
+        )
+        playerManager = PlayerManager(this)
+        inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+        bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
 
-        new ConsentHelper(this).showConsentForm();
-    }
-    private void setupUI() {
-        setSupportActionBar(binding.toolbar);
-        setupViewPagerAndTabs();
-        setupSearchUI();
-        binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener(v -> miniPlayerPlayPause());
+        ConsentHelper(this).showConsentForm()
     }
 
-    private void setupObservers() {
-
-        radioViewModel.getPlayingStation().observe(this, station -> {
-            if (station != null) {
-                Log.d("MainActivity", "setupObservers: playing station found: " + station.getStationName());
-                lastStationId = station.getId();
-                updateMiniPlayer(station);
-            } else {
-                Log.d("MainActivity", "setupObservers: no playing station in Room, loading from saved ID");
-                RadioStation savedStation = getStationUsingSavedId();
-                updateMiniPlayer(savedStation);
-            }
-        });
-
-        radioViewModel.getSelectedStation().observe(this, radioStation -> {
-            hideKeyboard();
-        });
+    private fun setupUI() {
+        setSupportActionBar(binding.toolbar)
+        setupViewPagerAndTabs()
+        setupSearchUI()
+        binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener { miniPlayerPlayPause() }
     }
 
-    private void setupViewPagerAndTabs() {
-        viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager(), getLifecycle());
-        viewPagerAdapter.addFragments();
-        binding.viewPager.setAdapter(viewPagerAdapter);
+    private fun setupObservers() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Observer for playing station
+                launch {
+                    radioViewModel.playingStation.collect { station ->
+                        if (station != null) {
+                            Log.d("MainActivity", "setupObservers: playing station found: ${station.stationName}")
+                            lastStationId = station.id
+                            updateMiniPlayer(station)
+                        } else {
+                            Log.d("MainActivity", "setupObservers: no playing station in Room, loading from saved ID")
+                            val savedStation = getStationUsingSavedId()
+                            updateMiniPlayer(savedStation)
+                        }
+                    }
+                }
 
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("STATIONS"));
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("LIVE"));
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("DISCOVER"));
+                // Observer for selected station
+                launch {
+                    radioViewModel.selectedStation.collect {
+                        hideKeyboard()
+                    }
+                }
+            }
+        }
+    }
+    private fun setupViewPagerAndTabs() {
+        viewPagerAdapter = ViewPagerAdapter(supportFragmentManager, lifecycle)
+        viewPagerAdapter.addFragments()
+        binding.viewPager.adapter = viewPagerAdapter
 
-        binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                tabPosition = tab.getPosition();
-                binding.viewPager.setCurrentItem(tabPosition);
-                viewPagerAdapter.notifyDataSetChanged();
-                bottomSheetBehavior.setState(tabPosition == 0
-                        ? BottomSheetBehavior.STATE_COLLAPSED
-                        : BottomSheetBehavior.STATE_HIDDEN);
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("STATIONS"))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("LIVE"))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("DISCOVER"))
+
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                tabPosition = tab.position
+                binding.viewPager.currentItem = tabPosition
+                viewPagerAdapter.notifyDataSetChanged()
+                bottomSheetBehavior.state = if (tabPosition == 0) {
+                    BottomSheetBehavior.STATE_COLLAPSED
+                } else {
+                    BottomSheetBehavior.STATE_HIDDEN
+                }
             }
 
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
 
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
+        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                binding.tabLayout.selectTab(binding.tabLayout.getTabAt(position))
             }
-        });
-
-        binding.viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-            @Override
-            public void onPageSelected(int position) {
-                binding.tabLayout.selectTab(binding.tabLayout.getTabAt(position));
-            }
-        });
+        })
     }
 
-
-    private void setupSearchUI() {
-        binding.ivSearch.setOnClickListener(view -> {
+    private fun setupSearchUI() {
+        binding.ivSearch.setOnClickListener {
             if (isSearchVisible) {
-                binding.etSearch.setVisibility(View.INVISIBLE);
-                binding.ivClearSearch.setVisibility(View.INVISIBLE);
-                isSearchVisible = false;
-                hideKeyboard();
+                binding.etSearch.visibility = View.INVISIBLE
+                binding.ivClearSearch.visibility = View.INVISIBLE
+                isSearchVisible = false
+                hideKeyboard()
             } else {
                 if (tabPosition != 0) {
-                    binding.viewPager.setCurrentItem(0);
+                    binding.viewPager.currentItem = 0
                 }
-                binding.etSearch.post(() -> {
-                    binding.etSearch.requestFocus();
-                    inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                    inputMethodManager.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT);
-                });
+                binding.etSearch.post {
+                    binding.etSearch.requestFocus()
+                    inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    inputMethodManager.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+                }
 
-                binding.etSearch.setVisibility(View.VISIBLE);
-                isSearchVisible = true;
-                if (binding.etSearch.getText().length() > 0) {
-                    binding.ivClearSearch.setVisibility(View.VISIBLE);
+                binding.etSearch.visibility = View.VISIBLE
+                isSearchVisible = true
+                if (binding.etSearch.text?.length ?: 0 > 0) {
+                    binding.ivClearSearch.visibility = View.VISIBLE
                 }
             }
-        });
+        }
 
-        binding.etSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(editable: Editable) {
+                radioListRecyclerViewAdapter.filter(editable.toString())
+                binding.ivClearSearch.visibility = if (editable.length > 0) View.VISIBLE else View.INVISIBLE
             }
+        })
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable editable) {
-                radioListRecyclerViewAdapter.filter(editable.toString());
-                binding.ivClearSearch.setVisibility(editable.length() > 0 ? View.VISIBLE : View.INVISIBLE);
-            }
-        });
-
-        binding.ivClearSearch.setOnClickListener(v -> binding.etSearch.setText(""));
+        binding.ivClearSearch.setOnClickListener { binding.etSearch.setText("") }
     }
 
-    private void setupBroadcastReceiver() {
-        IntentFilter eventFilter = new IntentFilter();
-        eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
+    private fun setupBroadcastReceiver() {
+        val eventFilter = IntentFilter().apply {
+            addAction(StreamService.ACTION_EVENT_CHANGE)
+        }
 
-        EventReceiver eventReceiver = new EventReceiver();
+        val eventReceiver = EventReceiver()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED);
+            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(eventReceiver, eventFilter);
+            registerReceiver(eventReceiver, eventFilter)
         }
     }
 
-    private void requestPermissions() {
+    private fun requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            String[] permissions = {android.Manifest.permission.POST_NOTIFICATIONS};
-            ActivityCompat.requestPermissions(this, permissions, 0);
+            val permissions = arrayOf(android.Manifest.permission.POST_NOTIFICATIONS)
+            ActivityCompat.requestPermissions(this, permissions, 0)
         }
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        CacheUtil.clearAppCache(this);
+    override fun onDestroy() {
+        super.onDestroy()
+        CacheUtil.clearAppCache(this)
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        radioViewModel.setCurrentPage(binding.viewPager.getCurrentItem());
-        radioViewModel.removeStreamLinkListener();
+    override fun onPause() {
+        super.onPause()
+        radioViewModel.setCurrentPage(binding.viewPager.currentItem)
+//        radioViewModel.removeStreamLinkListener()
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
+    override fun onResume() {
+        super.onResume()
 
-        Integer currentPage = radioViewModel.getCurrentPage().getValue();
-        binding.viewPager.setCurrentItem(currentPage, false);
-        binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentPage));
+        val currentPage = radioViewModel.currentPage.value
+        binding.viewPager.currentItem = currentPage ?: 0
+        binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentPage ?: 0))
 
-
-        if (isSearchVisible && binding.etSearch.getText().length() > 0) {
-            binding.ivClearSearch.setVisibility(View.VISIBLE);
+        binding.ivClearSearch.visibility = if (isSearchVisible && binding.etSearch.text?.length ?: 0 > 0) {
+            View.VISIBLE
         } else {
-            binding.ivClearSearch.setVisibility(View.INVISIBLE);
+            View.INVISIBLE
         }
 
-        radioViewModel.getRemoteLinks();
+//        radioViewModel.getRemoteLinks()
     }
 
-    private void hideKeyboard() {
-        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.getWindowToken(), 0);
-        binding.etSearch.setVisibility(View.INVISIBLE);
-        binding.ivClearSearch.setVisibility(View.INVISIBLE);
-        isSearchVisible = false;
+    private fun hideKeyboard() {
+        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
+        binding.etSearch.visibility = View.INVISIBLE
+        binding.ivClearSearch.visibility = View.INVISIBLE
+        isSearchVisible = false
     }
 
-    private void updateMiniPlayer(RadioStation radioStation) {
-        binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.getLogoResource());
-        binding.miniPlayer.tvStationNameMiniPlayerLayout.setText(radioStation.getStationName());
+    private fun updateMiniPlayer(radioStation: RadioStation) {
+        binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
+        binding.miniPlayer.tvStationNameMiniPlayerLayout.text = radioStation.stationName
     }
 
-    private void miniPlayerPlayPause() {
-        radioViewModel.setSelectedStation(getStationUsingSavedId());
+    private fun miniPlayerPlayPause() {
+        radioViewModel.setSelectedStation(getStationUsingSavedId())
     }
 
-    public RadioStation getStationUsingSavedId() {
-        RadioStation radioStation = new RadioStation(lastStationId,0, "", "", "", "", false,false);
-        int position = radioListRecyclerViewAdapter.getPositionOfStation(lastStationId);
+    fun getStationUsingSavedId(): RadioStation {
+        var radioStation = RadioStation(lastStationId, 0, "", "", "", "", false, false)
+        val position = radioListRecyclerViewAdapter.getPositionOfStation(lastStationId)
 
         if (!(radioListRecyclerViewAdapter.listIsEmpty() || position == RecyclerView.NO_POSITION)) {
-            radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position);
+            radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position)
         }
-        return radioStation;
-    }
-    public void sendFirebaseAnalytics(String stationName) {
-        String event = stationName.toLowerCase().replace(" ", "");
-        Bundle bundle = new Bundle();
-        bundle.putString("station_name", stationName);
-        firebaseAnalytics.logEvent(event, bundle);
-    }
-    public RadioListRecyclerViewAdapter getAdapter() {
-        return radioListRecyclerViewAdapter;
+        return radioStation
     }
 
-    public PlayerManager getPlayerManager() {
-        return playerManager;
+    fun sendFirebaseAnalytics(stationName: String) {
+        val event = stationName.lowercase().replace(" ", "")
+        val bundle = Bundle().apply {
+            putString("station_name", stationName)
+        }
+        firebaseAnalytics.logEvent(event, bundle)
     }
 
+    fun getAdapter(): RadioListRecyclerViewAdapter = radioListRecyclerViewAdapter
 
-    private class EventReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
+    private inner class EventReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getStringExtra(StreamService.EXTRA_STATE)
 
-            if (state.equals(StreamService.StreamStates.BUFFERING) || state.equals(StreamService.StreamStates.PREPARING)) {
-                showBufferingState();
-            } else if (state.equals(StreamService.StreamStates.PLAYING)) {
-                showPlayingState();
-            } else {
-                showStoppedState();
+            when (state) {
+                StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> showBufferingState()
+                StreamService.StreamStates.PLAYING -> showPlayingState()
+                else -> showStoppedState()
             }
-            //update mini player
-            binding.miniPlayer.tvStatusMiniPlayerLayout.setText(state);
-        }
-        private void showBufferingState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.INVISIBLE);
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.VISIBLE);
+            // update mini player
+            binding.miniPlayer.tvStatusMiniPlayerLayout.text = state
         }
 
-        private void showPlayingState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon);
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+        private fun showBufferingState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.INVISIBLE
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.VISIBLE
         }
 
-        private void showStoppedState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setVisibility(View.VISIBLE);
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon);
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.setVisibility(View.INVISIBLE);
+        private fun showPlayingState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon)
+            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.VISIBLE
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.INVISIBLE
+        }
+
+        private fun showStoppedState() {
+            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.VISIBLE
+            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon)
+            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.INVISIBLE
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu, menu);
-        return true;
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu, menu)
+        return true
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle item selection
-        switch (item.getItemId()) {
-            case R.id.action_sort:
-
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_sort -> {
                 if (tabPosition != 0) {
-                    binding.viewPager.setCurrentItem(0);
+                    binding.viewPager.currentItem = 0
                 }
-                SortDialog sortDialog = new SortDialog();
-                sortDialog.show(getSupportFragmentManager(), "dialogueFragment");
-                return true;
-            case R.id.action_info:
-                startActivity(new Intent(this, AboutFragment.class));
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+                SortDialog().show(supportFragmentManager, "dialogueFragment")
+                true
+            }
+            R.id.action_info -> {
+                startActivity(Intent(this, AboutFragment::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
-    public class RadioStationActionHandler implements RadioListRecyclerViewAdapter.RadioStationActionListener {
-        private final RadioViewModel radioViewModel;
 
-        public RadioStationActionHandler(RadioViewModel radioViewModel) {
-            this.radioViewModel = radioViewModel;
+    inner class RadioStationActionHandler(private val radioViewModel: RadioViewModel) :
+        RadioListRecyclerViewAdapter.RadioStationActionListener {
+        override fun onStationSelected(station: RadioStation) {
+            radioViewModel.setSelectedStation(station)
         }
 
-        @Override
-        public void onStationSelected(RadioStation station) {
-            radioViewModel.setSelectedStation(station);
+        override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {
+            radioViewModel.updateFavoriteStatus(station.id, isFavorite)
         }
 
-        @Override
-        public void onToggleFavorite(RadioStation station, boolean isFavorite) {
-            radioViewModel.updateFavoriteStatus(station.getId(), isFavorite);
+        override fun onRequestHideKeyboard() {
+            hideKeyboard()
         }
 
-        @Override
-        public void onRequestHideKeyboard() {
-            hideKeyboard();
+        override fun onRequestshowToast(message: String) {
+            showToast(message)
         }
 
-        @Override
-        public void onRequestshowToast(String message) {
-            showToast(message);
+        private fun showToast(message: String) {
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
         }
-
-        private void showToast(String message) {
-            Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
-        }
-
     }
-
 }

@@ -1,11 +1,10 @@
-package com.smoothradio.radio.core.data.local;
+package com.smoothradio.radio.core.data.local
 
-import androidx.room.Database;
-import androidx.room.RoomDatabase;
+import androidx.room.Database
+import androidx.room.RoomDatabase
+import com.smoothradio.radio.core.model.RadioStation
 
-import com.smoothradio.radio.core.model.RadioStation;
-
-@Database(entities = {RadioStation.class}, version = 1)
-public abstract class AppDatabase extends RoomDatabase {
-    public abstract RadioStationDao radioStationDao();
+@Database(entities = [RadioStation::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun radioStationDao(): RadioStationDao
 }

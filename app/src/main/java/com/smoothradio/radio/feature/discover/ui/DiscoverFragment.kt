@@ -1,176 +1,155 @@
-package com.smoothradio.radio.feature.discover.ui;
+package com.smoothradio.radio.feature.discover.ui
 
-import static android.content.Context.RECEIVER_NOT_EXPORTED;
-
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Build;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Toast;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper;
-import com.smoothradio.radio.core.ui.RadioViewModel;
-import com.smoothradio.radio.core.util.Resource;
-import com.smoothradio.radio.databinding.FragmentDiscoverBinding;
-import com.smoothradio.radio.feature.discover.ui.adapter.CategoryRecyclerViewAdapter;
-import com.smoothradio.radio.feature.discover.ui.adapter.DiscoverRecyclerViewAdapter;
-import com.smoothradio.radio.feature.discover.util.CategoryHelper;
-import com.smoothradio.radio.core.model.Category;
-import com.smoothradio.radio.core.model.RadioStation;
-import com.smoothradio.radio.service.StreamService;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import dagger.hilt.android.AndroidEntryPoint;
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.smoothradio.radio.MainActivity
+import com.smoothradio.radio.core.model.Category
+import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.databinding.FragmentDiscoverBinding
+import com.smoothradio.radio.feature.discover.ui.adapter.CategoryRecyclerViewAdapter
+import com.smoothradio.radio.feature.discover.ui.adapter.DiscoverRecyclerViewAdapter
+import com.smoothradio.radio.feature.discover.util.CategoryHelper
+import com.smoothradio.radio.service.StreamService
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-public class DiscoverFragment extends Fragment {
+class DiscoverFragment : Fragment() {
 
-    private FragmentDiscoverBinding binding;
-    private DiscoverRecyclerViewAdapter discoverRecyclerViewAdapter;
-    private RadioViewModel radioViewModel;
-    private FragmentActivity fragmentActivity;
-    private MainActivity mainActivity;
-    private EventReceiver eventReceiver;
-    private Intent eventIntent;
-    private RadioStation currentStation;
+    private var _binding: FragmentDiscoverBinding? = null
+    private val binding get() = _binding!!
 
-    public DiscoverFragment() {
+    private lateinit var discoverRecyclerViewAdapter: DiscoverRecyclerViewAdapter
+    private lateinit var radioViewModel: RadioViewModel
+    private lateinit var fragmentActivity: FragmentActivity
+    private lateinit var mainActivity: MainActivity
+    private lateinit var eventReceiver: EventReceiver
+    private lateinit var eventIntent: Intent
+    private var currentStation: RadioStation? = null
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        fragmentActivity = context as FragmentActivity
     }
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        fragmentActivity = (FragmentActivity) context;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        mainActivity = requireActivity() as MainActivity
+        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
+        setupBroadcastReceiver()
     }
 
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mainActivity = (MainActivity) requireActivity();
-        eventIntent = new Intent(StreamService.ACTION_EVENT_CHANGE)
-                .setPackage(fragmentActivity.getPackageName());
-        setupBroadcastReceiver();
+    override fun onCreateView(inflater: android.view.LayoutInflater, container: android.view.ViewGroup?, savedInstanceState: Bundle?): android.view.View {
+        _binding = FragmentDiscoverBinding.inflate(inflater, container, false)
+
+        discoverRecyclerViewAdapter = DiscoverRecyclerViewAdapter(emptyList())
+        radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
+
+        setupObservers()
+        setupRecyclerView()
+
+        val radioStationActionHandler = RadioStationActionHandler(radioViewModel)
+        discoverRecyclerViewAdapter.setRadioStationActionListener(radioStationActionHandler)
+
+        return binding.root
     }
 
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        binding = FragmentDiscoverBinding.inflate(inflater, container, false);
+    private fun setupObservers() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    radioViewModel.allStations.collect { stations ->
+                        val categoryList = CategoryHelper.createCategories(stations)
+                        discoverRecyclerViewAdapter.updateCategoryList(categoryList)
+                    }
+                }
 
-        discoverRecyclerViewAdapter = new DiscoverRecyclerViewAdapter(new ArrayList<>());
-        radioViewModel = new ViewModelProvider(fragmentActivity).get(RadioViewModel.class);
-
-        setupObservers();
-        setupRecyclerView();
-
-        RadioStationActionHandler radioStationActionHandler = new RadioStationActionHandler(radioViewModel);
-        discoverRecyclerViewAdapter.setRadioStationActionListener(radioStationActionHandler);
-
-        return binding.getRoot();
+                launch {
+                    radioViewModel.selectedStation.collect { radioStation ->
+                        currentStation = radioStation
+                    }
+                }
+            }
+        }
+    }
+    private fun setupRecyclerView() {
+        binding.rvDiscover.apply {
+            adapter = discoverRecyclerViewAdapter
+            layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL, false)
+            setHasFixedSize(true)
+        }
     }
 
-    private void setupObservers() {
-
-        radioViewModel.getAllStations().observe(getViewLifecycleOwner(), stations -> {
-            List<Category> categoryList = CategoryHelper.createCategories(stations);
-            discoverRecyclerViewAdapter.updateCategoryList(categoryList);
-        });
-
-        radioViewModel.getSelectedStation().observe(getViewLifecycleOwner(), radioStation -> {
-            this.currentStation = radioStation;
-        });
-    }
-
-    private void setupRecyclerView() {
-        binding.rvDiscover.setAdapter(discoverRecyclerViewAdapter);
-        binding.rvDiscover.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false));
-        binding.rvDiscover.setHasFixedSize(true);
-    }
-
-    private void setupBroadcastReceiver() {
-        eventReceiver = new EventReceiver();
-        IntentFilter eventFilter = new IntentFilter();
-        eventFilter.addAction(StreamService.ACTION_EVENT_CHANGE);
+    private fun setupBroadcastReceiver() {
+        eventReceiver = EventReceiver()
+        val eventFilter = IntentFilter().apply {
+            addAction(StreamService.ACTION_EVENT_CHANGE)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED);
+            fragmentActivity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter);
+            fragmentActivity.registerReceiver(eventReceiver, eventFilter)
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-
-        if (mainActivity.getPlayerManager().getIsShowingAd()) {
-            broadcastState(StreamService.StreamStates.PREPARING);
+    override fun onResume() {
+        super.onResume()
+        if (mainActivity.playerManager.isShowingAd) {
+            broadcastState(StreamService.StreamStates.PREPARING)
         } else {
-            Intent getStateFromServiceIntent = new Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.getPackageName());
-            fragmentActivity.sendBroadcast(getStateFromServiceIntent);//get ui state from service
-        }
-    }
-    private void broadcastState(String state) {
-        eventIntent.putExtra(StreamService.EXTRA_STATE, state);
-        fragmentActivity.sendBroadcast(eventIntent);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        fragmentActivity.unregisterReceiver(eventReceiver);
-    }
-
-    public class EventReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String state = intent.getStringExtra(StreamService.EXTRA_STATE);
-            discoverRecyclerViewAdapter.setSelectedStationWithState(currentStation, state);
+            val getStateFromServiceIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
+            fragmentActivity.sendBroadcast(getStateFromServiceIntent)
         }
     }
 
-    public class RadioStationActionHandler implements CategoryRecyclerViewAdapter.RadioStationActionListener {
-        private final RadioViewModel radioViewModel;
+    private fun broadcastState(state: String) {
+        eventIntent.putExtra(StreamService.EXTRA_STATE, state)
+        fragmentActivity.sendBroadcast(eventIntent)
+    }
 
-        public RadioStationActionHandler(RadioViewModel radioViewModel) {
-            this.radioViewModel = radioViewModel;
+    override fun onDestroy() {
+        super.onDestroy()
+        fragmentActivity.unregisterReceiver(eventReceiver)
+        _binding = null
+    }
+
+    inner class EventReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val state = intent?.getStringExtra(StreamService.EXTRA_STATE)
+            discoverRecyclerViewAdapter.setSelectedStationWithState(currentStation ?: return, state ?: "")
+        }
+    }
+
+    inner class RadioStationActionHandler(private val radioViewModel: RadioViewModel) : CategoryRecyclerViewAdapter.RadioStationActionListener {
+        override fun onStationSelected(station: RadioStation) {
+            radioViewModel.setSelectedStation(station)
         }
 
-        @Override
-        public void onStationSelected(RadioStation station) {
-            radioViewModel.setSelectedStation(station);
+        override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {
+            radioViewModel.updateFavoriteStatus(station.id, isFavorite)
         }
 
-        @Override
-        public void onToggleFavorite(RadioStation station, boolean isFavorite) {
-            radioViewModel.updateFavoriteStatus(station.getId(), isFavorite);
+        override fun onRequestshowToast(message: String) {
+            showToast(message)
         }
 
-
-        @Override
-        public void onRequestshowToast(String message) {
-            showToast(message);
-        }
-
-        private void showToast(String message) {
-            Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show();
+        private fun showToast(message: String) {
+            Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -1,76 +1,61 @@
-package com.smoothradio.radio.feature.radio_list.util;
+package com.smoothradio.radio.feature.radio_list.util
 
-import android.util.Log;
+import android.util.Log
+import androidx.recyclerview.widget.DiffUtil
+import com.smoothradio.radio.core.model.ListItem
+import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.model.AdItem
 
-import androidx.recyclerview.widget.DiffUtil;
+class StationDiffUtilCallback(
+    private val oldList: List<ListItem>,
+    private val newList: List<ListItem>
+) : DiffUtil.Callback() {
 
-import com.smoothradio.radio.core.model.ListItem;
-import com.smoothradio.radio.core.model.RadioStation;
-import com.smoothradio.radio.core.model.AdItem;
-
-import java.util.List;
-import java.util.Objects;
-
-public class StationDiffUtilCallback extends DiffUtil.Callback {
-
-    private final List<ListItem> oldList;
-    private final List<ListItem> newList;
-
-    public StationDiffUtilCallback(List<ListItem> oldList, List<ListItem> newList) {
-        this.oldList = oldList;
-        this.newList = newList;
+    override fun getOldListSize(): Int {
+        Log.d("DiffUtil", "getOldListSize ${oldList.size}")
+        return oldList.size
     }
 
-    @Override
-    public int getOldListSize() {
-        Log.d("DiffUtil", "getOldListSize " + oldList.size());
-        return oldList.size();
+    override fun getNewListSize(): Int {
+        Log.d("DiffUtil", "getNewListSize ${newList.size}")
+        return newList.size
     }
 
-    @Override
-    public int getNewListSize() {
-        Log.d("DiffUtil", "getNewListSize " + newList.size());
-        return newList.size();
-    }
+    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+        val oldItem = oldList[oldItemPosition]
+        val newItem = newList[newItemPosition]
 
-    @Override
-    public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-        ListItem oldItem = oldList.get(oldItemPosition);
-        ListItem newItem = newList.get(newItemPosition);
-
-        if (oldItem instanceof RadioStation && newItem instanceof RadioStation) {
-            boolean isSame = ((RadioStation) oldItem).getId() == ((RadioStation) newItem).getId();
-            Log.d("DiffUtil", "areItemsTheSame (RadioStation): " + isSame);
-            return isSame;
-        } else if (oldItem instanceof AdItem && newItem instanceof AdItem) {
-            // treat all ads as same (or compare by index if dynamic)
-            Log.d("DiffUtil", "areItemsTheSame (AdItem): true");
-            return true;
+        return when {
+            oldItem is RadioStation && newItem is RadioStation -> {
+                val isSame = oldItem.id == newItem.id
+                Log.d("DiffUtil", "areItemsTheSame (RadioStation): $isSame")
+                isSame
+            }
+            oldItem is AdItem && newItem is AdItem -> {
+                Log.d("DiffUtil", "areItemsTheSame (AdItem): true")
+                true
+            }
+            else -> false
         }
-
-        return false; // different types → not same
     }
 
-    @Override
-    public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-        ListItem oldItem = oldList.get(oldItemPosition);
-        ListItem newItem = newList.get(newItemPosition);
+    override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+        val oldItem = oldList[oldItemPosition]
+        val newItem = newList[newItemPosition]
 
-        if (oldItem instanceof RadioStation && newItem instanceof RadioStation) {
-            RadioStation oldStation = (RadioStation) oldItem;
-            RadioStation newStation = (RadioStation) newItem;
-
-            boolean isSame = Objects.equals(oldStation.getUrl(), newStation.getUrl())
-                    && oldStation.isPlaying() == newStation.isPlaying()
-                    && oldStation.isFavorite() == newStation.isFavorite();
-
-            Log.d("DiffUtil", "areContentsTheSame (RadioStation): " + isSame);
-            return isSame;
-        } else if (oldItem instanceof AdItem && newItem instanceof AdItem) {
-            Log.d("DiffUtil", "areContentsTheSame (AdItem): true");
-            return true; // no content diff tracking for static ads
+        return when {
+            oldItem is RadioStation && newItem is RadioStation -> {
+                val isSame = oldItem.url == newItem.url &&
+                        oldItem.isPlaying == newItem.isPlaying &&
+                        oldItem.isFavorite == newItem.isFavorite
+                Log.d("DiffUtil", "areContentsTheSame (RadioStation): $isSame")
+                isSame
+            }
+            oldItem is AdItem && newItem is AdItem -> {
+                Log.d("DiffUtil", "areContentsTheSame (AdItem): true")
+                true
+            }
+            else -> false
         }
-
-        return false; // different types
     }
 }

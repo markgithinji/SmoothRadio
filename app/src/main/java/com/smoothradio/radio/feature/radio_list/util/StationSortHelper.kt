@@ -1,22 +1,21 @@
-package com.smoothradio.radio.feature.radio_list.util;
+package com.smoothradio.radio.feature.radio_list.util
 
-import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.core.model.RadioStation
 
-import java.util.Collections;
-import java.util.List;
+object StationSortHelper {
 
-public class StationSortHelper {
-
-    public static void sortByName(List<RadioStation> list, boolean ascending) {
-        Collections.sort(list, (s1, s2) -> {
-            String name1 = s1.getStationName().replace(" ", "").toLowerCase();
-            String name2 = s2.getStationName().replace(" ", "").toLowerCase();
-            int result = name1.compareTo(name2);
-            return ascending ? result : -result;
-        });
+    @JvmStatic
+    fun sortByName(list: MutableList<RadioStation>, ascending: Boolean) {
+        list.sortWith { s1, s2 ->
+            val name1 = s1.stationName.replace(" ", "").lowercase()
+            val name2 = s2.stationName.replace(" ", "").lowercase()
+            val result = name1.compareTo(name2)
+            if (ascending) result else -result
+        }
     }
 
-    public static void sortByName(List<RadioStation> list) {
-        sortByName(list, true); // default ascending
+    @JvmStatic
+    fun sortByName(list: MutableList<RadioStation>) {
+        sortByName(list, true) // default ascending
     }
 }

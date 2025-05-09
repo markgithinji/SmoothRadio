@@ -1,44 +1,25 @@
-package com.smoothradio.radio.feature.discover.util;
+package com.smoothradio.radio.feature.discover.util
 
-import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.DiffUtil
+import com.smoothradio.radio.core.model.Category
 
-import com.smoothradio.radio.core.model.Category;
+class CategoryDiffUtilCallback(
+    private val oldList: List<Category>,
+    private val newList: List<Category>
+) : DiffUtil.Callback() {
 
-import java.util.List;
+    override fun getOldListSize(): Int = oldList.size
 
-public class CategoryDiffUtilCallback extends DiffUtil.Callback {
+    override fun getNewListSize(): Int = newList.size
 
-    private final List<Category> oldList;
-    private final List<Category> newList;
-
-    public CategoryDiffUtilCallback(List<Category> oldList, List<Category> newList) {
-        this.oldList = oldList;
-        this.newList = newList;
+    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+        // Compare based on unique identifier (label)
+        return oldList[oldItemPosition].label == newList[newItemPosition].label
     }
 
-    @Override
-    public int getOldListSize() {
-        return oldList.size();
-    }
-
-    @Override
-    public int getNewListSize() {
-        return newList.size();
-    }
-
-    @Override
-    public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-        // Compare based on a unique identifier for each category (like the label)
-        return oldList.get(oldItemPosition).getLabel().equals(newList.get(newItemPosition).getLabel());
-    }
-
-    @Override
-    public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-        // Compare the category contents (list of RadioStations in this case)
-        Category oldCategory = oldList.get(oldItemPosition);
-        Category newCategory = newList.get(newItemPosition);
-
-        return oldCategory.getCategoryRadioStationList().equals(newCategory.getCategoryRadioStationList());
+    override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+        val oldCategory = oldList[oldItemPosition]
+        val newCategory = newList[newItemPosition]
+        return oldCategory.categoryRadioStationList == newCategory.categoryRadioStationList
     }
 }
-

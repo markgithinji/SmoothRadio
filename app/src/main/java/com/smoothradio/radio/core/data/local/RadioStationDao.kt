@@ -1,34 +1,35 @@
-package com.smoothradio.radio.core.data.local;
+package com.smoothradio.radio.core.data.local
 
-import androidx.lifecycle.LiveData;
-import androidx.room.*;
-
-import com.smoothradio.radio.core.model.RadioStation;
-
-import java.util.List;
+import androidx.lifecycle.LiveData
+import androidx.room.*
+import com.smoothradio.radio.core.model.RadioStation
+import kotlinx.coroutines.flow.Flow
 
 @Dao
-public interface RadioStationDao {
+interface RadioStationDao {
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertStations(List<RadioStation> stations);
+    suspend fun insertStations(stations: List<RadioStation>)
 
     @Query("SELECT * FROM radio_stations")
-    LiveData<List<RadioStation>> getAllStations();
+    fun getAllStations(): Flow<List<RadioStation>>
 
     @Query("SELECT * FROM radio_stations WHERE isFavorite = 1")
-    LiveData<List<RadioStation>> getFavoriteStations();
+    fun getFavoriteStations(): Flow<List<RadioStation>>
 
     @Query("UPDATE radio_stations SET isPlaying = 0")
-    void clearPlayingState();
+    suspend fun clearPlayingState()
 
     @Query("UPDATE radio_stations SET isPlaying = 1 WHERE id = :id")
-    void updatePlayingStation(int id);
+    suspend fun updatePlayingStation(id: Int)
+
     @Query("SELECT * FROM radio_stations WHERE isPlaying = 1 LIMIT 1")
-    LiveData<RadioStation> getPlayingStation();
+    fun getPlayingStation(): Flow<RadioStation?>
 
     @Query("UPDATE radio_stations SET isFavorite = :isFav WHERE id = :id")
-    void updateFavoriteStatus(int id, boolean isFav);
+    suspend fun updateFavoriteStatus(id: Int, isFav: Boolean)
 
     @Query("DELETE FROM radio_stations")
-    void clearAll();
+    suspend fun clearAll()
 }
+

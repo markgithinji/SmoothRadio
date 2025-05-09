@@ -1,471 +1,495 @@
-package com.smoothradio.radio.service;
+package com.smoothradio.radio.service
 
-import android.app.AlarmManager;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.graphics.BitmapFactory;
-import android.media.AudioManager;
-import android.net.Uri;
-import android.os.Build;
-import android.os.IBinder;
-import android.util.Log;
-import android.widget.Toast;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
-
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.MediaMetadata;
-import com.google.android.exoplayer2.PlaybackException;
-import com.google.android.exoplayer2.Player;
-import com.smoothradio.radio.MainActivity;
-import com.smoothradio.radio.R;
+import android.app.AlarmManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.BitmapFactory
+import android.media.AudioManager
+import android.net.Uri
+import android.os.Build
+import android.os.IBinder
+import android.widget.Toast
+import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.MediaMetadata
+import com.google.android.exoplayer2.PlaybackException
+import com.google.android.exoplayer2.Player
+import com.smoothradio.radio.MainActivity
+import com.smoothradio.radio.R
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
 
 /**
  * A background service that manages audio streaming using ExoPlayer.
  *
  * This service handles playback, pause/resume, stop, audio focus management,
- * notifications, and broadcast communication with the UI.  It supports playing
+ * notifications, and broadcast communication with the UI. It supports playing
  * audio streams from URLs and responds to various actions triggered by the UI or system events.
  */
-public class StreamService extends Service {
+class StreamService : Service() {
 
-    // Broadcast Actions
-    public static final String ACTION_START = "SmoothService:Start";
-    public static final String ACTION_STOP = "SmoothService:Stop";
-    public static final String ACTION_SHOW_AD = "SmoothService:Stop";
-    public static final String ACTION_EVENT_CHANGE = "SmoothService:EventChangeListener";
-    public static final String ACTION_METADATA_CHANGE = "SmoothService:MetadataChangeListener";
-    public static final String ACTION_GET_STATE = "SmoothService:GetState";
-    public static final String ACTION_UPDATE_UI = "SmoothService:ReturnState";
-    public static final String ACTION_SET_TIMER = "SmoothService:SetTimer";
-    private final String ACTION_PLAY_PAUSE = "SmoothService:PlayPause";
-    private final String ACTION_REQUEST_AUDIO_FOCUS = "SmoothService:RequestAudioFocus";
+    companion object {
+        // Broadcast Actions
+        const val ACTION_START = "SmoothService:Start"
+        const val ACTION_STOP = "SmoothService:Stop"
+        const val ACTION_SHOW_AD = "SmoothService:Stop"
+        const val ACTION_EVENT_CHANGE = "SmoothService:EventChangeListener"
+        const val ACTION_METADATA_CHANGE = "SmoothService:MetadataChangeListener"
+        const val ACTION_GET_STATE = "SmoothService:GetState"
+        const val ACTION_UPDATE_UI = "SmoothService:ReturnState"
+        const val ACTION_SET_TIMER = "SmoothService:SetTimer"
+        private const val ACTION_PLAY_PAUSE = "SmoothService:PlayPause"
+        private const val ACTION_REQUEST_AUDIO_FOCUS = "SmoothService:RequestAudioFocus"
 
-    // Broadcast Extras
-    public static final String EXTRA_RESULT_DATA = "SmoothService:ShowAd";
-    public static final String EXTRA_STATE = "state";
-    public static final String EXTRA_TIME_IN_MILLIS = "timeInMillis";
-    public static final String EXTRA_LOGO = "logo";
-    public static final String EXTRA_STATION_NAME = "stationName";
-    public static final String EXTRA_LINK = "url";
-    public static final String EXTRA_TITLE = "title";
-    public final String EXTRA_SOURCE = "source";
+        // Broadcast Extras
+        const val EXTRA_RESULT_DATA = "SmoothService:ShowAd"
+        const val EXTRA_STATE = "state"
+        const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
+        const val EXTRA_LOGO = "logo"
+        const val EXTRA_STATION_NAME = "stationName"
+        const val EXTRA_LINK = "url"
+        const val EXTRA_TITLE = "title"
+        const val EXTRA_SOURCE = "source"
 
-    // Notification Info
-    private static final String CHANNEL_ID = "serviceChannel";
-    private final String TITLE_PLAY = "Play";
-    private final String TITLE_PAUSE = "Pause";
-    private final String TITLE_STOP = "Stop";
+        // Notification Info
+        private const val CHANNEL_ID = "serviceChannel"
+        private const val TITLE_PLAY = "Play"
+        private const val TITLE_PAUSE = "Pause"
+        private const val TITLE_STOP = "Stop"
 
-    // Playback State
-    public static boolean isPlaying = false;
-    private boolean isShowingAd = false;
-    private String stateChange = "";
+        // Playback State
+        var isPlaying = false
+
+        object StreamStates {
+            const val PREPARING = "Preparing Audio"
+            const val PLAYING = "Playing"
+            const val BUFFERING = "Buffering"
+            const val IDLE = "Idle"
+            const val ENDED = "Ended"
+        }
+    }
+
+    // Service State
+    private var isShowingAd = false
+    private var stateChange = ""
 
     // Playback Components
-    private ExoPlayer player;
-    private MediaMetadata mediaMetadataOR;
-    private EventListener exoplayerEventListener;
+    private var player: ExoPlayer? = null
+    private var mediaMetadataOR: MediaMetadata? = null
+    private lateinit var exoplayerEventListener: EventListener
 
     // System Services
-    private AudioManager audioManager;
-    private AudioManager.OnAudioFocusChangeListener onAudioFocusChangeListener;
+    private lateinit var audioManager: AudioManager
+    private lateinit var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener
 
     // Broadcast Intents
-    private Intent eventIntent;
-    private Intent metadataIntent;
-    private Intent playPauseIntent;
+    private lateinit var eventIntent: Intent
+    private lateinit var metadataIntent: Intent
+    private lateinit var playPauseIntent: Intent
 
     // Notification Components
-    private NotificationCompat.Builder notificationBuilder;
-    private PendingIntent stopPI;
-    private PendingIntent playPausePI;
+    private lateinit var notificationBuilder: NotificationCompat.Builder
+    private lateinit var stopPI: PendingIntent
+    private lateinit var playPausePI: PendingIntent
 
     // Broadcast Receivers
-    private StopPlayFromTimerReceiver stopPlayFromTimerReceiver;
-    private SetStopTimerReceiver setStopTimerReceiver;
-    private RestoreUIReceiver restoreUIReceiver;
-    private PLayPauseReceiver pLayPauseReceiver;
-    private RequestFocusReceiver requestFocusReceiver;
+    private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
+    private lateinit var setStopTimerReceiver: SetStopTimerReceiver
+    private lateinit var restoreUIReceiver: RestoreUIReceiver
+    private lateinit var pLayPauseReceiver: PLayPauseReceiver
+    private lateinit var requestFocusReceiver: RequestFocusReceiver
 
     // === Lifecycle Methods ===
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        setupAudioFocus();
-        setupIntents();
-        setupNotification();
-        registerReceivers();
-        exoplayerEventListener = new EventListener();
+    override fun onCreate() {
+        super.onCreate()
+        setupAudioFocus()
+        setupIntents()
+        setupNotification()
+        registerReceivers()
+        exoplayerEventListener = EventListener()
     }
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        intent?.let { handleIntent(it) }
+        return START_NOT_STICKY
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
-            handleIntent(intent);
-        }
-        return Service.START_NOT_STICKY;
+    override fun onDestroy() {
+        super.onDestroy()
+        cleanupResources()
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        cleanupResources();
-    }
-
-    private void setupAudioFocus() {
-        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        playPauseIntent = new Intent();
-        onAudioFocusChangeListener = i -> {
-            if (i == AudioManager.AUDIOFOCUS_GAIN) {
-                player.play();
-            } else if (i == AudioManager.AUDIOFOCUS_LOSS || i == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                playPauseIntent.putExtra(EXTRA_SOURCE, "audiofocus");
-                sendBroadcast(playPauseIntent);
+    private fun setupAudioFocus() {
+        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        playPauseIntent = Intent()
+        onAudioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_GAIN -> player?.play()
+                AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    playPauseIntent.putExtra(EXTRA_SOURCE, "audiofocus")
+                    sendBroadcast(playPauseIntent)
+                }
             }
-        };
+        }
     }
 
-    private void setupIntents() {
-        eventIntent = new Intent(ACTION_EVENT_CHANGE).setPackage(getPackageName());
-        metadataIntent = new Intent(ACTION_METADATA_CHANGE).setPackage(getPackageName());
+    private fun setupIntents() {
+        eventIntent = Intent(ACTION_EVENT_CHANGE).setPackage(packageName)
+        metadataIntent = Intent(ACTION_METADATA_CHANGE).setPackage(packageName)
     }
 
-    private void setupNotification() {
+    private fun setupNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    getString(R.string.notification_channel_name),
-                    NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setSound(null, null);
-            channel.setShowBadge(false);
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                setSound(null, null)
+                setShowBadge(false)
+            }
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
+                channel
+            )
         }
-        Intent notificationIntent = new Intent(this, MainActivity.class).setPackage(getPackageName());
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        Intent stopIntent = new Intent(ACTION_STOP).setPackage(getPackageName());
-        stopPI = PendingIntent.getBroadcast(this, 1, stopIntent, PendingIntent.FLAG_IMMUTABLE);
+        val notificationIntent = Intent(this, MainActivity::class.java).setPackage(packageName)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
-        playPauseIntent.setAction(ACTION_PLAY_PAUSE).setPackage(getPackageName());
-        playPausePI = PendingIntent.getBroadcast(this, 1, playPauseIntent, PendingIntent.FLAG_IMMUTABLE);
+        val stopIntent = Intent(ACTION_STOP).setPackage(packageName)
+        stopPI = PendingIntent.getBroadcast(
+            this, 1, stopIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
-        notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setPriority(Notification.PRIORITY_DEFAULT)
-                .setSmallIcon(R.drawable.notificationicon)
-                .setContentIntent(pendingIntent)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .addAction(R.drawable.exo_notification_play, TITLE_PAUSE, playPausePI)
-                .addAction(R.drawable.exo_notification_stop, TITLE_STOP, stopPI)
-                .setColor(ContextCompat.getColor(this, R.color.red))
-                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
-                        .setShowActionsInCompactView(0, 1));
-    }
+        playPauseIntent.setAction(ACTION_PLAY_PAUSE).setPackage(packageName)
+        playPausePI = PendingIntent.getBroadcast(
+            this, 1, playPauseIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
-    private void registerReceivers() {
-        stopPlayFromTimerReceiver = new StopPlayFromTimerReceiver();
-        setStopTimerReceiver = new SetStopTimerReceiver();
-        restoreUIReceiver = new RestoreUIReceiver();
-        pLayPauseReceiver = new PLayPauseReceiver();
-        requestFocusReceiver = new RequestFocusReceiver();
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(stopPlayFromTimerReceiver, new IntentFilter(ACTION_STOP), RECEIVER_NOT_EXPORTED);
-            registerReceiver(restoreUIReceiver, new IntentFilter(ACTION_GET_STATE), RECEIVER_NOT_EXPORTED);
-            registerReceiver(setStopTimerReceiver, new IntentFilter(ACTION_SET_TIMER), RECEIVER_NOT_EXPORTED);
-            registerReceiver(pLayPauseReceiver, new IntentFilter(ACTION_PLAY_PAUSE), RECEIVER_NOT_EXPORTED);
-            registerReceiver(requestFocusReceiver, new IntentFilter(ACTION_REQUEST_AUDIO_FOCUS), RECEIVER_NOT_EXPORTED);
-            return;
-        }
-        registerReceiver(stopPlayFromTimerReceiver, new IntentFilter(ACTION_STOP));
-        registerReceiver(restoreUIReceiver, new IntentFilter(ACTION_GET_STATE));
-        registerReceiver(setStopTimerReceiver, new IntentFilter(ACTION_SET_TIMER));
-        registerReceiver(pLayPauseReceiver, new IntentFilter(ACTION_PLAY_PAUSE));
-        registerReceiver(requestFocusReceiver, new IntentFilter(ACTION_REQUEST_AUDIO_FOCUS));
-    }
-
-    private void cleanupResources() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener);
-        if (player != null) {
-            player.stop();
-            player.removeListener(exoplayerEventListener);
-            player.release();
-        }
-        isPlaying = false;
-        stateChange = "";
-        broadcastState(stateChange);
-        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).cancelAll();
-        unregisterAllReceivers();
-    }
-
-    private void unregisterAllReceivers() {
-        unregisterReceiver(stopPlayFromTimerReceiver);
-        unregisterReceiver(setStopTimerReceiver);
-        unregisterReceiver(restoreUIReceiver);
-        unregisterReceiver(pLayPauseReceiver);
-        unregisterReceiver(requestFocusReceiver);
-    }
-
-    private void handleIntent(Intent intent) {
-        String link = intent.getStringExtra(EXTRA_LINK);
-        if (link == null) link = ""; //avoid crash if backend has no value
-
-        int logo = intent.getIntExtra(EXTRA_LOGO, 0);
-        String stationName = intent.getStringExtra(EXTRA_STATION_NAME);
-
-        notificationBuilder.setContentTitle(stationName)
-                .setContentText(stateChange)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), logo));
-        startForeground(1, notificationBuilder.build());
-
-        if (ACTION_START.equals(intent.getAction())) {
-            play(link);
-        } else if (ACTION_SHOW_AD.equals(intent.getAction())) {
-            prepareShowAd();
-        } else {
-            throw new IllegalArgumentException("Unexpected action received: " + intent.getAction());
+        notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID).apply {
+            priority = Notification.PRIORITY_DEFAULT
+            setSmallIcon(R.drawable.notificationicon)
+            setContentIntent(pendingIntent)
+            setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            addAction(R.drawable.exo_notification_play, TITLE_PAUSE, playPausePI)
+            addAction(R.drawable.exo_notification_stop, TITLE_STOP, stopPI)
+            setColor(ContextCompat.getColor(this@StreamService, R.color.red))
+            setStyle(MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1))
         }
     }
 
-    private void play(String link) {
-        stateChange = StreamStates.PREPARING;
-        updateNotification(stateChange,false,false);
-        preparePlayer(Uri.parse(link));
-        requestFocus();
-        player.play();
+    private fun registerReceivers() {
+        stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
+        setStopTimerReceiver = SetStopTimerReceiver()
+        restoreUIReceiver = RestoreUIReceiver()
+        pLayPauseReceiver = PLayPauseReceiver()
+        requestFocusReceiver = RequestFocusReceiver()
+
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Context.RECEIVER_NOT_EXPORTED else 0
+
+        registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP), flags)
+        registerReceiver(restoreUIReceiver, IntentFilter(ACTION_GET_STATE), flags)
+        registerReceiver(setStopTimerReceiver, IntentFilter(ACTION_SET_TIMER), flags)
+        registerReceiver(pLayPauseReceiver, IntentFilter(ACTION_PLAY_PAUSE), flags)
+        registerReceiver(requestFocusReceiver, IntentFilter(ACTION_REQUEST_AUDIO_FOCUS), flags)
     }
 
-    private void preparePlayer(Uri uri) {
-        if (player != null) {
-            player.release();
+
+    private fun cleanupResources() {
+        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
+        player?.let {
+            it.stop()
+            it.removeListener(exoplayerEventListener)
+            it.release()
         }
-        MediaItem mediaItem = MediaItem.fromUri(uri);
-        player = new ExoPlayer.Builder(this).build();
-        player.setMediaItem(mediaItem);
-        player.prepare();
-        player.addListener(exoplayerEventListener);
+        isPlaying = false
+        stateChange = ""
+        broadcastState(stateChange)
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
+        unregisterAllReceivers()
     }
 
-    private void prepareShowAd() {
-        abandonFocus();
-        if (player != null) {
-            player.stop();
-            player.release();
+    private fun unregisterAllReceivers() {
+        unregisterReceiver(stopPlayFromTimerReceiver)
+        unregisterReceiver(setStopTimerReceiver)
+        unregisterReceiver(restoreUIReceiver)
+        unregisterReceiver(pLayPauseReceiver)
+        unregisterReceiver(requestFocusReceiver)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val link = intent.getStringExtra(EXTRA_LINK) ?: "" // avoid crash if backend has no value
+        val logo = intent.getIntExtra(EXTRA_LOGO, 0)
+        val stationName = intent.getStringExtra(EXTRA_STATION_NAME)
+
+        notificationBuilder.apply {
+            setContentTitle(stationName)
+            setContentText(stateChange)
+            setLargeIcon(BitmapFactory.decodeResource(resources, logo))
         }
-        isPlaying = false;
-        stateChange = StreamStates.PREPARING;
-        broadcastState(stateChange);
-    }
-    private void broadcastState(String state) {
-        eventIntent.putExtra(EXTRA_STATE, state);
-        sendBroadcast(eventIntent);
+        startForeground(1, notificationBuilder.build())
+
+        when (intent.action) {
+            ACTION_START -> play(link)
+            ACTION_SHOW_AD -> prepareShowAd()
+            else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
+        }
     }
 
-    private void updateNotification(String contentText, boolean showPlay, boolean showPause) {
-        notificationBuilder.setContentText(contentText);
-        notificationBuilder.mActions.clear();
+    private fun play(link: String) {
+        stateChange = StreamStates.PREPARING
+        updateNotification(stateChange, false, false)
+        preparePlayer(Uri.parse(link))
+        requestFocus()
+        player?.play()
+    }
+
+    private fun preparePlayer(uri: Uri) {
+        player?.let {
+            it.release()
+        }
+        val mediaItem = MediaItem.fromUri(uri)
+        player = ExoPlayer.Builder(this).build().apply {
+            setMediaItem(mediaItem)
+            prepare()
+            addListener(exoplayerEventListener)
+        }
+    }
+
+    private fun prepareShowAd() {
+        abandonFocus()
+        player?.let {
+            it.stop()
+            it.release()
+        }
+        isPlaying = false
+        stateChange = StreamStates.PREPARING
+        broadcastState(stateChange)
+    }
+
+    private fun broadcastState(state: String) {
+        eventIntent.putExtra(EXTRA_STATE, state)
+        sendBroadcast(eventIntent)
+    }
+
+    private fun updateNotification(contentText: String, showPlay: Boolean, showPause: Boolean) {
+        val notificationIntent = Intent(this, MainActivity::class.java).setPackage(packageName)
+        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSmallIcon(R.drawable.notificationicon)
+            .setContentIntent(pendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentText(contentText)
+            .setColor(ContextCompat.getColor(this, R.color.red))
+
         if (showPlay) {
-            notificationBuilder.addAction(R.drawable.exo_notification_play, TITLE_PLAY, playPausePI);
+            builder.addAction(R.drawable.exo_notification_play, TITLE_PLAY, playPausePI)
         }
-
         if (showPause) {
-            notificationBuilder.addAction(R.drawable.exo_notification_pause, TITLE_PAUSE, playPausePI);
+            builder.addAction(R.drawable.exo_notification_pause, TITLE_PAUSE, playPausePI)
         }
-        notificationBuilder.addAction(R.drawable.exo_notification_stop, TITLE_STOP, stopPI);
-        androidx.media.app.NotificationCompat.MediaStyle mediaStyle = new androidx.media.app.NotificationCompat.MediaStyle();
+        builder.addAction(R.drawable.exo_notification_stop, TITLE_STOP, stopPI)
 
-        if (!(showPlay || showPause)) {
-            mediaStyle.setShowActionsInCompactView(0);
+        val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
+        if (!showPlay && !showPause) {
+            mediaStyle.setShowActionsInCompactView(*intArrayOf(0))
         } else {
-            mediaStyle.setShowActionsInCompactView(0, 1);
+            mediaStyle.setShowActionsInCompactView(*intArrayOf(0, 1))
         }
+        builder.setStyle(mediaStyle)
 
-        notificationBuilder.setStyle(mediaStyle);
-
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.notify(1, notificationBuilder.build());
-    }
-    private void requestFocus() {
-        audioManager.requestAudioFocus(onAudioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-    }
-
-    private void abandonFocus() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener);
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(1, builder.build())
     }
 
 
-    class PLayPauseReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String source = intent.getStringExtra(EXTRA_SOURCE);
+
+
+    private fun requestFocus() {
+        audioManager.requestAudioFocus(
+            onAudioFocusChangeListener,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN
+        )
+    }
+
+    private fun abandonFocus() {
+        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
+    }
+
+    inner class PLayPauseReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val source = intent.getStringExtra(EXTRA_SOURCE)
             if (isPlaying) {
-                pausePlayer(source);
+                pausePlayer(source)
             } else {
-                resumePlayer();
-                mediaMetadataOR = player.getMediaMetadata();
-                getSendMetadata(mediaMetadataOR);
+                resumePlayer()
+                mediaMetadataOR = player?.mediaMetadata
+                mediaMetadataOR?.let { getSendMetadata(it) }
             }
         }
     }
-    void getSendMetadata(MediaMetadata mediaMetadata) {
+
+    private fun getSendMetadata(mediaMetadata: MediaMetadata) {
         if (mediaMetadata.title != null && isPlaying) {
-            String title = (String) mediaMetadata.title;
-            metadataIntent.putExtra(EXTRA_TITLE, title);
-            sendBroadcast(metadataIntent);
+            val title = mediaMetadata.title.toString()
+            metadataIntent.putExtra(EXTRA_TITLE, title)
+            sendBroadcast(metadataIntent)
         }
     }
 
-    private void pausePlayer(String source) {
-        player.pause();
-        if (source == null) abandonFocus();
-        isPlaying = false;
-        stateChange = StreamStates.IDLE;
-        broadcastState(stateChange);
-        updateNotification(getString(R.string.paused), true, false);
+    private fun pausePlayer(source: String?) {
+        player?.pause()
+        if (source == null) abandonFocus()
+        isPlaying = false
+        stateChange = StreamStates.IDLE
+        broadcastState(stateChange)
+        updateNotification(getString(R.string.paused), true, false)
     }
 
-    private void resumePlayer() {
-        requestFocus();
-        player.play();
-        isPlaying = true;
-        stateChange = StreamStates.PLAYING;
-        broadcastState(stateChange);
-        updateNotification(stateChange, false, true);
+    private fun resumePlayer() {
+        requestFocus()
+        player?.play()
+        isPlaying = true
+        stateChange = StreamStates.PLAYING
+        broadcastState(stateChange)
+        updateNotification(stateChange, false, true)
     }
 
-
-    class StopPlayFromTimerReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, getString(R.string.stopped), Toast.LENGTH_SHORT).show();
-            stopSelf();
+    inner class StopPlayFromTimerReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            Toast.makeText(context, getString(R.string.stopped), Toast.LENGTH_SHORT).show()
+            stopSelf()
         }
     }
 
-    class SetStopTimerReceiver extends BroadcastReceiver {
-        Intent stopPlayFromTimerIntent = new Intent(ACTION_STOP).setPackage(getPackageName());
+    inner class SetStopTimerReceiver : BroadcastReceiver() {
+        private val stopPlayFromTimerIntent = Intent(ACTION_STOP).setPackage(packageName)
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            long timeInMillis = intent.getLongExtra(EXTRA_TIME_IN_MILLIS, 0);
-            PendingIntent alarmPendingIntent = PendingIntent.getBroadcast(StreamService.this, 0, stopPlayFromTimerIntent, PendingIntent.FLAG_IMMUTABLE);
-            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, alarmPendingIntent);
+        override fun onReceive(context: Context, intent: Intent) {
+            val timeInMillis = intent.getLongExtra(EXTRA_TIME_IN_MILLIS, 0)
+            val alarmPendingIntent = PendingIntent.getBroadcast(
+                this@StreamService,
+                0,
+                stopPlayFromTimerIntent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, alarmPendingIntent)
         }
     }
 
-    class RequestFocusReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            player.play();
-            requestFocus();
+    inner class RequestFocusReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            player?.play()
+            requestFocus()
         }
     }
 
-    class RestoreUIReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (player != null) {
-                eventIntent.putExtra(EXTRA_STATE, stateChange);
-                sendBroadcast(eventIntent);
-                mediaMetadataOR = player.getMediaMetadata();
-                getSendMetadata(mediaMetadataOR);
+    inner class RestoreUIReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            player?.let {
+                eventIntent.putExtra(EXTRA_STATE, stateChange)
+                sendBroadcast(eventIntent)
+                mediaMetadataOR = it.mediaMetadata
+                mediaMetadataOR?.let { metadata -> getSendMetadata(metadata) }
             }
         }
     }
 
-    class EventListener implements Player.Listener {
-        @Override
-        public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
-            getSendMetadata(mediaMetadata);
+    inner class EventListener : Player.Listener {
+        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            getSendMetadata(mediaMetadata)
         }
-        @Override
-        public void onIsPlayingChanged(boolean isPlaying) {
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
-                requestFocus();
-                stateChange = StreamStates.PLAYING;
-                StreamService.isPlaying = true;
-                broadcastState(stateChange);
-                updateNotification(stateChange, false, true);
-            }
-
-        }
-
-        @Override
-        public void onPlayerError(PlaybackException error) {
-            String message = (error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
-                    || error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
-                    || error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)
-                    ? getString(R.string.toast_station_unreachable) : getString(R.string.toast_unexpected_error);
-            Toast.makeText(StreamService.this, message, Toast.LENGTH_SHORT).show();
-        }
-
-        @Override
-        public void onPlaybackStateChanged(int state) {
-            if (state == Player.STATE_BUFFERING) {
-                handleBufferingState();
-            } else if (state == Player.STATE_IDLE) {
-                handleIdleState();
-            } else if (state == Player.STATE_READY) {
-                handleReadyState();
-            } else if (state == Player.STATE_ENDED) {
-                handleEndedState();
+                requestFocus()
+                stateChange = StreamStates.PLAYING
+                StreamService.isPlaying = true
+                broadcastState(stateChange)
+                updateNotification(stateChange, false, true)
             }
         }
-        private void handleBufferingState() {
-            abandonFocus();
-            stateChange = StreamStates.BUFFERING;
-            broadcastState(stateChange);
-            updateNotification(stateChange, false, false);
+
+        override fun onPlayerError(error: PlaybackException) {
+            val message = when (error.errorCode) {
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> getString(R.string.toast_station_unreachable)
+
+                else -> getString(R.string.toast_unexpected_error)
+            }
+            Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
         }
 
-        private void handleIdleState() {
-            abandonFocus();
-            stateChange = StreamStates.IDLE;
-            isPlaying = false;
-            broadcastState(stateChange);
-            updateNotification(stateChange, true, false);
+        override fun onPlaybackStateChanged(state: Int) {
+            when (state) {
+                Player.STATE_BUFFERING -> handleBufferingState()
+                Player.STATE_IDLE -> handleIdleState()
+                Player.STATE_READY -> handleReadyState()
+                Player.STATE_ENDED -> handleEndedState()
+            }
         }
 
-        private void handleReadyState() {
-            requestFocus();
-            stateChange = StreamStates.PLAYING;
-            isPlaying = true;
-            broadcastState(stateChange);
-            updateNotification(stateChange, false, true);
+        private fun handleBufferingState() {
+            abandonFocus()
+            stateChange = StreamStates.BUFFERING
+            broadcastState(stateChange)
+            updateNotification(stateChange, false, false)
         }
 
-        private void handleEndedState() {
-            abandonFocus();
-            stateChange = StreamStates.ENDED;
-            isPlaying = false;
-            broadcastState(stateChange);
-            updateNotification(stateChange, true, false);
+        private fun handleIdleState() {
+            abandonFocus()
+            stateChange = StreamStates.IDLE
+            isPlaying = false
+            broadcastState(stateChange)
+            updateNotification(stateChange, true, false)
+        }
+
+        private fun handleReadyState() {
+            requestFocus()
+            stateChange = StreamStates.PLAYING
+            isPlaying = true
+            broadcastState(stateChange)
+            updateNotification(stateChange, false, true)
+        }
+
+        private fun handleEndedState() {
+            abandonFocus()
+            stateChange = StreamStates.ENDED
+            isPlaying = false
+            broadcastState(stateChange)
+            updateNotification(stateChange, true, false)
         }
 
     }
-    public static final class StreamStates {
-        public static final String PREPARING = "Preparing Audio";
-        public static final String PLAYING = "Playing";
-        public static final String BUFFERING = "Buffering";
-        public static final String IDLE = "Idle";
-        public static final String ENDED = "Ended";
+
+    object StreamStates {
+        const val PREPARING = "Preparing Audio"
+        const val PLAYING = "Playing"
+        const val BUFFERING = "Buffering"
+        const val IDLE = "Idle"
+        const val ENDED = "Ended"
     }
+
+
 }

@@ -1,71 +1,51 @@
-package com.smoothradio.radio.core.util;
+package com.smoothradio.radio.core.util
 
-import android.app.Activity;
+import android.app.Activity
+import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentForm
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
+import java.util.concurrent.atomic.AtomicBoolean
 
-import com.google.android.ump.ConsentInformation;
-import com.google.android.ump.ConsentRequestParameters;
-import com.google.android.ump.UserMessagingPlatform;
+class ConsentHelper(private val activity: Activity) {
 
-import java.util.concurrent.atomic.AtomicBoolean;
+    private var consentInformation: ConsentInformation? = null
+    private val isMobileAdsInitializeCalled = AtomicBoolean(false)
 
-import com.google.android.gms.ads.MobileAds;
-import com.google.android.ump.ConsentForm;
+    fun showConsentForm() {
+        val params = ConsentRequestParameters.Builder().build()
 
+        consentInformation = UserMessagingPlatform.getConsentInformation(activity)
 
-public class ConsentHelper {
+        consentInformation?.requestConsentInfoUpdate(
+            activity,
+            params,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                    activity,
+                    { loadAndShowError ->
+                        if (loadAndShowError != null) {
+                            // Consent gathering failed.
+                        }
+                        if (consentInformation?.canRequestAds() == true) {
+                            initializeMobileAdsSdk()
+                        }
+                    }
+                )
+            },
+            { requestConsentError ->
+                // Consent gathering failed.
+            }
+        )
 
-    private final Activity activity;
-    private ConsentInformation consentInformation;
-    private final AtomicBoolean isMobileAdsInitializeCalled = new AtomicBoolean(false);
-    public ConsentHelper(Activity activity) {
-        this.activity = activity;
-    }
-
-    public void showConsentForm() {
-        // Create a ConsentRequestParameters object.
-        ConsentRequestParameters params = new ConsentRequestParameters
-                .Builder()
-                .build();
-
-        consentInformation = UserMessagingPlatform.getConsentInformation(activity);
-        consentInformation.requestConsentInfoUpdate(
-                activity,
-                params,
-                (ConsentInformation.OnConsentInfoUpdateSuccessListener) () -> {
-                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
-                            activity,
-                            (ConsentForm.OnConsentFormDismissedListener) loadAndShowError -> {
-                                if (loadAndShowError != null) {
-                                    // Consent gathering failed.
-
-                                }
-
-                                // Consent has been gathered.
-                                if (consentInformation.canRequestAds()) {
-                                    initializeMobileAdsSdk();
-                                }
-                            }
-                    );
-                },
-                (ConsentInformation.OnConsentInfoUpdateFailureListener) requestConsentError -> {
-                    // Consent gathering failed.
-                });
-
-        // Check if you can initialize the Google Mobile Ads SDK in parallel
-        // while checking for new consent information. Consent obtained in
-        // the previous session can be used to request ads.
-        if (consentInformation.canRequestAds()) {
-            initializeMobileAdsSdk();
+        if (consentInformation?.canRequestAds() == true) {
+            initializeMobileAdsSdk()
         }
     }
 
-    private void initializeMobileAdsSdk() {
-        if (isMobileAdsInitializeCalled.getAndSet(true)) {
-            return;
-        }
-
-        // Initialize the Google Mobile Ads SDK.
-        MobileAds.initialize(activity);
+    private fun initializeMobileAdsSdk() {
+        if (isMobileAdsInitializeCalled.getAndSet(true)) return
+        MobileAds.initialize(activity)
     }
-
 }

@@ -1,262 +1,252 @@
-package com.smoothradio.radio.feature.radio_list.util;
+package com.smoothradio.radio.feature.radio_list.util
 
-import com.smoothradio.radio.R;
-import com.smoothradio.radio.core.model.RadioStation;
+import com.smoothradio.radio.R
+import com.smoothradio.radio.core.model.RadioStation
 
-import java.util.ArrayList;
-import java.util.List;
+class RadioStationsHelper {
+    companion object {
+        fun createRadioStations(linksFromTxt: List<String>, localStations: List<RadioStation>?): List<RadioStation> {
+            val radioStationsList = mutableListOf<RadioStation>().apply {
+                add(RadioStation(0, R.drawable.hopefm, "HOPE FM", "93.3", "NAIROBI", linksFromTxt[0], false, false))
+                add(RadioStation(1, R.drawable.soundcityradiologo, "SOUNDCITY RADIO", "88.5", "NAIROBI", linksFromTxt[1], false, false))
+                add(RadioStation(2, R.drawable.kissfm, "KISS FM", "100.3", "NAIROBI", linksFromTxt[2], false, false))
+                add(RadioStation(228, R.drawable.radio47logo, "RADIO 47", "103.0", "NAIROBI", linksFromTxt[228], false, false))
+                add(RadioStation(3, R.drawable.nrg0, "NRG RADIO", "97.1", "NAIROBI", linksFromTxt[3], false, false))
+                add(RadioStation(203, R.drawable.radiocitizenlogo, "RADIO CITIZEN", "106.7", "NAIROBI", linksFromTxt[203], false, false))
+                add(RadioStation(4, R.drawable.inooro, "INOORO FM", "98.9", "NAIROBI", linksFromTxt[4], false, false))
+                add(RadioStation(5, R.drawable.nrgchoiceradiologo, "CHOICE RADIO", "87.7", "NAIROBI", linksFromTxt[5], false, false))
+                add(RadioStation(6, R.drawable.hot96logo, "HOT 96", "96.0", "NAIROBI", linksFromTxt[6], false, false))
+                add(RadioStation(7, R.drawable.homeboys, "HOMEBOYS RADIO", "103.5", "NAIROBI", linksFromTxt[7], false, false))
+                add(RadioStation(8, R.drawable.classic105_logo, "CLASSIC 105", "105.2", "NAIROBI", linksFromTxt[8], false, false))
+                add(RadioStation(9, R.drawable.radiojambologo, "RADIO JAMBO", "97.5", "NAIROBI", linksFromTxt[9], false, false))
+                add(RadioStation(26, R.drawable.rogueradiologo, "ROGUE RADIO", "--.--", "NAIROBI", linksFromTxt[26], false, false))
+                add(RadioStation(30, R.drawable.tracefmlogo, "TRACE FM", "95.3", "NAIROBI", linksFromTxt[30], false, false))
+                add(RadioStation(10, R.drawable.corofmlogo, "CORO FM", "99.5", "NAIROBI", linksFromTxt[10], false, false))
+                add(RadioStation(11, R.drawable.kameme, "KAMEME FM", "101.1", "NAIROBI", linksFromTxt[11], false, false))
+                add(RadioStation(12, R.drawable.ghettoradiologo, "GHETTO RADIO", "89.5", "NAIROBI", linksFromTxt[12], false, false))
+                add(RadioStation(13, R.drawable.radiomaishalogo, "RADIO MAISHA", "102.7", "NAIROBI", linksFromTxt[13], false, false))
+                add(RadioStation(14, R.drawable.easyfmlogo, "EASY FM", "96.3", "NAIROBI", linksFromTxt[14], false, false))
+                add(RadioStation(15, R.drawable.ramogilogo, "RAMOGI FM", "107.1", "NAIROBI", linksFromTxt[15], false, false))
+                add(RadioStation(16, R.drawable.egesalogo, "EGESA FM", "98.6", "NAIROBI", linksFromTxt[16], false, false))
+                add(RadioStation(17, R.drawable.mulembelogo, "MULEMBE FM", "97.9", "NAIROBI", linksFromTxt[17], false, false))
+                add(RadioStation(18, R.drawable.musyilogo, "MUSYI FM", "102.2", "NAIROBI", linksFromTxt[18], false, false))
+                add(RadioStation(19, R.drawable.chamgeilogo, "CHAMGEI FM", "95.0", "NAIROBI", linksFromTxt[19], false, false))
+                add(RadioStation(25, R.drawable.kubambaradiologo, "KUBAMBA RADIO", "--.--", "NAIROBI", linksFromTxt[25], false, false))
+                add(RadioStation(27, R.drawable.truthfmlogo, "TRUTH FM", "90.7", "NAIROBI", linksFromTxt[27], false, false))
+                add(RadioStation(28, R.drawable.familyradiologo, "FAMILY RADIO", "103.9", "NAIROBI", linksFromTxt[28], false, false))
+                add(RadioStation(29, R.drawable.jesusislordradiologo, "JESUSISLORD RADIO", "105.3", "NAKURU", linksFromTxt[29], false, false))
+                add(RadioStation(31, R.drawable.xfmlogo, "SMOOTH FM", "105.5", "NAIROBI", linksFromTxt[31], false, false))
+                add(RadioStation(32, R.drawable.kigoocofmlogo, "KIGOOCO FM", "98.6", "NAIROBI", linksFromTxt[32], false, false))
+                add(RadioStation(38, R.drawable.kikuyudiasporaradiologo, "KENYA DIASPORA RADIO", "--.--", "ALABAMA", linksFromTxt[38], false, false))
+                add(RadioStation(33, R.drawable.mbciradiologo, "MBCI RADIO", "89.5", "NAKURU", linksFromTxt[33], false, false))
+                add(RadioStation(224, R.drawable.gfnradiologo, "GFN FM", "90.1", "TURKANA", linksFromTxt[224], false, false))
+                add(RadioStation(44, R.drawable.nationfmlogo, "NATION FM", "96.3", "NAIROBI", linksFromTxt[44], false, false))
+                add(RadioStation(54, R.drawable.capitalfmlogo, "CAPITAL FM", "98.4", "NAIROBI", linksFromTxt[54], false, false))
+                add(RadioStation(41, R.drawable.gukenafmlogo, "GUKENA FM", "92.8", "NAIROBI", linksFromTxt[41], false, false))
+                add(RadioStation(20, R.drawable.muugalogo, "MUUGA FM", "94.2", "NAIROBI", linksFromTxt[20], false, false))
+                add(RadioStation(21, R.drawable.sulwelogo, "SULWE FM", "89.6", "NAIROBI", linksFromTxt[21], false, false))
+                add(RadioStation(22, R.drawable.wimwarologo, "WIMWARO FM", "93.0", "NAIROBI", linksFromTxt[22], false, false))
+                add(RadioStation(23, R.drawable.baharilogo, "BAHARI FM", "90.4", "MOMBASA", linksFromTxt[23], false, false))
+                add(RadioStation(24, R.drawable.vuukalogo, "VUUKA FM", "95.4", "NAIROBI", linksFromTxt[24], false, false))
+                add(RadioStation(92, R.drawable.lubaofmlogo, "LUBAO FM", "102.2", "KAKAMEGA", linksFromTxt[92], false, false))
+                add(RadioStation(34, R.drawable.iqrafmlogo, "IQRA FM", "95.0", "NAIROBI", linksFromTxt[34], false, false))
+                add(RadioStation(35, R.drawable.pwanifmlogo, "PWANI FM", "103.1", "MOMBASA", linksFromTxt[35], false, false))
+                add(RadioStation(36, R.drawable.sautiyapwanifmlogo, "SAUTIYAPWANI FM", "94.2", "MOMBASA", linksFromTxt[36], false, false))
+                add(RadioStation(37, R.drawable.kbcradiotaifalogo, "KBC RADIO TAIFA", "92.9", "NAIROBI", linksFromTxt[37], false, false))
+                add(RadioStation(39, R.drawable.taachfmlogo, "TAACH FM", "95.1", "ELDORET", linksFromTxt[39], false, false))
+                add(RadioStation(40, R.drawable.eastfmlogo, "EAST FM", "106.3", "NAIROBI", linksFromTxt[40], false, false))
+                add(RadioStation(42, R.drawable.kassfmlogo, "KASS FM", "89.1", "NAIROBI", linksFromTxt[42], false, false))
+                add(RadioStation(43, R.drawable.soundasialogo, "SOUNDASIA RADIO", "88.0", "NAIROBI", linksFromTxt[43], false, false))
+                add(RadioStation(45, R.drawable.wauminilogo, "RADIO WAUMINI", "88.3", "NAIROBI", linksFromTxt[45], false, false))
+                add(RadioStation(46, R.drawable.bibiliahusemalogo, "BIBILIA HUSEMA FM", "96.7", "NAIROBI", linksFromTxt[46], false, false))
+                add(RadioStation(47, R.drawable.heroradiologo, "HERO RADIO", "99.0", "NAKURU", linksFromTxt[47], false, false))
+                add(RadioStation(48, R.drawable.milelefmlogo, "MILELE FM", "104.8", "NAIROBI", linksFromTxt[48], false, false))
+                add(RadioStation(207, R.drawable.getembefmlogo, "GETEMBE FM", "102.7", "KISII", linksFromTxt[207], false, false))
+                add(RadioStation(208, R.drawable.inkafmlogo, "INKA FM", "93.7", "KISII", linksFromTxt[208], false, false))
+                add(RadioStation(49, R.drawable.radiokayalogo, "RADIO KAYA", "93.1", "NAIROBI", linksFromTxt[49], false, false))
+                add(RadioStation(50, R.drawable.spicefmlogo, "SPICE FM", "94.4", "NAIROBI", linksFromTxt[50], false, false))
+                add(RadioStation(51, R.drawable.barakafmlogo, "BARAKA FM", "95.5", "MOMBASA", linksFromTxt[51], false, false))
+                add(RadioStation(52, R.drawable.radioinjililogo, "RADIO INJILI", "103.7", "KERICHO", linksFromTxt[52], false, false))
+                add(RadioStation(53, R.drawable.athianilogo, "ATHIANI FM", "99.2", "NAIROBI", linksFromTxt[53], false, false))
+                add(RadioStation(55, R.drawable.beatlocklogo, "BEATLOCK RADIO", "--.--", "NAIROBI", linksFromTxt[55], false, false))
+                add(RadioStation(56, R.drawable.pearlxtralogo, "PEARL XTRA FM", "--.--", "NAIROBI", linksFromTxt[56], false, false))
+                add(RadioStation(57, R.drawable.theupperroomlogo, "THE UPPERROOM FM", "--.--", "NAIROBI", linksFromTxt[57], false, false))
+                add(RadioStation(58, R.drawable.lulufmlogo, "LULU FM", "91.0", "MOMBASA", linksFromTxt[58], false, false))
+                add(RadioStation(59, R.drawable.pearlradiologo, "PEARL RADIO", "96.9", "NAIROBI", linksFromTxt[59], false, false))
+                add(RadioStation(60, R.drawable.imaniradiologo, "IMANI RADIO", "88.8", "KITALE", linksFromTxt[60], false, false))
+                add(RadioStation(61, R.drawable.lionafriqradiologo, "LIONAFRIQ RADIO", "--.--", "NAIROBI", linksFromTxt[61], false, false))
+                add(RadioStation(211, R.drawable.nrg_hiphop_logo, "NRG HIPHOP", "--.--", "NAIROBI", linksFromTxt[211], false, false))
+                add(RadioStation(212, R.drawable.nrg_dancehall_logo, "NRG DANCEHALL", "--.--", "NAIROBI", linksFromTxt[212], false, false))
+                add(RadioStation(213, R.drawable.nrg_gospel_logo, "NRG GOSPEL", "--.--", "NAIROBI", linksFromTxt[213], false, false))
+                add(RadioStation(214, R.drawable.nrg_afrobeats_logo, "NRG AFROBEATS", "--.--", "NAIROBI", linksFromTxt[214], false, false))
+                add(RadioStation(215, R.drawable.nrg_mixology_logo, "NRG MIXOLOGY", "--.--", "NAIROBI", linksFromTxt[215], false, false))
+                add(RadioStation(216, R.drawable.nrg_rnb_logo, "NRG RNB", "--.--", "NAIROBI", linksFromTxt[216], false, false))
+                add(RadioStation(217, R.drawable.nrg_jazz_logo, "NRG JAZZ", "--.--", "NAIROBI", linksFromTxt[217], false, false))
+                add(RadioStation(204, R.drawable.longaradiologo, "LONGA RADIO", "--.--", "NAIROBI", linksFromTxt[204], false, false))
+                add(RadioStation(226, R.drawable.kayufmlogo, "KAYU FM", "91.0", "NAIROBI", linksFromTxt[226], false, false))
+                add(RadioStation(62, R.drawable.flamingoradiologo, "FLAMINGO FM", "93.7", "NAKURU", linksFromTxt[62], false, false))
+                add(RadioStation(63, R.drawable.pilipilifmlogo, "PILIPILI FM", "99.5", "NAIROBI", linksFromTxt[63], false, false))
+                add(RadioStation(209, R.drawable.kerioradiologo, "KERIO RADIO", "87.6", "BARINGO", linksFromTxt[209], false, false))
+                add(RadioStation(210, R.drawable.tausifmlogo, "TAUSI FM", "--.--", "NAIROBI", linksFromTxt[210], false, false))
+                add(RadioStation(229, R.drawable.hillsidefmlogo, "HILLSIDE FM", "--.--", "NAIROBI", linksFromTxt[229], false, false))
+                add(RadioStation(230, R.drawable.pefaradoilogo, "PEFA RADIO", "--.--", "NAIROBI", linksFromTxt[230], false, false))
+                add(RadioStation(64, R.drawable.mayianfmlogo, "MAYIAN FM", "100.7", "NAROK", linksFromTxt[64], false, false))
+                add(RadioStation(65, R.drawable.merufmlogo, "MERU FM", "100.3", "MERU", linksFromTxt[65], false, false))
+                add(RadioStation(66, R.drawable.emoofmlogo, "EMOO FM", "104.2", "NAIROBI", linksFromTxt[66], false, false))
+                add(RadioStation(223, R.drawable.mutongoifmlogo, "MUTONGOI FM", "103.3", "KITUI", linksFromTxt[223], false, false))
+                add(RadioStation(218, R.drawable.mwagofmlogo, "MWANGO FM", "97.5", "NAIROBI", linksFromTxt[218], false, false))
+                add(RadioStation(219, R.drawable.nosimfmlogo, "NOSIM FM", "90.5", "NAIROBI", linksFromTxt[219], false, false))
+                add(RadioStation(220, R.drawable.osiepefmlogo, "OSIEPE FM", "96.8", "SIAYA", linksFromTxt[220], false, false))
+                add(RadioStation(67, R.drawable.radiosalaamlogo, "RADIO SALAAM", "90.7", "MOMBASA", linksFromTxt[67], false, false))
+                add(RadioStation(68, R.drawable.radiorahmalogo, "RADIO RAHMA", "91.5", "MOMBASA", linksFromTxt[68], false, false))
+                add(RadioStation(69, R.drawable.asylumradiologo, "ASYLUM RADIO", "--.--", "NAIROBI", linksFromTxt[69], false, false))
+                add(RadioStation(70, R.drawable.kbcenglishservicelogo, "KBC ENGLISH SERVICE", "95.6", "NAIROBI", linksFromTxt[70], false, false))
+                add(RadioStation(71, R.drawable.mbaitufmlogo, "MBAITU FM", "92.5", "MACHAKOS", linksFromTxt[71], false, false))
+                add(RadioStation(72, R.drawable.radio_maria, "RADIO MARIA", "90.0", "NAIROBI", linksFromTxt[72], false, false))
+                add(RadioStation(73, R.drawable.upendoradiologo, "UPENDO RADIO", "89.4", "ELDORET", linksFromTxt[73], false, false))
+                add(RadioStation(74, R.drawable.hiphopginlogo, "HIPHOPGIN", "--.--", "NAIROBI", linksFromTxt[74], false, false))
+                add(RadioStation(75, R.drawable.hiphopdailylogo, "HIPHOP DAILY", "97.5", "NAIROBI", linksFromTxt[75], false, false))
+                add(RadioStation(79, R.drawable.rfmlogo, "R FM", "99.9", "LIMURU", linksFromTxt[79], false, false))
+                add(RadioStation(76, R.drawable.tulizafmlogo, "TULIZA FM", "94.2", "MERU", linksFromTxt[76], false, false))
+                add(RadioStation(77, R.drawable.kihootofmlogo, "KIHOOTO FM", "91.2", "NAIROBI", linksFromTxt[77], false, false))
+                add(RadioStation(78, R.drawable.kisiifmlogo, "KISII FM", "94.1", "NAIROBI", linksFromTxt[78], false, false))
+                add(RadioStation(80, R.drawable.seitofmlogo, "SEITO FM", "100.3", "NAIROBI", linksFromTxt[80], false, false))
+                add(RadioStation(81, R.drawable.sifafmlogo, "SIFA FM", "101.2", "MARSABIT", linksFromTxt[81], false, false))
+                add(RadioStation(82, R.drawable.countyfmlogo, "COUNTY FM", "90.3", "KITUI", linksFromTxt[82], false, false))
+                add(RadioStation(83, R.drawable.sidaifmlogo, "SIDAI FM", "103.5", "NAROK", linksFromTxt[83], false, false))
+                add(RadioStation(84, R.drawable.radioneemalogo, "RADIO NEEMA", "--.--", "NAIROBI", linksFromTxt[84], false, false))
+                add(RadioStation(85, R.drawable.radiosimbalogo, "RADIO SIMBA", "93.1", "BUNGOMA", linksFromTxt[85], false, false))
+                add(RadioStation(86, R.drawable.westfmlogo, "WEST FM", "94.9", "NAIROBI", linksFromTxt[86], false, false))
+                add(RadioStation(87, R.drawable.iftinfmlogo, "IFTIIN FM", "101.9", "NAIROBI", linksFromTxt[87], false, false))
+                add(RadioStation(88, R.drawable.mintofmlogo, "MINTO FM", "101.7", "NAIROBI", linksFromTxt[88], false, false))
+                add(RadioStation(89, R.drawable.bikapkoretradiologo, "BIKAPKORET RADIO", "98.2", "ELDORET", linksFromTxt[89], false, false))
+                add(RadioStation(90, R.drawable.muratafmlogo, "MURATA FM", "98.2", "ELDORET", linksFromTxt[90], false, false))
+                add(RadioStation(91, R.drawable.campusradiologo, "CAMPUS RADIO", "--.--", "NAIROBI", linksFromTxt[91], false, false))
+                add(RadioStation(93, R.drawable.utheriradiologo, "UTHERI RADIO", "106.2", "NAIROBI", linksFromTxt[93], false, false))
+                add(RadioStation(94, R.drawable.mugambowamugikuyulogo, "MUGAMBO WA MUGIKUYU", "--.--", "NAIROBI", linksFromTxt[94], false, false))
+                add(RadioStation(95, R.drawable.mwakifmlogo, "MWAKI FM", "--.--", "NAIROBI", linksFromTxt[95], false, false))
+                add(RadioStation(96, R.drawable.shilohradiologo, "SHILOH RADIO", "--.--", "NAIROBI", linksFromTxt[96], false, false))
+                add(RadioStation(97, R.drawable.cambrigeradiologo, "CAMBRIDGE RADIO", "--.--", "NAIROBI", linksFromTxt[97], false, false))
+                add(RadioStation(98, R.drawable.angeladventistlogo, "ADVENTIST ANGELS", "90.0", "KISII", linksFromTxt[98], false, false))
+                add(RadioStation(99, R.drawable.utuuroradiologo, "UTUURO RADIO", "--.--", "NAIROBI", linksFromTxt[99], false, false))
+                add(RadioStation(100, R.drawable.maneneradiologo, "MANENE RADIO", "--.--", "KISUMU", linksFromTxt[100], false, false))
+                add(RadioStation(101, R.drawable.congasisfmlogo, "CONG'ASIS FM", "88.9", "NAIROBI", linksFromTxt[101], false, false))
+                add(RadioStation(102, R.drawable.northriftradiologo, "NORTHRIFT RADIO", "104.5", "KAPENGURIA", linksFromTxt[102], false, false))
+                add(RadioStation(103, R.drawable.relaxradiologo, "RELAX RADIO", "103.0", "NAIROBI", linksFromTxt[103], false, false))
+                add(RadioStation(104, R.drawable.smashjamradiologo, "SMASH JAM RADIO", "99.0", "NAKURU", linksFromTxt[104], false, false))
+                add(RadioStation(105, R.drawable.getufmlogo, "GETU RADIO", "87.6", "MERU", linksFromTxt[105], false, false))
+                add(RadioStation(106, R.drawable.kokwofmlogo, "KOKWO FM", "100.1", "KAPENGURIA", linksFromTxt[106], false, false))
+                add(RadioStation(107, R.drawable.mumbofmlogo, "MUMBO FM", "90.2", "BUNGOMA", linksFromTxt[107], false, false))
+                add(RadioStation(108, R.drawable.tandazafmlogo, "TANDAZA FM", "103.7", "BUNGOMA", linksFromTxt[108], false, false))
+                add(RadioStation(109, R.drawable.mixxradio560logo, "560 MIXX RADIO", "560kHz", "NAIROBI", linksFromTxt[109], false, false))
+                add(RadioStation(110, R.drawable.christianradiologo560, "560 CHRISTIAN RADIO", "560kHz", "NAIROBI", linksFromTxt[110], false, false))
+                add(RadioStation(111, R.drawable.powercountrylogo560, "560 POWER COUNTRY", "560kHz", "NAIROBI", linksFromTxt[111], false, false))
+                add(RadioStation(225, R.drawable.muthingifmlogo, "MUTHINGI FM", "--.--", "NAIROBI", linksFromTxt[225], false, false))
+                add(RadioStation(112, R.drawable.centralfmlogo, "CENTRAL FM", "97.1", "NANYUKI", linksFromTxt[112], false, false))
+                add(RadioStation(113, R.drawable.mayiengaradiologo, "MAYIENGA FM", "93.5", "BUNGOMA", linksFromTxt[113], false, false))
+                add(RadioStation(114, R.drawable.kitwekradiologo, "KITWEK RADIO", "92.9", "NAIROBI", linksFromTxt[114], false, false))
+                add(RadioStation(115, R.drawable.mwaturadiologo, "MWATU RADIO", "93.1", "MACHAKOS", linksFromTxt[115], false, false))
+                add(RadioStation(116, R.drawable.ingofmlogo, "INGO FM", "100.5", "NAIROBI", linksFromTxt[116], false, false))
+                add(RadioStation(117, R.drawable.powerfmlogo, "POWER FM", "--.--", "NAIROBI", linksFromTxt[117], false, false))
+                add(RadioStation(118, R.drawable.makinikaradiologo, "MAKINIKA RADIO", "--.--", "NAIROBI", linksFromTxt[118], false, false))
+                add(RadioStation(119, R.drawable.bloomradiologo, "BLOOM RADIO", "--.--", "NAIROBI", linksFromTxt[119], false, false))
+                add(RadioStation(120, R.drawable.rainbowradiologo, "RAINBOW RADIO", "---.--", "NAIROBI", linksFromTxt[120], false, false))
+                add(RadioStation(121, R.drawable.togotanefmlogo, "TOGOTANE FM", "88.3", "NAIROBI", linksFromTxt[121], false, false))
+                add(RadioStation(122, R.drawable.eretofmlogo, "ERETO FM", "--.--", "NYERI", linksFromTxt[122], false, false))
+                add(RadioStation(123, R.drawable.midzifmlogo, "MIDZI FM", "100.5", "MALINDI", linksFromTxt[123], false, false))
+                add(RadioStation(124, R.drawable.radio44logo, "RADIO 44", "91.6", "NAIROBI", linksFromTxt[124], false, false))
+                add(RadioStation(125, R.drawable.sayakiradiologo, "SAYAKI RADIO", "--.--", "NYERI", linksFromTxt[125], false, false))
+                add(RadioStation(126, R.drawable.radiosafarilogo, "RADIO SAFARI", "87.9", "KITALE", linksFromTxt[126], false, false))
+                add(RadioStation(227, R.drawable.berurfmlogo, "BERUR FM", "96.7", "NAIROBI", linksFromTxt[227], false, false))
+                add(RadioStation(127, R.drawable.radiofahamulogo, "RADIO FAHAMU", "--.--", "NAIROBI", linksFromTxt[127], false, false))
+                add(RadioStation(129, R.drawable.radio254logo, "RADIO 254", "--.--", "NAIROBI", linksFromTxt[129], false, false))
+                add(RadioStation(130, R.drawable.varchradiologo, "VARCH RADIO", "--.--", "ELDORET", linksFromTxt[130], false, false))
+                add(RadioStation(205, R.drawable.radiovunalogo, "RADIO VUNA", "102.0", "KISII", linksFromTxt[205], false, false))
+                add(RadioStation(131, R.drawable.tonziradiologo, "TONZI RADIO", "--.--", "NAIROBI", linksFromTxt[131], false, false))
+                add(RadioStation(132, R.drawable.ifmlogo, "IFM PARTY STATION", "--.--", "NAIROBI", linksFromTxt[132], false, false))
+                add(RadioStation(133, R.drawable.elwaicenterfmlogo, "ELWAI CENTER FM", "--.--", "SUSWA", linksFromTxt[133], false, false))
+                add(RadioStation(134, R.drawable.countrypridefmlogo, "COUNTRY PRIDE FM", "--.--", "NAIROBI", linksFromTxt[134], false, false))
+                add(RadioStation(135, R.drawable.musicjunkieslogo, "MUSICJUNKIES FM", "--.--", "NAIROBI", linksFromTxt[135], false, false))
+                add(RadioStation(136, R.drawable.smoothjazz560logo, "560 SMOOTHJAZZ", "--.--", "NAIROBI", linksFromTxt[136], false, false))
+                add(RadioStation(137, R.drawable.lightfmlogo, "LIGHT FM", "--.--", "NAIROBI", linksFromTxt[137], false, false))
+                add(RadioStation(138, R.drawable.icedfmlogo, "ICED RADIO", "--.--", "NAIROBI", linksFromTxt[138], false, false))
+                add(RadioStation(139, R.drawable.geeradiologo, "GEE RADIO", "--.--", "NAIROBI", linksFromTxt[139], false, false))
+                add(RadioStation(140, R.drawable.tulwoobkoonyradiologo, "TULWOOBKOONY RADIO", "--.--", "NAIROBI", linksFromTxt[140], false, false))
+                add(RadioStation(141, R.drawable.hootersfmlogo, "HOOTERS FM", "--.--", "NAIROBI", linksFromTxt[141], false, false))
+                add(RadioStation(142, R.drawable.kufurahiafmlogo, "KAFURAHA FM", "--.--", "NAIROBI", linksFromTxt[142], false, false))
+                add(RadioStation(143, R.drawable.hoodradiologo, "HOOD RADIO", "--.--", "NAIROBI", linksFromTxt[143], false, false))
+                add(RadioStation(144, R.drawable.abundanceradio, "ABUNDANCE RADIO", "--.--", "NAIROBI", linksFromTxt[144], false, false))
+                add(RadioStation(145, R.drawable.aipcalogo, "AIPCA RADIO", "--.--", "NAIROBI", linksFromTxt[145], false, false))
+                add(RadioStation(146, R.drawable.msenangufmlogo, "MSENANGU FM", "99.5", "MOMBASA", linksFromTxt[146], false, false))
+                add(RadioStation(147, R.drawable.fynradiologo, "FYN RADIO", "--.--", "NAIROBI", linksFromTxt[147], false, false))
+                add(RadioStation(148, R.drawable.xaticfmlogo, "XATIC FM", "--.--", "NAIROBI", linksFromTxt[148], false, false))
+                add(RadioStation(149, R.drawable.tusmofmlogo, "TUSMO FM", "--.--", "NAIROBI", linksFromTxt[149], false, false))
+                add(RadioStation(150, R.drawable.radioshahidilogo, "RADIO SHAHIDI", "91.7", "ISIOLO", linksFromTxt[150], false, false))
+                add(RadioStation(151, R.drawable.pemiradiologo, "PEMI RADIO", "96.1", "NAIROBI", linksFromTxt[151], false, false))
+                add(RadioStation(152, R.drawable.freshfmlogo, "FRESH FM", "--.--", "NAIROBI", linksFromTxt[152], false, false))
+                add(RadioStation(153, R.drawable.hypemagnetradiologo, "HYPEMAGNET RADIO", "--.--", "NAIROBI", linksFromTxt[153], false, false))
+                add(RadioStation(154, R.drawable.mindimoradiologo, "MIDNIMO RADIO", "--.--", "NAIROBI", linksFromTxt[154], false, false))
+                add(RadioStation(155, R.drawable.preachgospelradiologo, "PREACHGOSPEL", "--.--", "KISUMU", linksFromTxt[155], false, false))
+                add(RadioStation(156, R.drawable.radiomikayilogo, "RADIO MIKAYI", "88.8", "HOMABAY", linksFromTxt[156], false, false))
+                add(RadioStation(157, R.drawable.konyonfmlogo, "KONYON FM", "--.--", "KERICHO", linksFromTxt[157], false, false))
+                add(RadioStation(158, R.drawable.pgradiologo, "PG RADIO", "--.--", "KISUMU", linksFromTxt[158], false, false))
+                add(RadioStation(159, R.drawable.aluochrisradiologo, "ALUOCHRIS RADIO", "--.--", "KISUMU", linksFromTxt[159], false, false))
+                add(RadioStation(160, R.drawable.doitordoitfmlogo, "DOITORDOIT", "--.--", "MOMBASA", linksFromTxt[160], false, false))
+                add(RadioStation(161, R.drawable.doctorsexplainlogo, "DOCTORS EXPLAIN", "--.--", "NAIROBI", linksFromTxt[161], false, false))
+                add(RadioStation(162, R.drawable.edenmediaradiologo, "EDEN MEDIA", "--.--", "NAIROBI", linksFromTxt[162], false, false))
+                add(RadioStation(163, R.drawable.xpressradiologo, "XPRESS RADIO", "102.9", "NAIROBI", linksFromTxt[163], false, false))
+                add(RadioStation(164, R.drawable.rasstyleradiologo, "RASSTYLE RADIO", "--.--", "NAIROBI", linksFromTxt[164], false, false))
+                add(RadioStation(165, R.drawable.optimumradiologo, "OPTIMUM RADIO", "--.--", "NAIROBI", linksFromTxt[165], false, false))
+                add(RadioStation(166, R.drawable.radiobarazalogo, "RADIO BARAZA", "--.--", "NAIROBI", linksFromTxt[166], false, false))
+                add(RadioStation(167, R.drawable.radiopunchline, "RADIO PUNCHLINE", "--.--", "NAIROBI", linksFromTxt[167], false, false))
+                add(RadioStation(168, R.drawable.gituambafmlogo, "GITUAMBA FM", "98.2MHz", "NAIROBI", linksFromTxt[168], false, false))
+                add(RadioStation(169, R.drawable.daradiologo, "DA RADIO", "--.--", "NAIROBI", linksFromTxt[169], false, false))
+                add(RadioStation(170, R.drawable.uncutradiologo, "UNCUT RADIO", "--.--", "NAIROBI", linksFromTxt[170], false, false))
+                add(RadioStation(171, R.drawable.gracefmlogo, "GRACE FM", "--.--", "NAIROBI", linksFromTxt[171], false, false))
+                add(RadioStation(202, R.drawable.radiochichilogo, "RADIO CHICHI", "100.7", "BARINGO", linksFromTxt[202], false, false))
+                add(RadioStation(221, R.drawable.theophilusfmlogo, "THEOPHILUS FM", "--.--", "NAIROBI", linksFromTxt[221], false, false))
+                add(RadioStation(222, R.drawable.ebruradiologo, "EBRU RADIO", "89.7", "MANDERA", linksFromTxt[222], false, false))
+                add(RadioStation(172, R.drawable.vybesradiologo, "VYBES RADIO", "104.5", "NAIROBI", linksFromTxt[172], false, false))
+                add(RadioStation(173, R.drawable.starfmlogo, "STAR FM", "105.9", "NAIROBI", linksFromTxt[173], false, false))
+                add(RadioStation(174, R.drawable.mwangazawanenofmlogo, "MWANGAZA WA NENO FM", "--.--", "NAIROBI", linksFromTxt[174], false, false))
+                add(RadioStation(175, R.drawable.thequestradiologo, "THEQUEST RADIO", "--.--", "NAIROBI", linksFromTxt[175], false, false))
+                add(RadioStation(176, R.drawable.radioasuronlogo, "RADIO ASURON", "--.--", "NAIROBI", linksFromTxt[176], false, false))
+                add(RadioStation(177, R.drawable.ruimbofmlogo, "RUIMBO FM", "--.--", "NAIROBI", linksFromTxt[177], false, false))
+                add(RadioStation(178, R.drawable.safinaradiologo, "SAFINA RADIO", "--.--", "NAIROBI", linksFromTxt[178], false, false))
+                add(RadioStation(179, R.drawable.sayarefmlogo, "SAYARE FM", "--.--", "NAIROBI", linksFromTxt[179], false, false))
+                add(RadioStation(180, R.drawable.prasieradiologo, "PRAISE RADIO", "--.--", "NAIROBI", linksFromTxt[180], false, false))
+                add(RadioStation(181, R.drawable.tognofm, "TOGNO FM", "--.--", "NAIROBI", linksFromTxt[181], false, false))
+                add(RadioStation(182, R.drawable.moronigospellogo, "MORONI GOSPEL", "--.--", "NAIROBI", linksFromTxt[182], false, false))
+                add(RadioStation(183, R.drawable.mwanaspotifmlogo, "MWANASPORTI FM", "--.--", "NAIROBI", linksFromTxt[183], false, false))
+                add(RadioStation(184, R.drawable.touchradiologo, "TOUCH RADIO", "--.--", "NAIROBI", linksFromTxt[184], false, false))
+                add(RadioStation(185, R.drawable.uigithaniofmlogo, "UIGITHANIO FM", "--.--", "NAIROBI", linksFromTxt[185], false, false))
+                add(RadioStation(186, R.drawable.radioamanilogo, "RADIO AMANI", "--.--", "NAIROBI", linksFromTxt[186], false, false))
+                add(RadioStation(187, R.drawable.ksmradiologo, "KSM RADIO", "--.--", "NAIROBI", linksFromTxt[187], false, false))
+                add(RadioStation(188, R.drawable.dapstreamradiologo, "DAPSTREAM RADIO", "--.--", "NAIROBI", linksFromTxt[188], false, false))
+                add(RadioStation(189, R.drawable.engelosradiologo, "ENGELOS RADIO", "--.--", "NAIROBI", linksFromTxt[189], false, false))
+                add(RadioStation(190, R.drawable.semafmlogo, "SEMA FM", "98.3", "NAIROBI", linksFromTxt[190], false, false))
+                add(RadioStation(191, R.drawable.kochfmlogo, "KOCH FM", "99.9", "NAIROBI", linksFromTxt[191], false, false))
+                add(RadioStation(192, R.drawable.tsfmlogo, "TS FM", "--.--", "NAIROBI", linksFromTxt[192], false, false))
+                add(RadioStation(193, R.drawable.nworksradiologo, "NWORKS RADIO", "--.--", "NAIROBI", linksFromTxt[193], false, false))
+                add(RadioStation(194, R.drawable.serianfmlogo, "SERIAN FM", "--.--", "NAIROBI", linksFromTxt[194], false, false))
+                add(RadioStation(195, R.drawable.radiomlimalogo, "RADIO MLIMA", "--.--", "NAIROBI", linksFromTxt[195], false, false))
+                add(RadioStation(196, R.drawable.ggvfmlogo, "GGV FM", "--.--", "NAIROBI", linksFromTxt[196], false, false))
+                add(RadioStation(197, R.drawable.popoteradiologo, "POPOTE RADIO", "--.--", "NAIROBI", linksFromTxt[197], false, false))
+                add(RadioStation(198, R.drawable.radiotumainilogo, "RADIO TUMAINI", "93.0", "NAIROBI", linksFromTxt[198], false, false))
+                add(RadioStation(199, R.drawable.badidearadiologo, "BAD IDEA RADIO", "--.--", "NAIROBI", linksFromTxt[199], false, false))
+                add(RadioStation(200, R.drawable.diplomatradiologo, "DIPLOMAT RADIO", "--.--", "NAIROBI", linksFromTxt[200], false, false))
+                add(RadioStation(201, R.drawable.habeshingamusiclogo, "HABESHINGA MUSIC", "--.--", "NAIROBI", linksFromTxt[201], false, false))
+            }
 
-public class RadioStationsHelper {
-    public static List<RadioStation> createRadioStations(List<String> linksFromTxt, List<RadioStation> localStations) {
-        List<RadioStation> radioStationsList = new ArrayList<>();
-
-        radioStationsList.add(new RadioStation(0, R.drawable.hopefm, "HOPE FM", "93.3", "NAIROBI", linksFromTxt.get(0), false, false));
-        radioStationsList.add(new RadioStation(1, R.drawable.soundcityradiologo, "SOUNDCITY RADIO", "88.5", "NAIROBI", linksFromTxt.get(1), false, false));
-        radioStationsList.add(new RadioStation(2, R.drawable.kissfm, "KISS FM", "100.3", "NAIROBI", linksFromTxt.get(2), false, false));
-        radioStationsList.add(new RadioStation(228, R.drawable.radio47logo, "RADIO 47", "103.0", "NAIROBI", linksFromTxt.get(228), false, false));
-        radioStationsList.add(new RadioStation(3, R.drawable.nrg0, "NRG RADIO", "97.1", "NAIROBI", linksFromTxt.get(3), false, false));
-        radioStationsList.add(new RadioStation(203, R.drawable.radiocitizenlogo, "RADIO CITIZEN", "106.7", "NAIROBI", linksFromTxt.get(203), false, false));
-        radioStationsList.add(new RadioStation(4, R.drawable.inooro, "INOORO FM", "98.9", "NAIROBI", linksFromTxt.get(4), false, false));
-        radioStationsList.add(new RadioStation(5, R.drawable.nrgchoiceradiologo, "CHOICE RADIO", "87.7", "NAIROBI", linksFromTxt.get(5), false, false));
-        radioStationsList.add(new RadioStation(6, R.drawable.hot96logo, "HOT 96", "96.0", "NAIROBI", linksFromTxt.get(6), false, false));
-        radioStationsList.add(new RadioStation(7, R.drawable.homeboys, "HOMEBOYS RADIO", "103.5", "NAIROBI", linksFromTxt.get(7), false, false));
-        radioStationsList.add(new RadioStation(8, R.drawable.classic105_logo, "CLASSIC 105", "105.2", "NAIROBI", linksFromTxt.get(8), false, false));
-        radioStationsList.add(new RadioStation(9, R.drawable.radiojambologo, "RADIO JAMBO", "97.5", "NAIROBI", linksFromTxt.get(9), false, false));
-        radioStationsList.add(new RadioStation(26, R.drawable.rogueradiologo, "ROGUE RADIO", "--.--", "NAIROBI", linksFromTxt.get(26), false, false));
-        radioStationsList.add(new RadioStation(30, R.drawable.tracefmlogo, "TRACE FM", "95.3", "NAIROBI", linksFromTxt.get(30), false, false));
-        radioStationsList.add(new RadioStation(10, R.drawable.corofmlogo, "CORO FM", "99.5", "NAIROBI", linksFromTxt.get(10), false, false));
-        radioStationsList.add(new RadioStation(11, R.drawable.kameme, "KAMEME FM", "101.1", "NAIROBI", linksFromTxt.get(11), false, false));
-        radioStationsList.add(new RadioStation(12, R.drawable.ghettoradiologo, "GHETTO RADIO", "89.5", "NAIROBI", linksFromTxt.get(12), false, false));
-        radioStationsList.add(new RadioStation(13, R.drawable.radiomaishalogo, "RADIO MAISHA", "102.7", "NAIROBI", linksFromTxt.get(13), false, false));
-        radioStationsList.add(new RadioStation(14, R.drawable.easyfmlogo, "EASY FM", "96.3", "NAIROBI", linksFromTxt.get(14), false, false));
-        radioStationsList.add(new RadioStation(15, R.drawable.ramogilogo, "RAMOGI FM", "107.1", "NAIROBI", linksFromTxt.get(15), false, false));
-        radioStationsList.add(new RadioStation(16, R.drawable.egesalogo, "EGESA FM", "98.6", "NAIROBI", linksFromTxt.get(16), false, false));
-        radioStationsList.add(new RadioStation(17, R.drawable.mulembelogo, "MULEMBE FM", "97.9", "NAIROBI", linksFromTxt.get(17), false, false));
-        radioStationsList.add(new RadioStation(18, R.drawable.musyilogo, "MUSYI FM", "102.2", "NAIROBI", linksFromTxt.get(18), false, false));
-        radioStationsList.add(new RadioStation(19, R.drawable.chamgeilogo, "CHAMGEI FM", "95.0", "NAIROBI", linksFromTxt.get(19), false, false));
-        radioStationsList.add(new RadioStation(25, R.drawable.kubambaradiologo, "KUBAMBA RADIO", "--.--", "NAIROBI", linksFromTxt.get(25), false, false));
-        radioStationsList.add(new RadioStation(27, R.drawable.truthfmlogo, "TRUTH FM", "90.7", "NAIROBI", linksFromTxt.get(27), false, false));
-        radioStationsList.add(new RadioStation(28, R.drawable.familyradiologo, "FAMILY RADIO", "103.9", "NAIROBI", linksFromTxt.get(28), false, false));
-        radioStationsList.add(new RadioStation(29, R.drawable.jesusislordradiologo, "JESUSISLORD RADIO", "105.3", "NAKURU", linksFromTxt.get(29), false, false));
-        radioStationsList.add(new RadioStation(31, R.drawable.xfmlogo, "SMOOTH FM", "105.5", "NAIROBI", linksFromTxt.get(31), false, false));
-        radioStationsList.add(new RadioStation(32, R.drawable.kigoocofmlogo, "KIGOOCO FM", "98.6", "NAIROBI", linksFromTxt.get(32), false, false));
-        radioStationsList.add(new RadioStation(38, R.drawable.kikuyudiasporaradiologo, "KENYA DIASPORA RADIO", "--.--", "ALABAMA", linksFromTxt.get(38), false, false));
-        radioStationsList.add(new RadioStation(33, R.drawable.mbciradiologo, "MBCI RADIO", "89.5", "NAKURU", linksFromTxt.get(33), false, false));
-        radioStationsList.add(new RadioStation(224, R.drawable.gfnradiologo, "GFN FM", "90.1", "TURKANA", linksFromTxt.get(224), false, false));
-        radioStationsList.add(new RadioStation(44, R.drawable.nationfmlogo, "NATION FM", "96.3", "NAIROBI", linksFromTxt.get(44), false, false));
-        radioStationsList.add(new RadioStation(54, R.drawable.capitalfmlogo, "CAPITAL FM", "98.4", "NAIROBI", linksFromTxt.get(54), false, false));
-        radioStationsList.add(new RadioStation(41, R.drawable.gukenafmlogo, "GUKENA FM", "92.8", "NAIROBI", linksFromTxt.get(41), false, false));
-        radioStationsList.add(new RadioStation(20, R.drawable.muugalogo, "MUUGA FM", "94.2", "NAIROBI", linksFromTxt.get(20), false, false));
-        radioStationsList.add(new RadioStation(21, R.drawable.sulwelogo, "SULWE FM", "89.6", "NAIROBI", linksFromTxt.get(21), false, false));
-        radioStationsList.add(new RadioStation(22, R.drawable.wimwarologo, "WIMWARO FM", "93.0", "NAIROBI", linksFromTxt.get(22), false, false));
-        radioStationsList.add(new RadioStation(23, R.drawable.baharilogo, "BAHARI FM", "90.4", "MOMBASA", linksFromTxt.get(23), false, false));
-        radioStationsList.add(new RadioStation(24, R.drawable.vuukalogo, "VUUKA FM", "95.4", "NAIROBI", linksFromTxt.get(24), false, false));
-        radioStationsList.add(new RadioStation(92, R.drawable.lubaofmlogo, "LUBAO FM", "102.2", "KAKAMEGA", linksFromTxt.get(92), false, false));
-        radioStationsList.add(new RadioStation(34, R.drawable.iqrafmlogo, "IQRA FM", "95.0", "NAIROBI", linksFromTxt.get(34), false, false));
-        radioStationsList.add(new RadioStation(35, R.drawable.pwanifmlogo, "PWANI FM", "103.1", "MOMBASA", linksFromTxt.get(35), false, false));
-        radioStationsList.add(new RadioStation(36, R.drawable.sautiyapwanifmlogo, "SAUTIYAPWANI FM", "94.2", "MOMBASA", linksFromTxt.get(36), false, false));
-        radioStationsList.add(new RadioStation(37, R.drawable.kbcradiotaifalogo, "KBC RADIO TAIFA", "92.9", "NAIROBI", linksFromTxt.get(37), false, false));
-        radioStationsList.add(new RadioStation(39, R.drawable.taachfmlogo, "TAACH FM", "95.1", "ELDORET", linksFromTxt.get(39), false, false));
-        radioStationsList.add(new RadioStation(40, R.drawable.eastfmlogo, "EAST FM", "106.3", "NAIROBI", linksFromTxt.get(40), false, false));
-        radioStationsList.add(new RadioStation(42, R.drawable.kassfmlogo, "KASS FM", "89.1", "NAIROBI", linksFromTxt.get(42), false, false));
-        radioStationsList.add(new RadioStation(43, R.drawable.soundasialogo, "SOUNDASIA RADIO", "88.0", "NAIROBI", linksFromTxt.get(43), false, false));
-        radioStationsList.add(new RadioStation(45, R.drawable.wauminilogo, "RADIO WAUMINI", "88.3", "NAIROBI", linksFromTxt.get(45), false, false));
-        radioStationsList.add(new RadioStation(46, R.drawable.bibiliahusemalogo, "BIBILIA HUSEMA FM", "96.7", "NAIROBI", linksFromTxt.get(46), false, false));
-        radioStationsList.add(new RadioStation(47, R.drawable.heroradiologo, "HERO RADIO", "99.0", "NAKURU", linksFromTxt.get(47), false, false));
-        radioStationsList.add(new RadioStation(48, R.drawable.milelefmlogo, "MILELE FM", "104.8", "NAIROBI", linksFromTxt.get(48), false, false));
-        radioStationsList.add(new RadioStation(207, R.drawable.getembefmlogo, "GETEMBE FM", "102.7", "KISII", linksFromTxt.get(207), false, false));
-        radioStationsList.add(new RadioStation(208, R.drawable.inkafmlogo, "INKA FM", "93.7", "KISII", linksFromTxt.get(208), false, false));
-        radioStationsList.add(new RadioStation(49, R.drawable.radiokayalogo, "RADIO KAYA", "93.1", "NAIROBI", linksFromTxt.get(49), false, false));
-        radioStationsList.add(new RadioStation(50, R.drawable.spicefmlogo, "SPICE FM", "94.4", "NAIROBI", linksFromTxt.get(50), false, false));
-        radioStationsList.add(new RadioStation(51, R.drawable.barakafmlogo, "BARAKA FM", "95.5", "MOMBASA", linksFromTxt.get(51), false, false));
-        radioStationsList.add(new RadioStation(52, R.drawable.radioinjililogo, "RADIO INJILI", "103.7", "KERICHO", linksFromTxt.get(52), false, false));
-        radioStationsList.add(new RadioStation(53, R.drawable.athianilogo, "ATHIANI FM", "99.2", "NAIROBI", linksFromTxt.get(53), false, false));
-        radioStationsList.add(new RadioStation(55, R.drawable.beatlocklogo, "BEATLOCK RADIO", "--.--", "NAIROBI", linksFromTxt.get(55), false, false));
-        radioStationsList.add(new RadioStation(56, R.drawable.pearlxtralogo, "PEARL XTRA FM", "--.--", "NAIROBI", linksFromTxt.get(56), false, false));
-        radioStationsList.add(new RadioStation(57, R.drawable.theupperroomlogo, "THE UPPERROOM FM", "--.--", "NAIROBI", linksFromTxt.get(57), false, false));
-        radioStationsList.add(new RadioStation(58, R.drawable.lulufmlogo, "LULU FM", "91.0", "MOMBASA", linksFromTxt.get(58), false, false));
-        radioStationsList.add(new RadioStation(59, R.drawable.pearlradiologo, "PEARL RADIO", "96.9", "NAIROBI", linksFromTxt.get(59), false, false));
-        radioStationsList.add(new RadioStation(60, R.drawable.imaniradiologo, "IMANI RADIO", "88.8", "KITALE", linksFromTxt.get(60), false, false));
-        radioStationsList.add(new RadioStation(61, R.drawable.lionafriqradiologo, "LIONAFRIQ RADIO", "--.--", "NAIROBI", linksFromTxt.get(61), false, false));
-        radioStationsList.add(new RadioStation(211, R.drawable.nrg_hiphop_logo, "NRG HIPHOP", "--.--", "NAIROBI", linksFromTxt.get(211), false, false));
-        radioStationsList.add(new RadioStation(212, R.drawable.nrg_dancehall_logo, "NRG DANCEHALL", "--.--", "NAIROBI", linksFromTxt.get(212), false, false));
-        radioStationsList.add(new RadioStation(213, R.drawable.nrg_gospel_logo, "NRG GOSPEL", "--.--", "NAIROBI", linksFromTxt.get(213), false, false));
-        radioStationsList.add(new RadioStation(214, R.drawable.nrg_afrobeats_logo, "NRG AFROBEATS", "--.--", "NAIROBI", linksFromTxt.get(214), false, false));
-        radioStationsList.add(new RadioStation(215, R.drawable.nrg_mixology_logo, "NRG MIXOLOGY", "--.--", "NAIROBI", linksFromTxt.get(215), false, false));
-        radioStationsList.add(new RadioStation(216, R.drawable.nrg_rnb_logo, "NRG RNB", "--.--", "NAIROBI", linksFromTxt.get(216), false, false));
-        radioStationsList.add(new RadioStation(217, R.drawable.nrg_jazz_logo, "NRG JAZZ", "--.--", "NAIROBI", linksFromTxt.get(217), false, false));
-        radioStationsList.add(new RadioStation(204, R.drawable.longaradiologo, "LONGA RADIO", "--.--", "NAIROBI", linksFromTxt.get(204), false, false));
-        radioStationsList.add(new RadioStation(226, R.drawable.kayufmlogo, "KAYU FM", "91.0", "NAIROBI", linksFromTxt.get(226), false, false));
-        radioStationsList.add(new RadioStation(62, R.drawable.flamingoradiologo, "FLAMINGO FM", "93.7", "NAKURU", linksFromTxt.get(62), false, false));
-        radioStationsList.add(new RadioStation(63, R.drawable.pilipilifmlogo, "PILIPILI FM", "99.5", "NAIROBI", linksFromTxt.get(63), false, false));
-        radioStationsList.add(new RadioStation(209, R.drawable.kerioradiologo, "KERIO RADIO", "87.6", "BARINGO", linksFromTxt.get(209), false, false));
-        radioStationsList.add(new RadioStation(210, R.drawable.tausifmlogo, "TAUSI FM", "--.--", "NAIROBI", linksFromTxt.get(210), false, false));
-        radioStationsList.add(new RadioStation(229, R.drawable.hillsidefmlogo, "HILLSIDE FM", "--.--", "NAIROBI", linksFromTxt.get(229), false, false));
-        radioStationsList.add(new RadioStation(230, R.drawable.pefaradoilogo, "PEFA RADIO", "--.--", "NAIROBI", linksFromTxt.get(230), false, false));
-        radioStationsList.add(new RadioStation(64, R.drawable.mayianfmlogo, "MAYIAN FM", "100.7", "NAROK", linksFromTxt.get(64), false, false));
-        radioStationsList.add(new RadioStation(65, R.drawable.merufmlogo, "MERU FM", "100.3", "MERU", linksFromTxt.get(65), false, false));
-        radioStationsList.add(new RadioStation(66, R.drawable.emoofmlogo, "EMOO FM", "104.2", "NAIROBI", linksFromTxt.get(66), false, false));
-        radioStationsList.add(new RadioStation(223, R.drawable.mutongoifmlogo, "MUTONGOI FM", "103.3", "KITUI", linksFromTxt.get(223), false, false));
-        radioStationsList.add(new RadioStation(218, R.drawable.mwagofmlogo, "MWANGO FM", "97.5", "NAIROBI", linksFromTxt.get(218), false, false));
-        radioStationsList.add(new RadioStation(219, R.drawable.nosimfmlogo, "NOSIM FM", "90.5", "NAIROBI", linksFromTxt.get(219), false, false));
-        radioStationsList.add(new RadioStation(220, R.drawable.osiepefmlogo, "OSIEPE FM", "96.8", "SIAYA", linksFromTxt.get(220), false, false));
-        radioStationsList.add(new RadioStation(67, R.drawable.radiosalaamlogo, "RADIO SALAAM", "90.7", "MOMBASA", linksFromTxt.get(67), false, false));
-        radioStationsList.add(new RadioStation(68, R.drawable.radiorahmalogo, "RADIO RAHMA", "91.5", "MOMBASA", linksFromTxt.get(68), false, false));
-        radioStationsList.add(new RadioStation(69, R.drawable.asylumradiologo, "ASYLUM RADIO", "--.--", "NAIROBI", linksFromTxt.get(69), false, false));
-        radioStationsList.add(new RadioStation(70, R.drawable.kbcenglishservicelogo, "KBC ENGLISH SERVICE", "95.6", "NAIROBI", linksFromTxt.get(70), false, false));
-        radioStationsList.add(new RadioStation(71, R.drawable.mbaitufmlogo, "MBAITU FM", "92.5", "MACHAKOS", linksFromTxt.get(71), false, false));
-        radioStationsList.add(new RadioStation(72, R.drawable.radio_maria, "RADIO MARIA", "90.0", "NAIROBI", linksFromTxt.get(72), false, false));
-        radioStationsList.add(new RadioStation(73, R.drawable.upendoradiologo, "UPENDO RADIO", "89.4", "ELDORET", linksFromTxt.get(73), false, false));
-        radioStationsList.add(new RadioStation(74, R.drawable.hiphopginlogo, "HIPHOPGIN", "--.--", "NAIROBI", linksFromTxt.get(74), false, false));
-        radioStationsList.add(new RadioStation(75, R.drawable.hiphopdailylogo, "HIPHOP DAILY", "97.5", "NAIROBI", linksFromTxt.get(75), false, false));
-        radioStationsList.add(new RadioStation(79, R.drawable.rfmlogo, "R FM", "99.9", "LIMURU", linksFromTxt.get(79), false, false));
-        radioStationsList.add(new RadioStation(76, R.drawable.tulizafmlogo, "TULIZA FM", "94.2", "MERU", linksFromTxt.get(76), false, false));
-        radioStationsList.add(new RadioStation(77, R.drawable.kihootofmlogo, "KIHOOTO FM", "91.2", "NAIROBI", linksFromTxt.get(77), false, false));
-        radioStationsList.add(new RadioStation(78, R.drawable.kisiifmlogo, "KISII FM", "94.1", "NAIROBI", linksFromTxt.get(78), false, false));
-        radioStationsList.add(new RadioStation(80, R.drawable.seitofmlogo, "SEITO FM", "100.3", "NAIROBI", linksFromTxt.get(80), false, false));
-        radioStationsList.add(new RadioStation(81, R.drawable.sifafmlogo, "SIFA FM", "101.2", "MARSABIT", linksFromTxt.get(81), false, false));
-        radioStationsList.add(new RadioStation(82, R.drawable.countyfmlogo, "COUNTY FM", "90.3", "KITUI", linksFromTxt.get(82), false, false));
-        radioStationsList.add(new RadioStation(83, R.drawable.sidaifmlogo, "SIDAI FM", "103.5", "NAROK", linksFromTxt.get(83), false, false));
-        radioStationsList.add(new RadioStation(84, R.drawable.radioneemalogo, "RADIO NEEMA", "--.--", "NAIROBI", linksFromTxt.get(84), false, false));
-        radioStationsList.add(new RadioStation(85, R.drawable.radiosimbalogo, "RADIO SIMBA", "93.1", "BUNGOMA", linksFromTxt.get(85), false, false));
-        radioStationsList.add(new RadioStation(86, R.drawable.westfmlogo, "WEST FM", "94.9", "NAIROBI", linksFromTxt.get(86), false, false));
-        radioStationsList.add(new RadioStation(87, R.drawable.iftinfmlogo, "IFTIIN FM", "101.9", "NAIROBI", linksFromTxt.get(87), false, false));
-        radioStationsList.add(new RadioStation(88, R.drawable.mintofmlogo, "MINTO FM", "101.7", "NAIROBI", linksFromTxt.get(88), false, false));
-        radioStationsList.add(new RadioStation(89, R.drawable.bikapkoretradiologo, "BIKAPKORET RADIO", "98.2", "ELDORET", linksFromTxt.get(89), false, false));
-        radioStationsList.add(new RadioStation(90, R.drawable.muratafmlogo, "MURATA FM", "98.2", "ELDORET", linksFromTxt.get(90), false, false));
-        radioStationsList.add(new RadioStation(91, R.drawable.campusradiologo, "CAMPUS RADIO", "--.--", "NAIROBI", linksFromTxt.get(91), false, false));
-        radioStationsList.add(new RadioStation(93, R.drawable.utheriradiologo, "UTHERI RADIO", "106.2", "NAIROBI", linksFromTxt.get(93), false, false));
-        radioStationsList.add(new RadioStation(94, R.drawable.mugambowamugikuyulogo, "MUGAMBO WA MUGIKUYU", "--.--", "NAIROBI", linksFromTxt.get(94), false, false));
-        radioStationsList.add(new RadioStation(95, R.drawable.mwakifmlogo, "MWAKI FM", "--.--", "NAIROBI", linksFromTxt.get(95), false, false));
-        radioStationsList.add(new RadioStation(96, R.drawable.shilohradiologo, "SHILOH RADIO", "--.--", "NAIROBI", linksFromTxt.get(96), false, false));
-        radioStationsList.add(new RadioStation(97, R.drawable.cambrigeradiologo, "CAMBRIDGE RADIO", "--.--", "NAIROBI", linksFromTxt.get(97), false, false));
-        radioStationsList.add(new RadioStation(98, R.drawable.angeladventistlogo, "ADVENTIST ANGELS", "90.0", "KISII", linksFromTxt.get(98), false, false));
-        radioStationsList.add(new RadioStation(99, R.drawable.utuuroradiologo, "UTUURO RADIO", "--.--", "NAIROBI", linksFromTxt.get(99), false, false));
-        radioStationsList.add(new RadioStation(100, R.drawable.maneneradiologo, "MANENE RADIO", "--.--", "KISUMU", linksFromTxt.get(100), false, false));
-        radioStationsList.add(new RadioStation(101, R.drawable.congasisfmlogo, "CONG'ASIS FM", "88.9", "NAIROBI", linksFromTxt.get(101), false, false));
-        radioStationsList.add(new RadioStation(102, R.drawable.northriftradiologo, "NORTHRIFT RADIO", "104.5", "KAPENGURIA", linksFromTxt.get(102), false, false));
-        radioStationsList.add(new RadioStation(103, R.drawable.relaxradiologo, "RELAX RADIO", "103.0", "NAIROBI", linksFromTxt.get(103), false, false));
-        radioStationsList.add(new RadioStation(104, R.drawable.smashjamradiologo, "SMASH JAM RADIO", "99.0", "NAKURU", linksFromTxt.get(104), false, false));
-        radioStationsList.add(new RadioStation(105, R.drawable.getufmlogo, "GETU RADIO", "87.6", "MERU", linksFromTxt.get(105), false, false));
-        radioStationsList.add(new RadioStation(106, R.drawable.kokwofmlogo, "KOKWO FM", "100.1", "KAPENGURIA", linksFromTxt.get(106), false, false));
-        radioStationsList.add(new RadioStation(107, R.drawable.mumbofmlogo, "MUMBO FM", "90.2", "BUNGOMA", linksFromTxt.get(107), false, false));
-        radioStationsList.add(new RadioStation(108, R.drawable.tandazafmlogo, "TANDAZA FM", "103.7", "BUNGOMA", linksFromTxt.get(108), false, false));
-        radioStationsList.add(new RadioStation(109, R.drawable.mixxradio560logo, "560 MIXX RADIO", "560kHz", "NAIROBI", linksFromTxt.get(109), false, false));
-        radioStationsList.add(new RadioStation(110, R.drawable.christianradiologo560, "560 CHRISTIAN RADIO", "560kHz", "NAIROBI", linksFromTxt.get(110), false, false));
-        radioStationsList.add(new RadioStation(111, R.drawable.powercountrylogo560, "560 POWER COUNTRY", "560kHz", "NAIROBI", linksFromTxt.get(111), false, false));
-        radioStationsList.add(new RadioStation(225, R.drawable.muthingifmlogo, "MUTHINGI FM", "--.--", "NAIROBI", linksFromTxt.get(225), false, false));
-        radioStationsList.add(new RadioStation(112, R.drawable.centralfmlogo, "CENTRAL FM", "97.1", "NANYUKI", linksFromTxt.get(112), false, false));
-        radioStationsList.add(new RadioStation(113, R.drawable.mayiengaradiologo, "MAYIENGA FM", "93.5", "BUNGOMA", linksFromTxt.get(113), false, false));
-        radioStationsList.add(new RadioStation(114, R.drawable.kitwekradiologo, "KITWEK RADIO", "92.9", "NAIROBI", linksFromTxt.get(114), false, false));
-        radioStationsList.add(new RadioStation(115, R.drawable.mwaturadiologo, "MWATU RADIO", "93.1", "MACHAKOS", linksFromTxt.get(115), false, false));
-        radioStationsList.add(new RadioStation(116, R.drawable.ingofmlogo, "INGO FM", "100.5", "NAIROBI", linksFromTxt.get(116), false, false));
-        radioStationsList.add(new RadioStation(117, R.drawable.powerfmlogo, "POWER FM", "--.--", "NAIROBI", linksFromTxt.get(117), false, false));
-        radioStationsList.add(new RadioStation(118, R.drawable.makinikaradiologo, "MAKINIKA RADIO", "--.--", "NAIROBI", linksFromTxt.get(118), false, false));
-        radioStationsList.add(new RadioStation(119, R.drawable.bloomradiologo, "BLOOM RADIO", "--.--", "NAIROBI", linksFromTxt.get(119), false, false));
-        radioStationsList.add(new RadioStation(120, R.drawable.rainbowradiologo, "RAINBOW RADIO", "---.--", "NAIROBI", linksFromTxt.get(120), false, false));
-        radioStationsList.add(new RadioStation(121, R.drawable.togotanefmlogo, "TOGOTANE FM", "88.3", "NAIROBI", linksFromTxt.get(121), false, false));
-        radioStationsList.add(new RadioStation(122, R.drawable.eretofmlogo, "ERETO FM", "--.--", "NYERI", linksFromTxt.get(122), false, false));
-        radioStationsList.add(new RadioStation(123, R.drawable.midzifmlogo, "MIDZI FM", "100.5", "MALINDI", linksFromTxt.get(123), false, false));
-        radioStationsList.add(new RadioStation(124, R.drawable.radio44logo, "RADIO 44", "91.6", "NAIROBI", linksFromTxt.get(124), false, false));
-        radioStationsList.add(new RadioStation(125, R.drawable.sayakiradiologo, "SAYAKI RADIO", "--.--", "NYERI", linksFromTxt.get(125), false, false));
-        radioStationsList.add(new RadioStation(126, R.drawable.radiosafarilogo, "RADIO SAFARI", "87.9", "KITALE", linksFromTxt.get(126), false, false));
-        radioStationsList.add(new RadioStation(227, R.drawable.berurfmlogo, "BERUR FM", "96.7", "NAIROBI", linksFromTxt.get(227), false, false));
-        radioStationsList.add(new RadioStation(127, R.drawable.radiofahamulogo, "RADIO FAHAMU", "--.--", "NAIROBI", linksFromTxt.get(127), false, false));
-        radioStationsList.add(new RadioStation(129, R.drawable.radio254logo, "RADIO 254", "--.--", "NAIROBI", linksFromTxt.get(129), false, false));
-        radioStationsList.add(new RadioStation(130, R.drawable.varchradiologo, "VARCH RADIO", "--.--", "ELDORET", linksFromTxt.get(130), false, false));
-        radioStationsList.add(new RadioStation(205, R.drawable.radiovunalogo, "RADIO VUNA", "102.0", "KISII", linksFromTxt.get(205), false, false));
-        radioStationsList.add(new RadioStation(131, R.drawable.tonziradiologo, "TONZI RADIO", "--.--", "NAIROBI", linksFromTxt.get(131), false, false));
-        radioStationsList.add(new RadioStation(132, R.drawable.ifmlogo, "IFM PARTY STATION", "--.--", "NAIROBI", linksFromTxt.get(132), false, false));
-        radioStationsList.add(new RadioStation(133, R.drawable.elwaicenterfmlogo, "ELWAI CENTER FM", "--.--", "SUSWA", linksFromTxt.get(133), false, false));
-        radioStationsList.add(new RadioStation(134, R.drawable.countrypridefmlogo, "COUNTRY PRIDE FM", "--.--", "NAIROBI", linksFromTxt.get(134), false, false));
-        radioStationsList.add(new RadioStation(135, R.drawable.musicjunkieslogo, "MUSICJUNKIES FM", "--.--", "NAIROBI", linksFromTxt.get(135), false, false));
-        radioStationsList.add(new RadioStation(136, R.drawable.smoothjazz560logo, "560 SMOOTHJAZZ", "--.--", "NAIROBI", linksFromTxt.get(136), false, false));
-        radioStationsList.add(new RadioStation(137, R.drawable.lightfmlogo, "LIGHT FM", "--.--", "NAIROBI", linksFromTxt.get(137), false, false));
-        radioStationsList.add(new RadioStation(138, R.drawable.icedfmlogo, "ICED RADIO", "--.--", "NAIROBI", linksFromTxt.get(138), false, false));
-        radioStationsList.add(new RadioStation(139, R.drawable.geeradiologo, "GEE RADIO", "--.--", "NAIROBI", linksFromTxt.get(139), false, false));
-        radioStationsList.add(new RadioStation(140, R.drawable.tulwoobkoonyradiologo, "TULWOOBKOONY RADIO", "--.--", "NAIROBI", linksFromTxt.get(140), false, false));
-        radioStationsList.add(new RadioStation(141, R.drawable.hootersfmlogo, "HOOTERS FM", "--.--", "NAIROBI", linksFromTxt.get(141), false, false));
-        radioStationsList.add(new RadioStation(142, R.drawable.kufurahiafmlogo, "KAFURAHA FM", "--.--", "NAIROBI", linksFromTxt.get(142), false, false));
-        radioStationsList.add(new RadioStation(143, R.drawable.hoodradiologo, "HOOD RADIO", "--.--", "NAIROBI", linksFromTxt.get(143), false, false));
-        radioStationsList.add(new RadioStation(144, R.drawable.abundanceradio, "ABUNDANCE RADIO", "--.--", "NAIROBI", linksFromTxt.get(144), false, false));
-        radioStationsList.add(new RadioStation(145, R.drawable.aipcalogo, "AIPCA RADIO", "--.--", "NAIROBI", linksFromTxt.get(145), false, false));
-        radioStationsList.add(new RadioStation(146, R.drawable.msenangufmlogo, "MSENANGU FM", "99.5", "MOMBASA", linksFromTxt.get(146), false, false));
-        radioStationsList.add(new RadioStation(147, R.drawable.fynradiologo, "FYN RADIO", "--.--", "NAIROBI", linksFromTxt.get(147), false, false));
-        radioStationsList.add(new RadioStation(148, R.drawable.xaticfmlogo, "XATIC FM", "--.--", "NAIROBI", linksFromTxt.get(148), false, false));
-        radioStationsList.add(new RadioStation(149, R.drawable.tusmofmlogo, "TUSMO FM", "--.--", "NAIROBI", linksFromTxt.get(149), false, false));
-        radioStationsList.add(new RadioStation(150, R.drawable.radioshahidilogo, "RADIO SHAHIDI", "91.7", "ISIOLO", linksFromTxt.get(150), false, false));
-        radioStationsList.add(new RadioStation(151, R.drawable.pemiradiologo, "PEMI RADIO", "96.1", "NAIROBI", linksFromTxt.get(151), false, false));
-        radioStationsList.add(new RadioStation(152, R.drawable.freshfmlogo, "FRESH FM", "--.--", "NAIROBI", linksFromTxt.get(152), false, false));
-        radioStationsList.add(new RadioStation(153, R.drawable.hypemagnetradiologo, "HYPEMAGNET RADIO", "--.--", "NAIROBI", linksFromTxt.get(153), false, false));
-        radioStationsList.add(new RadioStation(154, R.drawable.mindimoradiologo, "MIDNIMO RADIO", "--.--", "NAIROBI", linksFromTxt.get(154), false, false));
-        radioStationsList.add(new RadioStation(155, R.drawable.preachgospelradiologo, "PREACHGOSPEL", "--.--", "KISUMU", linksFromTxt.get(155), false, false));
-        radioStationsList.add(new RadioStation(156, R.drawable.radiomikayilogo, "RADIO MIKAYI", "88.8", "HOMABAY", linksFromTxt.get(156), false, false));
-        radioStationsList.add(new RadioStation(157, R.drawable.konyonfmlogo, "KONYON FM", "--.--", "KERICHO", linksFromTxt.get(157), false, false));
-        radioStationsList.add(new RadioStation(158, R.drawable.pgradiologo, "PG RADIO", "--.--", "KISUMU", linksFromTxt.get(158), false, false));
-        radioStationsList.add(new RadioStation(159, R.drawable.aluochrisradiologo, "ALUOCHRIS RADIO", "--.--", "KISUMU", linksFromTxt.get(159), false, false));
-        radioStationsList.add(new RadioStation(160, R.drawable.doitordoitfmlogo, "DOITORDOIT", "--.--", "MOMBASA", linksFromTxt.get(160), false, false));
-        radioStationsList.add(new RadioStation(161, R.drawable.doctorsexplainlogo, "DOCTORS EXPLAIN", "--.--", "NAIROBI", linksFromTxt.get(161), false, false));
-        radioStationsList.add(new RadioStation(162, R.drawable.edenmediaradiologo, "EDEN MEDIA", "--.--", "NAIROBI", linksFromTxt.get(162), false, false));
-        radioStationsList.add(new RadioStation(163, R.drawable.xpressradiologo, "XPRESS RADIO", "102.9", "NAIROBI", linksFromTxt.get(163), false, false));
-        radioStationsList.add(new RadioStation(164, R.drawable.rasstyleradiologo, "RASSTYLE RADIO", "--.--", "NAIROBI", linksFromTxt.get(164), false, false));
-        radioStationsList.add(new RadioStation(165, R.drawable.optimumradiologo, "OPTIMUM RADIO", "--.--", "NAIROBI", linksFromTxt.get(165), false, false));
-        radioStationsList.add(new RadioStation(166, R.drawable.radiobarazalogo, "RADIO BARAZA", "--.--", "NAIROBI", linksFromTxt.get(166), false, false));
-        radioStationsList.add(new RadioStation(167, R.drawable.radiopunchline, "RADIO PUNCHLINE", "--.--", "NAIROBI", linksFromTxt.get(167), false, false));
-        radioStationsList.add(new RadioStation(168, R.drawable.gituambafmlogo, "GITUAMBA FM", "98.2MHz", "NAIROBI", linksFromTxt.get(168), false, false));
-        radioStationsList.add(new RadioStation(169, R.drawable.daradiologo, "DA RADIO", "--.--", "NAIROBI", linksFromTxt.get(169), false, false));
-        radioStationsList.add(new RadioStation(170, R.drawable.uncutradiologo, "UNCUT RADIO", "--.--", "NAIROBI", linksFromTxt.get(170), false, false));
-        radioStationsList.add(new RadioStation(171, R.drawable.gracefmlogo, "GRACE FM", "--.--", "NAIROBI", linksFromTxt.get(171), false, false));
-        radioStationsList.add(new RadioStation(202, R.drawable.radiochichilogo, "RADIO CHICHI", "100.7", "BARINGO", linksFromTxt.get(202), false, false));
-        radioStationsList.add(new RadioStation(221, R.drawable.theophilusfmlogo, "THEOPHILUS FM", "--.--", "NAIROBI", linksFromTxt.get(221), false, false));
-        radioStationsList.add(new RadioStation(222, R.drawable.ebruradiologo, "EBRU RADIO", "89.7", "MANDERA", linksFromTxt.get(222), false, false));
-        radioStationsList.add(new RadioStation(172, R.drawable.vybesradiologo, "VYBES RADIO", "104.5", "NAIROBI", linksFromTxt.get(172), false, false));
-        radioStationsList.add(new RadioStation(173, R.drawable.starfmlogo, "STAR FM", "105.9", "NAIROBI", linksFromTxt.get(173), false, false));
-        radioStationsList.add(new RadioStation(174, R.drawable.mwangazawanenofmlogo, "MWANGAZA WA NENO FM", "--.--", "NAIROBI", linksFromTxt.get(174), false, false));
-        radioStationsList.add(new RadioStation(175, R.drawable.thequestradiologo, "THEQUEST RADIO", "--.--", "NAIROBI", linksFromTxt.get(175), false, false));
-        radioStationsList.add(new RadioStation(176, R.drawable.radioasuronlogo, "RADIO ASURON", "--.--", "NAIROBI", linksFromTxt.get(176), false, false));
-        radioStationsList.add(new RadioStation(177, R.drawable.ruimbofmlogo, "RUIMBO FM", "--.--", "NAIROBI", linksFromTxt.get(177), false, false));
-        radioStationsList.add(new RadioStation(178, R.drawable.safinaradiologo, "SAFINA RADIO", "--.--", "NAIROBI", linksFromTxt.get(178), false, false));
-        radioStationsList.add(new RadioStation(179, R.drawable.sayarefmlogo, "SAYARE FM", "--.--", "NAIROBI", linksFromTxt.get(179), false, false));
-        radioStationsList.add(new RadioStation(180, R.drawable.prasieradiologo, "PRAISE RADIO", "--.--", "NAIROBI", linksFromTxt.get(180), false, false));
-        radioStationsList.add(new RadioStation(181, R.drawable.tognofm, "TOGNO FM", "--.--", "NAIROBI", linksFromTxt.get(181), false, false));
-        radioStationsList.add(new RadioStation(182, R.drawable.moronigospellogo, "MORONI GOSPEL", "--.--", "NAIROBI", linksFromTxt.get(182), false, false));
-        radioStationsList.add(new RadioStation(183, R.drawable.mwanaspotifmlogo, "MWANASPORTI FM", "--.--", "NAIROBI", linksFromTxt.get(183), false, false));
-        radioStationsList.add(new RadioStation(184, R.drawable.touchradiologo, "TOUCH RADIO", "--.--", "NAIROBI", linksFromTxt.get(184), false, false));
-        radioStationsList.add(new RadioStation(185, R.drawable.uigithaniofmlogo, "UIGITHANIO FM", "--.--", "NAIROBI", linksFromTxt.get(185), false, false));
-        radioStationsList.add(new RadioStation(186, R.drawable.radioamanilogo, "RADIO AMANI", "--.--", "NAIROBI", linksFromTxt.get(186), false, false));
-        radioStationsList.add(new RadioStation(187, R.drawable.ksmradiologo, "KSM RADIO", "--.--", "NAIROBI", linksFromTxt.get(187), false, false));
-        radioStationsList.add(new RadioStation(188, R.drawable.dapstreamradiologo, "DAPSTREAM RADIO", "--.--", "NAIROBI", linksFromTxt.get(188), false, false));
-        radioStationsList.add(new RadioStation(189, R.drawable.engelosradiologo, "ENGELOS RADIO", "--.--", "NAIROBI", linksFromTxt.get(189), false, false));
-        radioStationsList.add(new RadioStation(190, R.drawable.semafmlogo, "SEMA FM", "98.3", "NAIROBI", linksFromTxt.get(190), false, false));
-        radioStationsList.add(new RadioStation(191, R.drawable.kochfmlogo, "KOCH FM", "99.9", "NAIROBI", linksFromTxt.get(191), false, false));
-        radioStationsList.add(new RadioStation(192, R.drawable.tsfmlogo, "TS FM", "--.--", "NAIROBI", linksFromTxt.get(192), false, false));
-        radioStationsList.add(new RadioStation(193, R.drawable.nworksradiologo, "NWORKS RADIO", "--.--", "NAIROBI", linksFromTxt.get(193), false, false));
-        radioStationsList.add(new RadioStation(194, R.drawable.serianfmlogo, "SERIAN FM", "--.--", "NAIROBI", linksFromTxt.get(194), false, false));
-        radioStationsList.add(new RadioStation(195, R.drawable.radiomlimalogo, "RADIO MLIMA", "--.--", "NAIROBI", linksFromTxt.get(195), false, false));
-        radioStationsList.add(new RadioStation(196, R.drawable.ggvfmlogo, "GGV FM", "--.--", "NAIROBI", linksFromTxt.get(196), false, false));
-        radioStationsList.add(new RadioStation(197, R.drawable.popoteradiologo, "POPOTE RADIO", "--.--", "NAIROBI", linksFromTxt.get(197), false, false));
-        radioStationsList.add(new RadioStation(198, R.drawable.radiotumainilogo, "RADIO TUMAINI", "93.0", "NAIROBI", linksFromTxt.get(198), false, false));
-        radioStationsList.add(new RadioStation(199, R.drawable.badidearadiologo, "BAD IDEA RADIO", "--.--", "NAIROBI", linksFromTxt.get(199), false, false));
-        radioStationsList.add(new RadioStation(200, R.drawable.diplomatradiologo, "DIPLOMAT RADIO", "--.--", "NAIROBI", linksFromTxt.get(200), false, false));
-        radioStationsList.add(new RadioStation(201, R.drawable.habeshingamusiclogo, "HABESHINGA MUSIC", "--.--", "NAIROBI", linksFromTxt.get(201), false, false));
-
-        // Merge local favorites into new list
-        if (localStations != null) {
-            for (RadioStation newStation : radioStationsList) {
-                for (RadioStation local : localStations) {
-                    if (newStation.getId() == local.getId()) {
-                        if (local.isFavorite()) {
-                            newStation.setFavorite(true);
-                        }
-                        if (local.isPlaying()) {
-                            newStation.setPlaying(true);
-                        }
-                    }
+            // Merge local favorites and playing states
+            localStations?.forEach { local ->
+                radioStationsList.find { it.id == local.id }?.apply {
+                    if (local.isFavorite) this.isFavorite = true
+                    if (local.isPlaying) this.isPlaying = true
                 }
             }
+
+            return radioStationsList
         }
-
-
-        return radioStationsList;
     }
 }
