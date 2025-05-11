@@ -223,26 +223,49 @@ class RadioListRecyclerViewAdapter(
         update(updatedList)
     }
 
-        fun update(newList: List<RadioStation>) {
+    private var lastSearchQuery: String? = null
+
+
+    fun update(newList: List<RadioStation>) {
         stationList.clear()
         stationList.addAll(newList)
 
-        if (currentState != DisplayState.POPULAR) return
+        if (currentState == DisplayState.FAVORITES) return
 
-        val oldList = ArrayList(recyclerViewItems)
-        val newListWithAds = injectAdItems(newList)
+        val displayList: List<ListItem> = when (currentState) {
+            DisplayState.SEARCH -> {
+                val query = lastSearchQuery.orEmpty().lowercase()
+                val refreshedList = stationList.filter {
+                    it.stationName.lowercase().contains(query)
+                }
+                filteredStationNameList.clear()
+                filteredStationNameList.addAll(refreshedList)
+                filteredStationNameList
+            }
+
+
+            DisplayState.ASCENDING ->
+                injectAdItems(stationList.sortedBy { it.stationName.lowercase() })
+
+            DisplayState.DESCENDING ->
+                injectAdItems(stationList.sortedByDescending { it.stationName.lowercase() })
+
+            else -> injectAdItems(stationList)
+        }
 
         if (recyclerViewItems.isEmpty()) {
-            recyclerViewItems.addAll(newListWithAds)
+            recyclerViewItems.addAll(displayList)
             notifyDataSetChanged()
             return
         }
 
-        val diffResult = DiffUtil.calculateDiff(StationDiffUtilCallback(oldList, newListWithAds))
+        val diff = DiffUtil.calculateDiff(StationDiffUtilCallback(recyclerViewItems, displayList))
         recyclerViewItems.clear()
-        recyclerViewItems.addAll(newListWithAds)
-        diffResult.dispatchUpdatesTo(this)
+        recyclerViewItems.addAll(displayList)
+        diff.dispatchUpdatesTo(this)
     }
+
+
 
     fun updateFavorites(newFavorites: List<RadioStation>) {
         favouriteList.clear()
@@ -256,7 +279,6 @@ class RadioListRecyclerViewAdapter(
         recyclerViewItems.addAll(newList)
         diff.dispatchUpdatesTo(this)
     }
-
 
     private fun injectAdItems(originalList: List<RadioStation>): List<ListItem> {
         val modifiedList = originalList.toMutableList<ListItem>()
@@ -279,17 +301,18 @@ class RadioListRecyclerViewAdapter(
             sortPopular()
         }
 
+        lastSearchQuery = input.orEmpty().trim()
         filteredStationNameList.clear()
 
-        val query = input.orEmpty().trim()
-        if (query.isEmpty()) {
+        if (lastSearchQuery!!.isEmpty()) {
             handleEmptySearch()
         } else {
-            handleSearchQuery(query)
+            handleSearchQuery(lastSearchQuery!!)
         }
 
         updateDisplayedResults()
     }
+
 
     private fun handleEmptySearch() {
         currentState = DisplayState.POPULAR
