@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
@@ -39,10 +40,6 @@ class PlayerManager(private val activity: MainActivity) {
 
     fun setRadioStation(radioStation: RadioStation) {
         this.radioStation = radioStation
-    }
-
-    fun setIsPlaying(isPlaying: Boolean) {
-        this.isPlaying = isPlaying
     }
 
     fun getIsShowingAd(): Boolean = isShowingAd
@@ -81,6 +78,7 @@ class PlayerManager(private val activity: MainActivity) {
     }
 
     fun playOrStop() {
+        Log.d("PlayerManager", "playOrStop() "+isPlaying)
         if (isPlaying) {
             activity.stopService(serviceIntent)
             return

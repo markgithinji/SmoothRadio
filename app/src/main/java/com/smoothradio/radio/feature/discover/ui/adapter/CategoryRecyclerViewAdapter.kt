@@ -1,17 +1,16 @@
 package com.smoothradio.radio.feature.discover.ui.adapter
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
-import androidx.recyclerview.widget.DiffUtil
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.model.RadioStation
 import com.smoothradio.radio.databinding.CategoryradioitemBinding
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
-import com.smoothradio.radio.feature.radio_list.util.StationDiffUtilCallback
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
@@ -33,15 +32,17 @@ class CategoryRecyclerViewAdapter(
 
     override fun onBindViewHolder(holder: ItemViewViewHolder, position: Int) {
         val radioStation = radioStationItems[position]
+        val binding = holder.binding
 
         updateFavoriteIcon(holder, radioStation)
-
-        holder.binding.ivCategoryLogo.setImageResource(radioStation.logoResource)
-        holder.binding.tvCategoryChannelName.text = radioStation.stationName
-        holder.binding.ivCategoryPlay.setOnClickListener(PlayOnclickListener(radioStation))
-        holder.binding.ivCategoryFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
-
         updatePlayer(radioStation, holder)
+
+        with(binding) {
+            ivCategoryLogo.setImageResource(radioStation.logoResource)
+            tvCategoryChannelName.text = radioStation.stationName
+            ivCategoryPlay.setOnClickListener(PlayOnclickListener(radioStation))
+            ivCategoryFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
+        }
 
         if (holder.bindingAdapterPosition == RecyclerView.NO_POSITION) {
             holder.binding.clCategoryLayout.animation =
@@ -51,30 +52,28 @@ class CategoryRecyclerViewAdapter(
 
     override fun getItemCount(): Int = radioStationItems.size
 
-    private fun updatePlayer(radioStation: RadioStation, holder: ItemViewViewHolder) {
-        val isPlaying = radioStation.isPlaying
-
-        if (!isPlaying) {
-            holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-            holder.binding.ivCategoryPlay.visibility = View.VISIBLE
-            holder.binding.ivCategoryPlay.setImageResource(R.drawable.playicon)
+    private fun updatePlayer(radioStation: RadioStation, holder: ItemViewViewHolder) = with(holder.binding) {
+        if (!radioStation.isPlaying) {
+            lottieLoadingAnimation.isInvisible = true
+            ivCategoryPlay.isVisible = true
+            ivCategoryPlay.setImageResource(R.drawable.playicon)
             return
         }
 
         when (state) {
             PLAYING -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-                holder.binding.ivCategoryPlay.visibility = View.VISIBLE
-                holder.binding.ivCategoryPlay.setImageResource(R.drawable.pauseicon)
+                lottieLoadingAnimation.isInvisible = true
+                ivCategoryPlay.isVisible = true
+                ivCategoryPlay.setImageResource(R.drawable.pauseicon)
             }
             PREPARING, BUFFERING -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.VISIBLE
-                holder.binding.ivCategoryPlay.visibility = View.INVISIBLE
+                lottieLoadingAnimation.isVisible = true
+                ivCategoryPlay.isInvisible = true
             }
             else -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-                holder.binding.ivCategoryPlay.visibility = View.VISIBLE
-                holder.binding.ivCategoryPlay.setImageResource(R.drawable.playicon)
+                lottieLoadingAnimation.isInvisible = true
+                ivCategoryPlay.isVisible = true
+                ivCategoryPlay.setImageResource(R.drawable.playicon)
             }
         }
     }
@@ -103,11 +102,13 @@ class CategoryRecyclerViewAdapter(
             val isFavorite = radioStation.isFavorite
             radioStation.isFavorite = !isFavorite
 
-            radioStationActionHandler.onToggleFavorite(radioStation, !isFavorite)
-            radioStationActionHandler.onRequestshowToast(
-                if (isFavorite) "Removed from favorites: ${radioStation.stationName}"
-                else "Added to favorites: ${radioStation.stationName}"
-            )
+            radioStationActionHandler.apply {
+                onToggleFavorite(radioStation, !isFavorite)
+                onRequestShowToast(
+                    if (isFavorite) "Removed from favorites: ${radioStation.stationName}"
+                    else "Added to favorites: ${radioStation.stationName}"
+                )
+            }
 
             updateFavoriteIcon(viewHolder, radioStation)
         }
@@ -142,6 +143,6 @@ class CategoryRecyclerViewAdapter(
     interface RadioStationActionListener {
         fun onStationSelected(station: RadioStation)
         fun onToggleFavorite(station: RadioStation, isFavorite: Boolean)
-        fun onRequestshowToast(message: String)
+        fun onRequestShowToast(message: String)
     }
 }

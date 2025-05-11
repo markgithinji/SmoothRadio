@@ -16,8 +16,8 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.splashscreen.SplashScreen
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -67,14 +67,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         initializeComponents()
-        setupObservers()
+        collectFlows()
         setupUI()
         setupBroadcastReceiver()
         requestPermissions()
     }
 
     private fun initializeComponents() {
-        radioViewModel = ViewModelProvider(this).get(RadioViewModel::class.java)
+        radioViewModel = ViewModelProvider(this)[RadioViewModel::class.java]
         radioListRecyclerViewAdapter = RadioListRecyclerViewAdapter(
             mutableListOf(),
             RadioStationActionHandler(radioViewModel)
@@ -94,27 +94,15 @@ class MainActivity : AppCompatActivity() {
         binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener { miniPlayerPlayPause() }
     }
 
-    private fun setupObservers() {
+    private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // Observer for playing station
                 launch {
                     radioViewModel.playingStation.collect { station ->
-                        if (station != null) {
-                            Log.d("MainActivity", "setupObservers: playing station found: ${station.stationName}")
-                            lastStationId = station.id
-                            updateMiniPlayer(station)
-                        } else {
-                            Log.d("MainActivity", "setupObservers: no playing station in Room, loading from saved ID")
-                            val savedStation = getStationUsingSavedId()
-                            updateMiniPlayer(savedStation)
-                        }
-                    }
-                }
-
-                // Observer for selected station
-                launch {
-                    radioViewModel.selectedStation.collect {
+                        val currentStation = station ?: getStationUsingSavedId()
+                        lastStationId = currentStation.id
+                        updateMiniPlayer(currentStation)
                         hideKeyboard()
                     }
                 }
@@ -122,19 +110,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun setupViewPagerAndTabs() {
-        viewPagerAdapter = ViewPagerAdapter(supportFragmentManager, lifecycle)
-        viewPagerAdapter.addFragments()
+        viewPagerAdapter = ViewPagerAdapter(supportFragmentManager, lifecycle).apply {
+            addFragments()
+        }
         binding.viewPager.adapter = viewPagerAdapter
 
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("STATIONS"))
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("LIVE"))
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("DISCOVER"))
+        // Define tab titles
+        val tabTitles = listOf("STATIONS", "LIVE", "DISCOVER")
+        tabTitles.forEach { title ->
+            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(title))
+        }
 
+        // Setup tab selection listener
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 tabPosition = tab.position
                 binding.viewPager.currentItem = tabPosition
                 viewPagerAdapter.notifyDataSetChanged()
+
+                // Update bottom sheet state based on tab selection
                 bottomSheetBehavior.state = if (tabPosition == 0) {
                     BottomSheetBehavior.STATE_COLLAPSED
                 } else {
@@ -146,6 +140,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
 
+        // Sync the ViewPager with the TabLayout
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 binding.tabLayout.selectTab(binding.tabLayout.getTabAt(position))
@@ -153,55 +148,52 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupSearchUI() {
-        binding.ivSearch.setOnClickListener {
+    private fun setupSearchUI() = with(binding) {
+        ivSearch.setOnClickListener {
             if (isSearchVisible) {
-                binding.etSearch.visibility = View.INVISIBLE
-                binding.ivClearSearch.visibility = View.INVISIBLE
+                etSearch.isVisible = false
+                ivClearSearch.isVisible = false
                 isSearchVisible = false
                 hideKeyboard()
             } else {
-                if (tabPosition != 0) {
-                    binding.viewPager.currentItem = 0
-                }
-                binding.etSearch.post {
-                    binding.etSearch.requestFocus()
-                    inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    inputMethodManager.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+                if (tabPosition != 0) viewPager.currentItem = 0
+
+                etSearch.post {
+                    etSearch.requestFocus()
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .showSoftInput(etSearch, InputMethodManager.SHOW_IMPLICIT)
                 }
 
-                binding.etSearch.visibility = View.VISIBLE
+                etSearch.isVisible = true
                 isSearchVisible = true
-                if (binding.etSearch.text?.length ?: 0 > 0) {
-                    binding.ivClearSearch.visibility = View.VISIBLE
-                }
+                ivClearSearch.isVisible = etSearch.text?.isNotEmpty() == true
             }
         }
 
-        binding.etSearch.addTextChangedListener(object : TextWatcher {
+        etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(editable: Editable) {
                 radioListRecyclerViewAdapter.filter(editable.toString())
-                binding.ivClearSearch.visibility = if (editable.length > 0) View.VISIBLE else View.INVISIBLE
+                ivClearSearch.isVisible = editable.isNotEmpty()
             }
         })
 
-        binding.ivClearSearch.setOnClickListener { binding.etSearch.setText("") }
+        ivClearSearch.setOnClickListener { etSearch.setText("") }
     }
 
+
     private fun setupBroadcastReceiver() {
-        val eventFilter = IntentFilter().apply {
-            addAction(StreamService.ACTION_EVENT_CHANGE)
-        }
-
         val eventReceiver = EventReceiver()
+        val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
+        val receiverFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            RECEIVER_NOT_EXPORTED
         } else {
-            registerReceiver(eventReceiver, eventFilter)
+            0
         }
+
+        registerReceiver(eventReceiver, eventFilter, receiverFlag)
     }
 
     private fun requestPermissions() {
@@ -219,7 +211,6 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         radioViewModel.setCurrentPage(binding.viewPager.currentItem)
-//        radioViewModel.removeStreamLinkListener()
     }
 
     override fun onResume() {
@@ -234,20 +225,20 @@ class MainActivity : AppCompatActivity() {
         } else {
             View.INVISIBLE
         }
-
-//        radioViewModel.getRemoteLinks()
     }
 
     private fun hideKeyboard() {
         inputMethodManager.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
-        binding.etSearch.visibility = View.INVISIBLE
-        binding.ivClearSearch.visibility = View.INVISIBLE
+        binding.apply {
+            etSearch.visibility = View.INVISIBLE
+            ivClearSearch.visibility = View.INVISIBLE
+        }
         isSearchVisible = false
     }
 
-    private fun updateMiniPlayer(radioStation: RadioStation) {
-        binding.miniPlayer.ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
-        binding.miniPlayer.tvStationNameMiniPlayerLayout.text = radioStation.stationName
+    private fun updateMiniPlayer(radioStation: RadioStation) = with(binding.miniPlayer) {
+        ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
+        tvStationNameMiniPlayerLayout.text = radioStation.stationName
     }
 
     private fun miniPlayerPlayPause() {
@@ -277,31 +268,35 @@ class MainActivity : AppCompatActivity() {
     private inner class EventReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val state = intent.getStringExtra(StreamService.EXTRA_STATE)
+            binding.miniPlayer.tvStatusMiniPlayerLayout.text = state
 
             when (state) {
-                StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> showBufferingState()
+                StreamService.StreamStates.BUFFERING,
+                StreamService.StreamStates.PREPARING -> showBufferingState()
                 StreamService.StreamStates.PLAYING -> showPlayingState()
                 else -> showStoppedState()
             }
-            // update mini player
-            binding.miniPlayer.tvStatusMiniPlayerLayout.text = state
         }
 
-        private fun showBufferingState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.INVISIBLE
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.VISIBLE
+        private fun showBufferingState() = with(binding.miniPlayer) {
+            ivPlayMiniPlayerLayout.isVisible = false
+            loadingAnimationMiniPlayerLayout.isVisible = true
         }
 
-        private fun showPlayingState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.pauseicon)
-            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.VISIBLE
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.INVISIBLE
+        private fun showPlayingState() = with(binding.miniPlayer) {
+            ivPlayMiniPlayerLayout.apply {
+                setImageResource(R.drawable.pauseicon)
+                isVisible = true
+            }
+            loadingAnimationMiniPlayerLayout.isVisible = false
         }
 
-        private fun showStoppedState() {
-            binding.miniPlayer.ivPlayMiniPlayerLayout.visibility = View.VISIBLE
-            binding.miniPlayer.ivPlayMiniPlayerLayout.setImageResource(R.drawable.playicon)
-            binding.miniPlayer.loadingAnimationMiniPlayerLayout.visibility = View.INVISIBLE
+        private fun showStoppedState() = with(binding.miniPlayer) {
+            ivPlayMiniPlayerLayout.apply {
+                setImageResource(R.drawable.playicon)
+                isVisible = true
+            }
+            loadingAnimationMiniPlayerLayout.isVisible = false
         }
     }
 

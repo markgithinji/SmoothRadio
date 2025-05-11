@@ -12,12 +12,10 @@ class StationDiffUtilCallback(
 ) : DiffUtil.Callback() {
 
     override fun getOldListSize(): Int {
-        Log.d("DiffUtil", "getOldListSize ${oldList.size}")
         return oldList.size
     }
 
     override fun getNewListSize(): Int {
-        Log.d("DiffUtil", "getNewListSize ${newList.size}")
         return newList.size
     }
 
@@ -28,11 +26,9 @@ class StationDiffUtilCallback(
         return when {
             oldItem is RadioStation && newItem is RadioStation -> {
                 val isSame = oldItem.id == newItem.id
-                Log.d("DiffUtil", "areItemsTheSame (RadioStation): $isSame")
                 isSame
             }
             oldItem is AdItem && newItem is AdItem -> {
-                Log.d("DiffUtil", "areItemsTheSame (AdItem): true")
                 true
             }
             else -> false
@@ -48,11 +44,9 @@ class StationDiffUtilCallback(
                 val isSame = oldItem.url == newItem.url &&
                         oldItem.isPlaying == newItem.isPlaying &&
                         oldItem.isFavorite == newItem.isFavorite
-                Log.d("DiffUtil", "areContentsTheSame (RadioStation): $isSame")
                 isSame
             }
             oldItem is AdItem && newItem is AdItem -> {
-                Log.d("DiffUtil", "areContentsTheSame (AdItem): true")
                 true
             }
             else -> false

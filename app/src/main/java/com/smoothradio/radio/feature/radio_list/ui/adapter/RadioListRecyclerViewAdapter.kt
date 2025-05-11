@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.ads.AdRequest
@@ -41,7 +43,7 @@ class RadioListRecyclerViewAdapter(
         private const val AD_POSITION_6 = 72
     }
 
-    val favouriteList = mutableListOf<RadioStation>()
+    private val favouriteList = mutableListOf<RadioStation>()
     private val filteredStationNameList = mutableListOf<ListItem>()
 
     private val stationList = radioStations.toMutableList()
@@ -59,15 +61,23 @@ class RadioListRecyclerViewAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
             ITEM_VIEW -> {
-                val binding = RadioitemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                val binding =
+                    RadioitemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
                 ItemViewViewHolder(binding)
             }
+
             AD_VIEW -> {
-                val binding = AdviewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                val binding =
+                    AdviewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
                 AdViewHolder(binding)
             }
+
             else -> {
-                val binding = EmptyFavouritiesBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                val binding = EmptyFavouritiesBinding.inflate(
+                    LayoutInflater.from(parent.context),
+                    parent,
+                    false
+                )
                 EmptyFavouriteListViewHolder(binding)
             }
         }
@@ -81,50 +91,60 @@ class RadioListRecyclerViewAdapter(
         }
     }
 
-    private fun bindRadioStation(holder: ItemViewViewHolder, radioStation: RadioStation) {
-        val favIconRes = if (radioStation.isFavorite) R.drawable.favorite_20px_filled else R.drawable.favorite_20px
-        holder.binding.ivFavourite.setImageResource(favIconRes)
+    private fun bindRadioStation(holder: ItemViewViewHolder, radioStation: RadioStation) =
+        with(holder.binding) {
+            ivFavourite.setImageResource(
+                if (radioStation.isFavorite) R.drawable.favorite_20px_filled else R.drawable.favorite_20px
+            )
 
-        holder.binding.ivLogo.setBackgroundResource(radioStation.logoResource)
-        holder.binding.tvChannelName.text = radioStation.stationName
-        holder.binding.tvFrequency.text = radioStation.frequency
-        holder.binding.tvLocation.text = radioStation.location
+            ivLogo.setBackgroundResource(radioStation.logoResource)
+            tvChannelName.text = radioStation.stationName
+            tvFrequency.text = radioStation.frequency
+            tvLocation.text = radioStation.location
 
-        holder.binding.ivPlay.setImageResource(R.drawable.playicon)
-        holder.binding.ivPlay.setOnClickListener(PlayOnclickListener(radioStation))
-        holder.binding.ivFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
+            ivPlay.setImageResource(R.drawable.playicon)
+            ivPlay.setOnClickListener(PlayOnclickListener(radioStation))
+            ivFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
 
-        holder.binding.clLayout.animation =
-            AnimationUtils.loadAnimation(holder.itemView.context, R.anim.recyclerviewscrollanimation)
-
-        updatePlayerUI(holder, radioStation)
-    }
-
-    private fun updatePlayerUI(holder: ItemViewViewHolder, station: RadioStation) {
-        val isPlaying = station.isPlaying
-
-        when {
-            !isPlaying -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-                holder.binding.ivPlay.visibility = View.VISIBLE
-                holder.binding.ivPlay.setImageResource(R.drawable.playicon)
+            if (holder.bindingAdapterPosition == RecyclerView.NO_POSITION) {
+                clLayout.animation = AnimationUtils.loadAnimation(
+                    holder.itemView.context,
+                    R.anim.recyclerviewscrollanimation
+                )
             }
-            state == PLAYING -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-                holder.binding.ivPlay.visibility = View.VISIBLE
-                holder.binding.ivPlay.setImageResource(R.drawable.pauseicon)
-            }
-            state == PREPARING || state == BUFFERING -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.VISIBLE
-                holder.binding.ivPlay.visibility = View.INVISIBLE
-            }
-            else -> {
-                holder.binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-                holder.binding.ivPlay.visibility = View.VISIBLE
-                holder.binding.ivPlay.setImageResource(R.drawable.playicon)
+
+            updatePlayerUI(holder, radioStation)
+        }
+
+
+    private fun updatePlayerUI(holder: ItemViewViewHolder, station: RadioStation) =
+        with(holder.binding) {
+            when {
+                !station.isPlaying -> {
+                    lottieLoadingAnimation.isInvisible = true
+                    ivPlay.isVisible = true
+                    ivPlay.setImageResource(R.drawable.playicon)
+                }
+
+                state == PLAYING -> {
+                    lottieLoadingAnimation.isInvisible = true
+                    ivPlay.isVisible = true
+                    ivPlay.setImageResource(R.drawable.pauseicon)
+                }
+
+                state == PREPARING || state == BUFFERING -> {
+                    lottieLoadingAnimation.isVisible = true
+                    ivPlay.isInvisible = true
+                }
+
+                else -> {
+                    lottieLoadingAnimation.isInvisible = true
+                    ivPlay.isVisible = true
+                    ivPlay.setImageResource(R.drawable.playicon)
+                }
             }
         }
-    }
+
 
     private fun bindAdView(holder: AdViewHolder) {
         val adRequest = AdRequest.Builder().build()
@@ -136,6 +156,7 @@ class RadioListRecyclerViewAdapter(
         return when {
             (currentState == DisplayState.SEARCH && filteredStationNameList.isEmpty()) ||
                     (currentState == DisplayState.FAVORITES && favouriteList.isEmpty()) -> EMPTY_ITEM
+
             item is AdItem -> AD_VIEW
             else -> ITEM_VIEW
         }
@@ -143,9 +164,12 @@ class RadioListRecyclerViewAdapter(
 
     override fun getItemCount(): Int = recyclerViewItems.size
 
-    inner class ItemViewViewHolder(val binding: RadioitemBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class ItemViewViewHolder(val binding: RadioitemBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
     inner class AdViewHolder(val binding: AdviewBinding) : RecyclerView.ViewHolder(binding.root)
-    inner class EmptyFavouriteListViewHolder(val binding: EmptyFavouritiesBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class EmptyFavouriteListViewHolder(val binding: EmptyFavouritiesBinding) :
+        RecyclerView.ViewHolder(binding.root)
 
     inner class PlayOnclickListener(private val radioStation: RadioStation) : View.OnClickListener {
         private val stationId = radioStation.id
@@ -160,13 +184,15 @@ class RadioListRecyclerViewAdapter(
         private val holder: ItemViewViewHolder
     ) : View.OnClickListener {
         override fun onClick(view: View?) {
-            val isFavorite = radioStation.isFavorite
-            radioStation.isFavorite = !isFavorite
-            radioStationActionHandler.onToggleFavorite(radioStation, !isFavorite)
+            val newFavoriteState = !radioStation.isFavorite
+            radioStation.isFavorite = newFavoriteState
+            radioStationActionHandler.onToggleFavorite(radioStation, newFavoriteState)
+
             holder.binding.ivFavourite.setImageResource(
-                if (isFavorite) R.drawable.favorite_20px else R.drawable.favorite_20px_filled
+                if (newFavoriteState) R.drawable.favorite_20px_filled else R.drawable.favorite_20px
             )
         }
+
     }
 
     fun getStationAtPosition(position: Int): RadioStation {
@@ -192,24 +218,16 @@ class RadioListRecyclerViewAdapter(
 
     fun setPlayingStation(stationId: Int) {
         val updatedList = stationList.map { station ->
-            val copy = RadioStation(station)
-            copy.isPlaying = station.id == stationId
-            copy
+            station.copy(isPlaying = station.id == stationId)
         }
         update(updatedList)
     }
 
-    fun setFavouriteStations(favoriteStations: List<RadioStation>) {
-        Log.d("RadioListRecyclerViewAdapter", "setFavouriteStations: ${favoriteStations.size}")
-        favouriteList.clear()
-        favouriteList.addAll(favoriteStations)
-    }
-
-    fun update(newList: List<RadioStation>) {
+        fun update(newList: List<RadioStation>) {
         stationList.clear()
         stationList.addAll(newList)
 
-        if (currentState == DisplayState.FAVORITES) return
+        if (currentState != DisplayState.POPULAR) return
 
         val oldList = ArrayList(recyclerViewItems)
         val newListWithAds = injectAdItems(newList)
@@ -230,20 +248,26 @@ class RadioListRecyclerViewAdapter(
         favouriteList.clear()
         favouriteList.addAll(newFavorites)
 
-        if (currentState == DisplayState.POPULAR) return
+        if (currentState != DisplayState.FAVORITES) return
 
-        val oldList = ArrayList(recyclerViewItems)
-        val newFavoriteList: MutableList<ListItem> = newFavorites.toMutableList()
-
-        val diffResult = DiffUtil.calculateDiff(StationDiffUtilCallback(oldList, newFavoriteList))
+        val newList = if (favouriteList.isEmpty()) listOf(emptyRadioStation) else favouriteList
+        val diff = DiffUtil.calculateDiff(StationDiffUtilCallback(recyclerViewItems, newList))
         recyclerViewItems.clear()
-        recyclerViewItems.addAll(newFavoriteList)
-        diffResult.dispatchUpdatesTo(this)
+        recyclerViewItems.addAll(newList)
+        diff.dispatchUpdatesTo(this)
     }
+
 
     private fun injectAdItems(originalList: List<RadioStation>): List<ListItem> {
         val modifiedList = originalList.toMutableList<ListItem>()
-        val adPositions = listOf(AD_POSITION_1, AD_POSITION_2, AD_POSITION_3, AD_POSITION_4, AD_POSITION_5, AD_POSITION_6)
+        val adPositions = listOf(
+            AD_POSITION_1,
+            AD_POSITION_2,
+            AD_POSITION_3,
+            AD_POSITION_4,
+            AD_POSITION_5,
+            AD_POSITION_6
+        )
         for (pos in adPositions) {
             if (pos <= modifiedList.size) modifiedList.add(pos, AdItem())
         }
@@ -251,13 +275,17 @@ class RadioListRecyclerViewAdapter(
     }
 
     fun filter(input: String?) {
-        if (currentState != DisplayState.POPULAR && currentState != DisplayState.SEARCH) sortPopular()
+        if (currentState !in listOf(DisplayState.POPULAR, DisplayState.SEARCH)) {
+            sortPopular()
+        }
+
         filteredStationNameList.clear()
 
-        if (TextUtils.isEmpty(input)) {
+        val query = input.orEmpty().trim()
+        if (query.isEmpty()) {
             handleEmptySearch()
         } else {
-            handleSearchQuery(input!!)
+            handleSearchQuery(query)
         }
 
         updateDisplayedResults()
@@ -313,16 +341,16 @@ class RadioListRecyclerViewAdapter(
 
     fun sortFavourites() {
         currentState = DisplayState.FAVORITES
+        recyclerViewItems.clear()
+
         if (favouriteList.isEmpty()) {
             radioStationActionHandler.onRequestshowToast("No favorite stations added")
-            recyclerViewItems.clear()
             recyclerViewItems.add(emptyRadioStation)
-            notifyDataSetChanged()
         } else {
-            recyclerViewItems.clear()
             recyclerViewItems.addAll(favouriteList)
-            notifyDataSetChanged()
         }
+
+        notifyDataSetChanged()
     }
 
     interface RadioStationActionListener {

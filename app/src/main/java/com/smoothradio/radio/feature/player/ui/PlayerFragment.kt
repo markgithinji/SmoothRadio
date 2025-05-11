@@ -7,10 +7,14 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.transition.TransitionManager
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -41,7 +45,7 @@ class PlayerFragment : Fragment() {
     private var state: String = ""
     private lateinit var coordinatorLayout: CoordinatorLayout
     private lateinit var eventIntent: Intent
-    private var stationId: Int = 0
+
     private lateinit var fragmentActivity: FragmentActivity
     private lateinit var radioViewModel: RadioViewModel
     private lateinit var playerManager: PlayerManager
@@ -59,40 +63,46 @@ class PlayerFragment : Fragment() {
 
         registerBroadcasts()
 
-        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
+        eventIntent =
+            Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentPlayerBinding.inflate(inflater, container, false)
         setUpUI()
-        setupObserver()
+        collectFlows()
         return binding.root
     }
 
-    private fun setupObserver() {
+    private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 radioViewModel.playingStation.collect { radioStation ->
-                    if (radioStation != null) {
-                        currentStation = radioStation
-                        stationId = radioStation.id
-                        binding.ivLargeLogo.setImageResource(radioStation.logoResource)
-                        binding.tvStationNamePlayerFrag.text = radioStation.stationName
-                    } else {
-                        getLatestStationUsingSavedId()
-                        // Handle null case UI updates here if needed
+                    currentStation = radioStation ?: getDefaultStation()
+
+                    currentStation?.let { station ->
+                        binding.apply {
+                            ivLargeLogo.setImageResource(station.logoResource)
+                            tvStationNamePlayerFrag.text = station.stationName
+                        }
                     }
                 }
             }
         }
     }
 
-    private fun getLatestStationUsingSavedId() {
-        currentStation = RadioStation(stationId, 0, "", "", "", "", true, false)
+    private fun getDefaultStation(): RadioStation {
+        val stationId = 0
         val position = mainActivity.radioListRecyclerViewAdapter.getPositionOfStation(stationId)
         if (!(mainActivity.radioListRecyclerViewAdapter.listIsEmpty() || position == RecyclerView.NO_POSITION)) {
-            currentStation = mainActivity.radioListRecyclerViewAdapter.getStationAtPosition(position)
+                val station =mainActivity.radioListRecyclerViewAdapter.getStationAtPosition(position)
+            return station
         }
+        return RadioStation(0, 0, "", "", "", "", true,false)
     }
 
     private fun registerBroadcasts() {
@@ -100,38 +110,58 @@ class PlayerFragment : Fragment() {
             addAction(StreamService.ACTION_EVENT_CHANGE)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(EventReceiver(), eventFilter, Context.RECEIVER_NOT_EXPORTED)
-            fragmentActivity.registerReceiver(MetadataReceiver(), IntentFilter(StreamService.ACTION_METADATA_CHANGE), Context.RECEIVER_NOT_EXPORTED)
+            fragmentActivity.registerReceiver(
+                EventReceiver(),
+                eventFilter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
+            fragmentActivity.registerReceiver(
+                MetadataReceiver(),
+                IntentFilter(StreamService.ACTION_METADATA_CHANGE),
+                Context.RECEIVER_NOT_EXPORTED
+            )
         } else {
             fragmentActivity.registerReceiver(EventReceiver(), eventFilter)
-            fragmentActivity.registerReceiver(MetadataReceiver(), IntentFilter(StreamService.ACTION_METADATA_CHANGE))
+            fragmentActivity.registerReceiver(
+                MetadataReceiver(),
+                IntentFilter(StreamService.ACTION_METADATA_CHANGE)
+            )
         }
     }
 
     override fun onResume() {
         super.onResume()
-        if (mainActivity == null) {
-            mainActivity = requireActivity() as MainActivity
-        }
+        mainActivity = mainActivity ?: (requireActivity() as MainActivity)
+
 
         if (playerManager.isShowingAd) {
             state = StreamService.StreamStates.PREPARING
             broadcastState(state)
         } else {
-            val getStateFromServiceIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
+            val getStateFromServiceIntent =
+                Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
             fragmentActivity.sendBroadcast(getStateFromServiceIntent)
         }
     }
 
-    private fun setUpUI() {
-        val adRequest = AdRequest.Builder().build()
-        binding.adView.loadAd(adRequest)
+    private fun setUpUI() = with(binding) {
+        adView.loadAd(AdRequest.Builder().build())
 
-        binding.ivPlayButton.setOnClickListener(PlayButtonListener())
-        binding.ivRefresh.setOnClickListener(Refresh())
-        binding.ivSetTimer.setOnClickListener(SetTimerOnclickListener())
+        ivPlayButton.setOnClickListener(PlayButtonListener())
+        ivRefresh.setOnClickListener(Refresh())
+        ivSetTimer.setOnClickListener(SetTimerOnclickListener())
     }
 
+    /**
+     * `MetadataReceiver` is a `BroadcastReceiver` responsible for receiving and displaying metadata
+     * information about the currently playing audio stream.  It listens for broadcasts from
+     * `StreamService` containing the title of the current stream and updates the UI accordingly.
+     * <p>
+     * Specifically, it receives an intent with the extra `StreamService.EXTRA_TITLE`, extracts the
+     * title string, truncates it to a maximum of 70 characters, and updates a `TextView` with the
+     * truncated title.  It also uses a `TransitionManager` to animate the UI update for a smoother
+     * user experience.
+     */
     inner class MetadataReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val metadata = intent?.getStringExtra(StreamService.EXTRA_TITLE)
@@ -158,8 +188,9 @@ class PlayerFragment : Fragment() {
 
     inner class PlayButtonListener : View.OnClickListener {
         override fun onClick(view: View?) {
-            radioViewModel.setSelectedStation(currentStation!!)
-            playerManager.playOrStop()
+            val station = currentStation ?: return
+
+            radioViewModel.setSelectedStation(station)
         }
     }
 
@@ -169,34 +200,37 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    private fun updateUI() {
-        TransitionManager.beginDelayedTransition(binding.playerFrag)
+    private fun updateUI() = with(binding) {
+        TransitionManager.beginDelayedTransition(playerFrag)
 
-        binding.tvProgress.text = state
-        binding.lottieLoadingAnimation.visibility = View.INVISIBLE
-        binding.equalizerAnimation.visibility = View.INVISIBLE
-        binding.tvMetadata.text = ""
-        binding.ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
+        tvProgress.text = state
+        lottieLoadingAnimation.isInvisible = true
+        equalizerAnimation.isInvisible = true
+        tvMetadata.text = ""
+        ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
 
         when (state) {
-            StreamService.StreamStates.PREPARING -> {
-                binding.lottieLoadingAnimation.visibility = View.VISIBLE
-            }
-            StreamService.StreamStates.PLAYING -> {
-                binding.equalizerAnimation.visibility = View.VISIBLE
-                binding.ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
-            }
+            StreamService.StreamStates.PREPARING,
             StreamService.StreamStates.BUFFERING -> {
-                binding.lottieLoadingAnimation.visibility = View.VISIBLE
+                lottieLoadingAnimation.isVisible = true
             }
+
+            StreamService.StreamStates.PLAYING -> {
+                equalizerAnimation.isVisible = true
+                ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
+            }
+
             StreamService.StreamStates.ENDED,
-            StreamService.StreamStates.IDLE -> { }
+            StreamService.StreamStates.IDLE -> { /* no-op */
+            }
+
             else -> {
-                binding.tvProgress.text = ""
-                binding.tvMetadata.text = ""
+                tvProgress.text = ""
+                tvMetadata.text = ""
             }
         }
     }
+
 
     private fun broadcastState(state: String) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state)

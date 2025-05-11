@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -29,6 +30,8 @@ import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerView
 import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -61,13 +64,18 @@ class RadioListFragment : Fragment() {
     private fun initializeComponents() {
         radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
         playerManager = mainActivity.playerManager
-        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
+        eventIntent =
+            Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentMusicListBinding.inflate(inflater, container, false)
         radioListRecyclerViewAdapter = mainActivity.getAdapter()
-        setupObservers()
+        collectFlows()
         setupRecyclerView()
         return binding.root
     }
@@ -95,66 +103,66 @@ class RadioListFragment : Fragment() {
         })
     }
 
-    private fun setupObservers() {
-        // Remote links observer
+    private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                radioViewModel.remoteLinks.collect { resource ->
-                    if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
-                        val newLinks = resource.data
-                        val localStations = radioViewModel.allStations.value
-                        val newStations = RadioStationsHelper.createRadioStations(newLinks, localStations)
-                        radioViewModel.insertStations(newStations)
-                    }
-                }
-            }
-        }
-
-        // All stations observer
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                radioViewModel.allStations.collect { stations ->
-                    radioListRecyclerViewAdapter.update(stations)
-                }
-            }
-        }
-
-        // Selected station observer
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                radioViewModel.selectedStation.collect { radioStation ->
-                    radioStation?.let { station ->
-                        currentStation = station
-                        playerManager.setRadioStation(station)
-
-                        if (station.isPlaying) {
-                            playerManager.playOrStop()
-                        } else {
-                            playerManager.playFromMainActivity()
+                // Remote links observer
+                launch {
+                    radioViewModel.remoteLinks.collect { resource ->
+                        if (resource.status == Resource.Status.SUCCESS && resource.data != null) {
+                            resource.data.let { newLinks ->
+                                val localStations = radioViewModel.allStations.first()
+                                val newStations = RadioStationsHelper.createRadioStations(newLinks, localStations)
+                                radioViewModel.insertStations(newStations)
+                                Log.d("RadioListFragment", "Remote links collected"+newStations.size)
+                            }
                         }
-                        radioViewModel.savePlayingStationId(station.id)
                     }
                 }
-            }
-        }
+                // All stations observer
+                launch {
+                    radioViewModel.allStations.collect { stations ->
+                        Log.d("RadioListFragment", "All stations collected"+stations.size)
+                        radioListRecyclerViewAdapter.update(stations)
+                    }
+                }
+                // Selected station observer
+                launch {
+                    radioViewModel.selectedStation.collect { station ->
+                        station?.let {
+                            Log.d("RadioListFragment", "Selected station collected"+station.isPlaying)
+                            currentStation = it
+                            playerManager.setRadioStation(it)
 
-        // Favorite stations observer
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                radioViewModel.favoriteStations.collect { favorites ->
-                    radioListRecyclerViewAdapter.updateFavorites(favorites)
+                            if (it.isPlaying) {
+                                playerManager.playOrStop()
+                            } else {
+                                playerManager.playFromMainActivity()
+                            }
+                            radioViewModel.savePlayingStationId(it.id)
+                        }
+                    }
+                }
+                // Favorite stations observer
+                launch {
+                    radioViewModel.favoriteStations.collect { favorites ->
+                        Log.d("RadioListFragment", "Favorite stations collected")
+                        radioListRecyclerViewAdapter.updateFavorites(favorites)
+                    }
                 }
             }
         }
     }
 
+
     private fun setupBroadcastReceiver() {
         val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
         } else {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter)
+            0
         }
+        fragmentActivity.registerReceiver(eventReceiver, eventFilter, flags)
     }
 
     inner class EventReceiver : BroadcastReceiver() {
@@ -167,22 +175,22 @@ class RadioListFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (mainActivity == null) {
-            mainActivity = requireActivity() as MainActivity
+        mainActivity = mainActivity ?: (requireActivity() as MainActivity)
+
+        currentStation = currentStation ?: mainActivity.getStationUsingSavedId()
+        currentStation?.let { station ->
+            radioListRecyclerViewAdapter.setPlayingStation(station.id)
         }
-        if (currentStation == null) {
-            currentStation = mainActivity.getStationUsingSavedId()
-        }
-        currentStation?.let {
-            radioListRecyclerViewAdapter.setPlayingStation(it.id)
-        }
+
         if (playerManager.isShowingAd) {
             broadcastState(StreamService.StreamStates.PREPARING)
         } else {
-            val getStateFromServiceIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
-            fragmentActivity.sendBroadcast(getStateFromServiceIntent)
+            fragmentActivity.sendBroadcast(
+                Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
+            )
         }
     }
+
 
     private fun broadcastState(state: String) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state)

@@ -68,14 +68,6 @@ class StreamService : Service() {
 
         // Playback State
         var isPlaying = false
-
-        object StreamStates {
-            const val PREPARING = "Preparing Audio"
-            const val PLAYING = "Playing"
-            const val BUFFERING = "Buffering"
-            const val IDLE = "Idle"
-            const val ENDED = "Ended"
-        }
     }
 
     // Service State

@@ -20,50 +20,25 @@ import javax.inject.Singleton
 class RadioLinkRepository @Inject constructor(
     private val firebaseFirestore: FirebaseFirestore
 ) {
-    private val _remoteStreamLinks = MutableStateFlow<Resource<List<String>>>(Resource.loading())
-    val remoteStreamLinks: StateFlow<Resource<List<String>>> = _remoteStreamLinks
-
     private var listenerRegistration: ListenerRegistration? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
 
-    init {
-        fetchRemoteStreamLinks()
-    }
+    fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = callbackFlow {
+        // Emit helper links immediately so UI is populated fast
+        trySend(Resource.success(getLinksFromHelper()))
 
-    private fun fetchRemoteStreamLinks() {
-        scope.launch {
-            getRemoteStreamLinksFlow().collect { resource ->
-                _remoteStreamLinks.value = resource
-            }
-        }
-    }
-
-    private fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = callbackFlow {
-        trySend(Resource.loading())
-
+        // Now listen for remote changes
         listenerRegistration = firebaseFirestore.collection("links")
             .orderBy("index")
             .addSnapshotListener { value, error ->
                 if (error != null || value == null || value.isEmpty) {
-                    trySend(Resource.success(getLinksFromHelper()))
-                    return@addSnapshotListener
+                    return@addSnapshotListener // do nothing if error; we already showed fallback
                 }
 
-                val newLinks = mutableListOf<String>()
-                for (doc: DocumentSnapshot in value.documents) {
-                    val link = doc.getString("link")
-                    if (!link.isNullOrEmpty()) {
-                        newLinks.add(link)
-                    }
-                }
+                val newLinks = value.documents.mapNotNull { it.getString("link") }
 
-                trySend(
-                    if (newLinks.isEmpty()) {
-                        Resource.success(getLinksFromHelper())
-                    } else {
-                        Resource.success(newLinks)
-                    }
-                )
+                if (newLinks.isNotEmpty()) {
+                    trySend(Resource.success(newLinks))
+                }
             }
 
         awaitClose {

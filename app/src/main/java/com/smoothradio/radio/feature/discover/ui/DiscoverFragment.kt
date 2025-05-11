@@ -10,13 +10,13 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.MainActivity
-import com.smoothradio.radio.core.model.Category
 import com.smoothradio.radio.core.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.databinding.FragmentDiscoverBinding
@@ -59,16 +59,15 @@ class DiscoverFragment : Fragment() {
         discoverRecyclerViewAdapter = DiscoverRecyclerViewAdapter(emptyList())
         radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
 
-        setupObservers()
+        collectFlows()
         setupRecyclerView()
 
-        val radioStationActionHandler = RadioStationActionHandler(radioViewModel)
-        discoverRecyclerViewAdapter.setRadioStationActionListener(radioStationActionHandler)
+        discoverRecyclerViewAdapter.setRadioStationActionListener(RadioStationActionHandler(radioViewModel))
 
         return binding.root
     }
 
-    private fun setupObservers() {
+    private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
@@ -100,11 +99,12 @@ class DiscoverFragment : Fragment() {
             addAction(StreamService.ACTION_EVENT_CHANGE)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
         } else {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter)
+            0
         }
+        fragmentActivity.registerReceiver(eventReceiver, eventFilter, flags)
     }
 
     override fun onResume() {
@@ -144,7 +144,7 @@ class DiscoverFragment : Fragment() {
             radioViewModel.updateFavoriteStatus(station.id, isFavorite)
         }
 
-        override fun onRequestshowToast(message: String) {
+        override fun onRequestShowToast(message: String) {
             showToast(message)
         }
 

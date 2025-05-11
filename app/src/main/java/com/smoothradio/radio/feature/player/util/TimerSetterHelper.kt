@@ -1,7 +1,6 @@
 package com.smoothradio.radio.feature.player.util
 
 import android.content.Intent
-import android.view.View
 import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.fragment.app.FragmentActivity
@@ -28,23 +27,21 @@ class TimerSetterHelper(
         val calendar = Calendar.getInstance()
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val minute = calendar.get(Calendar.MINUTE)
-        time1 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
+        val time1 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
 
         val picker = MaterialTimePicker.Builder()
             .setTimeFormat(TimeFormat.CLOCK_12H)
             .setHour(hour)
             .setMinute(minute)
             .setTitleText("Set Time To Turn Off Radio")
-            .build()
-
-        picker.show(fragmentActivity.supportFragmentManager, "SetTimerFrag")
-
-        picker.addOnPositiveButtonClickListener {
-            handleTimerSet(picker)
-        }
+            .build().apply {
+                show(fragmentActivity.supportFragmentManager, "SetTimerFrag")
+                addOnPositiveButtonClickListener { handleTimerSet(this, time1) }
+            }
     }
 
-    private fun handleTimerSet(picker: MaterialTimePicker) {
+
+    private fun handleTimerSet(picker: MaterialTimePicker, time1: String) {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, picker.hour)
             set(Calendar.MINUTE, picker.minute)
@@ -52,31 +49,33 @@ class TimerSetterHelper(
         }
 
         val timeInMillis = calendar.timeInMillis
-        setTimerIntent.putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
-        setTimerIntent.action = StreamService.ACTION_SET_TIMER
-        setTimerIntent.setPackage(fragmentActivity.packageName)
+        val setTimerIntent = Intent().apply {
+            putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+            action = StreamService.ACTION_SET_TIMER
+            setPackage(fragmentActivity.packageName)
+        }
         fragmentActivity.sendBroadcast(setTimerIntent)
 
-        time2 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
-        showTimeDifference()
+        val time2 = android.text.format.DateFormat.getTimeFormat(fragmentActivity).format(calendar.time)
+
+        showTimeDifference(time1, time2)
     }
 
-    private fun showTimeDifference() {
+    private fun showTimeDifference(time1: String, time2: String) {
         try {
-            val simpleDateFormat = SimpleDateFormat("hh:mm:ss aa", Locale.getDefault())
-            val date1: Date? = simpleDateFormat.parse(time1 ?: "")
-            val date2: Date? = simpleDateFormat.parse(time2 ?: "")
+            val sdf = SimpleDateFormat("hh:mm:ss aa", Locale.getDefault())
+            val date1 = sdf.parse(time1)
+            val date2 = sdf.parse(time2)
 
             if (date1 != null && date2 != null) {
-                val differenceInMillis = kotlin.math.abs(date2.time - date1.time)
-
-                val hours = TimeUnit.MILLISECONDS.toHours(differenceInMillis)
-                val minutes = TimeUnit.MILLISECONDS.toMinutes(differenceInMillis) % 60
-                val seconds = TimeUnit.MILLISECONDS.toSeconds(differenceInMillis) % 60
+                val diffMillis = kotlin.math.abs(date2.time - date1.time)
+                val hours = TimeUnit.MILLISECONDS.toHours(diffMillis)
+                val minutes = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60
+                val seconds = TimeUnit.MILLISECONDS.toSeconds(diffMillis) % 60
 
                 Snackbar.make(
                     coordinatorLayout,
-                    "Radio will Stop after $hours Hours $minutes Minutes $seconds Seconds.",
+                    "Radio will stop after $hours Hours $minutes Minutes $seconds Seconds.",
                     Snackbar.LENGTH_LONG
                 ).show()
             }
@@ -84,4 +83,5 @@ class TimerSetterHelper(
             Toast.makeText(fragmentActivity, "Failed to parse time", Toast.LENGTH_SHORT).show()
         }
     }
+
 }

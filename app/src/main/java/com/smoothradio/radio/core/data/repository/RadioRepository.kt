@@ -21,11 +21,7 @@ class RadioRepository @Inject constructor(
         dao.updatePlayingStation(id)
     }
 
-    suspend fun insertStations(stations: List<RadioStation>) {
-        dao.insertStations(stations)
-    }
+    suspend fun insertStations(stations: List<RadioStation>) = dao.insertStations(stations)
 
-    suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
-        dao.updateFavoriteStatus(id, isFav)
-    }
+    suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) = dao.updateFavoriteStatus(id, isFav)
 }

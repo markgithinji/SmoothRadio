@@ -1,9 +1,10 @@
 [versions]
-agp = "8.9.1"
+activityKtx = "1.10.1"
+agp = "8.9.2"
 coordinatorlayout = "1.3.0"
 datastorePreferences = "1.1.5"
 exoplayer = "2.19.1"
-facebook = "6.19.0.1"
+facebook = "6.20.0.0"
 hiltCompiler = "2.55"
 hiltCompilerVersion = "2.56.2"
 ksp = "2.1.20-2.0.1"
@@ -16,10 +17,10 @@ coreSplashscreen = "1.1.0-rc01"
 fragmentTesting = "1.8.6"
 legacySupportV4 = "1.0.0"
 media = "1.7.0"
-navigationFragmentKtx = "2.8.9"
+navigationFragmentKtx = "2.9.0"
 
 # Google & Firebase
-firebaseBom = "33.12.0"
+firebaseBom = "33.13.0"
 google-services = "4.4.2"
 material = "1.12.0"
 firebaseCrashlytics = "3.0.3"
@@ -43,7 +44,7 @@ junit = "4.13.2"
 junitVersion = "1.2.1"
 junitJupiter = "5.12.0"
 playServicesAds = "24.2.0"
-robolectric = "4.14"
+robolectric = "4.14.1"
 roomRuntime = "2.7.1"
 rules = "1.6.1"
 runner = "1.6.2"
@@ -57,7 +58,7 @@ baselineprofile = "1.3.4"
 profileinstaller = "1.4.1"
 
 # Lifecycle
-lifecycle = "2.8.7"
+lifecycle = "2.9.0"
 coreKtx = "1.16.0"
 userMessagingPlatform = "3.2.0"
 
@@ -65,12 +66,14 @@ userMessagingPlatform = "3.2.0"
 
 [libraries]
 # AndroidX Core
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityKtx" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 androidx-coordinatorlayout = { module = "androidx.coordinatorlayout:coordinatorlayout", version.ref = "coordinatorlayout" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-core-testing = { module = "androidx.arch.core:core-testing", version.ref = "coreTesting" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentTesting" }
 androidx-fragment-testing = { module = "androidx.fragment:fragment-testing", version.ref = "fragmentTesting" }
 androidx-fragment-testing-manifest = { module = "androidx.fragment:fragment-testing-manifest", version.ref = "fragmentTesting" }
 androidx-legacy-support-v4 = { module = "androidx.legacy:legacy-support-v4", version.ref = "legacySupportV4" }
