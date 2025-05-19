@@ -24,5 +24,19 @@
     <string name="stopped">Stopped</string>
 
     <string name="paused">Paused</string>
+    <string name="error_no_links_found">No stream links found.</string>
+    <string name="error_loading_links">Failed to load stream links: %1$s</string>
+    <string name="loading_links">Loading stream links…</string>
+    <string name="toast_refreshed">Refreshed!</string>
+    <string name="toast_check_internet">Check Internet</string>
+    <string name="toast_ad_load_fail">Please check your internet and try again</string>
+    <string name="added_to_favorites">Added to favorites: %1$s</string>
+    <string name="removed_from_favorites">Removed from favorites: %1$s</string>
+    <string name="set_timer_title">Set Time To Turn Off Radio</string>
+    <string name="radio_stop_time">Radio will stop after %1$d Hours %2$d Minutes %3$d Seconds.</string>
+    <string name="time_parse_error">Failed to parse time</string>
+    <string name="tab_stations">STATIONS</string>
+    <string name="tab_live">LIVE</string>
+    <string name="tab_discover">DISCOVER</string>
 
 </resources>

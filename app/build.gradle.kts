@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
-
+    alias(libs.plugins.ktlint)
 }
 
 android {
@@ -20,6 +20,7 @@ android {
         targetSdk = 35
         versionCode = 17
         versionName = "2.10"
+        testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
     buildTypes {
@@ -52,28 +53,33 @@ android {
         jvmTarget = "11"
     }
 }
+ktlint {
+    android = true
+}
+tasks.named("build") {
+    dependsOn("ktlintCheck")
+}
+
 
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.legacy.support.v4)
-    implementation (libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.coordinatorlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)
-    implementation (libs.androidx.fragment.ktx)
-    implementation (libs.androidx.activity.ktx)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.media)
 
-
-    implementation(libs.exoplayer)
+    implementation(libs.androidx.media3.exoplayer)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
-    ksp(libs.androidx.room.compiler)
 
-    implementation (libs.hilt.android)
-    kapt (libs.hilt.compiler)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 
     implementation(libs.play.services.ads)
     implementation(libs.facebook)
@@ -84,6 +90,24 @@ dependencies {
     implementation(libs.google.firebase.analytics)
     implementation(libs.google.firebase.firestore)
 
+    testImplementation(libs.junit)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.jetbrains.kotlinx.coroutines.test)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.truth)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+
+    androidTestImplementation(libs.hilt.android.testing)
+    kaptAndroidTest(libs.hilt.compiler)
+    androidTestImplementation(libs.jetbrains.kotlinx.coroutines.test)
+    androidTestImplementation(libs.mockito.android)
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation (libs.androidx.espresso.contrib)
+    androidTestImplementation(libs.androidx.junit)
+    debugImplementation(libs.androidx.espresso.intents) // set to debug impl due to known bugs
+    debugImplementation(libs.androidx.fragment.testing) // set to debug impl due to known bugs
 
 
 }
