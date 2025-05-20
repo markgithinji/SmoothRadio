@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Smooth Radio"
 include(":app")
+include(":baselineprofile")

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -29,6 +30,11 @@ android {
             applicationIdSuffix = ".debug"  // Enables simultaneous installation
             isMinifyEnabled = false
             isShrinkResources = false
+        }
+        create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
         release {
             isDebuggable = false
@@ -76,6 +82,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
 
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
@@ -106,6 +114,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation (libs.androidx.espresso.contrib)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.uiautomator)
     debugImplementation(libs.androidx.espresso.intents) // set to debug impl due to known bugs
     debugImplementation(libs.androidx.fragment.testing) // set to debug impl due to known bugs
 
