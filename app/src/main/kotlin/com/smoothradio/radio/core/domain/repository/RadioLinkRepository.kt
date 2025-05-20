@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.data.repository
+package com.smoothradio.radio.core.domain.repository
 
 import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.flow.Flow

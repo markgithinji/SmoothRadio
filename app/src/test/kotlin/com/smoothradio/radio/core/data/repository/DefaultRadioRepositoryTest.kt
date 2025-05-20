@@ -2,7 +2,7 @@ package com.smoothradio.radio.core.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest

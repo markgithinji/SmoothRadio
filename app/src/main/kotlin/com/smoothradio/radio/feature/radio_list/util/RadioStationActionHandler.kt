@@ -1,6 +1,6 @@
-package com.smoothradio.radio.feature.discover.ui.adapter
+package com.smoothradio.radio.feature.radio_list.util
 
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 interface RadioStationActionHandler {
     fun onStationSelected(station: RadioStation)

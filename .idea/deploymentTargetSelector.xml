@@ -13,16 +13,19 @@
         </DropdownSelection>
         <DialogSelection />
       </SelectionState>
-      <SelectionState runConfigName="PlayerFragmentTest">
+      <SelectionState runConfigName="sortAZ_shouldShowChristianBeforeMixxRadio_skippingAd()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="TimerSetterHelperEspressoTest">
+      <SelectionState runConfigName="search_shouldFilterAndShowMatchingStation()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="shouldShowLoadingAnimation_whenBuffering()">
+      <SelectionState runConfigName="search_noMatch_shouldShowEmptyState()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="RadioListFragmentTest">
+      <SelectionState runConfigName="clickIvPlayInsideHopeFmItem_shouldTriggerPlayback()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="bufferingState_shouldShowLoadingInMiniPlayer()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

@@ -1,6 +1,6 @@
-package com.smoothradio.radio.feature.radio_list.util
+package com.smoothradio.radio.feature.radio_list.ui.adapter.util
 
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 object StationSortHelper {
 

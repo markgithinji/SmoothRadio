@@ -18,14 +18,18 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.service.StreamService
+import javax.inject.Singleton
 
-class PlayerManager(private val activity: Activity) {
+@Singleton
+class PlayerManager() {
 
-    private val serviceIntent = Intent(activity, StreamService::class.java)
-    private val eventIntent =
-        Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(activity.packageName)
+    private var activity: Activity? = null
+
+    private lateinit var serviceIntent: Intent
+    private lateinit var eventIntent: Intent
+    private var isReceiverRegistered: Boolean = false
     private val eventReceiver: BroadcastReceiver = EventReceiver()
 
     private var interstitialAd: InterstitialAd? = null
@@ -37,12 +41,34 @@ class PlayerManager(private val activity: Activity) {
 
     private var state: String = ""
 
-    companion object {
-        private const val MAX_AD_LOAD_ATTEMPTS = 2
+
+    fun bindActivity(activity: Activity) {
+        this.activity = activity
+        setupBroadcastReceiver()
     }
 
-    init {
-        setupBroadcastReceiver()
+    private fun setupBroadcastReceiver() {
+        if (isReceiverRegistered) return
+
+        serviceIntent = Intent(activity, StreamService::class.java)
+        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(activity?.packageName)
+
+        val eventFilter = IntentFilter().apply {
+            addAction(StreamService.ACTION_EVENT_CHANGE)
+        }
+
+        activity?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                it.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                it.registerReceiver(eventReceiver, eventFilter)
+            }
+            isReceiverRegistered = true
+        }
+    }
+
+    fun unbindActivity() {
+        activity = null
     }
 
     fun setRadioStation(radioStation: RadioStation) {
@@ -57,7 +83,7 @@ class PlayerManager(private val activity: Activity) {
         startStreamService()
         loadInterstitialAd()
         checkInternet()
-        showToast(activity.getString(R.string.toast_refreshed))
+        activity?.let { showToast(it.getString(R.string.toast_refreshed)) }
     }
 
     fun playFromMainActivity() {
@@ -83,7 +109,7 @@ class PlayerManager(private val activity: Activity) {
 
     fun playOrStop() {
         if (isPlaying) {
-            activity.stopService(serviceIntent)
+            activity?.stopService(serviceIntent)
             return
         }
 
@@ -99,9 +125,9 @@ class PlayerManager(private val activity: Activity) {
 
     private fun startStreamService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activity.startForegroundService(serviceIntent)
+            activity?.startForegroundService(serviceIntent)
         } else {
-            activity.startService(serviceIntent)
+            activity?.startService(serviceIntent)
         }
     }
 
@@ -113,21 +139,23 @@ class PlayerManager(private val activity: Activity) {
         }
 
         val adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(
-            activity,
-            "ca-app-pub-979942",
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
-                    if (isPlaying) showAd()
-                }
+        activity?.let {
+            InterstitialAd.load(
+                it,
+                "ca-app-pub-",
+                adRequest,
+                object : InterstitialAdLoadCallback() {
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        interstitialAd = ad
+                        if (isPlaying) showAd()
+                    }
 
-                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    interstitialAd = null
-                    handleAdLoadFailure(loadAdError)
-                }
-            })
+                    override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                        interstitialAd = null
+                        handleAdLoadFailure(loadAdError)
+                    }
+                })
+        }
     }
 
     private fun showAd() {
@@ -137,7 +165,7 @@ class PlayerManager(private val activity: Activity) {
         }
 
         isShowingAd = true
-        ad.show(activity)
+        activity?.let { ad.show(it) }
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
                 interstitialAd = null
@@ -149,7 +177,7 @@ class PlayerManager(private val activity: Activity) {
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 interstitialAd = null
                 isShowingAd = false
-                activity.stopService(serviceIntent)
+                activity?.stopService(serviceIntent)
             }
         }
     }
@@ -171,47 +199,49 @@ class PlayerManager(private val activity: Activity) {
             return
         }
 
-        activity.stopService(serviceIntent)
+        activity?.stopService(serviceIntent)
         state = ""
         broadcastState(state)
         isShowingAd = false
         adFailedCountdown = 0
-        showToast(activity.getString(R.string.toast_ad_load_fail))
+        activity?.let { showToast(it.getString(R.string.toast_ad_load_fail)) }
     }
 
     private fun preloadInterstitialAd() {
         if (interstitialAd == null) {
             val adRequest = AdRequest.Builder().build()
-            InterstitialAd.load(
-                activity,
-                "ca-app-pub-9799",
-                adRequest,
-                object : InterstitialAdLoadCallback() {
-                    override fun onAdLoaded(ad: InterstitialAd) {
-                        interstitialAd = ad
-                    }
+            activity?.let {
+                InterstitialAd.load(
+                    it,
+                    "ca-app-pub-",
+                    adRequest,
+                    object : InterstitialAdLoadCallback() {
+                        override fun onAdLoaded(ad: InterstitialAd) {
+                            interstitialAd = ad
+                        }
 
-                    override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                        interstitialAd = null
-                        preloadInterstitialAd()
-                    }
-                })
+                        override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                            interstitialAd = null
+                            preloadInterstitialAd()
+                        }
+                    })
+            }
         }
     }
 
     private fun broadcastState(state: String) {
         eventIntent.putExtra(StreamService.EXTRA_STATE, state)
-        activity.sendBroadcast(eventIntent)
+        activity?.sendBroadcast(eventIntent)
     }
 
     private fun checkInternet() {
-        val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cm = activity?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork
         val capabilities = cm.getNetworkCapabilities(network)
         val connected =
             capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         if (!connected) {
-            showToast(activity.getString(R.string.toast_check_internet))
+            activity?.let { showToast(it.getString(R.string.toast_check_internet)) }
         }
     }
 
@@ -220,18 +250,9 @@ class PlayerManager(private val activity: Activity) {
     }
 
 
-    private fun setupBroadcastReceiver() {
-        val eventFilter = IntentFilter().apply {
-            addAction(StreamService.ACTION_EVENT_CHANGE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            activity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            activity.registerReceiver(eventReceiver, eventFilter)
-        }
-    }
     fun unregisterBroadcastReceiver() {
-        activity.unregisterReceiver(eventReceiver)
+        activity?.unregisterReceiver(eventReceiver)
+        isReceiverRegistered = false
     }
 
     inner class EventReceiver : BroadcastReceiver() {
@@ -249,4 +270,9 @@ class PlayerManager(private val activity: Activity) {
             }
         }
     }
+
+    companion object {
+        private const val MAX_AD_LOAD_ATTEMPTS = 2
+    }
+
 }

@@ -8,6 +8,7 @@ import androidx.room.concurrent.AtomicBoolean
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso
 import androidx.test.espresso.Espresso.onIdle
+import androidx.test.espresso.IdlingPolicies
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.IdlingResource
 import androidx.test.ext.junit.rules.ActivityScenarioRule
@@ -15,7 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.HiltTestActivity
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.testutil.PlayerIdleResource
 import com.smoothradio.radio.testutil.PlayerStateTracker
@@ -25,10 +26,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -40,21 +44,32 @@ class PlayerManagerIntegrationTest {
     @get:Rule(order = 1)
     val activityRule = ActivityScenarioRule(HiltTestActivity::class.java)
 
+    @Inject
+    lateinit var playerManager: PlayerManager
+
     @Before
     fun setup() {
         hiltRule.inject()
+        PlayerStateTracker.clearListener()
+        IdlingPolicies.setIdlingResourceTimeout(60, TimeUnit.SECONDS)
+    }
+
+    @After
+    fun tearDown() {
+        playerManager.unbindActivity()
+        PlayerStateTracker.clearListener()
     }
 
 
     @Test
-    fun playLifecycle_shouldEmitPreparingThenPlayingThenEnded() {
-        val receivedStates = mutableListOf<String>()
+    fun playLifecycle_shouldEmitPreparingThenPlayingThenIdle() {
         val context = ApplicationProvider.getApplicationContext<Context>()
+        val receivedStates = mutableListOf<String>()
 
+        // Listen for state broadcasts
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                val state = intent?.getStringExtra(StreamService.EXTRA_STATE)
-                if (state != null) {
+                intent?.getStringExtra(StreamService.EXTRA_STATE)?.let { state ->
                     receivedStates.add(state)
                     PlayerStateTracker.updateState(state)
                 }
@@ -67,13 +82,10 @@ class PlayerManagerIntegrationTest {
             Context.RECEIVER_NOT_EXPORTED
         )
 
-        // Track PLAYING
-        val playingIdle = PlayerIdleResource(setOf(StreamService.StreamStates.PLAYING))
-        IdlingRegistry.getInstance().register(playingIdle)
-
+        // 1. Bind activity + start playback
         activityRule.scenario.onActivity { activity ->
-            val manager = PlayerManager(activity)
-            manager.setRadioStation(
+            playerManager.bindActivity(activity)
+            playerManager.setRadioStation(
                 RadioStation(
                     id = 1,
                     logoResource = R.drawable.hopefm,
@@ -85,43 +97,43 @@ class PlayerManagerIntegrationTest {
                     isFavorite = false
                 )
             )
-            manager.playOrStop()
+            playerManager.playOrStop()
         }
 
-        // Wait for PLAYING
+        // 2. Wait for PLAYING
+        val playingIdle = PlayerIdleResource(setOf(StreamService.StreamStates.PLAYING))
+        IdlingRegistry.getInstance().register(playingIdle)
         onIdle()
-
         IdlingRegistry.getInstance().unregister(playingIdle)
+
         PlayerStateTracker.clearListener()
 
-        // Now track IDLE (END)
+        // 3. Trigger STOP
         val idleIdle = PlayerIdleResource(setOf(StreamService.StreamStates.IDLE))
         IdlingRegistry.getInstance().register(idleIdle)
 
-        activityRule.scenario.onActivity { activity ->
-            val manager = PlayerManager(activity)
-            manager.playOrStop() // stop it
+        activityRule.scenario.onActivity {
+            playerManager.playOrStop()
         }
 
-        // Wait for IDLE
         onIdle()
-
         IdlingRegistry.getInstance().unregister(idleIdle)
-        PlayerStateTracker.clearListener()
         context.unregisterReceiver(receiver)
 
-        assertThat(receivedStates).containsAtLeast(
-            StreamService.StreamStates.PREPARING,
-            StreamService.StreamStates.PLAYING,
-            StreamService.StreamStates.IDLE
-        )
+        // Truth assertions
+        assertThat(receivedStates)
+            .containsAtLeast(
+                StreamService.StreamStates.PREPARING,
+                StreamService.StreamStates.PLAYING,
+                StreamService.StreamStates.IDLE
+            )
+            .inOrder()
     }
-
 
     @Test
     fun playOrStop_shouldSetIsShowingAdTrueImmediately() {
         activityRule.scenario.onActivity { activity ->
-            val playerManager = PlayerManager(activity)
+            playerManager.bindActivity(activity)
             playerManager.setRadioStation(
                 RadioStation(1, 0, "Ad FM", "99.9", "City", "http://stream", false, false)
             )
@@ -136,7 +148,7 @@ class PlayerManagerIntegrationTest {
     @Test
     fun refresh_shouldSetIsShowingAdTrueImmediately() {
         activityRule.scenario.onActivity { activity ->
-            val playerManager = PlayerManager(activity)
+            playerManager.bindActivity(activity)
             playerManager.setRadioStation(
                 RadioStation(2, 0, "Ad Refresh", "88.8", "City", "http://stream", false, false)
             )
@@ -170,7 +182,8 @@ class PlayerManagerIntegrationTest {
         )
 
         activityRule.scenario.onActivity { activity ->
-            val manager = PlayerManager(activity)
+            playerManager.bindActivity(activity)
+            val manager = PlayerManager()
             val idlingResource = PlayerManagerIdlingResource(
                 manager,
                 setOf(StreamService.StreamStates.PLAYING, StreamService.StreamStates.IDLE)

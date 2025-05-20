@@ -7,8 +7,11 @@ import com.smoothradio.radio.core.data.local.AppDatabase
 import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
-import com.smoothradio.radio.core.data.repository.RadioLinkRepository
-import com.smoothradio.radio.core.data.repository.RadioRepository
+import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
+import com.smoothradio.radio.core.util.PlayerManager
+import com.smoothradio.radio.feature.radio_list.usecase.DefaultProcessRemoteLinksUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,6 +35,18 @@ class AppModule {
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    @Provides
+    @Singleton
+    fun providePlayerManager() = PlayerManager()
+
+    @Provides
+    @Singleton
+    fun provideProcessRemoteLinksUseCase(
+        radioRepository: RadioRepository
+    ): ProcessRemoteLinksUseCase {
+        return DefaultProcessRemoteLinksUseCase(radioRepository)
+    }
 
     @Provides
     @Singleton

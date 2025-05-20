@@ -8,8 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
-import com.smoothradio.radio.feature.radio_list.ui.RadioListFragment
 import com.smoothradio.radio.feature.player.ui.PlayerFragment
+import com.smoothradio.radio.feature.radio_list.ui.RadioListFragment
 
 class ViewPagerAdapter(
     fragmentManager: FragmentManager,
@@ -43,6 +43,10 @@ class ViewPagerAdapter(
         }.onFailure {
             Log.e("ViewPagerAdapter", "Failed to adjust touch slop", it)
         }
+    }
+
+    fun getRadioListFragment(): RadioListFragment? {
+        return fragments.getOrNull(0) as? RadioListFragment
     }
 
     override fun createFragment(position: Int): Fragment = fragments[position]

@@ -1,8 +1,9 @@
 package com.smoothradio.radio.feature.discover.util
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.model.Category
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.Category
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.feature.discover.ui.adapter.util.CategoryDiffUtilCallback
 import kotlin.test.Test
 
 class CategoryDiffUtilCallbackTest {

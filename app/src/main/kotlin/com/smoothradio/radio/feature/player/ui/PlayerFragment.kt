@@ -10,7 +10,6 @@ import android.transition.TransitionManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -19,11 +18,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.ads.AdRequest
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.FragmentPlayerBinding
@@ -31,9 +29,13 @@ import com.smoothradio.radio.feature.player.util.TimerSetterHelper
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerFragment : Fragment() {
+
+    @Inject
+    lateinit var playerManager: PlayerManager
 
     private var _binding: FragmentPlayerBinding? = null
     private val binding get() = _binding!!
@@ -42,9 +44,6 @@ class PlayerFragment : Fragment() {
     private lateinit var fragmentActivity: FragmentActivity
 
     private lateinit var radioViewModel: RadioViewModel
-
-    private val playerManager: PlayerManager?
-        get() = mainActivity?.playerManager
 
     private lateinit var eventIntent: Intent
 
@@ -63,7 +62,6 @@ class PlayerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
         eventIntent =
             Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
@@ -114,14 +112,16 @@ class PlayerFragment : Fragment() {
     private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                radioViewModel.playingStation.collect { radioStation ->
-                    currentStation = radioStation ?: getDefaultStation()
+                launch {
+                    radioViewModel.playingStation.collect { radioStation ->
+                        radioStation?.let { station ->
+                            currentStation = station
+                            playerManager.setRadioStation(station)
 
-                    Toast.makeText(requireContext(), "" + currentStation, Toast.LENGTH_SHORT).show()
-                    currentStation?.let { station ->
-                        binding.apply {
-                            ivLargeLogo.setImageResource(station.logoResource)
-                            tvStationNamePlayerFrag.text = station.stationName
+                            with(binding) {
+                                ivLargeLogo.setImageResource(station.logoResource)
+                                tvStationNamePlayerFrag.text = station.stationName
+                            }
                         }
                     }
                 }
@@ -129,36 +129,12 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    private fun getDefaultStation(): RadioStation {
-        val stationId = 0
-        val adapter = mainActivity?.radioListRecyclerViewAdapter
-
-        val position = adapter?.getPositionOfStation(stationId) ?: return emptyStation()
-
-        return if (!adapter.listIsEmpty() && position != RecyclerView.NO_POSITION) {
-            adapter.getStationAtPosition(position)
-        } else {
-            emptyStation()
-        }
-    }
-
-    private fun emptyStation() = RadioStation(
-        id = 0,
-        logoResource = 0,
-        stationName = "",
-        frequency = "",
-        location = "",
-        streamLink = "",
-        isPlaying = true,
-        isFavorite = false
-    )
-
-
     override fun onResume() {
         super.onResume()
 
-        val isShowingAd = mainActivity?.playerManager?.isShowingAd ?: false
+        playerManager.bindActivity(fragmentActivity)
 
+        val isShowingAd = playerManager.isShowingAd
         if (isShowingAd) {
             state = StreamService.StreamStates.PREPARING
             broadcastState(state)
@@ -167,7 +143,11 @@ class PlayerFragment : Fragment() {
                 Intent(StreamService.ACTION_GET_STATE).setPackage(requireContext().packageName)
             requireContext().sendBroadcast(getStateFromServiceIntent)
         }
+    }
 
+    override fun onPause() {
+        super.onPause()
+        playerManager.unbindActivity()
     }
 
     private fun broadcastState(state: String) {
@@ -202,18 +182,48 @@ class PlayerFragment : Fragment() {
             state = intent?.getStringExtra(StreamService.EXTRA_STATE) ?: ""
             updateUI()
         }
+
+        private fun updateUI() = with(binding) {
+            TransitionManager.beginDelayedTransition(playerFrag)
+
+            tvProgress.text = state
+            lottieLoadingAnimation.isInvisible = true
+            equalizerAnimation.isInvisible = true
+            tvMetadata.text = ""
+            ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
+
+            when (state) {
+                StreamService.StreamStates.PREPARING,
+                StreamService.StreamStates.BUFFERING -> {
+                    lottieLoadingAnimation.isVisible = true
+                }
+
+                StreamService.StreamStates.PLAYING -> {
+                    equalizerAnimation.isVisible = true
+                    ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
+                }
+
+                StreamService.StreamStates.ENDED,
+                StreamService.StreamStates.IDLE -> { /* no-op */
+                }
+
+                else -> {
+                    tvProgress.text = ""
+                    tvMetadata.text = ""
+                }
+            }
+        }
     }
 
     inner class Refresh : View.OnClickListener {
         override fun onClick(view: View?) {
-            playerManager?.refresh()
+            playerManager.refresh()
         }
     }
 
     inner class PlayButtonListener : View.OnClickListener {
         override fun onClick(view: View?) {
             val station = currentStation ?: return
-
             radioViewModel.setSelectedStation(station)
         }
     }
@@ -224,41 +234,11 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    private fun updateUI() = with(binding) {
-        TransitionManager.beginDelayedTransition(playerFrag)
-
-        tvProgress.text = state
-        lottieLoadingAnimation.isInvisible = true
-        equalizerAnimation.isInvisible = true
-        tvMetadata.text = ""
-        ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
-
-        when (state) {
-            StreamService.StreamStates.PREPARING,
-            StreamService.StreamStates.BUFFERING -> {
-                lottieLoadingAnimation.isVisible = true
-            }
-
-            StreamService.StreamStates.PLAYING -> {
-                equalizerAnimation.isVisible = true
-                ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
-            }
-
-            StreamService.StreamStates.ENDED,
-            StreamService.StreamStates.IDLE -> { /* no-op */
-            }
-
-            else -> {
-                tvProgress.text = ""
-                tvMetadata.text = ""
-            }
-        }
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
         fragmentActivity.unregisterReceiver(eventReceiver)
         fragmentActivity.unregisterReceiver(metadataReceiver)
+        playerManager.unregisterBroadcastReceiver()
     }
 }

@@ -3,9 +3,10 @@ package com.smoothradio.radio.core.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.smoothradio.radio.core.data.repository.RadioLinkRepository
-import com.smoothradio.radio.core.data.repository.RadioRepository
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +24,8 @@ import javax.inject.Inject
 class RadioViewModel @Inject constructor(
     application: Application,
     private val radioLinkRepository: RadioLinkRepository,
-    private val radioRepository: RadioRepository
+    private val radioRepository: RadioRepository,
+    private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase
 ) : AndroidViewModel(application) {
 
     val allStations = radioRepository.allStations
@@ -45,6 +47,12 @@ class RadioViewModel @Inject constructor(
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
+    fun observeRemoteLinks() {
+        viewModelScope.launch {
+            remoteLinks.collect { processRemoteLinksUseCase(it) }
+        }
+    }
+
     // Radio Station Logic
     fun savePlayingStationId(id: Int) {
         viewModelScope.launch {
@@ -63,12 +71,14 @@ class RadioViewModel @Inject constructor(
             radioRepository.updateFavoriteStatus(id, isFav)
         }
     }
+
     // Player Logic
     fun setSelectedStation(station: RadioStation?) {
         viewModelScope.launch {
             _selectedStation.emit(station)
         }
     }
+
     // ViewPager Current Page Logic
     fun setCurrentPage(page: Int) {
         _currentPage.value = page

@@ -1,20 +1,42 @@
 package com.smoothradio.radio
 
+import android.content.Context
+import android.content.Intent
+import android.view.View
+import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.typeText
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.contrib.RecyclerViewActions
+import androidx.test.espresso.matcher.ViewMatchers
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.espresso.util.TreeIterables
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import com.google.android.material.tabs.TabLayout
+import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.di.AppModule
+import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
+import org.hamcrest.Description
+import org.hamcrest.Matcher
+import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.anyOf
+import org.hamcrest.Matchers.containsString
+import org.hamcrest.TypeSafeMatcher
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -62,11 +84,144 @@ class MainActivityEspressoTest {
     }
 
     @Test
-    fun clickingSortMenu_opensSortDialog() {
+    fun sortAZ_shouldShowChristianBeforeMixxRadio_skippingAd() {
+
         openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext())
-        onView(withText("Sort")).perform(click())
-        onView(withText("Sort By:")).check(matches(isDisplayed()))
+        onView(withText("sort")).perform(click())
+        onView(withText("A-Z")).perform(click())
+
+        // Assert that "560 CHRISTIAN RADIO" appears above "560 MIXX RADIO"
+        onView(withId(R.id.rv_radio_list)).check(
+            matches(
+                isDisplayingBefore(
+                    hasDescendant(withText("560 CHRISTIAN RADIO")),
+                    hasDescendant(withText("560 MIXX RADIO"))
+                )
+            )
+        )
     }
+
+
+    @Test
+    fun sortZA_shouldShowXpressRadioBeforeXaticFm() {
+
+        openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext())
+        onView(withText("sort")).perform(click())
+        onView(withText("Z-A")).perform(click())
+
+        onView(withId(R.id.rv_radio_list)).check(matches(isDisplayingBefore(
+            hasDescendant(withText("XPRESS RADIO")),
+            hasDescendant(withText("XATIC FM"))
+        )))
+    }
+
+    @Test
+    fun onReceive_eventIntent_shouldUpdateMiniPlayerStatus() {
+
+        val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
+            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING)
+        }
+        ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
+
+        onView(withId(R.id.tvStatusMiniPlayerLayout)).check(matches(withText(StreamService.StreamStates.PLAYING)))
+    }
+
+    @Test
+    fun onCreate_shouldSetupTabsCorrectly() {
+
+        onView(allOf(withText("STATIONS"), isDescendantOfA(withId(R.id.tabLayout))))
+            .check(matches(isDisplayed()))
+
+        onView(allOf(withText("LIVE"), isDescendantOfA(withId(R.id.tabLayout))))
+            .check(matches(isDisplayed()))
+
+        onView(allOf(withText("DISCOVER"), isDescendantOfA(withId(R.id.tabLayout))))
+            .check(matches(isDisplayed()))
+    }
+    @Test
+    fun search_shouldFilterAndShowMatchingStation() {
+
+        // Click the search icon
+        onView(withId(R.id.ivSearch)).perform(click())
+
+        // Type "Hope" into the search field
+        onView(withId(R.id.etSearch)).perform(typeText("Hope"), closeSoftKeyboard())
+
+        // Check that a station named "Hope FM" appears
+        onView(withId(R.id.rv_radio_list))
+            .check(matches(hasDescendant(withText(containsString("HOPE FM")))))
+    }
+
+    @Test
+    fun bufferingState_shouldShowLoadingInMiniPlayer() {
+
+        // Simulate service broadcast with BUFFERING state
+        val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
+            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.BUFFERING)
+        }
+        ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
+
+        // Mini-player should show "Buffering"
+        onView(withId(R.id.tvStatusMiniPlayerLayout))
+            .check(matches(withText("Buffering")))
+
+        // Loading animation visible, play icon hidden
+        onView(withId(R.id.loadingAnimationMiniPlayerLayout))
+            .check(matches(isDisplayed()))
+
+        onView(withId(R.id.ivPlayMiniPlayerLayout)).check(matches(isGoneOrInvisible()))
+
+    }
+
+
+    @Test
+    fun clickIvPlayInsideHopeFmItem_shouldTriggerPlayback() {
+
+        // Scroll to "Hope FM" and click the play button inside its item
+        onView(withId(R.id.rv_radio_list))
+            .perform(
+                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+                    hasDescendant(withText("HOPE FM")),
+                    object : ViewAction {
+                        override fun getConstraints(): Matcher<View> = isAssignableFrom(View::class.java)
+                        override fun getDescription(): String = "Click ivPlay inside Hope FM item"
+                        override fun perform(uiController: UiController?, view: View) {
+                            val playButton = view.findViewById<View>(R.id.ivPlay)
+                            checkNotNull(playButton) { "ivPlay not found in Hope FM item" }
+                            playButton.performClick()
+                        }
+                    }
+                )
+            )
+
+        // Assert mini-player shows "Hope FM"
+        onView(withId(R.id.tvStationNameMiniPlayerLayout))
+            .check(matches(withText("HOPE FM")))
+
+        // Assert mini-player is showing a preparing/playing state
+        onView(withId(R.id.tvStatusMiniPlayerLayout))
+            .check(matches(anyOf(
+                withText(StreamService.StreamStates.PREPARING),
+                withText(StreamService.StreamStates.PLAYING)
+            )))
+    }
+
+
+    @Test
+    fun search_noMatch_shouldShowEmptyState() {
+
+        onView(withId(R.id.ivSearch)).perform(click())
+        onView(withId(R.id.etSearch)).perform(typeText("Zzz"), closeSoftKeyboard())
+
+        // Example: assert empty view or "no results" text is shown
+        onView(withText(containsString("No Stations Found!")))
+            .check(matches(isDisplayed()))
+    }
+
+
+
+
+
 
     @Test
     fun clickingInfoMenu_opensAboutDialog() {
@@ -74,4 +229,43 @@ class MainActivityEspressoTest {
         onView(withText("Info")).perform(click())
         onView(withText("About")).check(matches(isDisplayed()))
     }
+
+    fun isGoneOrInvisible(): Matcher<View> = object : TypeSafeMatcher<View>() {
+        override fun describeTo(description: Description) {
+            description.appendText("view has visibility GONE or INVISIBLE")
+        }
+
+        override fun matchesSafely(view: View): Boolean {
+            return view.visibility == View.GONE || view.visibility == View.INVISIBLE
+        }
+    }
+
+
+    private fun isDisplayingBefore(
+        firstMatcher: Matcher<View>,
+        secondMatcher: Matcher<View>
+    ): Matcher<View> {
+        return object : TypeSafeMatcher<View>() {
+            override fun describeTo(description: Description) {
+                description.appendText("is displaying before")
+            }
+
+            override fun matchesSafely(root: View): Boolean {
+                val first = TreeIterables.breadthFirstViewTraversal(root).firstOrNull { firstMatcher.matches(it) }
+                val second = TreeIterables.breadthFirstViewTraversal(root).firstOrNull { secondMatcher.matches(it) }
+
+                if (first == null || second == null) return false
+
+                val firstLocation = IntArray(2)
+                val secondLocation = IntArray(2)
+                first.getLocationOnScreen(firstLocation)
+                second.getLocationOnScreen(secondLocation)
+
+                return firstLocation[1] < secondLocation[1]
+            }
+        }
+    }
+
+
+
 }

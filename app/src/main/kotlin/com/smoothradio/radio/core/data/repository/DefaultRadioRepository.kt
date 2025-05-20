@@ -1,7 +1,8 @@
 package com.smoothradio.radio.core.data.repository
 
 import com.smoothradio.radio.core.data.local.RadioStationDao
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

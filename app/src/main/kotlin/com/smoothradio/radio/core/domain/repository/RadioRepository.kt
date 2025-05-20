@@ -1,6 +1,6 @@
-package com.smoothradio.radio.core.data.repository
+package com.smoothradio.radio.core.domain.repository
 
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import kotlinx.coroutines.flow.Flow
 
 interface RadioRepository {

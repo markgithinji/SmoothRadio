@@ -1,7 +1,7 @@
 package com.smoothradio.radio.feature.radio_list.util
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import org.junit.Test
 
 class RadioStationsHelperTest {

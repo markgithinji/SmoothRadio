@@ -5,8 +5,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.Category
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.Category
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
 import org.junit.Test

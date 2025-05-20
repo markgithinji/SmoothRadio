@@ -12,7 +12,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -21,12 +20,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter
 import com.smoothradio.radio.core.util.CacheUtil
@@ -34,11 +32,12 @@ import com.smoothradio.radio.core.util.ConsentHelper
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.ActivityMainBinding
 import com.smoothradio.radio.feature.about.ui.AboutFragment
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioStationActionHandler
-import com.smoothradio.radio.feature.radio_list.util.SortDialog
+import com.smoothradio.radio.core.ui.dialog.SortOption
+import com.smoothradio.radio.core.ui.dialog.SortOptionListener
+import com.smoothradio.radio.core.ui.dialog.SortDialog
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -46,7 +45,6 @@ class MainActivity : AppCompatActivity() {
 
     private val eventReceiver: BroadcastReceiver = EventReceiver()
     lateinit var playerManager: PlayerManager
-    lateinit var radioListRecyclerViewAdapter: RadioListRecyclerViewAdapter
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var radioViewModel: RadioViewModel
@@ -78,11 +76,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun initializeComponents() {
         radioViewModel = ViewModelProvider(this)[RadioViewModel::class.java]
-        radioListRecyclerViewAdapter = RadioListRecyclerViewAdapter(
-            mutableListOf(),
-            RadioStationHandler(radioViewModel)
-        )
-        playerManager = PlayerManager(this)
         inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
@@ -97,21 +90,43 @@ class MainActivity : AppCompatActivity() {
         binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener { miniPlayerPlayPause() }
     }
 
+    private fun miniPlayerPlayPause() {
+        lifecycleScope.launch {
+            val station = radioViewModel.playingStation.firstOrNull()
+            station?.let {
+                radioViewModel.setSelectedStation(it)
+            }
+        }
+    }
+
     private fun collectFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Observe for playing station
                 launch {
                     radioViewModel.playingStation.collect { station ->
-                        val currentStation = station ?: getStationUsingSavedId()
-                        lastStationId = currentStation.id
-                        updateMiniPlayer(currentStation)
-                        sendFirebaseAnalytics(currentStation.stationName)
-                        hideKeyboard()
+                        station?.let { currentStation ->
+                            lastStationId = currentStation.id
+                            updateMiniPlayer(currentStation)
+                            sendFirebaseAnalytics(currentStation.stationName)
+                            hideKeyboard()
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun updateMiniPlayer(radioStation: RadioStation) = with(binding.miniPlayer) {
+        ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
+        tvStationNameMiniPlayerLayout.text = radioStation.stationName
+    }
+
+    private fun sendFirebaseAnalytics(stationName: String) {
+        val event = stationName.lowercase().replace(" ", "")
+        val bundle = Bundle().apply {
+            putString("station_name", stationName)
+        }
+        firebaseAnalytics.logEvent(event, bundle)
     }
 
     private fun setupViewPagerAndTabs() {
@@ -187,7 +202,7 @@ class MainActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(editable: Editable) {
-                radioListRecyclerViewAdapter.filter(editable.toString())
+                viewPagerAdapter.getRadioListFragment()?.filterStations(editable.toString())
                 ivClearSearch.isVisible = editable.isNotEmpty()
             }
         })
@@ -195,6 +210,14 @@ class MainActivity : AppCompatActivity() {
         ivClearSearch.setOnClickListener { etSearch.setText("") }
     }
 
+    private fun hideKeyboard() {
+        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
+        binding.apply {
+            etSearch.visibility = View.INVISIBLE
+            ivClearSearch.visibility = View.INVISIBLE
+        }
+        isSearchVisible = false
+    }
 
     private fun setupBroadcastReceiver() {
         val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
@@ -215,9 +238,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        CacheUtil.clearAppCache(this)
         unregisterReceiver(eventReceiver)
-        playerManager.unregisterBroadcastReceiver()
+        CacheUtil.clearAppCache(this)
     }
 
     override fun onPause() {
@@ -238,51 +260,6 @@ class MainActivity : AppCompatActivity() {
             } else {
                 View.INVISIBLE
             }
-    }
-
-    private fun hideKeyboard() {
-        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
-        binding.apply {
-            etSearch.visibility = View.INVISIBLE
-            ivClearSearch.visibility = View.INVISIBLE
-        }
-        isSearchVisible = false
-    }
-
-    private fun updateMiniPlayer(radioStation: RadioStation) = with(binding.miniPlayer) {
-        ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
-        tvStationNameMiniPlayerLayout.text = radioStation.stationName
-    }
-
-    private fun miniPlayerPlayPause() {
-        radioViewModel.setSelectedStation(getStationUsingSavedId())
-    }
-
-    fun getStationUsingSavedId(): RadioStation {
-        var radioStation = RadioStation(
-            id = lastStationId,
-            logoResource = 0,
-            stationName = "",
-            frequency = "",
-            location = "",
-            streamLink = "",
-            isPlaying = true,
-            isFavorite = false
-        )
-        val position = radioListRecyclerViewAdapter.getPositionOfStation(lastStationId)
-
-        if (!(radioListRecyclerViewAdapter.listIsEmpty() || position == RecyclerView.NO_POSITION)) {
-            radioStation = radioListRecyclerViewAdapter.getStationAtPosition(position)
-        }
-        return radioStation
-    }
-
-    private fun sendFirebaseAnalytics(stationName: String) {
-        val event = stationName.lowercase().replace(" ", "")
-        val bundle = Bundle().apply {
-            putString("station_name", stationName)
-        }
-        firebaseAnalytics.logEvent(event, bundle)
     }
 
     private inner class EventReceiver : BroadcastReceiver() {
@@ -332,7 +309,7 @@ class MainActivity : AppCompatActivity() {
                 if (tabPosition != 0) {
                     binding.viewPager.currentItem = 0
                 }
-                SortDialog().show(supportFragmentManager, "dialogueFragment")
+                SortDialog().show(supportFragmentManager, "sortDialog")
                 true
             }
 
@@ -345,30 +322,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-    private inner class RadioStationHandler(
-        private val radioViewModel: RadioViewModel
-    ) : RadioStationActionHandler {
-
-        override fun onStationSelected(station: RadioStation) {
-            radioViewModel.setSelectedStation(station)
-        }
-
-        override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {
-            radioViewModel.updateFavoriteStatus(station.id, isFavorite)
-        }
-
-        override fun onRequestHideKeyboard() {
-            hideKeyboard()
-        }
-
-        override fun onRequestShowToast(message: String) {
-            showToast(message)
-        }
-
-        private fun showToast(message: String) {
-            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+    inner class SortOptionHandler : SortOptionListener {
+        override fun onSortOptionSelected(option: SortOption) {
+            val radioListFragment = viewPagerAdapter.getRadioListFragment()
+            radioListFragment?.let {
+                when (option) {
+                    SortOption.POPULAR -> it.sortByPopularity()
+                    SortOption.ASCENDING -> it.sortByAscending()
+                    SortOption.DESCENDING -> it.sortByDescending()
+                    SortOption.FAVORITES -> it.sortFavorites()
+                }
+            }
         }
     }
-
 }

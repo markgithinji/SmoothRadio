@@ -16,7 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.MainActivity
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.databinding.FragmentDiscoverBinding
 import com.smoothradio.radio.feature.discover.ui.adapter.DiscoverRecyclerViewAdapter
@@ -149,7 +149,7 @@ class DiscoverFragment : Fragment() {
     }
 
     inner class RadioStationActionHandler(private val radioViewModel: RadioViewModel) :
-        com.smoothradio.radio.feature.discover.ui.adapter.RadioStationActionHandler {
+        com.smoothradio.radio.feature.discover.util.RadioStationActionHandler {
         override fun onStationSelected(station: RadioStation) {
             radioViewModel.setSelectedStation(station)
         }

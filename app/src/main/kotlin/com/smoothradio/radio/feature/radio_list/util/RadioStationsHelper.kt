@@ -1,7 +1,7 @@
 package com.smoothradio.radio.feature.radio_list.util
 
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 class RadioStationsHelper {
     companion object {

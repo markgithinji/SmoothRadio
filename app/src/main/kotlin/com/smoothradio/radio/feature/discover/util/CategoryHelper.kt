@@ -1,7 +1,7 @@
 package com.smoothradio.radio.feature.discover.util
 
-import com.smoothradio.radio.core.model.Category
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.Category
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 object CategoryHelper {
 

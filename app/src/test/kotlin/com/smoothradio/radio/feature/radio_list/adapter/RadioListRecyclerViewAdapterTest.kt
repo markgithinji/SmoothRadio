@@ -1,9 +1,9 @@
 package com.smoothradio.radio.feature.radio_list.adapter
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioStationActionHandler
+import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,7 +21,6 @@ class RadioListRecyclerViewAdapterTest {
     private val testHandler = object : RadioStationActionHandler {
         override fun onStationSelected(station: RadioStation) {}
         override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {}
-        override fun onRequestHideKeyboard() {}
         override fun onRequestShowToast(message: String) {}
     }
 

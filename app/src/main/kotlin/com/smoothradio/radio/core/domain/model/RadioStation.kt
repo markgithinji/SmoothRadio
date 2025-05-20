@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.model
+package com.smoothradio.radio.core.domain.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

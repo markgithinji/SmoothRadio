@@ -1,7 +1,7 @@
-package com.smoothradio.radio.feature.discover.util
+package com.smoothradio.radio.feature.discover.ui.adapter.util
 
 import androidx.recyclerview.widget.DiffUtil
-import com.smoothradio.radio.core.model.Category
+import com.smoothradio.radio.core.domain.model.Category
 
 class CategoryDiffUtilCallback(
     private val oldList: List<Category>,

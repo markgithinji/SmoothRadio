@@ -10,14 +10,15 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.ads.AdRequest
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.AdItem
-import com.smoothradio.radio.core.model.ListItem
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.AdItem
+import com.smoothradio.radio.core.domain.model.ListItem
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.AdviewBinding
 import com.smoothradio.radio.databinding.EmptyFavouritiesBinding
 import com.smoothradio.radio.databinding.RadioitemBinding
-import com.smoothradio.radio.feature.radio_list.util.StationDiffUtilCallback
-import com.smoothradio.radio.feature.radio_list.util.StationSortHelper
+import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
+import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
+import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationSortHelper
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
 import com.smoothradio.radio.service.StreamService.StreamStates.PREPARING
@@ -215,8 +216,6 @@ class RadioListRecyclerViewAdapter(
         if (position != RecyclerView.NO_POSITION) notifyItemChanged(position)
     }
 
-    fun listIsEmpty(): Boolean = recyclerViewItems.isEmpty()
-
     fun setState(state: String) {
         this.state = state
     }
@@ -377,6 +376,7 @@ class RadioListRecyclerViewAdapter(
         }
         return modifiedList
     }
+
     private companion object {
         private const val AD_VIEW = 0
         private const val ITEM_VIEW = 1

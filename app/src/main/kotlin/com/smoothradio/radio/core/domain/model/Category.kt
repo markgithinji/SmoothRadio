@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.model
+package com.smoothradio.radio.core.domain.model
 
 class Category(
     val label: String,

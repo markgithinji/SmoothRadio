@@ -4,9 +4,11 @@ import android.app.Application
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.util.RadioStationLinksHelper
 import com.smoothradio.radio.core.util.Resource
+import com.smoothradio.radio.testutils.FakeProcessRemoteLinksUseCase
 import com.smoothradio.radio.testutils.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -28,14 +30,22 @@ class RadioViewModelTest {
     private lateinit var viewModel: RadioViewModel
     private lateinit var fakeRadioRepository: FakeRadioRepository
     private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
+    private lateinit var fakeProcessRemoteLinksUseCase: ProcessRemoteLinksUseCase
+
     private val application: Application = mock()
 
     @Before
     fun setup() {
         fakeRadioRepository = FakeRadioRepository()
         fakeRadioLinkRepository = FakeRadioLinkRepository()
+        fakeProcessRemoteLinksUseCase = FakeProcessRemoteLinksUseCase(fakeRadioRepository)
 
-        viewModel = RadioViewModel(application, fakeRadioLinkRepository, fakeRadioRepository)
+        viewModel = RadioViewModel(
+            application,
+            fakeRadioLinkRepository,
+            fakeRadioRepository,
+            fakeProcessRemoteLinksUseCase
+        )
     }
 
     @Test

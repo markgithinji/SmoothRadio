@@ -2,7 +2,7 @@ package com.smoothradio.radio.feature.discover.util
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 import org.junit.Test
 
 class CategoryHelperTest {

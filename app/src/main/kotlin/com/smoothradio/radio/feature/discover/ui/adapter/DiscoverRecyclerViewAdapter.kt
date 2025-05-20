@@ -6,10 +6,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.smoothradio.radio.core.model.Category
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.Category
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.CategoryitemBinding
-import com.smoothradio.radio.feature.discover.util.CategoryDiffUtilCallback
+import com.smoothradio.radio.feature.discover.ui.adapter.util.CategoryDiffUtilCallback
+import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 
 class DiscoverRecyclerViewAdapter(
     categoryList: List<Category>,

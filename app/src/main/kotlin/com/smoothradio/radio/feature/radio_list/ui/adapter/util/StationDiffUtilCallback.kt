@@ -1,9 +1,9 @@
-package com.smoothradio.radio.feature.radio_list.util
+package com.smoothradio.radio.feature.radio_list.ui.adapter.util
 
 import androidx.recyclerview.widget.DiffUtil
-import com.smoothradio.radio.core.model.AdItem
-import com.smoothradio.radio.core.model.ListItem
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.AdItem
+import com.smoothradio.radio.core.domain.model.ListItem
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 class StationDiffUtilCallback(
     private val oldList: List<ListItem>,

@@ -1,10 +1,9 @@
-package com.smoothradio.radio.feature.radio_list.ui.adapter
+package com.smoothradio.radio.feature.discover.util
 
-import com.smoothradio.radio.core.model.RadioStation
+import com.smoothradio.radio.core.domain.model.RadioStation
 
 interface RadioStationActionHandler {
     fun onStationSelected(station: RadioStation)
     fun onToggleFavorite(station: RadioStation, isFavorite: Boolean)
-    fun onRequestHideKeyboard()
     fun onRequestShowToast(message: String)
 }
