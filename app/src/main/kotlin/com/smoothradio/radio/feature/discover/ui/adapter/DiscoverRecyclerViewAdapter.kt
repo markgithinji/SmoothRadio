@@ -12,6 +12,15 @@ import com.smoothradio.radio.databinding.CategoryitemBinding
 import com.smoothradio.radio.feature.discover.ui.adapter.util.CategoryDiffUtilCallback
 import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 
+/**
+ * Adapter for the RecyclerView that displays a list of categories, each containing a horizontal list of radio stations.
+ *
+ * This adapter manages the display of category labels and delegates the display of radio stations within each category
+ * to a nested [CategoryRecyclerViewAdapter].
+ *
+ * @param categoryList The initial list of [Category] objects to display.
+ * @param radioStationActionHandler An interface for handling actions performed on individual radio stations (e.g., play, favorite).
+ */
 class DiscoverRecyclerViewAdapter(
     categoryList: List<Category>,
     private val radioStationActionHandler: RadioStationActionHandler
@@ -38,17 +47,21 @@ class DiscoverRecyclerViewAdapter(
 
     override fun onBindViewHolder(holder: CategoryItemViewHolder, position: Int) {
         val category = categoryList[position]
-        val recyclerView = holder.binding.rvCategory
-
         holder.binding.tvCategoryLabel.text = category.label
 
-        recyclerView.takeIf { it.adapter == null }?.apply {
-            adapter = categoryAdapters[position]
-            layoutManager = LinearLayoutManager(context, RecyclerView.HORIZONTAL, false)
-            setHasFixedSize(true)
-            if (itemDecorationCount == 0)
-                addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
+        val adapter = categoryAdapters[position]
+        val layoutManager = LinearLayoutManager(holder.itemView.context).apply {
+            orientation = RecyclerView.HORIZONTAL
+        }
 
+        val recyclerView = holder.binding.rvCategory
+        recyclerView.adapter = adapter
+        recyclerView.layoutManager = layoutManager
+        recyclerView.setHasFixedSize(true)
+        if (recyclerView.itemDecorationCount == 0) {
+            recyclerView.addItemDecoration(
+                DividerItemDecoration(recyclerView.context, DividerItemDecoration.VERTICAL)
+            )
         }
 
     }
@@ -67,7 +80,7 @@ class DiscoverRecyclerViewAdapter(
             newCategoryList.map { category ->
                 CategoryRecyclerViewAdapter(
                     category.categoryRadioStationList,
-                    radioStationActionHandler!!
+                    radioStationActionHandler
                 )
             }
         )

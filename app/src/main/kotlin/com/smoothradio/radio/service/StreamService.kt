@@ -367,6 +367,14 @@ class StreamService : Service() {
         }
     }
 
+    /**
+     * BroadcastReceiver responsible for setting a timer to stop music playback.
+     *
+     * This receiver is triggered when an intent with the action to set a stop timer is received.
+     * It schedules an alarm using {@link AlarmManager} to send a broadcast intent
+     * ({@link #stopPlayFromTimerIntent}) at the specified time. This broadcast will then
+     * be handled by another receiver to actually stop the music playback.
+     */
     inner class SetStopTimerReceiver : BroadcastReceiver() {
         private val stopPlayFromTimerIntent = Intent(ACTION_STOP).setPackage(packageName)
 

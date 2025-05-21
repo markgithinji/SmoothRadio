@@ -15,6 +15,20 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/**
+ * Helper class for setting a timer.
+ *
+ * This class provides functionality to display a time picker dialog,
+ * handle the selected time, and send a broadcast to a service to set the timer.
+ * It also displays a Snackbar showing the time difference between the current time
+ * and the set timer time.
+ *
+ * @property fragmentActivity The [FragmentActivity] from which the timer is being set.
+ *                           This is used for accessing resources, the supportFragmentManager,
+ *                           and sending broadcasts.
+ * @property coordinatorLayout The [LinearLayout] (or more generally, a CoordinatorLayout or similar)
+ *                            to which the Snackbar will be anchored.
+ */
 class TimerSetterHelper(
     private val fragmentActivity: FragmentActivity,
     private val coordinatorLayout: LinearLayout

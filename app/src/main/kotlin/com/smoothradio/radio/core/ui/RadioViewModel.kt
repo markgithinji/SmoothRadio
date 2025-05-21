@@ -7,16 +7,12 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
-import com.smoothradio.radio.core.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,17 +25,8 @@ class RadioViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     val allStations = radioRepository.allStations
-
     val playingStation = radioRepository.playingStation
-
     val favoriteStations = radioRepository.favoriteStations
-
-    val remoteLinks: Flow<Resource<List<String>>> = radioLinkRepository
-        .getRemoteStreamLinksFlow()
-        .shareIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-        )
 
     private val _selectedStation = MutableSharedFlow<RadioStation?>(replay = 0)
     val selectedStation: SharedFlow<RadioStation?> = _selectedStation
@@ -47,9 +34,9 @@ class RadioViewModel @Inject constructor(
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    fun observeRemoteLinks() {
+    fun observeAndProcessRemoteLinks() {
         viewModelScope.launch {
-            remoteLinks.collect { processRemoteLinksUseCase(it) }
+            processRemoteLinksUseCase()
         }
     }
 

@@ -22,8 +22,16 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.service.StreamService
 import javax.inject.Singleton
 
+/**
+ * Manages the audio playback, interstitial ads, and communication with the [StreamService].
+ *
+ * This class is a Singleton and handles the lifecycle of the audio stream,
+ * including starting, stopping, and handling ad display. It also manages
+ * the registration and unregistration of a [BroadcastReceiver] to listen for
+ * events from the [StreamService].
+ */
 @Singleton
-class PlayerManager() {
+class PlayerManager {
 
     private var activity: Activity? = null
 

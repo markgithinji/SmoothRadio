@@ -28,6 +28,21 @@ class ViewPagerAdapter(
         adjustTouchSlop()
     }
 
+    /**
+     * Adjusts the touch slop of the ViewPager2's RecyclerView to make it more or less sensitive to swipes.
+     *
+     * <p>Touch slop is the distance a touch can wander before it is considered a scroll or swipe.
+     * By multiplying the default touch slop by {@code swipeSensitivityFactor}, we can control
+     * how easily the ViewPager2 initiates a swipe.
+     *
+     * <p>This method uses reflection to access private fields of {@link ViewPager2} and {@link RecyclerView}.
+     * If these internal implementations change in future Android versions, this method might break.
+     * It includes error handling to log failures if reflection fails.
+     *
+     * <p><b>Note:</b> Modifying internal framework behavior using reflection is generally discouraged
+     * as it can lead to instability and compatibility issues across different Android versions
+     * or devices. Use this approach with caution and be prepared for potential breakage.
+     */
     private fun adjustTouchSlop() {
         runCatching {
             val recyclerViewField = ViewPager2::class.java.getDeclaredField("mRecyclerView").apply {

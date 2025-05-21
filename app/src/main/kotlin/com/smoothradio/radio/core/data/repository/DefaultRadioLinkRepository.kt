@@ -21,6 +21,26 @@ class DefaultRadioLinkRepository @Inject constructor(
 
     private var listenerRegistration: ListenerRegistration? = null
 
+    /**
+     * Retrieves a flow of remote stream links from Firestore.
+     *
+     * This function establishes a real-time listener to the "links" collection in Firestore.
+     * It initially attempts to send the locally cached links (if any) via `getLinksFromHelper()`.
+     *
+     * The Firestore listener observes changes to the "links" collection, ordered by the "index" field.
+     * - On successful data retrieval, it maps the documents to a list of link strings (extracting the "link" field).
+     *   If new links are found, it emits a `Resource.Success` with the list of links.
+     * - If an error occurs during Firestore communication, it emits a `Resource.Error` with a user-friendly error message.
+     * - If the Firestore query returns no documents or an empty result, it emits a `Resource.Error` indicating no links were found.
+     *
+     * The flow will continue to emit new lists of links whenever the "links" collection in Firestore is updated.
+     *
+     * The listener is automatically removed when the collecting coroutine is cancelled (due to `awaitClose`).
+     *
+     * @return A [Flow] that emits [Resource] objects.
+     *         - [Resource.Success] contains a `List<String>` of stream links.
+     *         - [Resource.Error] contains an error message string.
+     */
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = callbackFlow {
         trySend(Resource.Success(getLinksFromHelper()))
 
@@ -32,7 +52,7 @@ class DefaultRadioLinkRepository @Inject constructor(
                         Resource.Error(
                             context.getString(
                                 R.string.error_loading_links,
-                                error.message ?: "Unknown error"
+                                error.message ?:context.getString(R.string.error_unexpected)
                             )
                         )
                     )

@@ -3,6 +3,12 @@ package com.smoothradio.radio.feature.discover.util
 import com.smoothradio.radio.core.domain.model.Category
 import com.smoothradio.radio.core.domain.model.RadioStation
 
+/**
+ * Helper object for managing and creating categories of radio stations.
+ *
+ * This object provides a predefined mapping of category names to lists of radio station IDs.
+ * It also offers a function to create `Category` objects based on this mapping and a given list of `RadioStation` objects.
+ */
 object CategoryHelper {
 
     private val categories: Map<String, List<Int>> = linkedMapOf(

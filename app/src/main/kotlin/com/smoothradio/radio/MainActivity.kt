@@ -32,7 +32,6 @@ import com.smoothradio.radio.core.ui.dialog.SortOption
 import com.smoothradio.radio.core.ui.dialog.SortOptionListener
 import com.smoothradio.radio.core.util.CacheUtil
 import com.smoothradio.radio.core.util.ConsentHelper
-import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.ActivityMainBinding
 import com.smoothradio.radio.feature.about.ui.AboutFragment
 import com.smoothradio.radio.service.StreamService
@@ -44,7 +43,6 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
 
     private val eventReceiver: BroadcastReceiver = EventReceiver()
-    lateinit var playerManager: PlayerManager
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var radioViewModel: RadioViewModel
@@ -209,7 +207,7 @@ class MainActivity : AppCompatActivity() {
                 ivClearSearch.isVisible = editable.isNotEmpty()
             }
         })
-        // Delay the first change check until restoration is complete
+        // Delay the first change check until restoration is complete. Prevents crash on configuration changes
         etSearch.post {
             isRestoringSearch = false
         }
@@ -316,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                 if (tabPosition != 0) {
                     binding.viewPager.currentItem = 0
                 }
-                SortDialog().show(supportFragmentManager, "sortDialog")
+                SortDialog(SortOptionHandler()).show(supportFragmentManager, "sortDialog")
                 true
             }
 
@@ -331,15 +329,7 @@ class MainActivity : AppCompatActivity() {
 
     inner class SortOptionHandler : SortOptionListener {
         override fun onSortOptionSelected(option: SortOption) {
-            val radioListFragment = viewPagerAdapter.getRadioListFragment()
-            radioListFragment?.let {
-                when (option) {
-                    SortOption.POPULAR -> it.sortByPopularity()
-                    SortOption.ASCENDING -> it.sortByAscending()
-                    SortOption.DESCENDING -> it.sortByDescending()
-                    SortOption.FAVORITES -> it.sortFavorites()
-                }
-            }
+            viewPagerAdapter.getRadioListFragment()?.sortStations(option)
         }
     }
 }

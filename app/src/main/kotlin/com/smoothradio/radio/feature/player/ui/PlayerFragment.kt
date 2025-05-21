@@ -134,6 +134,7 @@ class PlayerFragment : Fragment() {
 
         playerManager.bindActivity(fragmentActivity)
 
+        // update ui or get currently playing state from service
         val isShowingAd = playerManager.isShowingAd
         if (isShowingAd) {
             state = StreamService.StreamStates.PREPARING

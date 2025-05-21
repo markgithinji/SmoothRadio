@@ -3,6 +3,13 @@ package com.smoothradio.radio.feature.radio_list.util
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 
+/**
+ * Helper class for managing radio stations.
+ *
+ * This class provides utility functions related to radio station data,
+ * such as creating a list of predefined radio stations and merging it
+ * with locally stored station data (e.g., favorites, currently playing).
+ */
 class RadioStationsHelper {
     companion object {
         fun createRadioStations(linksFromTxt: List<String>, localStations: List<RadioStation>?): List<RadioStation> {

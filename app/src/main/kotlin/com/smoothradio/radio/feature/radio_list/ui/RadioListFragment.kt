@@ -24,6 +24,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.dialog.SortOption
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.FragmentMusicListBinding
 import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
@@ -96,7 +97,7 @@ class RadioListFragment : Fragment() {
             mutableListOf(),
             RadioStationHandler(radioViewModel)
         )
-        radioViewModel.observeRemoteLinks()
+        radioViewModel.observeAndProcessRemoteLinks()
         collectFlows()
         setupRecyclerView()
         return binding.root
@@ -108,7 +109,6 @@ class RadioListFragment : Fragment() {
                 // All stations observer
                 launch {
                     radioViewModel.allStations.collect { stations ->
-                        Log.d("RadioListFragment", "All stations collected" + stations.size)
                         radioListRecyclerViewAdapter.update(stations)
                     }
                 }
@@ -116,10 +116,6 @@ class RadioListFragment : Fragment() {
                 launch {
                     radioViewModel.selectedStation.collect { station ->
                         station?.let {
-                            Log.d(
-                                "RadioListFragment",
-                                "Selected station collected" + station.isPlaying
-                            )
                             currentStation = it
                             playerManager.setRadioStation(it)
 
@@ -135,7 +131,6 @@ class RadioListFragment : Fragment() {
                 // Favorite stations observer
                 launch {
                     radioViewModel.favoriteStations.collect { favorites ->
-                        Log.d("RadioListFragment", "Favorite stations collected")
                         radioListRecyclerViewAdapter.updateFavorites(favorites)
                     }
                 }
@@ -186,6 +181,7 @@ class RadioListFragment : Fragment() {
             radioListRecyclerViewAdapter.setPlayingStation(it.id)
         }
 
+        // update ui or get currently playing state from service
         if (playerManager.isShowingAd) {
             broadcastState(StreamService.StreamStates.PREPARING)
         } else {
@@ -217,20 +213,19 @@ class RadioListFragment : Fragment() {
         radioListRecyclerViewAdapter.filter(query)
     }
 
-    fun sortByPopularity() {
-        radioListRecyclerViewAdapter.sortPopular()
-    }
+    fun sortStations(option: SortOption) {
+        when (option) {
+            SortOption.POPULAR -> radioListRecyclerViewAdapter.sortPopular()
+            SortOption.ASCENDING -> radioListRecyclerViewAdapter.sortAndDisplay(
+                RadioListRecyclerViewAdapter.DisplayState.ASCENDING
+            )
 
-    fun sortByAscending() {
-        radioListRecyclerViewAdapter.sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.ASCENDING)
-    }
+            SortOption.DESCENDING -> radioListRecyclerViewAdapter.sortAndDisplay(
+                RadioListRecyclerViewAdapter.DisplayState.DESCENDING
+            )
 
-    fun sortByDescending() {
-        radioListRecyclerViewAdapter.sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.DESCENDING)
-    }
-
-    fun sortFavorites() {
-        radioListRecyclerViewAdapter.sortFavourites()
+            SortOption.FAVORITES -> radioListRecyclerViewAdapter.sortFavourites()
+        }
     }
 
     private inner class RadioStationHandler(

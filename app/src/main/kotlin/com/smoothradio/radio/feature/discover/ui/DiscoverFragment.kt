@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -18,15 +19,20 @@ import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.FragmentDiscoverBinding
 import com.smoothradio.radio.feature.discover.ui.adapter.DiscoverRecyclerViewAdapter
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class DiscoverFragment : Fragment() {
+
+    @Inject
+    lateinit var playerManager: PlayerManager
 
     private var _binding: FragmentDiscoverBinding? = null
     private val binding get() = _binding!!
@@ -61,12 +67,9 @@ class DiscoverFragment : Fragment() {
         savedInstanceState: Bundle?
     ): android.view.View {
         _binding = FragmentDiscoverBinding.inflate(inflater, container, false)
-
         radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
-
         discoverRecyclerViewAdapter =
             DiscoverRecyclerViewAdapter(emptyList(), RadioStationActionHandler(radioViewModel))
-
         collectFlows()
         setupRecyclerView()
 
@@ -82,7 +85,6 @@ class DiscoverFragment : Fragment() {
                         discoverRecyclerViewAdapter.updateCategoryList(categoryList)
                     }
                 }
-
                 launch {
                     radioViewModel.selectedStation.collect { radioStation ->
                         currentStation = radioStation
@@ -118,13 +120,20 @@ class DiscoverFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (mainActivity?.playerManager?.isShowingAd == true) {
+        playerManager.bindActivity(fragmentActivity)
+
+        if (playerManager.isShowingAd) {
             broadcastState(StreamService.StreamStates.PREPARING)
         } else {
             val getStateFromServiceIntent =
                 Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
             fragmentActivity.sendBroadcast(getStateFromServiceIntent)
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        playerManager.unbindActivity()
     }
 
     private fun broadcastState(state: String) {
@@ -138,6 +147,10 @@ class DiscoverFragment : Fragment() {
         _binding = null
     }
 
+    /**
+     * Inner class that listens for events from the StreamService.
+     * This receiver is responsible for updating the nested recyclerviews based on the state of the audio stream.
+     */
     inner class EventReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val state = intent?.getStringExtra(StreamService.EXTRA_STATE)

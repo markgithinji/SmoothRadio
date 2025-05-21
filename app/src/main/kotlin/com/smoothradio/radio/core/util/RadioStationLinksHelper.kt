@@ -1,5 +1,17 @@
 package com.smoothradio.radio.core.util
 
+/**
+ * A helper object that provides a list of radio station stream links.
+ *
+ * This object contains a constant array `RADIO_STATIONS` which holds the URLs
+ * for various online radio streams. Each URL is associated with an index,
+ * commented next to it for easy reference.
+ *
+ * Example:
+ * ```
+ * val firstStationLink = RadioStationLinksHelper.RADIO_STATIONS[0] // Accesses "http://freeuk28.listen2myradio.com:15203/;stream.nsv"
+ * ```
+ */
 object RadioStationLinksHelper {
     val RADIO_STATIONS = arrayOf(
         "http://freeuk28.listen2myradio.com:15203/;stream.nsv", // 0

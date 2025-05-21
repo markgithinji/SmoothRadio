@@ -8,6 +8,16 @@ import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * A helper class for managing user consent for personalized ads using the User Messaging Platform (UMP) SDK.
+ *
+ * This class handles:
+ * - Requesting consent information updates.
+ * - Loading and showing the consent form if required.
+ * - Initializing the Mobile Ads SDK after consent is obtained (or if not required).
+ *
+ * @param activity The [Activity] context required for UMP and Mobile Ads SDK operations.
+ */
 class ConsentHelper(private val activity: Activity) {
 
     private var consentInformation: ConsentInformation? = null

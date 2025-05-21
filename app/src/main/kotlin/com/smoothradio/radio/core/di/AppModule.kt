@@ -43,9 +43,9 @@ class AppModule {
     @Provides
     @Singleton
     fun provideProcessRemoteLinksUseCase(
-        radioRepository: RadioRepository
+        radioRepository: RadioRepository, radioLinkRepository: RadioLinkRepository
     ): ProcessRemoteLinksUseCase {
-        return DefaultProcessRemoteLinksUseCase(radioRepository)
+        return DefaultProcessRemoteLinksUseCase(radioRepository, radioLinkRepository)
     }
 
     @Provides

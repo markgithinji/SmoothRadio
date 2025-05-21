@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.discover.ui.adapter
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +17,17 @@ import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
 import com.smoothradio.radio.service.StreamService.StreamStates.PREPARING
 
+/**
+ * Adapter for displaying a list of radio stations in a nested RecyclerView.
+ * This adapter handles the display of station logos, names, play/pause buttons,
+ * and favorite icons. It also manages the state of the currently playing station
+ * and updates the UI accordingly.
+ *
+ * @property stationLogosList The initial list of [RadioStation] objects to display.
+ * @property radioStationActionHandler An instance of [RadioStationActionHandler] to
+ *                                    handle user interactions with the radio stations,
+ *                                    such as selecting a station or toggling its favorite status.
+ */
 class CategoryRecyclerViewAdapter(
     stationLogosList: List<RadioStation>,
     private val radioStationActionHandler: RadioStationActionHandler
@@ -89,8 +101,17 @@ class CategoryRecyclerViewAdapter(
         holder.binding.ivCategoryFavourite.setImageResource(resId)
     }
 
+    /**
+     * An inner class that handles click events on individual radio station items in the RecyclerView.
+     *
+     * This listener is responsible for:
+     * 1.  Notifying the `radioStationActionHandler` when a radio station is selected.
+     * 2.  Updating the visual state of the previously playing station (if any) to reflect that it's no longer playing.
+     */
     inner class PlayOnclickListener(private val radioStation: RadioStation) : View.OnClickListener {
         override fun onClick(view: View) {
+            // update last playing station
+            Log.d("PlayOnclickListener", "onClick: $lastStation")
             lastStation?.let { last ->
                 val lastIndex = getPositionOfStationById(last.id)
                 if (lastIndex != RecyclerView.NO_POSITION) {
@@ -134,6 +155,7 @@ class CategoryRecyclerViewAdapter(
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         this.state = state
+        this.lastStation = station
 
         radioStationItems.forEach { it.isPlaying = false }
 

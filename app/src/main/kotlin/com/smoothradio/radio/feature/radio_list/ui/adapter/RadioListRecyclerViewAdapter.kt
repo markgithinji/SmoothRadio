@@ -16,13 +16,22 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.AdviewBinding
 import com.smoothradio.radio.databinding.EmptyFavouritiesBinding
 import com.smoothradio.radio.databinding.RadioitemBinding
-import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
 import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
 import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationSortHelper
+import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
 import com.smoothradio.radio.service.StreamService.StreamStates.PREPARING
 
+/**
+ * Adapter for displaying a list of radio stations in a RecyclerView.
+ *
+ * This adapter handles different view types for radio station items, ad items, and an empty list view.
+ * It also manages filtering, sorting, and favorite functionality for the radio stations.
+ *
+ * @property radioStations The initial list of radio stations to display.
+ * @property radioStationActionHandler A handler for actions performed on radio stations, such as selection or toggling favorites.
+ */
 class RadioListRecyclerViewAdapter(
     radioStations: List<RadioStation>,
     private val radioStationActionHandler: RadioStationActionHandler

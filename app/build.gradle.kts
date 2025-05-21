@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.androidx.media)
 
     implementation(libs.androidx.media3.exoplayer)
+    implementation (libs.androidx.media3.exoplayer.hls)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.profileinstaller)

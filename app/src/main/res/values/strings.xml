@@ -38,5 +38,6 @@
     <string name="tab_stations">STATIONS</string>
     <string name="tab_live">LIVE</string>
     <string name="tab_discover">DISCOVER</string>
+    <string name="error_unexpected">Unknown error</string>
 
 </resources>
