@@ -101,25 +101,8 @@ class CategoryRecyclerViewAdapter(
         holder.binding.ivCategoryFavourite.setImageResource(resId)
     }
 
-    /**
-     * An inner class that handles click events on individual radio station items in the RecyclerView.
-     *
-     * This listener is responsible for:
-     * 1.  Notifying the `radioStationActionHandler` when a radio station is selected.
-     * 2.  Updating the visual state of the previously playing station (if any) to reflect that it's no longer playing.
-     */
     inner class PlayOnclickListener(private val radioStation: RadioStation) : View.OnClickListener {
         override fun onClick(view: View) {
-            // update last playing station
-            Log.d("PlayOnclickListener", "onClick: $lastStation")
-            lastStation?.let { last ->
-                val lastIndex = getPositionOfStationById(last.id)
-                if (lastIndex != RecyclerView.NO_POSITION) {
-                    radioStationItems[lastIndex].isPlaying = false
-                    notifyItemChanged(lastIndex)
-                }
-            }
-
             radioStationActionHandler.onStationSelected(radioStation)
         }
     }
@@ -155,7 +138,6 @@ class CategoryRecyclerViewAdapter(
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         this.state = state
-        this.lastStation = station
 
         radioStationItems.forEach { it.isPlaying = false }
 
