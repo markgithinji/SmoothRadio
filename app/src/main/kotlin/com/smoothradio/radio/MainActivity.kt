@@ -27,14 +27,14 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter
+import com.smoothradio.radio.core.ui.dialog.SortDialog
+import com.smoothradio.radio.core.ui.dialog.SortOption
+import com.smoothradio.radio.core.ui.dialog.SortOptionListener
 import com.smoothradio.radio.core.util.CacheUtil
 import com.smoothradio.radio.core.util.ConsentHelper
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.ActivityMainBinding
 import com.smoothradio.radio.feature.about.ui.AboutFragment
-import com.smoothradio.radio.core.ui.dialog.SortOption
-import com.smoothradio.radio.core.ui.dialog.SortOptionListener
-import com.smoothradio.radio.core.ui.dialog.SortDialog
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.firstOrNull
@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private var tabPosition = 0
     private var lastStationId = 0
     private var isSearchVisible = false
+    private var isRestoringSearch = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -201,11 +202,17 @@ class MainActivity : AppCompatActivity() {
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+
             override fun afterTextChanged(editable: Editable) {
+                if (isRestoringSearch) return
                 viewPagerAdapter.getRadioListFragment()?.filterStations(editable.toString())
                 ivClearSearch.isVisible = editable.isNotEmpty()
             }
         })
+        // Delay the first change check until restoration is complete
+        etSearch.post {
+            isRestoringSearch = false
+        }
 
         ivClearSearch.setOnClickListener { etSearch.setText("") }
     }
