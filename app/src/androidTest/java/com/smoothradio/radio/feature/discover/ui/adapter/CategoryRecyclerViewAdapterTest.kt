@@ -9,7 +9,6 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,8 +16,7 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 
 
-@HiltAndroidTest
-@RunWith(AndroidJUnit4::class)
+@RunWith(AndroidJUnit4::class) //
 class CategoryRecyclerViewAdapterTest {
 
     private lateinit var adapter: CategoryRecyclerViewAdapter

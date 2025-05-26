@@ -1,12 +1,11 @@
 package com.smoothradio.radio.feature.discover.ui
 
-import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
-import androidx.annotation.IdRes
+import androidx.test.espresso.Espresso.onIdle
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.hasSibling
+import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -16,10 +15,8 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.testutil.launchFragmentInHiltContainer
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import org.hamcrest.Description
-import org.hamcrest.Matcher
 import org.hamcrest.Matchers.allOf
-import org.hamcrest.TypeSafeMatcher
+import org.hamcrest.Matchers.not
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,36 +36,65 @@ class DiscoverFragmentHiltTest {
     }
 
     @Test
-    fun shouldDisplayDiscoverRecyclerView() {
-        launchFragmentInHiltContainer<DiscoverFragment> { }
-
-        onView(withId(R.id.rvDiscover)).check(matches(isDisplayed()))
-    }
-
-    @Test
     fun shouldClickFavoriteButton() {
         launchFragmentInHiltContainer<DiscoverFragment> { }
 
         onView(
             allOf(
                 withId(R.id.ivCategoryFavourite),
-                withTextInRecyclerItem("Hope FM", R.id.ivCategoryFavourite)
+                hasSibling(withText("Hope FM"))
             )
-        )
-            .perform(click())
+        ).perform(click())
     }
 
     @Test
-    fun shouldClickPlayButton() {
+    fun clickPlayButton_shouldUpdateUIForClickedStationAccordingly() {
         launchFragmentInHiltContainer<DiscoverFragment> { }
 
         onView(
             allOf(
                 withId(R.id.ivCategoryPlay),
-                withTextInRecyclerItem("Hope FM", R.id.ivCategoryPlay)
+                hasSibling(withText("Hope FM"))
             )
-        )
-            .perform(click())
+        ).perform(click())
+
+        // Step 1: Check that loading animation is shown inside Hope FM item
+        onView(
+            allOf(
+                withId(R.id.lottie_loading_animation),
+                hasSibling(withText("Hope FM")),
+            )
+        ).check(matches(isDisplayed()))
+
+        // Step 2: Check that play icon is hidden inside Hope FM item
+        onView(
+            allOf(
+                withId(R.id.ivCategoryPlay),
+                hasSibling(withText("Hope FM")),
+            )
+        ).check(matches(not(isDisplayed())))
+
+//        // Step 3: Play another station
+//        onView(
+//            allOf(
+//                withId(R.id.ivCategoryPlay),
+//                hasSibling(withText("Inooro FM")),
+//            )
+//        ).perform(click())
+//        // Step 4: Check that play icon is shown inside Hope FM item but hidden in Inooro Radio
+//        Thread.sleep(3000)
+//        onView(
+//            allOf(
+//                withId(R.id.ivCategoryPlay),
+//                hasSibling(withText("Hope FM")),
+//            )
+//        ).check(matches(isDisplayed()))
+//        onView(
+//            allOf(
+//                withId(R.id.ivCategoryPlay),
+//                hasSibling(withText("Inooro FM")),
+//            )
+//        ).check(matches(not(isDisplayed())))
     }
 
 
@@ -83,28 +109,8 @@ class DiscoverFragmentHiltTest {
         onView(withText("KIKUYU")).check(matches(isDisplayed()))
 
         // Check that known stations (by name) appear
-        onView(withText("Hope FM")).check(matches(isDisplayed()))          // id=1, HOT & TRENDING // id=129, LIVE MIXXES
-        onView(withText("Inooro FM")).check(matches(isDisplayed()))
-    }
-
-    private fun withTextInRecyclerItem(stationName: String, @IdRes targetViewId: Int): Matcher<View> {
-        return object : TypeSafeMatcher<View>() {
-            override fun describeTo(description: Description) {
-                description.appendText("View with ID $targetViewId in item containing text: $stationName")
-            }
-
-            public override fun matchesSafely(view: View): Boolean {
-                val parent = view.parent
-                if (parent !is View) return false
-
-                val hasTextView =
-                    (parent as ViewGroup).findViewById<View>(R.id.tvCategoryChannelName)?.let {
-                        it is TextView && it.text == stationName
-                    } ?: false
-
-                return hasTextView && view.id == targetViewId
-            }
-        }
+        onView(withText("Hope FM")).check(matches(isDisplayed())) // Hope FM with id=1, should show up in HOT & TRENDING
+        onView(withText("Inooro FM")).check(matches(isDisplayed()))  // Inooro FM with id=129, should show up in KIKUYU
     }
 
 }

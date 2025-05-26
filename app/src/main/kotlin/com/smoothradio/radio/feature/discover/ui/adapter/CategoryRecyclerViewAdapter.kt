@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.discover.ui.adapter
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,7 +33,6 @@ class CategoryRecyclerViewAdapter(
 ) : RecyclerView.Adapter<CategoryRecyclerViewAdapter.ItemViewViewHolder>() {
 
     private val radioStationItems: MutableList<RadioStation> = ArrayList(stationLogosList)
-    private var lastStation: RadioStation? = null
     private var state: String = StreamService.StreamStates.ENDED
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewViewHolder {
@@ -101,33 +99,34 @@ class CategoryRecyclerViewAdapter(
         holder.binding.ivCategoryFavourite.setImageResource(resId)
     }
 
-    inner class PlayOnclickListener(private val radioStation: RadioStation) : View.OnClickListener {
+    private inner class PlayOnclickListener(private val radioStation: RadioStation) :
+        View.OnClickListener {
         override fun onClick(view: View) {
             radioStationActionHandler.onStationSelected(radioStation)
         }
     }
 
-    inner class FavouriteListener(
+    private inner class FavouriteListener(
         private val radioStation: RadioStation,
         private val viewHolder: ItemViewViewHolder
     ) : View.OnClickListener {
         override fun onClick(view: View) {
             val isFavorite = radioStation.isFavorite
-            radioStation.isFavorite = !isFavorite
+//            radioStation.isFavorite = !isFavorite
 
-            val context = view.context
-            val message = if (isFavorite) {
-                context.getString(R.string.removed_from_favorites, radioStation.stationName)
-            } else {
-                context.getString(R.string.added_to_favorites, radioStation.stationName)
-            }
+//            val context = view.context
+//            val message = if (isFavorite) {
+//                context.getString(R.string.removed_from_favorites, radioStation.stationName)
+//            } else {
+//                context.getString(R.string.added_to_favorites, radioStation.stationName)
+//            }
 
             radioStationActionHandler.apply {
                 onToggleFavorite(radioStation, !isFavorite)
-                onRequestShowToast(message)
+//                onRequestShowToast(message)
             }
 
-            updateFavoriteIcon(radioStation, viewHolder)
+//            updateFavoriteIcon(radioStation, viewHolder)
         }
     }
 
@@ -144,6 +143,13 @@ class CategoryRecyclerViewAdapter(
         val index = getPositionOfStationById(station.id)
         if (index != RecyclerView.NO_POSITION) radioStationItems[index].isPlaying = true
 
+        notifyDataSetChanged()
+    }
+
+    fun updateFavorites(favorites: List<RadioStation>) {
+        radioStationItems.forEach { station ->
+            station.isFavorite = favorites.any { it.id == station.id }
+        }
         notifyDataSetChanged()
     }
 

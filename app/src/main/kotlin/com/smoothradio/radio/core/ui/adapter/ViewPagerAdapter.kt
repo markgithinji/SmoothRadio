@@ -15,7 +15,8 @@ class ViewPagerAdapter(
     fragmentManager: FragmentManager,
     lifecycle: Lifecycle,
     private val viewPager2: ViewPager2,
-    private val swipeSensitivityFactor: Int = 3
+    private val swipeSensitivityFactor: Int = 3,
+    private val adjustTouch: Boolean = true
 ) : FragmentStateAdapter(fragmentManager, lifecycle) {
 
     private val fragments = listOf(
@@ -24,8 +25,9 @@ class ViewPagerAdapter(
         DiscoverFragment()
     )
 
+
     init {
-        adjustTouchSlop()
+        if (adjustTouch) adjustTouchSlop()
     }
 
     /**

@@ -12,7 +12,7 @@ import com.smoothradio.radio.core.domain.model.RadioStation
  */
 class RadioStationsHelper {
     companion object {
-        fun createRadioStations(linksFromTxt: List<String>, localStations: List<RadioStation>?): List<RadioStation> {
+        fun createRadioStations(linksFromTxt: List<String>): List<RadioStation> {
             val radioStationsList = mutableListOf<RadioStation>().apply {
                 add(RadioStation(0, R.drawable.hopefm, "HOPE FM", "93.3", "NAIROBI", linksFromTxt[0], false, false))
                 add(RadioStation(1, R.drawable.soundcityradiologo, "SOUNDCITY RADIO", "88.5", "NAIROBI", linksFromTxt[1], false, false))
@@ -244,15 +244,6 @@ class RadioStationsHelper {
                 add(RadioStation(200, R.drawable.diplomatradiologo, "DIPLOMAT RADIO", "--.--", "NAIROBI", linksFromTxt[200], false, false))
                 add(RadioStation(201, R.drawable.habeshingamusiclogo, "HABESHINGA MUSIC", "--.--", "NAIROBI", linksFromTxt[201], false, false))
             }
-
-            // Merge local favorites and playing states
-            localStations?.forEach { local ->
-                radioStationsList.find { it.id == local.id }?.apply {
-                    if (local.isFavorite) this.isFavorite = true
-                    if (local.isPlaying) this.isPlaying = true
-                }
-            }
-
             return radioStationsList
         }
     }

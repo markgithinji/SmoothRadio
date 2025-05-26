@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.about.ui
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.fragment.app.testing.launchFragmentInContainer
@@ -8,7 +9,8 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.intent.Intents
-import androidx.test.espresso.intent.matcher.IntentMatchers.*
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -22,8 +24,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AboutFragmentTest {
 
+    private lateinit var context: Context
+
     @Before
     fun setup() {
+        context = ApplicationProvider.getApplicationContext()
         Intents.init()
         launchFragmentInContainer<AboutFragment>(themeResId = R.style.Theme_MyApplication)
     }
@@ -35,26 +40,31 @@ class AboutFragmentTest {
 
     @Test
     fun clickingTvWatchTv_shouldOpenPlayStore() {
-        val expectedUri = Uri.parse("market://details?id=${ApplicationProvider.getApplicationContext<android.content.Context>().getString(R.string.tv_app_package)}")
+        val expectedUri =
+            Uri.parse("market://details?id=${context.getString(R.string.tv_app_package)}")
 
         onView(withId(R.id.tvWatchTv)).perform(click())
 
-        Intents.intended(allOf(
-            hasAction(Intent.ACTION_VIEW),
-            hasData(expectedUri)
-        ))
+        Intents.intended(
+            allOf(
+                hasAction(Intent.ACTION_VIEW),
+                hasData(expectedUri)
+            )
+        )
     }
 
     @Test
     fun clickingFbAddress_shouldOpenFacebookPage() {
-        val expectedUri = Uri.parse(ApplicationProvider.getApplicationContext<android.content.Context>().getString(R.string.facebook_url))
+        val expectedUri = Uri.parse(context.getString(R.string.facebook_url))
 
         onView(withId(R.id.fbAddress)).perform(click())
 
-        Intents.intended(allOf(
-            hasAction(Intent.ACTION_VIEW),
-            hasData(expectedUri)
-        ))
+        Intents.intended(
+            allOf(
+                hasAction(Intent.ACTION_VIEW),
+                hasData(expectedUri)
+            )
+        )
     }
 
     @Test
@@ -66,7 +76,7 @@ class AboutFragmentTest {
 
     @Test
     fun infoText_shouldDisplayCorrectText() {
-        val expectedText = ApplicationProvider.getApplicationContext<android.content.Context>().getString(R.string.info_text)
+        val expectedText = context.getString(R.string.info_text)
 
         onView(withId(R.id.tvInfo)).check(matches(withText(expectedText)))
     }

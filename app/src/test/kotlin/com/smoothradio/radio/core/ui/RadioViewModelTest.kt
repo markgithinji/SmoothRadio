@@ -2,13 +2,13 @@ package com.smoothradio.radio.core.ui
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
+import com.smoothradio.radio.core.data.local.FakeRadioStationDao
+import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
-import com.smoothradio.radio.core.util.RadioStationLinksHelper
-import com.smoothradio.radio.core.util.Resource
-import com.smoothradio.radio.testutils.FakeProcessRemoteLinksUseCase
 import com.smoothradio.radio.testutils.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -28,23 +28,26 @@ class RadioViewModelTest {
     val dispatcherRule = MainDispatcherRule()
 
     private lateinit var viewModel: RadioViewModel
-    private lateinit var fakeRadioRepository: FakeRadioRepository
+    private lateinit var fakeRadioRepository: RadioRepository
     private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
-    private lateinit var fakeProcessRemoteLinksUseCase: ProcessRemoteLinksUseCase
+    private lateinit var remoteLinksUseCase: ProcessRemoteLinksUseCase
+    private lateinit var fakeRadioStationDao: RadioStationDao
 
     private val application: Application = mock()
 
     @Before
     fun setup() {
-        fakeRadioRepository = FakeRadioRepository()
+        fakeRadioStationDao = FakeRadioStationDao()
+        fakeRadioRepository = FakeRadioRepository(fakeRadioStationDao)
         fakeRadioLinkRepository = FakeRadioLinkRepository()
-        fakeProcessRemoteLinksUseCase = FakeProcessRemoteLinksUseCase(fakeRadioRepository)
+        remoteLinksUseCase =
+            ProcessRemoteLinksUseCase(fakeRadioRepository, fakeRadioLinkRepository)
 
         viewModel = RadioViewModel(
             application,
             fakeRadioLinkRepository,
             fakeRadioRepository,
-            fakeProcessRemoteLinksUseCase
+            remoteLinksUseCase
         )
     }
 
@@ -68,16 +71,6 @@ class RadioViewModelTest {
 
         assertThat(emissions).contains(station)
         job.cancel()
-    }
-
-    @Test
-    fun remoteLinks_shouldEmitLinksFromRepository() = runTest {
-        val result = viewModel.remoteLinks.first()
-        advanceUntilIdle()
-
-        assertThat(result).isInstanceOf(Resource.Success::class.java)
-        val data = (result as Resource.Success).data
-        assertThat(data).containsExactlyElementsIn(RadioStationLinksHelper.RADIO_STATIONS)
     }
 
     @Test

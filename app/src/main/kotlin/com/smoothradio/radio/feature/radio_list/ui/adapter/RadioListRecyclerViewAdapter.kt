@@ -43,6 +43,10 @@ class RadioListRecyclerViewAdapter(
     private val stationList = radioStations.toMutableList()
     private val recyclerViewItems: MutableList<ListItem> = mutableListOf()
 
+    private var currentState = DisplayState.POPULAR
+    private var state: String = ""
+    private var lastSearchQuery: String? = null
+
     private val emptyRadioStation = RadioStation(
         id = 0,
         logoResource = 0,
@@ -53,9 +57,6 @@ class RadioListRecyclerViewAdapter(
         isPlaying = true,
         isFavorite = false
     )
-    private var currentState = DisplayState.POPULAR
-    private var state: String = ""
-    private var lastSearchQuery: String? = null
 
     enum class DisplayState { POPULAR, FAVORITES, ASCENDING, DESCENDING, SEARCH }
 
@@ -110,7 +111,7 @@ class RadioListRecyclerViewAdapter(
 
             ivPlay.setImageResource(R.drawable.playicon)
             ivPlay.setOnClickListener(PlayOnclickListener(radioStation))
-            ivFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
+            ivFavourite.setOnClickListener(FavouriteListener(radioStation))
 
             if (holder.adapterPosition == RecyclerView.NO_POSITION) {
                 clLayout.animation = AnimationUtils.loadAnimation(
@@ -177,7 +178,8 @@ class RadioListRecyclerViewAdapter(
     inner class EmptyFavouriteListViewHolder(val binding: EmptyFavouritiesBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    inner class PlayOnclickListener(private val radioStation: RadioStation) : View.OnClickListener {
+    private inner class PlayOnclickListener(private val radioStation: RadioStation) :
+        View.OnClickListener {
         private val stationId = radioStation.id
         override fun onClick(view: View?) {
             radioStationActionHandler.onStationSelected(radioStation)
@@ -185,20 +187,13 @@ class RadioListRecyclerViewAdapter(
         }
     }
 
-    inner class FavouriteListener(
+    private inner class FavouriteListener(
         private val radioStation: RadioStation,
-        private val holder: ItemViewViewHolder
     ) : View.OnClickListener {
         override fun onClick(view: View?) {
             val newFavoriteState = !radioStation.isFavorite
-            radioStation.isFavorite = newFavoriteState
-//            radioStationActionHandler.onToggleFavorite(radioStation, newFavoriteState)
-
-            holder.binding.ivFavourite.setImageResource(
-                if (newFavoriteState) R.drawable.favorite_20px_filled else R.drawable.favorite_20px
-            )
+            radioStationActionHandler.onToggleFavorite(radioStation, newFavoriteState)
         }
-
     }
 
     fun getStationAtPosition(position: Int): RadioStation {
@@ -206,6 +201,13 @@ class RadioListRecyclerViewAdapter(
         return if (item is RadioStation) item else emptyRadioStation
     }
 
+    /**
+     * Gets the position of a station in the list using a dummy station.
+     * The equal implementation in RadioStation entity will retrieve the real station using the 'id' property
+     *
+     * @param stationId The ID of the station to find.
+     * @return The position of the station in the list, or -1 if the station is not found.
+     */
     fun getPositionOfStation(stationId: Int): Int {
         val dummyStation = RadioStation(
             id = stationId,
@@ -235,6 +237,12 @@ class RadioListRecyclerViewAdapter(
         }
         update(updatedList)
     }
+
+//    fun setPlayingStation(stationId: Int) {
+//        val station = stationList.find { it.id == stationId }
+//        station?.isPlaying = true
+//        update(stationList)
+//    }
 
     fun update(newList: List<RadioStation>) {
         stationList.clear()

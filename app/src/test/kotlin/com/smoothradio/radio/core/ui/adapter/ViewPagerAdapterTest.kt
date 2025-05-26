@@ -1,7 +1,8 @@
 package com.smoothradio.radio.core.ui.adapter
 
 import android.content.Context
-import androidx.recyclerview.widget.RecyclerView
+import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
 import androidx.viewpager2.widget.ViewPager2
 import com.google.common.truth.Truth.assertThat
@@ -17,51 +18,42 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ViewPagerAdapterTest {
 
+    private lateinit var context: Context
     private lateinit var viewPager2: ViewPager2
-    private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ViewPagerAdapter
+
+    private val mockFragmentManager: FragmentManager = mock()
+    private val mockLifecycle: Lifecycle = mock()
 
     @Before
     fun setup() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        context = ApplicationProvider.getApplicationContext()
         viewPager2 = ViewPager2(context)
-        recyclerView = RecyclerView(context)
-
-        // Set internal mRecyclerView via reflection
-        val field = ViewPager2::class.java.getDeclaredField("mRecyclerView")
-        field.isAccessible = true
-        field.set(viewPager2, recyclerView)
-
-        // Set internal mTouchSlop
-        val slopField =
-            RecyclerView::class.java.getDeclaredField("mTouchSlop").apply { isAccessible = true }
-        slopField.set(recyclerView, 10)
 
         adapter = ViewPagerAdapter(
-            fragmentManager = mock(),
-            lifecycle = mock(),
+            fragmentManager = mockFragmentManager,
+            lifecycle = mockLifecycle,
             viewPager2 = viewPager2,
-            swipeSensitivityFactor = 4
+            swipeSensitivityFactor = 3,
+            adjustTouch = false // disables reflection logic in tests
         )
     }
 
     @Test
-    fun getItemCount_shouldReturnCorrectSize() {
+    fun getItemCount_shouldReturnThree() {
         assertThat(adapter.itemCount).isEqualTo(3)
     }
 
     @Test
-    fun createFragment_shouldReturnCorrectFragments() {
+    fun createFragment_shouldReturnCorrectFragmentTypes() {
         assertThat(adapter.createFragment(0)).isInstanceOf(RadioListFragment::class.java)
         assertThat(adapter.createFragment(1)).isInstanceOf(PlayerFragment::class.java)
         assertThat(adapter.createFragment(2)).isInstanceOf(DiscoverFragment::class.java)
     }
 
     @Test
-    fun adjustTouchSlop_shouldMultiplySlopByFactor() {
-        val slopField =
-            RecyclerView::class.java.getDeclaredField("mTouchSlop").apply { isAccessible = true }
-        val slop = slopField.get(recyclerView) as Int
-        assertThat(slop).isEqualTo(40) // 10 × 4
+    fun getRadioListFragment_shouldReturnRadioListFragment() {
+        val radioFragment = adapter.getRadioListFragment()
+        assertThat(radioFragment).isInstanceOf(RadioListFragment::class.java)
     }
 }

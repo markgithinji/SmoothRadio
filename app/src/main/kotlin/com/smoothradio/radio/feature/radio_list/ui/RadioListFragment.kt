@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -163,14 +162,6 @@ class RadioListFragment : Fragment() {
         })
     }
 
-    inner class EventReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val state = intent?.getStringExtra(StreamService.EXTRA_STATE) ?: ""
-            radioListRecyclerViewAdapter.setState(state)
-            currentStation?.let { radioListRecyclerViewAdapter.updateStation(it) }
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         mainActivity = requireActivity() as? MainActivity
@@ -225,6 +216,14 @@ class RadioListFragment : Fragment() {
             )
 
             SortOption.FAVORITES -> radioListRecyclerViewAdapter.sortFavourites()
+        }
+    }
+
+    private inner class EventReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val state = intent?.getStringExtra(StreamService.EXTRA_STATE) ?: ""
+            radioListRecyclerViewAdapter.setState(state)
+            currentStation?.let { radioListRecyclerViewAdapter.updateStation(it) }
         }
     }
 

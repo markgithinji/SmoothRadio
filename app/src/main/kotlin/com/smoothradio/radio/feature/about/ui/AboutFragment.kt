@@ -39,16 +39,16 @@ class AboutFragment : DialogFragment() {
         binding.tvInfo.text = getString(R.string.info_text)
     }
 
-    private fun underlineTextViews() {
-        binding.fbAddress.paintFlags = Paint.UNDERLINE_TEXT_FLAG
-        binding.tvEmail.paintFlags = Paint.UNDERLINE_TEXT_FLAG
-        binding.tvWatchTv.paintFlags = Paint.UNDERLINE_TEXT_FLAG
+    private fun underlineTextViews() = with(binding) {
+        fbAddress.paintFlags = Paint.UNDERLINE_TEXT_FLAG
+        tvEmail.paintFlags = Paint.UNDERLINE_TEXT_FLAG
+        tvWatchTv.paintFlags = Paint.UNDERLINE_TEXT_FLAG
     }
 
-    private fun setupClickListeners() {
-        binding.tvWatchTv.setOnClickListener { openTvAppOnPlayStore() }
-        binding.fbAddress.setOnClickListener { openFacebookPage() }
-        binding.tvEmail.setOnClickListener { sendFeedbackEmail() }
+    private fun setupClickListeners() = with(binding) {
+        tvWatchTv.setOnClickListener { openTvAppOnPlayStore() }
+        fbAddress.setOnClickListener { openFacebookPage() }
+        tvEmail.setOnClickListener { sendFeedbackEmail() }
     }
 
     private fun openTvAppOnPlayStore() {
@@ -105,6 +105,7 @@ class AboutFragment : DialogFragment() {
             "${getString(R.string.app_version_label)} Unknown"
         }
     }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

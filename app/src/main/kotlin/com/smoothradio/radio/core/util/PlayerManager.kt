@@ -150,7 +150,7 @@ class PlayerManager {
         activity?.let {
             InterstitialAd.load(
                 it,
-                "ca-app-pub-",
+                AdConfig.interstitialAdId,
                 adRequest,
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
@@ -221,7 +221,7 @@ class PlayerManager {
             activity?.let {
                 InterstitialAd.load(
                     it,
-                    "ca-app-pub-",
+                    AdConfig.interstitialAdId,
                     adRequest,
                     object : InterstitialAdLoadCallback() {
                         override fun onAdLoaded(ad: InterstitialAd) {

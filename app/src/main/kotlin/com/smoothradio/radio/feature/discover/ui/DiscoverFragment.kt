@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -88,6 +87,11 @@ class DiscoverFragment : Fragment() {
                 launch {
                     radioViewModel.selectedStation.collect { radioStation ->
                         currentStation = radioStation
+                    }
+                }
+                launch {
+                    radioViewModel.favoriteStations.collect { favorites ->
+                        discoverRecyclerViewAdapter.updateFavorites(favorites)
                     }
                 }
             }

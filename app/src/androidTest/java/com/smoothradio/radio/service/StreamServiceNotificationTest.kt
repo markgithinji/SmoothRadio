@@ -5,7 +5,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.rule.GrantPermissionRule
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiScrollable
@@ -28,11 +27,10 @@ class StreamServiceNotificationTest {
     private val packageName: String =
         ApplicationProvider.getApplicationContext<Context>().packageName
 
-
-    @get:Rule
+    @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
 
-    @get:Rule
+    @get:Rule(order = 1)
     val activityRule = ActivityScenarioRule(MainActivity::class.java)
 
     @Before
@@ -50,20 +48,36 @@ class StreamServiceNotificationTest {
 
         // Step 2: Click ivPlay inside Hope FM item
         val ivPlay = device.findObject(
-            By.res(packageName, "ivPlay").hasAncestor(By.text("HOPE FM"))
+            By.res(packageName, "ivPlay")
+                .hasAncestor(
+                    By.res(packageName, "rv_radio_list")
+                        .hasDescendant(By.text("HOPE FM"))
+                )
         )
-        checkNotNull(ivPlay) { "ivPlay not found for Hope FM" }
+        assertThat(ivPlay).isNotNull()
         ivPlay.click()
 
-        // Step 3: Wait for StreamService to start
-        device.wait(Until.hasObject(By.pkg(packageName)), 5_000)
-
-        // Step 4: Open the notification shade
+        // Step 3: Open the notification shade
         device.openNotification()
         device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
 
-        // Step 5: Assert notification title is present
-        val notification = device.findObject(By.text("HOPE FM"))
+        // Step 4: Assert notification title is present
+        val notification = device.wait(
+            Until.findObject(By.textContains("HOPE FM")),
+            5000
+        )
         assertThat(notification).isNotNull()
+        // Step 5: Assert notification playing state is present
+        val notificationState = device.wait(
+            Until.findObject(By.textContains("Preparing Audio")),
+            5000
+        )
+        assertThat(notificationState).isNotNull()
+        // Step 6: Notification click should reopen the app
+        device.pressHome()
+        device.openNotification()
+        device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
+        notificationState.click()
+        device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
     }
 }

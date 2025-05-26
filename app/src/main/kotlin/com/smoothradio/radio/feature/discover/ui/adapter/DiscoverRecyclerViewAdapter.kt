@@ -93,6 +93,10 @@ class DiscoverRecyclerViewAdapter(
         notifyDataSetChanged()
     }
 
+    fun updateFavorites(favorites: List<RadioStation>) {
+        categoryAdapters.forEach { it.updateFavorites(favorites) }
+        notifyDataSetChanged()
+    }
 
     inner class CategoryItemViewHolder(val binding: CategoryitemBinding) :
         RecyclerView.ViewHolder(binding.root)

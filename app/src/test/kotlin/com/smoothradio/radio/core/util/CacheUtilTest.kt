@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core.util
 
 import android.content.Context
-import android.content.ContextWrapper
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -19,22 +18,18 @@ class CacheUtilTest {
 
     @Before
     fun setup() {
-        val baseContext = ApplicationProvider.getApplicationContext<Context>()
-        cacheDir = File(baseContext.filesDir, "fake_cache").apply {
-            mkdirs()
-            File(this, "dummy.txt").writeText("dummy")
-        }
-
-        externalCacheDir = File(baseContext.filesDir, "fake_external_cache").apply {
-            mkdirs()
-            File(this, "dummy_ext.txt").writeText("external dummy")
-        }
-
-        context = TestContext(baseContext, cacheDir, externalCacheDir)
+        context = ApplicationProvider.getApplicationContext<Context>()
+        cacheDir = context.cacheDir
+        externalCacheDir = context.externalCacheDir!!
     }
 
     @Test
     fun clearAppCache_shouldDeleteAllCacheContents() {
+        val filename = "test.txt"
+
+        File(context.cacheDir, filename).createNewFile()
+        File(context.externalCacheDir, filename).createNewFile()
+
         assertThat(cacheDir.exists()).isTrue()
         assertThat(cacheDir.listFiles()).isNotEmpty()
 
@@ -48,15 +43,6 @@ class CacheUtilTest {
 
         assertThat(externalCacheDir.exists()).isTrue()
         assertThat(externalCacheDir.listFiles()).isEmpty()
-    }
-
-    private class TestContext(
-        base: Context,
-        private val internal: File,
-        private val external: File?
-    ) : ContextWrapper(base) {
-        override fun getCacheDir(): File = internal
-        override fun getExternalCacheDir(): File? = external
     }
 }
 

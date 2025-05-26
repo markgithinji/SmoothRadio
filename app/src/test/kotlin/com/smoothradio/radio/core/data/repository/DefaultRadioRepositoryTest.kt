@@ -3,6 +3,7 @@ package com.smoothradio.radio.core.data.repository
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -16,7 +17,7 @@ import org.junit.runners.JUnit4
 class DefaultRadioRepositoryTest {
 
     private lateinit var dao: FakeRadioStationDao
-    private lateinit var repository: DefaultRadioRepository
+    private lateinit var repository: RadioRepository
 
     @Before
     fun setup() {

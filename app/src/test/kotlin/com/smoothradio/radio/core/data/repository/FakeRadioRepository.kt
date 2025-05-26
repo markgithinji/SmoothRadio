@@ -1,34 +1,29 @@
 package com.smoothradio.radio.core.data.repository
 
+import com.smoothradio.radio.core.data.local.FakeRadioStationDao
+import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import javax.inject.Singleton
 
-class FakeRadioRepository : RadioRepository {
+@Singleton
+class FakeRadioRepository (
+    private val dao: RadioStationDao
+) : RadioRepository {
 
-    private val _allStations = MutableStateFlow<List<RadioStation>>(emptyList())
-    private val _favoriteStations = MutableStateFlow<List<RadioStation>>(emptyList())
-    private val _playingStation = MutableStateFlow<RadioStation?>(null)
-
-    override val allStations: Flow<List<RadioStation>> = _allStations
-    override val favoriteStations: Flow<List<RadioStation>> = _favoriteStations
-    override val playingStation: Flow<RadioStation?> = _playingStation
+    override val allStations: Flow<List<RadioStation>> = dao.getAllStations()
+    override val favoriteStations: Flow<List<RadioStation>> = dao.getFavoriteStations()
+    override val playingStation: Flow<RadioStation?> = dao.getPlayingStation()
 
     override suspend fun setPlayingStation(id: Int) {
-        _playingStation.value = _allStations.value.find { it.id == id }
+        dao.clearPlayingState()
+        dao.updatePlayingStation(id)
     }
 
-    override suspend fun insertStations(stations: List<RadioStation>) {
-        _allStations.value = stations
-        _favoriteStations.value = stations.filter { it.isFavorite }
-    }
+    override suspend fun insertStations(stations: List<RadioStation>) =
+        dao.insertStations(stations)
 
-    override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
-        val updated = _allStations.value.map {
-            if (it.id == id) it.copy(isFavorite = isFav) else it
-        }
-        _allStations.value = updated
-        _favoriteStations.value = updated.filter { it.isFavorite }
-    }
+    override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) =
+        dao.updateFavoriteStatus(id, isFav)
 }

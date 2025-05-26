@@ -1,0 +1,22 @@
+package com.smoothradio.radio.core.domain.di
+
+import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+class DomainModule {
+    @Provides
+    @Singleton
+    fun provideProcessRemoteLinksUseCase(
+        radioRepository: RadioRepository, radioLinkRepository: RadioLinkRepository
+    ): ProcessRemoteLinksUseCase {
+        return ProcessRemoteLinksUseCase(radioRepository, radioLinkRepository)
+    }
+}

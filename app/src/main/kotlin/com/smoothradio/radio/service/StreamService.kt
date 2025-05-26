@@ -83,11 +83,6 @@ class StreamService : Service() {
         return START_NOT_STICKY
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        cleanupResources()
-    }
-
     private fun setupAudioFocus() {
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         playPauseIntent = Intent()
@@ -198,6 +193,10 @@ class StreamService : Service() {
 
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        cleanupResources()
+    }
 
     private fun cleanupResources() {
         audioManager.abandonAudioFocus(onAudioFocusChangeListener)
@@ -275,25 +274,24 @@ class StreamService : Service() {
     }
 
     private fun updateNotification(state: String, showPlay: Boolean, showPause: Boolean) {
-        val notificationIntent = Intent(this, MainActivity::class.java).setPackage(packageName)
-        val pendingIntent =
-            PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSmallIcon(R.drawable.notificationicon)
-            .setContentIntent(pendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentText(state)
-            .setColor(ContextCompat.getColor(this, R.color.red))
+        notificationBuilder.setContentText(state)
+        notificationBuilder.mActions.clear()
 
         if (showPlay) {
-            builder.addAction(R.drawable.play_notification_icon, TITLE_PLAY, playPausePI)
+            notificationBuilder.addAction(
+                R.drawable.play_notification_icon,
+                TITLE_PLAY,
+                playPausePI
+            )
         }
         if (showPause) {
-            builder.addAction(R.drawable.pause_notification_icon, TITLE_PAUSE, playPausePI)
+            notificationBuilder.addAction(
+                R.drawable.pause_notification_icon,
+                TITLE_PAUSE,
+                playPausePI
+            )
         }
-        builder.addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+        notificationBuilder.addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
 
         val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
         if (!showPlay && !showPause) {
@@ -301,11 +299,11 @@ class StreamService : Service() {
         } else {
             mediaStyle.setShowActionsInCompactView(*intArrayOf(0, 1))
         }
-        builder.setStyle(mediaStyle)
+        notificationBuilder.setStyle(mediaStyle)
 
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(1, builder.build())
+        notificationManager.notify(1, notificationBuilder.build())
     }
 
 
@@ -329,15 +327,15 @@ class StreamService : Service() {
             } else {
                 resumePlayer()
                 mediaMetadataOR = player?.mediaMetadata
-                mediaMetadataOR?.let { getSendMetadata(it) }
+                mediaMetadataOR?.let { sendMetadataBroadcast(it) }
             }
         }
     }
 
-    private fun getSendMetadata(mediaMetadata: MediaMetadata) {
-        if (mediaMetadata.title != null && isPlaying) {
-            val title = mediaMetadata.title.toString()
-            metadataIntent.putExtra(EXTRA_TITLE, title)
+    private fun sendMetadataBroadcast(metadata: MediaMetadata) {
+        if (metadata.title != null && isPlaying) {
+            val currentTitle = metadata.title.toString()
+            metadataIntent.putExtra(EXTRA_TITLE, currentTitle)
             sendBroadcast(metadataIntent)
         }
     }
@@ -404,14 +402,14 @@ class StreamService : Service() {
                 eventIntent.putExtra(EXTRA_STATE, stateChange)
                 sendBroadcast(eventIntent)
                 mediaMetadataOR = it.mediaMetadata
-                mediaMetadataOR?.let { metadata -> getSendMetadata(metadata) }
+                mediaMetadataOR?.let { metadata -> sendMetadataBroadcast(metadata) }
             }
         }
     }
 
     inner class EventListener : Player.Listener {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            getSendMetadata(mediaMetadata)
+            sendMetadataBroadcast(mediaMetadata)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
