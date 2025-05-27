@@ -17,7 +17,8 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
             location = "Nairobi",
             streamLink = "https://example.com/hopefm",
             isPlaying = false,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 0
         ),
         RadioStation(
             id = 2,
@@ -27,7 +28,8 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
             location = "Mombasa",
             streamLink = "https://example.com/soundcity",
             isPlaying = false,
-            isFavorite = true
+            isFavorite = true,
+            orderIndex = 1
         ),
         RadioStation( // KIKUYU
             id = 38,
@@ -37,7 +39,8 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
             location = "Nyeri",
             streamLink = "https://example.com/inooro",
             isPlaying = false,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 2
         )
     )
 
@@ -64,5 +67,11 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         }
         _allStations.value = updated
         _favoriteStations.value = updated.filter { it.isFavorite }
+    }
+
+    override suspend fun clearAllStations() {
+        _allStations.value = emptyList()
+        _favoriteStations.value = emptyList()
+        _playingStation.value = null
     }
 }

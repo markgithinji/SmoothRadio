@@ -15,7 +15,8 @@ class CategoryHelperTest {
         location = "Test",
         streamLink = "url",
         isPlaying = false,
-        isFavorite = false
+        isFavorite = false,
+        orderIndex = 0
     )
 
     @Test

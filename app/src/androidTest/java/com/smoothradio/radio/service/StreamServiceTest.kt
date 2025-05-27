@@ -43,7 +43,8 @@ class StreamServiceTest {
             location = "City",
             streamLink = "https://a5.asurahosting.com:7530/radio.mp3",
             isPlaying = false,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 0
         )
 
     @Before

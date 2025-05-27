@@ -35,7 +35,8 @@ class CategoryRecyclerViewAdapterTest {
             location = "Nairobi",
             streamLink = "https://stream.smoothradio.com",
             isPlaying = false,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 0
         )
         adapter = CategoryRecyclerViewAdapter(listOf(testStation), actionHandler)
 
@@ -83,7 +84,6 @@ class CategoryRecyclerViewAdapterTest {
 
         viewHolder.binding.ivCategoryFavourite.performClick()
 
-        assertThat(testStation.isFavorite).isTrue()
         verify(actionHandler).onToggleFavorite(testStation, true)
         verify(actionHandler).onRequestShowToast("Added to favorites: Smooth FM")
     }

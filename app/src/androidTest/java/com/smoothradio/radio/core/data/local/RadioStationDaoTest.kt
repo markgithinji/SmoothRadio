@@ -142,7 +142,8 @@ class RadioStationDaoTest {
         location = "Nairobi",
         streamLink = "https://url",
         isPlaying = isPlaying,
-        isFavorite = isFavorite
+        isFavorite = isFavorite,
+        orderIndex = 0
     )
 
 }

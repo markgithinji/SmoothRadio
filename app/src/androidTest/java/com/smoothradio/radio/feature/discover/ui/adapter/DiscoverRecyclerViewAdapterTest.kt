@@ -34,7 +34,8 @@ class DiscoverRecyclerViewAdapterTest {
             location = "Nairobi",
             streamLink = "https://stream.smoothradio.com",
             isPlaying = false,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 0
         )
 
         testCategory = Category(

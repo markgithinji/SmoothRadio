@@ -61,7 +61,7 @@ class RadioViewModelTest {
 
     @Test
     fun setSelectedStation_shouldEmitInSharedFlow() = runTest {
-        val station = RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url", false, false)
+        val station = RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url", false, false,0)
 
         val emissions = mutableListOf<RadioStation?>()
         val job = launch { viewModel.selectedStation.toList(emissions) }
@@ -76,7 +76,7 @@ class RadioViewModelTest {
     @Test
     fun savePlayingStation_shouldUpdatePlayingStationFlow() = runTest {
         val stations = listOf(
-            RadioStation(5, 0, "Station Five", "101.1 FM", "CityX", "url", false, false)
+            RadioStation(5, 0, "Station Five", "101.1 FM", "CityX", "url", false, false,0)
         )
         fakeRadioRepository.insertStations(stations)
 
@@ -90,7 +90,7 @@ class RadioViewModelTest {
     @Test
     fun insertStations_shouldUpdateAllStationsFlow() = runTest {
         val stations = listOf(
-            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, true)
+            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, true,0)
         )
 
         viewModel.insertStations(stations)
@@ -103,8 +103,8 @@ class RadioViewModelTest {
     @Test
     fun updateFavoriteStatus_shouldUpdateFavoritesFlow() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "One", "99.1", "City", "url", false, false),
-            RadioStation(2, 0, "Two", "100.2", "City", "url", false, false)
+            RadioStation(1, 0, "One", "99.1", "City", "url", false, false,0),
+            RadioStation(2, 0, "Two", "100.2", "City", "url", false, false,1)
         )
         fakeRadioRepository.insertStations(stations)
 

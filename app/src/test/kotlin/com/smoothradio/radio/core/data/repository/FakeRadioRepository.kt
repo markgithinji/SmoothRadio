@@ -26,4 +26,8 @@ class FakeRadioRepository (
 
     override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) =
         dao.updateFavoriteStatus(id, isFav)
+
+    override suspend fun clearAllStations() {
+        dao.clearAll()
+    }
 }

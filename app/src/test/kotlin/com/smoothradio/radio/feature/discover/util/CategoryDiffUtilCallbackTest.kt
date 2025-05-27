@@ -20,9 +20,9 @@ class CategoryDiffUtilCallbackTest {
     @Test
     fun areContentsTheSame_returnsFalseWhenStationsChange() {
         val oldCategory =
-            Category("Popular", listOf(RadioStation(1, 0, "A", "101", "Loc", "url", false, false)))
+            Category("Popular", listOf(RadioStation(1, 0, "A", "101", "Loc", "url", false, false,0)))
         val newCategory =
-            Category("Popular", listOf(RadioStation(2, 0, "B", "102", "Loc", "url", false, false)))
+            Category("Popular", listOf(RadioStation(2, 0, "B", "102", "Loc", "url", false, false,1)))
 
         val callback = CategoryDiffUtilCallback(listOf(oldCategory), listOf(newCategory))
 

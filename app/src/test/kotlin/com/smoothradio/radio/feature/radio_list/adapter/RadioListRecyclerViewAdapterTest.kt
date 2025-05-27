@@ -15,8 +15,8 @@ class RadioListRecyclerViewAdapterTest {
 
     private lateinit var adapter: RadioListRecyclerViewAdapter
 
-    private val station1 = RadioStation(1, 0, "Station One", "88.1", "Nairobi", "", false, false)
-    private val station2 = RadioStation(2, 0, "Station Two", "91.5", "Mombasa", "", true, false)
+    private val station1 = RadioStation(1, 0, "Station One", "88.1", "Nairobi", "", false, false,0)
+    private val station2 = RadioStation(2, 0, "Station Two", "91.5", "Mombasa", "", true, false,1)
 
     private val testHandler = object : RadioStationActionHandler {
         override fun onStationSelected(station: RadioStation) {}

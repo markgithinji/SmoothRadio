@@ -23,7 +23,8 @@ class StationDiffUtilCallbackTest {
             location = "Nairobi",
             streamLink = url,
             isFavorite = isFavorite,
-            isPlaying = isPlaying
+            isPlaying = isPlaying,
+            orderIndex = 0
         )
     }
 

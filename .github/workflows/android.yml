@@ -5,13 +5,12 @@ on:
   pull_request:
     branches: [ main ]
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       JAVA_VERSION: 17
-      ANDROID_SDK_ROOT: ~/Android/Sdk # Set the default SDK root
+      ANDROID_SDK_ROOT: ~/Android/Sdk
 
     steps:
       - name: Checkout code
@@ -37,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.ANDROID_SDK_ROOT }}
-          key: android-sdk-${{ runner.os }}-latest # Simple key, adjust as needed
+          key: android-sdk-${{ runner.os }}-latest
           restore-keys: |
             android-sdk-${{ runner.os }}-
 
@@ -57,6 +56,22 @@ jobs:
         with:
           name: unit-test-report
           path: app/build/reports/tests/testDebugUnitTest
+
+      - name: Run Instrumentation Tests on Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_3a
+          script: ./gradlew connectedDebugAndroidTest
+
+      - name: Upload Instrumentation Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumentation-test-report
+          path: app/build/reports/androidTests/connected
 
       - name: Build AAB
         run: ./gradlew bundleRelease

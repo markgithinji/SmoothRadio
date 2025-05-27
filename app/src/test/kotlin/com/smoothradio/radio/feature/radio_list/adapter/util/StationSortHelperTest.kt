@@ -16,7 +16,8 @@ class StationSortHelperTest {
         location = "",
         streamLink = "",
         isFavorite = false,
-        isPlaying = false
+        isPlaying = false,
+        orderIndex = 0
     )
 
     @Test

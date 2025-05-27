@@ -61,7 +61,7 @@ class PlayerManagerIntegrationTest {
         activityRule.scenario.onActivity { activity ->
             playerManager.bindActivity(activity)
             playerManager.setRadioStation(
-                RadioStation(2, 0, "Ad Refresh", "88.8", "City", "http://stream", false, false)
+                RadioStation(2, 0, "Ad Refresh", "88.8", "City", "http://stream", false, false, 0)
             )
 
             playerManager.refresh()
@@ -103,7 +103,8 @@ class PlayerManagerIntegrationTest {
                     location = "Nairobi",
                     streamLink = "https://a5.asurahosting.com:7530/radio.mp3",
                     isPlaying = false,
-                    isFavorite = false
+                    isFavorite = false,
+                    orderIndex = 0
                 )
             )
             playerManager.playOrStop()
