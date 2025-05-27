@@ -21,6 +21,7 @@ class RadioStationsHelper {
                 add(RadioStation(3, R.drawable.nrg0, "NRG RADIO", "97.1", "NAIROBI", linksFromTxt[3], false, false))
                 add(RadioStation(203, R.drawable.radiocitizenlogo, "RADIO CITIZEN", "106.7", "NAIROBI", linksFromTxt[203], false, false))
                 add(RadioStation(4, R.drawable.inooro, "INOORO FM", "98.9", "NAIROBI", linksFromTxt[4], false, false))
+                // add(RadioStation(206, R.drawable.njatafmlogo,"NJATA FM","97.2","NAIROBI",linksFromTxt[206], false, false))
                 add(RadioStation(5, R.drawable.nrgchoiceradiologo, "CHOICE RADIO", "87.7", "NAIROBI", linksFromTxt[5], false, false))
                 add(RadioStation(6, R.drawable.hot96logo, "HOT 96", "96.0", "NAIROBI", linksFromTxt[6], false, false))
                 add(RadioStation(7, R.drawable.homeboys, "HOMEBOYS RADIO", "103.5", "NAIROBI", linksFromTxt[7], false, false))
@@ -166,6 +167,8 @@ class RadioStationsHelper {
                 add(RadioStation(126, R.drawable.radiosafarilogo, "RADIO SAFARI", "87.9", "KITALE", linksFromTxt[126], false, false))
                 add(RadioStation(227, R.drawable.berurfmlogo, "BERUR FM", "96.7", "NAIROBI", linksFromTxt[227], false, false))
                 add(RadioStation(127, R.drawable.radiofahamulogo, "RADIO FAHAMU", "--.--", "NAIROBI", linksFromTxt[127], false, false))
+                // Uncomment the line below if you want to include MECOL FM
+                // add(RadioStation(128, R.drawable.mecolfmlogo, "MECOL FM", "--.--", "NAIROBI", linksFromTxt[128], false, false))
                 add(RadioStation(129, R.drawable.radio254logo, "RADIO 254", "--.--", "NAIROBI", linksFromTxt[129], false, false))
                 add(RadioStation(130, R.drawable.varchradiologo, "VARCH RADIO", "--.--", "ELDORET", linksFromTxt[130], false, false))
                 add(RadioStation(205, R.drawable.radiovunalogo, "RADIO VUNA", "102.0", "KISII", linksFromTxt[205], false, false))

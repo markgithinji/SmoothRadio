@@ -63,36 +63,33 @@ tasks.named("build") {
 
 
 dependencies {
-    implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.coordinatorlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.media)
-
+    // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.profileinstaller)
-    "baselineProfile"(project(":baselineprofile"))
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
-
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
+    // Ads
     implementation(libs.play.services.ads)
     implementation(libs.facebook)
-    implementation(libs.user.messaging.platform)
-
+    implementation(libs.user.messaging.platform) // For showing Regional Ad-Consent dialog
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.google.firebase.analytics)
     implementation(libs.google.firebase.firestore)
-
+    // Unit Test
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))
     testImplementation(libs.jetbrains.kotlinx.coroutines.test)
@@ -100,7 +97,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
-
+    // Instrumentation tests
     androidTestImplementation(libs.hilt.android.testing)
     kaptAndroidTest(libs.hilt.compiler)
     androidTestImplementation(libs.jetbrains.kotlinx.coroutines.test)

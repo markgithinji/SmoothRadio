@@ -112,21 +112,11 @@ class CategoryRecyclerViewAdapter(
     ) : View.OnClickListener {
         override fun onClick(view: View) {
             val isFavorite = radioStation.isFavorite
-//            radioStation.isFavorite = !isFavorite
-
-//            val context = view.context
-//            val message = if (isFavorite) {
-//                context.getString(R.string.removed_from_favorites, radioStation.stationName)
-//            } else {
-//                context.getString(R.string.added_to_favorites, radioStation.stationName)
-//            }
 
             radioStationActionHandler.apply {
                 onToggleFavorite(radioStation, !isFavorite)
-//                onRequestShowToast(message)
             }
 
-//            updateFavoriteIcon(radioStation, viewHolder)
         }
     }
 

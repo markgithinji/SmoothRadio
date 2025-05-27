@@ -1,5 +1,6 @@
 package com.smoothradio.radio.core.domain.usecase
 
+import android.util.Log
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
@@ -11,23 +12,20 @@ import javax.inject.Singleton
 
 
 /**
- * A use case responsible for processing remote radio station links.
+ * Use case responsible for processing remote radio station links.
  *
- * This class fetches remote radio station links, converts them into [RadioStation] objects,
- * and updates the local radio station data. It handles scenarios where local data is empty
- * or needs to be merged with new remote data, preserving user favorites and the currently
- * playing station.
+ * This class observes a flow of remote stream links from [RadioLinkRepository].
+ * When new links are successfully fetched, it:
+ * 1. Creates [RadioStation] objects from the remote data.
+ * 2. If no local stations exist, it inserts the new stations and sets the first one as playing.
+ * 3. If local stations exist, it preserves the favorite status and currently playing station
+ *    from the local data and applies them to the corresponding new stations.
+ * 4. Inserts the updated list of new stations into the local [RadioRepository].
  *
- * It observes a flow of remote stream links from the [radioLinkRepository].
- * On successful retrieval:
- *  - It fetches the current local stations from [radioRepository].
- *  - It converts the remote links into a list of [RadioStation] objects using [RadioStationsHelper].
- *  - If no local stations exist, it inserts the new stations and sets the first new station as playing.
- *  - If local stations exist, it merges the new stations with the local data, ensuring that:
- *      - Favorite statuses from local stations are applied to matching new stations.
- *      - The currently playing station status is maintained.
+ * It also includes placeholders for handling error and loading states from the remote data source.
  *
- * Error and loading states from the remote link fetching process can be optionally handled.
+ * @property radioRepository Repository for managing local radio station data.
+ * @property radioLinkRepository Repository for fetching remote radio station links.
  */
 @Singleton
 class ProcessRemoteLinksUseCase @Inject constructor(
@@ -39,42 +37,34 @@ class ProcessRemoteLinksUseCase @Inject constructor(
         radioLinkRepository.getRemoteStreamLinksFlow().collect { resource ->
             when (resource) {
                 is Resource.Success -> {
-                    val local = radioRepository.allStations.first()
-                    val newStations =
-                        RadioStationsHelper.createRadioStations(resource.data)
+                    val localStations = radioRepository.allStations.first()
+                    val newStations = RadioStationsHelper.createRadioStations(resource.data)
 
-                    if (local.isEmpty()) {
+                    if (localStations.isEmpty()) {
                         radioRepository.insertStations(newStations)
-                        // Since no station is currently playing and new stations were added, it sets the first of the
-                        // new stations as the currently playing station
                         radioRepository.setPlayingStation(newStations.first().id)
                         return@collect
                     }
 
-                    // Merge local favorites and playing states
-                    val favouriteStations = mutableListOf<RadioStation>()
-                    var playingStationId = 0
+                    val favorites = localStations.filter { it.isFavorite }
+                    val playingStationId = localStations.find { it.isPlaying }?.id
 
-                    local.forEach {
-                        if (it.isPlaying) playingStationId = it.id
-                        if (it.isFavorite) favouriteStations.add(it)
-                    }
-
-                    newStations.forEach {
-                        it.isFavorite = favouriteStations.contains(it)
-                        it.isPlaying = it.id == playingStationId
+                    newStations.forEach { station ->
+                        station.isFavorite = station in favorites
+                        station.isPlaying = station.id == playingStationId
                     }
 
                     radioRepository.insertStations(newStations)
                 }
 
                 is Resource.Error -> {
-                    // Optionally handle error (log, analytics, etc.)
+                    // TODO: Handle error state (e.g. log or notify)
                 }
 
                 Resource.Loading -> {
-                    // Optional: track loading state
+                    // TODO: Handle loading state (e.g. show loading UI)
                 }
+
             }
         }
     }

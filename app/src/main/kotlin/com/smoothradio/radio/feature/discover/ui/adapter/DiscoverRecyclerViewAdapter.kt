@@ -58,12 +58,6 @@ class DiscoverRecyclerViewAdapter(
         recyclerView.adapter = adapter
         recyclerView.layoutManager = layoutManager
         recyclerView.setHasFixedSize(true)
-        if (recyclerView.itemDecorationCount == 0) {
-            recyclerView.addItemDecoration(
-                DividerItemDecoration(recyclerView.context, DividerItemDecoration.VERTICAL)
-            )
-        }
-
     }
 
     override fun getItemCount(): Int = categoryList.size

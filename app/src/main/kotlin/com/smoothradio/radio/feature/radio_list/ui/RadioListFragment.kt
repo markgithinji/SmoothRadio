@@ -142,7 +142,6 @@ class RadioListFragment : Fragment() {
             adapter = radioListRecyclerViewAdapter
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
             setHasFixedSize(true)
-            addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
         setupRecyclerViewScrollBehavior()
     }

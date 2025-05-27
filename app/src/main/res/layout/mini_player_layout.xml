@@ -66,8 +66,7 @@
         android:padding="20dp"
         android:src="@drawable/playicon"
         app:layout_constraintBottom_toBottomOf="@+id/imageView5"
-        app:layout_constraintEnd_toEndOf="@id/imageView5"
-        app:layout_constraintHorizontal_bias="0.7"
+        app:layout_constraintEnd_toEndOf="@+id/imageView5"
         app:layout_constraintStart_toEndOf="@+id/linearLayout3"
         app:layout_constraintTop_toTopOf="@+id/imageView5" />
 
@@ -75,13 +74,12 @@
         android:id="@+id/loadingAnimationMiniPlayerLayout"
         android:layout_width="34dp"
         android:layout_height="34dp"
+        android:background="@color/white"
         android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/ivPlayMiniPlayerLayout"
         app:layout_constraintEnd_toEndOf="@+id/ivPlayMiniPlayerLayout"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@+id/ivPlayMiniPlayerLayout"
         app:layout_constraintTop_toTopOf="@+id/ivPlayMiniPlayerLayout"
-        app:layout_constraintVertical_bias="0.5"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
         app:lottie_rawRes="@raw/loading2" />
