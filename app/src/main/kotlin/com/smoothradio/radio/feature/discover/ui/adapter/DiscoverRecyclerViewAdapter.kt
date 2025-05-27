@@ -66,30 +66,37 @@ class DiscoverRecyclerViewAdapter(
         val diffUtilCallback = CategoryDiffUtilCallback(this.categoryList, newCategoryList)
         val diffResult = DiffUtil.calculateDiff(diffUtilCallback)
 
+        // Update category data
         this.categoryList.clear()
         this.categoryList.addAll(newCategoryList)
 
-        this.categoryAdapters.clear()
-        this.categoryAdapters.addAll(
-            newCategoryList.map { category ->
-                CategoryRecyclerViewAdapter(
-                    category.categoryRadioStationList,
-                    radioStationActionHandler
-                )
+        // Update data in each inner adapter instead of recreating them
+        newCategoryList.forEachIndexed { index, category ->
+            // Check if we already have an existing adapter at this position.
+            if (index < categoryAdapters.size) {
+                // Update existing adapter's data
+                categoryAdapters[index].updateStations(category.categoryRadioStationList)
+            } else {
+                // Only create a new adapter if it didn't exist before
+                val newAdapter = CategoryRecyclerViewAdapter(category.categoryRadioStationList, radioStationActionHandler)
+                categoryAdapters.add(newAdapter)
             }
-        )
+        }
+
+//        // Remove excess adapters if the new list is smaller
+//        if (categoryAdapters.size > newCategoryList.size) {
+//            categoryAdapters.subList(newCategoryList.size, categoryAdapters.size).clear()
+//        }
 
         diffResult.dispatchUpdatesTo(this)
     }
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         categoryAdapters.forEach { it.setSelectedStationWithState(station, state) }
-        notifyDataSetChanged()
     }
 
     fun updateFavorites(favorites: List<RadioStation>) {
         categoryAdapters.forEach { it.updateFavorites(favorites) }
-        notifyDataSetChanged()
     }
 
     inner class CategoryItemViewHolder(val binding: CategoryitemBinding) :

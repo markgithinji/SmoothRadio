@@ -13,7 +13,7 @@ interface RadioStationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStations(stations: List<RadioStation>)
 
-    @Query("SELECT * FROM radio_stations")
+    @Query("SELECT * FROM radio_stations ORDER BY orderIndex ASC")
     fun getAllStations(): Flow<List<RadioStation>>
 
     @Query("SELECT * FROM radio_stations WHERE isFavorite = 1")

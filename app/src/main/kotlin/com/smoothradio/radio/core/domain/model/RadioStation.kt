@@ -12,7 +12,8 @@ data class RadioStation(
     val location: String,
     val streamLink: String,
     var isPlaying: Boolean,
-    var isFavorite: Boolean
+    var isFavorite: Boolean,
+    val orderIndex: Int
 ) : ListItem {
 
     override fun equals(other: Any?): Boolean {

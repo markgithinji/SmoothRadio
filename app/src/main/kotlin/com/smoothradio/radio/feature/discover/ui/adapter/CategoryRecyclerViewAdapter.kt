@@ -6,11 +6,13 @@ import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.CategoryradioitemBinding
 import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
+import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
@@ -28,11 +30,11 @@ import com.smoothradio.radio.service.StreamService.StreamStates.PREPARING
  *                                    such as selecting a station or toggling its favorite status.
  */
 class CategoryRecyclerViewAdapter(
-    stationLogosList: List<RadioStation>,
+    radioStationList: List<RadioStation>,
     private val radioStationActionHandler: RadioStationActionHandler
 ) : RecyclerView.Adapter<CategoryRecyclerViewAdapter.ItemViewViewHolder>() {
 
-    private val radioStationItems: MutableList<RadioStation> = ArrayList(stationLogosList)
+    private val radioStationItems: MutableList<RadioStation> = ArrayList(radioStationList)
     private var state: String = StreamService.StreamStates.ENDED
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewViewHolder {
@@ -52,7 +54,7 @@ class CategoryRecyclerViewAdapter(
             ivCategoryLogo.setImageResource(radioStation.logoResource)
             tvCategoryChannelName.text = radioStation.stationName
             ivCategoryPlay.setOnClickListener(PlayOnclickListener(radioStation))
-            ivCategoryFavourite.setOnClickListener(FavouriteListener(radioStation, holder))
+            ivCategoryFavourite.setOnClickListener(FavouriteListener(radioStation))
         }
 
         if (holder.adapterPosition == RecyclerView.NO_POSITION) {
@@ -108,7 +110,6 @@ class CategoryRecyclerViewAdapter(
 
     private inner class FavouriteListener(
         private val radioStation: RadioStation,
-        private val viewHolder: ItemViewViewHolder
     ) : View.OnClickListener {
         override fun onClick(view: View) {
             val isFavorite = radioStation.isFavorite
@@ -124,6 +125,17 @@ class CategoryRecyclerViewAdapter(
 
     inner class ItemViewViewHolder(val binding: CategoryradioitemBinding) :
         RecyclerView.ViewHolder(binding.root)
+
+    fun updateStations(newStations: List<RadioStation>) {
+        val diffCallback = StationDiffUtilCallback(radioStationItems, newStations)
+        val diffResult = DiffUtil.calculateDiff(diffCallback)
+
+        radioStationItems.clear()
+        radioStationItems.addAll(newStations)
+
+        diffResult.dispatchUpdatesTo(this)
+    }
+
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         this.state = state

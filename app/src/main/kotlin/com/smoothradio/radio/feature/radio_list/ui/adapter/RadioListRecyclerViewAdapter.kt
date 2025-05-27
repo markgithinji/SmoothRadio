@@ -55,7 +55,8 @@ class RadioListRecyclerViewAdapter(
         location = "",
         streamLink = "",
         isPlaying = true,
-        isFavorite = false
+        isFavorite = false,
+        orderIndex = 0
     )
 
     enum class DisplayState { POPULAR, FAVORITES, ASCENDING, DESCENDING, SEARCH }
@@ -217,7 +218,8 @@ class RadioListRecyclerViewAdapter(
             location = "",
             streamLink = "",
             isPlaying = true,
-            isFavorite = false
+            isFavorite = false,
+            orderIndex = 0
         )
         return recyclerViewItems.indexOf(dummyStation)
     }
@@ -271,7 +273,7 @@ class RadioListRecyclerViewAdapter(
             else -> injectAdItems(stationList)
         }
 
-        if (recyclerViewItems.isEmpty()) { // for first time display
+        if (recyclerViewItems.isEmpty()) { // For first time display
             recyclerViewItems.addAll(displayList)
             notifyDataSetChanged()
             return
