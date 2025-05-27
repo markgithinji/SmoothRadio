@@ -16,7 +16,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -115,7 +114,6 @@ class RadioListFragment : Fragment() {
                 launch {
                     radioViewModel.selectedStation.collect { station ->
                         station?.let {
-                            currentStation = it
                             playerManager.setRadioStation(it)
 
                             if (it.isPlaying) {
@@ -131,6 +129,12 @@ class RadioListFragment : Fragment() {
                 launch {
                     radioViewModel.favoriteStations.collect { favorites ->
                         radioListRecyclerViewAdapter.updateFavorites(favorites)
+                    }
+                }
+                // Playing station observer
+                launch {
+                    radioViewModel.playingStation.collect { station ->
+                        currentStation = station
                     }
                 }
             }
@@ -167,11 +171,7 @@ class RadioListFragment : Fragment() {
 
         playerManager.bindActivity(requireActivity())
 
-        currentStation?.let {
-            radioListRecyclerViewAdapter.setPlayingStation(it.id)
-        }
-
-        // update ui or get currently playing state from service
+        // Update ui or get currently playing state from service
         if (playerManager.isShowingAd) {
             broadcastState(StreamService.StreamStates.PREPARING)
         } else {

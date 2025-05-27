@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.radio_list.ui.adapter
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -184,7 +185,6 @@ class RadioListRecyclerViewAdapter(
         private val stationId = radioStation.id
         override fun onClick(view: View?) {
             radioStationActionHandler.onStationSelected(radioStation)
-            setPlayingStation(stationId)
         }
     }
 
@@ -237,7 +237,6 @@ class RadioListRecyclerViewAdapter(
         val updatedList = stationList.map { station ->
             station.copy(isPlaying = station.id == stationId)
         }
-        update(updatedList)
     }
 
 //    fun setPlayingStation(stationId: Int) {

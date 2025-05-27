@@ -94,6 +94,11 @@ class DiscoverFragment : Fragment() {
                         discoverRecyclerViewAdapter.updateFavorites(favorites)
                     }
                 }
+                launch {
+                    radioViewModel.playingStation.collect { station ->
+                        currentStation = station
+                    }
+                }
             }
         }
     }

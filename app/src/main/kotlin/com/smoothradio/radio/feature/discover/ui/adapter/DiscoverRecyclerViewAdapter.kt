@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.discover.ui.adapter
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -91,12 +92,16 @@ class DiscoverRecyclerViewAdapter(
         diffResult.dispatchUpdatesTo(this)
     }
 
+
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         categoryAdapters.forEach { it.setSelectedStationWithState(station, state) }
+        notifyDataSetChanged()
+        Log.d("DiscoverRecyclerViewAdapter", "setSelectedStationWithState: $station")
     }
 
     fun updateFavorites(favorites: List<RadioStation>) {
         categoryAdapters.forEach { it.updateFavorites(favorites) }
+        notifyDataSetChanged()
     }
 
     inner class CategoryItemViewHolder(val binding: CategoryitemBinding) :
