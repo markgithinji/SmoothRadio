@@ -16,7 +16,6 @@ object CategoryHelper {
             1,
             211,
             228,
-            26,
             129,
             188,
             153,
@@ -88,7 +87,7 @@ object CategoryHelper {
             17, 92, 85, 86, 107, 116
         ),
         "KAMBA" to listOf(
-            18, 82, 223, 53, 71, 95
+            18, 231, 82, 223, 53, 71, 95
         ),
         "MERU" to listOf(
             20, 65, 105, 218

@@ -330,6 +330,19 @@
             </AndroidTestResultsTableState>
           </value>
         </entry>
+        <entry key="-1092515079">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Pixel_5_Andorid_11" value="120" />
+                  <entry key="Tests" value="360" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
         <entry key="-1077310670">
           <value>
             <AndroidTestResultsTableState>
@@ -538,6 +551,34 @@
             </AndroidTestResultsTableState>
           </value>
         </entry>
+        <entry key="28629151">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="OnePlus LE2100" value="120" />
+                  <entry key="Pixel_5_Andorid_11" value="120" />
+                  <entry key="Pixel_9" value="120" />
+                  <entry key="Tests" value="360" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="106288508">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="OnePlus LE2100" value="120" />
+                  <entry key="Tests" value="360" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
         <entry key="108736182">
           <value>
             <AndroidTestResultsTableState>
@@ -597,7 +638,9 @@
               <option name="preferredColumnWidths">
                 <map>
                   <entry key="Duration" value="90" />
+                  <entry key="OnePlus LE2100" value="120" />
                   <entry key="Pixel_5_Andorid_11" value="120" />
+                  <entry key="Pixel_9" value="120" />
                   <entry key="Tests" value="360" />
                 </map>
               </option>
@@ -792,6 +835,7 @@
               <option name="preferredColumnWidths">
                 <map>
                   <entry key="Duration" value="90" />
+                  <entry key="OnePlus LE2100" value="120" />
                   <entry key="Pixel_5_Andorid_11" value="120" />
                   <entry key="Tests" value="360" />
                 </map>

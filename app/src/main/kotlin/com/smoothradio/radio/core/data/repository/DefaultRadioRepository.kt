@@ -27,4 +27,8 @@ class DefaultRadioRepository @Inject constructor(
         dao.updateFavoriteStatus(id, isFav)
 
     override suspend fun clearAllStations() = dao.clearAll()
+
+    override suspend fun deleteStations(stations: List<RadioStation>) {
+        dao.deleteStations(stations)
+    }
 }

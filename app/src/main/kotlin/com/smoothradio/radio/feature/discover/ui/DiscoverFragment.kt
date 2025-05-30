@@ -85,11 +85,6 @@ class DiscoverFragment : Fragment() {
                     }
                 }
                 launch {
-                    radioViewModel.selectedStation.collect { radioStation ->
-                        currentStation = radioStation
-                    }
-                }
-                launch {
                     radioViewModel.favoriteStations.collect { favorites ->
                         discoverRecyclerViewAdapter.updateFavorites(favorites)
                     }

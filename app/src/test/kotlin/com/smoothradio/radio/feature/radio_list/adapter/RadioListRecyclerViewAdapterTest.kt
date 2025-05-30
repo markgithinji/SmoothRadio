@@ -63,13 +63,6 @@ class RadioListRecyclerViewAdapterTest {
     }
 
     @Test
-    fun setPlayingStation_updatesPlayingState() {
-        adapter.setPlayingStation(2)
-        val playingStation = adapter.getStationAtPosition(adapter.getPositionOfStation(2))
-        assertThat(playingStation.isPlaying).isTrue()
-    }
-
-    @Test
     fun updateFavorites_showsEmptyPlaceholderWhenFavoritesEmpty() {
         val adapter = RadioListRecyclerViewAdapter(emptyList(), testHandler)
 

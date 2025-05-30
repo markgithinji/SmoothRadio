@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.data.repository
 
-import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
@@ -8,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Singleton
 
 @Singleton
-class FakeRadioRepository (
+class FakeRadioRepository(
     private val dao: RadioStationDao
 ) : RadioRepository {
 
@@ -29,5 +28,9 @@ class FakeRadioRepository (
 
     override suspend fun clearAllStations() {
         dao.clearAll()
+    }
+
+    override suspend fun deleteStations(stations: List<RadioStation>) {
+        dao.deleteStations(stations)
     }
 }

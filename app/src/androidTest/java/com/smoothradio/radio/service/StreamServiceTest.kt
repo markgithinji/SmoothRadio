@@ -1,6 +1,5 @@
 package com.smoothradio.radio.service
 
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -75,15 +74,16 @@ class StreamServiceTest {
     @Test
     fun startService_shouldBroadcastPreparingState() {
         startService()
-        // Wait until broadcast received or timeout
+        startPlay()
         onIdle()
         assertThat(receivedStates).contains(StreamService.StreamStates.PREPARING)
+        stopService()
     }
 
     @Test
     fun sendBroadcast_actionGetState_shouldRespondWithCurrentState() {
         startService()
-
+        startPlay()
         onIdle()
 
         receivedStates.clear()
@@ -91,11 +91,18 @@ class StreamServiceTest {
         val getStateIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(context.packageName)
         context.sendBroadcast(getStateIntent)
 
-
         assertThat(receivedStates).containsExactly(StreamService.StreamStates.PLAYING)
+        stopService()
     }
 
     private fun startService() {
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_SHOW_AD
+        }
+        context.startService(startIntent)
+    }
+
+    private fun startPlay() {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = StreamService.ACTION_START
             putExtra(StreamService.EXTRA_LINK, radioStation.streamLink)
@@ -103,5 +110,12 @@ class StreamServiceTest {
             putExtra(StreamService.EXTRA_STATION_NAME, radioStation.stationName)
         }
         context.startService(startIntent)
+    }
+
+    private fun stopService() {
+        val stopIntent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_STOP
+        }
+        context.startService(stopIntent)
     }
 }

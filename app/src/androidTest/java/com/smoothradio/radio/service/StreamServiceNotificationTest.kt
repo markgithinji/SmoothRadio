@@ -6,6 +6,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
@@ -42,6 +43,9 @@ class StreamServiceNotificationTest {
 
     @Test
     fun clickingHopeFmPlay_shouldTriggerNotificationWithStationName() {
+        // Dismiss notification dialog
+        val allowPopup = device.wait(Until.findObject(By.text("Allow")), 3000)
+        allowPopup?.click()
         // Step 1: Scroll to "Hope FM"
         val scrollable = UiScrollable(UiSelector().scrollable(true))
         scrollable.scrollTextIntoView("HOPE FM")
@@ -79,5 +83,6 @@ class StreamServiceNotificationTest {
         device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
         notificationState.click()
         device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
+
     }
 }

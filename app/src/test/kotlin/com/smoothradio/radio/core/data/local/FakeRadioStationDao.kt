@@ -45,4 +45,9 @@ class FakeRadioStationDao : RadioStationDao {
         stations.clear()
         playingId = null
     }
+
+    override suspend fun deleteStations(stations: List<RadioStation>) {
+        val idsToDelete = stations.map { it.id }.toSet()
+        this.stations.removeAll { it.id in idsToDelete }
+    }
 }

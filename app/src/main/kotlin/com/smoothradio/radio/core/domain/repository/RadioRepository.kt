@@ -12,4 +12,5 @@ interface RadioRepository {
     suspend fun insertStations(stations: List<RadioStation>)
     suspend fun updateFavoriteStatus(id: Int, isFav: Boolean)
     suspend fun clearAllStations()
+    suspend fun deleteStations(stations: List<RadioStation>)
 }

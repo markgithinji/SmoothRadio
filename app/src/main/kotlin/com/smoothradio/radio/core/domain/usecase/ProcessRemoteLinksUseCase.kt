@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.domain.usecase
 
-import android.util.Log
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
@@ -39,22 +38,27 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                 is Resource.Success -> {
                     val localStations = radioRepository.allStations.first()
                     val newStations = RadioStationsHelper.createRadioStations(resource.data)
-
-                    if (localStations.isEmpty()) {
-                        radioRepository.insertStations(newStations)
-                        radioRepository.setPlayingStation(newStations.first().id)
-                        return@collect
+                    // Delete removed stations
+                    val newIds = newStations.map { it.id }.toSet() // Gat newly added stations
+                    val toDelete =
+                        localStations.filterNot { it.id in newIds } // Get stations in old list that are not in new list
+                    if (toDelete.isNotEmpty()) {
+                        radioRepository.deleteStations(toDelete)
                     }
 
-                    val favorites = localStations.filter { it.isFavorite }
                     val playingStationId = localStations.find { it.isPlaying }?.id
+                      ?: newStations.firstOrNull()?.id // Get id of first station as playing station because none existed on first creation
 
-                    newStations.forEach { station ->
-                        station.isFavorite = station in favorites
-                        station.isPlaying = station.id == playingStationId
+                    val mergedStations = newStations.map { new ->
+                        val existing =
+                            localStations.find { it.id == new.id } // Find matching station in old list
+                        new.copy( // Create new station with updated values to trigger diffUtil
+                            isFavorite = existing?.isFavorite == true,
+                            isPlaying = new.id == playingStationId
+                        )
                     }
 
-                    radioRepository.insertStations(newStations)
+                    radioRepository.insertStations(mergedStations)
                 }
 
                 is Resource.Error -> {

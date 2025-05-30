@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.radio_list.ui.adapter
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -128,20 +127,20 @@ class RadioListRecyclerViewAdapter(
 
     private fun updatePlayerUI(holder: ItemViewViewHolder, station: RadioStation) =
         with(holder.binding) {
-            when {
-                !station.isPlaying -> {
-                    lottieLoadingAnimation.isInvisible = true
-                    ivPlay.isVisible = true
-                    ivPlay.setImageResource(R.drawable.playicon)
-                }
-
-                state == PLAYING -> {
+            if (!station.isPlaying) {
+                lottieLoadingAnimation.isInvisible = true
+                ivPlay.isVisible = true
+                ivPlay.setImageResource(R.drawable.playicon)
+                return
+            }
+            when (state) {
+                PLAYING -> {
                     lottieLoadingAnimation.isInvisible = true
                     ivPlay.isVisible = true
                     ivPlay.setImageResource(R.drawable.pauseicon)
                 }
 
-                state == PREPARING || state == BUFFERING -> {
+                PREPARING, BUFFERING -> {
                     lottieLoadingAnimation.isVisible = true
                     ivPlay.isInvisible = true
                 }
@@ -182,7 +181,6 @@ class RadioListRecyclerViewAdapter(
 
     private inner class PlayOnclickListener(private val radioStation: RadioStation) :
         View.OnClickListener {
-        private val stationId = radioStation.id
         override fun onClick(view: View?) {
             radioStationActionHandler.onStationSelected(radioStation)
         }
@@ -232,18 +230,6 @@ class RadioListRecyclerViewAdapter(
     fun setState(state: String) {
         this.state = state
     }
-
-    fun setPlayingStation(stationId: Int) {
-        val updatedList = stationList.map { station ->
-            station.copy(isPlaying = station.id == stationId)
-        }
-    }
-
-//    fun setPlayingStation(stationId: Int) {
-//        val station = stationList.find { it.id == stationId }
-//        station?.isPlaying = true
-//        update(stationList)
-//    }
 
     fun update(newList: List<RadioStation>) {
         stationList.clear()

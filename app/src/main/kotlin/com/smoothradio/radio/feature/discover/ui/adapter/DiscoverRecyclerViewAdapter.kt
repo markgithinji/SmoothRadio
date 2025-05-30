@@ -1,10 +1,8 @@
 package com.smoothradio.radio.feature.discover.ui.adapter
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.smoothradio.radio.core.domain.model.Category
@@ -79,7 +77,10 @@ class DiscoverRecyclerViewAdapter(
                 categoryAdapters[index].updateStations(category.categoryRadioStationList)
             } else {
                 // Only create a new adapter if it didn't exist before
-                val newAdapter = CategoryRecyclerViewAdapter(category.categoryRadioStationList, radioStationActionHandler)
+                val newAdapter = CategoryRecyclerViewAdapter(
+                    category.categoryRadioStationList,
+                    radioStationActionHandler
+                )
                 categoryAdapters.add(newAdapter)
             }
         }
@@ -95,13 +96,10 @@ class DiscoverRecyclerViewAdapter(
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         categoryAdapters.forEach { it.setSelectedStationWithState(station, state) }
-        notifyDataSetChanged()
-        Log.d("DiscoverRecyclerViewAdapter", "setSelectedStationWithState: $station")
     }
 
     fun updateFavorites(favorites: List<RadioStation>) {
         categoryAdapters.forEach { it.updateFavorites(favorites) }
-        notifyDataSetChanged()
     }
 
     inner class CategoryItemViewHolder(val binding: CategoryitemBinding) :

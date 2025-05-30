@@ -1,6 +1,7 @@
 package com.smoothradio.radio.core.data.local
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -33,5 +34,8 @@ interface RadioStationDao {
 
     @Query("DELETE FROM radio_stations")
     suspend fun clearAll()
+
+    @Delete
+    suspend fun deleteStations(stations: List<RadioStation>)
 }
 

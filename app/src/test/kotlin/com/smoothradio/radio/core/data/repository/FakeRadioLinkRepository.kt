@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.flow
 
 class FakeRadioLinkRepository : RadioLinkRepository {
 
-    private val safeLinks = List(231) { i -> "https://stream$i.com" } // 231 links required
+    private val safeLinks = List(232) { i -> "https://stream$i.com" } // 232 links required
     var clearCalled: Boolean = false
 
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = flow {
