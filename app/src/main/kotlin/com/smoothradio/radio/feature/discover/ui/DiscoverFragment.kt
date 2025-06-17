@@ -172,7 +172,7 @@ class DiscoverFragment : Fragment() {
         }
 
         override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {
-            radioViewModel.updateFavoriteStatus(station.id, isFavorite)
+            radioViewModel.toggleFavorite(station.id, isFavorite)
         }
 
         override fun onRequestShowToast(message: String) {

@@ -91,7 +91,7 @@ class PlayerManager {
         startStreamService()
         loadInterstitialAd()
         checkInternet()
-        activity?.let { showToast(it.getString(R.string.toast_refreshed)) }
+        activity?.let { showToast(it.getString(R.string.refreshed)) }
     }
 
     fun playFromMainActivity() {
@@ -249,7 +249,7 @@ class PlayerManager {
         val connected =
             capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
         if (!connected) {
-            activity?.let { showToast(it.getString(R.string.toast_check_internet)) }
+            activity?.let { showToast(it.getString(R.string.check_internet)) }
         }
     }
 

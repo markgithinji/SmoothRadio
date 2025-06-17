@@ -27,8 +27,8 @@
     <string name="error_no_links_found">No stream links found.</string>
     <string name="error_loading_links">Failed to load stream links: %1$s</string>
     <string name="loading_links">Loading stream links…</string>
-    <string name="toast_refreshed">Refreshed!</string>
-    <string name="toast_check_internet">Check Internet</string>
+    <string name="refreshed">Refreshed!</string>
+    <string name="check_internet">Check Internet</string>
     <string name="toast_ad_load_fail">Please check your internet and try again</string>
     <string name="added_to_favorites">Added to favorites: %1$s</string>
     <string name="removed_from_favorites">Removed from favorites: %1$s</string>
@@ -39,5 +39,6 @@
     <string name="tab_live">LIVE</string>
     <string name="tab_discover">DISCOVER</string>
     <string name="error_unexpected">Unknown error</string>
+    <string name="favorite_limit_reached">Favorite limit reached (20 max)</string>
 
 </resources>

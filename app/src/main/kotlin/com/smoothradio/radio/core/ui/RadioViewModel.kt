@@ -7,6 +7,7 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
+import com.smoothradio.radio.core.domain.usecase.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,8 @@ class RadioViewModel @Inject constructor(
     application: Application,
     private val radioLinkRepository: RadioLinkRepository,
     private val radioRepository: RadioRepository,
-    private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase
+    private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase
 ) : AndroidViewModel(application) {
 
     val allStations = radioRepository.allStations
@@ -33,6 +35,10 @@ class RadioViewModel @Inject constructor(
 
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+
+    private val _favoriteToggleResult = MutableSharedFlow<Boolean>()
+    val favoriteToggleResult: SharedFlow<Boolean> = _favoriteToggleResult
+
 
     fun observeAndProcessRemoteLinks() {
         viewModelScope.launch {
@@ -53,9 +59,10 @@ class RadioViewModel @Inject constructor(
         }
     }
 
-    fun updateFavoriteStatus(id: Int, isFav: Boolean) {
+    fun toggleFavorite(stationId: Int, newState: Boolean) {
         viewModelScope.launch {
-            radioRepository.updateFavoriteStatus(id, isFav)
+            val result = toggleFavoriteUseCase(stationId, newState)
+            _favoriteToggleResult.emit(result)
         }
     }
 

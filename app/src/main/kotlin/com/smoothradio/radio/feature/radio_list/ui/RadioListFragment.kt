@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.smoothradio.radio.MainActivity
+import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.dialog.SortOption
@@ -131,6 +132,11 @@ class RadioListFragment : Fragment() {
                         radioListRecyclerViewAdapter.updateFavorites(favorites)
                     }
                 }
+                launch {
+                    radioViewModel.favoriteToggleResult.collect { success ->
+                        if (!success) showToast(getString(R.string.favorite_limit_reached))
+                    }
+                }
                 // Playing station observer
                 launch {
                     radioViewModel.playingStation.collect { station ->
@@ -187,6 +193,10 @@ class RadioListFragment : Fragment() {
         requireActivity().sendBroadcast(eventIntent)
     }
 
+    private fun showToast(message: String) {
+        Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show()
+    }
+
     override fun onPause() {
         super.onPause()
         playerManager.unbindActivity()
@@ -235,15 +245,11 @@ class RadioListFragment : Fragment() {
         }
 
         override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {
-            radioViewModel.updateFavoriteStatus(station.id, isFavorite)
+            radioViewModel.toggleFavorite(station.id, isFavorite)
         }
 
         override fun onRequestShowToast(message: String) {
             showToast(message)
-        }
-
-        private fun showToast(message: String) {
-            Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show()
         }
     }
 }

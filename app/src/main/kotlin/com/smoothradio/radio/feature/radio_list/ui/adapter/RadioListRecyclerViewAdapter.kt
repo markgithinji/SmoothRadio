@@ -186,6 +186,12 @@ class RadioListRecyclerViewAdapter(
         }
     }
 
+    /**
+     * An inner class that implements the {@link View.OnClickListener} interface.
+     * It is used to handle click events on favourite icon that represents a radio station's favorite status.
+     * When the icon is clicked, this listener toggles the favorite status of the associated
+     * {@link RadioStation} and notifies the {@link RadioStationActionHandler}.
+     */
     private inner class FavouriteListener(
         private val radioStation: RadioStation,
     ) : View.OnClickListener {

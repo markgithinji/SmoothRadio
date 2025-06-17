@@ -12,7 +12,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.di.AppModule
+import com.smoothradio.radio.core.di.CoreModule
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.testutil.launchFragmentInHiltContainer
@@ -28,7 +28,7 @@ import javax.inject.Inject
 
 
 @HiltAndroidTest
-@UninstallModules(AppModule::class)
+@UninstallModules(CoreModule::class)
 class RadioListFragmentTest {
 
     @get:Rule

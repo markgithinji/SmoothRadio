@@ -4,7 +4,6 @@ import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepositoryAndroid
 import com.smoothradio.radio.core.data.repository.FakeRadioRepositoryAndroidTest
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
-import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.util.PlayerManager
 
 import dagger.Module
@@ -16,7 +15,7 @@ import javax.inject.Singleton
 @Module
 @TestInstallIn(
     components = [SingletonComponent::class],
-    replaces = [AppModule::class]
+    replaces = [CoreModule::class]
 )
 object FakeAppModule {
 
