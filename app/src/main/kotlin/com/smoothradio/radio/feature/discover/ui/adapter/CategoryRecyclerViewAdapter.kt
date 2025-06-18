@@ -12,7 +12,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.CategoryradioitemBinding
 import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
-import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
+import com.smoothradio.radio.feature.radiolist.ui.adapter.util.StationDiffUtilCallback
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
@@ -123,7 +123,6 @@ class CategoryRecyclerViewAdapter(
             radioStationActionHandler.apply {
                 onToggleFavorite(radioStation, !isFavorite)
             }
-
         }
     }
 
@@ -141,7 +140,6 @@ class CategoryRecyclerViewAdapter(
 
         diffResult.dispatchUpdatesTo(this)
     }
-
 
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         this.state = state
@@ -165,5 +163,4 @@ class CategoryRecyclerViewAdapter(
         return radioStationItems.indexOfFirst { it.id == id }.takeIf { it >= 0 }
             ?: RecyclerView.NO_POSITION
     }
-
 }

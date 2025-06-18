@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list.ui
+package com.smoothradio.radio.feature.radiolist.ui
 
 import android.content.Context
 import android.content.Intent

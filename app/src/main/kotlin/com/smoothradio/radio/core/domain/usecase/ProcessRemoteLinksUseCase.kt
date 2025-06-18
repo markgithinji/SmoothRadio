@@ -4,11 +4,10 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.util.Resource
-import com.smoothradio.radio.feature.radio_list.util.RadioStationsHelper
+import com.smoothradio.radio.feature.radiolist.util.RadioStationsHelper
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
-
 
 /**
  * Use case responsible for processing remote radio station links.
@@ -47,7 +46,7 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                     }
 
                     val playingStationId = localStations.find { it.isPlaying }?.id
-                      ?: newStations.firstOrNull()?.id // Get id of first station as playing station because none existed on first creation
+                        ?: newStations.firstOrNull()?.id // Get id of first station as playing station because none existed on first creation
 
                     val mergedStations = newStations.map { new ->
                         val existing =
@@ -62,13 +61,12 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                 }
 
                 is Resource.Error -> {
-                    // TODO: Handle error state (e.g. log or notify)
+                    // TODO: Handle error state e.g. log or notify
                 }
 
                 Resource.Loading -> {
-                    // TODO: Handle loading state (e.g. show loading UI)
+                    // TODO: Handle loading state e.g. show loading UI
                 }
-
             }
         }
     }

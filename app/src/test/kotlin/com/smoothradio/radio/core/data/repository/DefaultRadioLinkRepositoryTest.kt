@@ -14,7 +14,6 @@ import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.util.RadioStationLinksHelper
 import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
@@ -57,10 +56,8 @@ class DefaultRadioLinkRepositoryTest {
         assertThat(data).containsExactlyElementsIn(RadioStationLinksHelper.RADIO_STATIONS)
     }
 
-
     @Test
     fun getRemoteStreamLinksFlow_shouldEmitNewLinksFromFirestore() = runTest {
-
         simulateFirestoreSuccess()
 
         val emissions = mutableListOf<Resource<List<String>>>()
@@ -78,7 +75,6 @@ class DefaultRadioLinkRepositoryTest {
 
         job.cancel()
     }
-
 
     @Test
     fun getRemoteStreamLinksFlow_shouldNotEmit_onFirestoreError() = runTest {
@@ -99,7 +95,6 @@ class DefaultRadioLinkRepositoryTest {
 
         job.cancel()
     }
-
 
     @Test
     fun clear_shouldRemoveListener() = runTest {

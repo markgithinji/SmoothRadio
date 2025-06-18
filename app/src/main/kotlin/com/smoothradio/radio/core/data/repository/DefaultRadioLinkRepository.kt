@@ -52,7 +52,7 @@ class DefaultRadioLinkRepository @Inject constructor(
                         Resource.Error(
                             context.getString(
                                 R.string.error_loading_links,
-                                error.message ?:context.getString(R.string.error_unexpected)
+                                error.message ?: context.getString(R.string.error_unexpected)
                             )
                         )
                     )
@@ -74,7 +74,6 @@ class DefaultRadioLinkRepository @Inject constructor(
             listenerRegistration?.remove()
         }
     }
-
 
     private fun getLinksFromHelper(): List<String> {
         return RadioStationLinksHelper.RADIO_STATIONS.toList()

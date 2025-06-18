@@ -16,7 +16,8 @@ class DomainModule {
     @Provides
     @Singleton
     fun provideProcessRemoteLinksUseCase(
-        radioRepository: RadioRepository, radioLinkRepository: RadioLinkRepository
+        radioRepository: RadioRepository,
+        radioLinkRepository: RadioLinkRepository
     ): ProcessRemoteLinksUseCase {
         return ProcessRemoteLinksUseCase(radioRepository, radioLinkRepository)
     }

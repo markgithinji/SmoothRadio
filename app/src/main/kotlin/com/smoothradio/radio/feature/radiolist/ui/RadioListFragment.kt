@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list.ui
+package com.smoothradio.radio.feature.radiolist.ui
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -26,8 +26,8 @@ import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.dialog.SortOption
 import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.FragmentMusicListBinding
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
-import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
+import com.smoothradio.radio.feature.radiolist.ui.adapter.RadioListRecyclerViewAdapter
+import com.smoothradio.radio.feature.radiolist.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -52,7 +52,6 @@ class RadioListFragment : Fragment() {
 
     private var mainActivity: MainActivity? = null
     private lateinit var fragmentActivity: FragmentActivity
-
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -166,7 +165,6 @@ class RadioListFragment : Fragment() {
                         bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
                     }
                 }
-
             }
         })
     }

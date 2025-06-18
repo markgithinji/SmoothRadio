@@ -93,7 +93,6 @@ class DiscoverRecyclerViewAdapter(
         diffResult.dispatchUpdatesTo(this)
     }
 
-
     fun setSelectedStationWithState(station: RadioStation, state: String) {
         categoryAdapters.forEach { it.setSelectedStationWithState(station, state) }
     }

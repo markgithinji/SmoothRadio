@@ -88,11 +88,12 @@ class TimerSetterHelper(
                     coordinatorLayout,
                     fragmentActivity.getString(
                         R.string.radio_stop_time,
-                        hours, minutes, seconds
+                        hours,
+                        minutes,
+                        seconds
                     ),
                     Snackbar.LENGTH_LONG
                 ).show()
-
             }
         } catch (e: ParseException) {
             Toast.makeText(
@@ -103,5 +104,4 @@ class TimerSetterHelper(
 
         }
     }
-
 }

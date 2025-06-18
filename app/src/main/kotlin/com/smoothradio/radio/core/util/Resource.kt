@@ -5,4 +5,3 @@ sealed class Resource<out T> {
     data class Error(val message: String? = null) : Resource<Nothing>()
     data object Loading : Resource<Nothing>()
 }
-

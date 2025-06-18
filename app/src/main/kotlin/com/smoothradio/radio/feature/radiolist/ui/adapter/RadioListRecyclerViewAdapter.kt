@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list.ui.adapter
+package com.smoothradio.radio.feature.radiolist.ui.adapter
 
 import android.view.LayoutInflater
 import android.view.View
@@ -16,9 +16,9 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.databinding.AdviewBinding
 import com.smoothradio.radio.databinding.EmptyFavouritiesBinding
 import com.smoothradio.radio.databinding.RadioitemBinding
-import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
-import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationSortHelper
-import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
+import com.smoothradio.radio.feature.radiolist.ui.adapter.util.StationDiffUtilCallback
+import com.smoothradio.radio.feature.radiolist.ui.adapter.util.StationSortHelper
+import com.smoothradio.radio.feature.radiolist.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService.StreamStates.BUFFERING
 import com.smoothradio.radio.service.StreamService.StreamStates.PLAYING
 import com.smoothradio.radio.service.StreamService.StreamStates.PREPARING
@@ -124,7 +124,6 @@ class RadioListRecyclerViewAdapter(
             updatePlayerUI(holder, radioStation)
         }
 
-
     private fun updatePlayerUI(holder: ItemViewViewHolder, station: RadioStation) =
         with(holder.binding) {
             if (!station.isPlaying) {
@@ -153,7 +152,6 @@ class RadioListRecyclerViewAdapter(
             }
         }
 
-
     private fun bindAdView(holder: AdViewHolder) {
         val adRequest = AdRequest.Builder().build()
         holder.binding.adViewRecyclerviewItem.loadAd(adRequest)
@@ -162,8 +160,7 @@ class RadioListRecyclerViewAdapter(
     override fun getItemViewType(position: Int): Int {
         val item = recyclerViewItems[position]
         return when {
-            (currentState == DisplayState.SEARCH && filteredStationNameList.isEmpty()) ||
-                    (currentState == DisplayState.FAVORITES && favouriteList.isEmpty()) -> EMPTY_ITEM
+            (currentState == DisplayState.SEARCH && filteredStationNameList.isEmpty()) || (currentState == DisplayState.FAVORITES && favouriteList.isEmpty()) -> EMPTY_ITEM
 
             item is AdItem -> AD_VIEW
             else -> ITEM_VIEW
@@ -254,7 +251,6 @@ class RadioListRecyclerViewAdapter(
                 filteredStationNameList
             }
 
-
             DisplayState.ASCENDING ->
                 injectAdItems(stationList.sortedBy { it.stationName.lowercase() })
 
@@ -290,7 +286,6 @@ class RadioListRecyclerViewAdapter(
         diff.dispatchUpdatesTo(this)
     }
 
-
     fun filter(input: String?) {
         if (currentState !in listOf(DisplayState.POPULAR, DisplayState.SEARCH)) {
             sortPopular()
@@ -307,7 +302,6 @@ class RadioListRecyclerViewAdapter(
 
         updateDisplayedResults()
     }
-
 
     private fun handleEmptySearch() {
         currentState = DisplayState.POPULAR
@@ -399,5 +393,4 @@ class RadioListRecyclerViewAdapter(
         private const val AD_POSITION_5 = 54
         private const val AD_POSITION_6 = 72
     }
-
 }

@@ -119,7 +119,9 @@ class StreamService : Service() {
 
         val notificationIntent = Intent(this, MainActivity::class.java).setPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent,
+            this,
+            0,
+            notificationIntent,
             PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -190,7 +192,6 @@ class StreamService : Service() {
             registerReceiver(pLayPauseReceiver, IntentFilter(ACTION_PLAY_PAUSE))
             registerReceiver(requestFocusReceiver, IntentFilter(ACTION_REQUEST_AUDIO_FOCUS))
         }
-
     }
 
     override fun onDestroy() {
@@ -305,7 +306,6 @@ class StreamService : Service() {
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(1, notificationBuilder.build())
     }
-
 
     private fun requestFocus() {
         audioManager.requestAudioFocus(
@@ -472,7 +472,6 @@ class StreamService : Service() {
             broadcastState(stateChange)
             updateNotification(state = stateChange, showPlay = true, showPause = false)
         }
-
     }
 
     object StreamStates {
@@ -510,6 +509,4 @@ class StreamService : Service() {
         private const val TITLE_PAUSE = "Pause"
         private const val TITLE_STOP = "Stop"
     }
-
-
 }

@@ -21,7 +21,8 @@ class AboutFragment : DialogFragment() {
     private val binding get() = _binding!!
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = AboutFragmentBinding.inflate(inflater, container, false)
@@ -110,5 +111,4 @@ class AboutFragment : DialogFragment() {
         super.onDestroyView()
         _binding = null
     }
-
 }

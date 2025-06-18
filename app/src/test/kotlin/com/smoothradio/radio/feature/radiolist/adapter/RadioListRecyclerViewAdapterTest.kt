@@ -1,14 +1,13 @@
-package com.smoothradio.radio.feature.radio_list.adapter
+package com.smoothradio.radio.feature.radiolist.adapter
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.feature.radio_list.ui.adapter.RadioListRecyclerViewAdapter
-import com.smoothradio.radio.feature.radio_list.util.RadioStationActionHandler
+import com.smoothradio.radio.feature.radiolist.ui.adapter.RadioListRecyclerViewAdapter
+import com.smoothradio.radio.feature.radiolist.util.RadioStationActionHandler
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
-
 
 @RunWith(RobolectricTestRunner::class)
 class RadioListRecyclerViewAdapterTest {
@@ -79,7 +78,6 @@ class RadioListRecyclerViewAdapterTest {
         assertThat(first.id).isEqualTo(0)
     }
 
-
     @Test
     fun sortAndDisplay_setsCorrectOrder() {
         adapter.sortAndDisplay(RadioListRecyclerViewAdapter.DisplayState.ASCENDING)
@@ -91,4 +89,3 @@ class RadioListRecyclerViewAdapterTest {
         assertThat(names).isEqualTo(sorted)
     }
 }
-

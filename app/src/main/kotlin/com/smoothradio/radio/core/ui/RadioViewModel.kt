@@ -39,7 +39,6 @@ class RadioViewModel @Inject constructor(
     private val _favoriteToggleResult = MutableSharedFlow<Boolean>()
     val favoriteToggleResult: SharedFlow<Boolean> = _favoriteToggleResult
 
-
     fun observeAndProcessRemoteLinks() {
         viewModelScope.launch {
             processRemoteLinksUseCase()

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list.ui.adapter.util
+package com.smoothradio.radio.feature.radiolist.ui.adapter.util
 
 import androidx.recyclerview.widget.DiffUtil
 import com.smoothradio.radio.core.domain.model.AdItem

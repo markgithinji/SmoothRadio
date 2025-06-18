@@ -100,7 +100,6 @@ class MainActivity : AppCompatActivity() {
                 isAppearanceLightStatusBars = true
                 isAppearanceLightNavigationBars = true
             }
-
         } else {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             @Suppress("DEPRECATION")
@@ -109,7 +108,6 @@ class MainActivity : AppCompatActivity() {
             WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars =
                 true
         }
-
     }
 
     private fun initializeComponents() {

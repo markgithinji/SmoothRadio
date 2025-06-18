@@ -8,7 +8,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
 import com.smoothradio.radio.feature.player.ui.PlayerFragment
-import com.smoothradio.radio.feature.radio_list.ui.RadioListFragment
+import com.smoothradio.radio.feature.radiolist.ui.RadioListFragment
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith

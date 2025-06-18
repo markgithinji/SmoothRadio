@@ -49,7 +49,6 @@ class PlayerManager {
 
     private var state: String = ""
 
-
     fun bindActivity(activity: Activity) {
         this.activity = activity
         setupBroadcastReceiver()
@@ -162,7 +161,8 @@ class PlayerManager {
                         interstitialAd = null
                         handleAdLoadFailure(loadAdError)
                     }
-                })
+                }
+            )
         }
     }
 
@@ -232,7 +232,8 @@ class PlayerManager {
                             interstitialAd = null
                             preloadInterstitialAd()
                         }
-                    })
+                    }
+                )
             }
         }
     }
@@ -256,7 +257,6 @@ class PlayerManager {
     private fun showToast(msg: String) {
         Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
     }
-
 
     fun unregisterBroadcastReceiver() {
         activity?.unregisterReceiver(eventReceiver)
@@ -282,5 +282,4 @@ class PlayerManager {
     companion object {
         private const val MAX_AD_LOAD_ATTEMPTS = 2
     }
-
 }

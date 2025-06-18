@@ -45,4 +45,3 @@ class CacheUtilTest {
         assertThat(externalCacheDir.listFiles()).isEmpty()
     }
 }
-

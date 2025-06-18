@@ -53,7 +53,6 @@ class PlayerFragment : Fragment() {
     private val eventReceiver: BroadcastReceiver = EventReceiver()
     private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
 
-
     override fun onAttach(context: Context) {
         super.onAttach(context)
         mainActivity = requireActivity() as? MainActivity
@@ -82,7 +81,9 @@ class PlayerFragment : Fragment() {
                 Context.RECEIVER_NOT_EXPORTED
             )
             fragmentActivity.registerReceiver(
-                metadataReceiver, metadataFilter, Context.RECEIVER_NOT_EXPORTED
+                metadataReceiver,
+                metadataFilter,
+                Context.RECEIVER_NOT_EXPORTED
             )
         } else {
             fragmentActivity.registerReceiver(eventReceiver, eventFilter)
@@ -156,7 +157,6 @@ class PlayerFragment : Fragment() {
         fragmentActivity.sendBroadcast(eventIntent)
     }
 
-
     /**
      * `MetadataReceiver` is a `BroadcastReceiver` responsible for receiving and displaying metadata
      * information about the currently playing audio stream.  It listens for broadcasts from
@@ -205,8 +205,7 @@ class PlayerFragment : Fragment() {
                 }
 
                 StreamService.StreamStates.ENDED,
-                StreamService.StreamStates.IDLE -> { /* no-op */
-                }
+                StreamService.StreamStates.IDLE -> { /* no-op */}
 
                 else -> {
                     tvProgress.text = ""

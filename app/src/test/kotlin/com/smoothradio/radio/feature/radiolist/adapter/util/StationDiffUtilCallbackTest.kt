@@ -1,10 +1,10 @@
-package com.smoothradio.radio.feature.radio_list.adapter.util
+package com.smoothradio.radio.feature.radiolist.adapter.util
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.model.AdItem
 import com.smoothradio.radio.core.domain.model.ListItem
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.feature.radio_list.ui.adapter.util.StationDiffUtilCallback
+import com.smoothradio.radio.feature.radiolist.ui.adapter.util.StationDiffUtilCallback
 import org.junit.Test
 
 class StationDiffUtilCallbackTest {

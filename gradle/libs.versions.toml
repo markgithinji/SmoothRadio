@@ -6,6 +6,8 @@ coreKtx = "1.16.0"
 core = "1.6.1"
 ktlint = "11.1.0"
 ksp = "2.1.20-2.0.1"
+detekt = "1.23.5"
+timber = "5.0.1"
 # AndroidX
 activityKtx = "1.10.1"
 coreSplashscreen = "1.1.0-rc01"
@@ -51,6 +53,8 @@ truth = "1.4.4"
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "core" }
+detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 # AndroidX Components
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityKtx" }
 androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentTesting" }
@@ -105,6 +109,7 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlytics" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 
 

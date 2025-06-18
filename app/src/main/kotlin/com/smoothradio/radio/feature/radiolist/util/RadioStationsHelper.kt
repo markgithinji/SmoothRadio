@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radio_list.util
+package com.smoothradio.radio.feature.radiolist.util
 
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation

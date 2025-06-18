@@ -19,15 +19,19 @@ class SortDialog(private var sortOptionListener: SortOptionListener) : DialogFra
 
     private fun handleSelection(index: Int) {
         val option = when (index) {
-            0 -> SortOption.POPULAR
-            1 -> SortOption.ASCENDING
-            2 -> SortOption.DESCENDING
-            3 -> SortOption.FAVORITES
+            INDEX_POPULAR -> SortOption.POPULAR
+            INDEX_ASCENDING -> SortOption.ASCENDING
+            INDEX_DESCENDING -> SortOption.DESCENDING
+            INDEX_FAVORITES -> SortOption.FAVORITES
             else -> null
         }
         option?.let { sortOptionListener.onSortOptionSelected(it) }
     }
+
+    companion object {
+        private const val INDEX_POPULAR = 0
+        private const val INDEX_ASCENDING = 1
+        private const val INDEX_DESCENDING = 2
+        private const val INDEX_FAVORITES = 3
+    }
 }
-
-
-

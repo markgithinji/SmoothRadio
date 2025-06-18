@@ -2,7 +2,6 @@ package com.smoothradio.radio.core.util
 
 import android.app.Activity
 import com.google.android.gms.ads.MobileAds
-import com.google.android.ump.ConsentForm
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform

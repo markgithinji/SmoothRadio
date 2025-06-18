@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
-    alias(libs.plugins.ktlint)
     alias(libs.plugins.baselineprofile)
+    alias(libs.plugins.detekt)
 }
 
 android {
@@ -54,13 +54,12 @@ android {
         jvmTarget = "11"
     }
 }
-ktlint {
-    android = true
-}
-tasks.named("build") {
-    dependsOn("ktlintCheck")
-}
 
+detekt {
+    toolVersion = "1.23.8"
+    config = files("$rootDir/config/detekt/detekt.yml")
+    buildUponDefaultConfig = true
+}
 
 dependencies {
     implementation(libs.material)
@@ -70,6 +69,8 @@ dependencies {
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.media)
+    detektPlugins(libs.detekt.formatting)
+    implementation(libs.timber)
     // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)

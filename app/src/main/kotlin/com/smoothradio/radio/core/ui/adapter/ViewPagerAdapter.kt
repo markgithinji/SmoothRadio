@@ -9,7 +9,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
 import com.smoothradio.radio.feature.player.ui.PlayerFragment
-import com.smoothradio.radio.feature.radio_list.ui.RadioListFragment
+import com.smoothradio.radio.feature.radiolist.ui.RadioListFragment
 
 class ViewPagerAdapter(
     fragmentManager: FragmentManager,
@@ -24,7 +24,6 @@ class ViewPagerAdapter(
         PlayerFragment(),
         DiscoverFragment()
     )
-
 
     init {
         if (adjustTouch) adjustTouchSlop()
