@@ -8,17 +8,18 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.baselineprofile)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.spotless)
 }
 
 android {
     namespace = "com.smoothradio.radio"
 
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.smoothradio.radio"
         minSdk = 23
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 17
         versionName = "2.10"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
@@ -59,6 +60,23 @@ detekt {
     toolVersion = "1.23.8"
     config = files("$rootDir/config/detekt/detekt.yml")
     buildUponDefaultConfig = true
+}
+
+spotless {
+    kotlin {
+        target("**/*.kt")
+        ktlint()
+    }
+
+    format("xml") {
+        target("**/*.xml")
+        prettier().config(mapOf("parser" to "xml"))
+    }
+
+    groovyGradle {
+        target("*.gradle")
+        greclipse()
+    }
 }
 
 dependencies {
