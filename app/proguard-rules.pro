@@ -14,6 +14,10 @@
 # Please add these rules to your existing keep rules in order to suppress warnings.
 # This is generated automatically by the Android Gradle plugin.
 -dontwarn com.facebook.infer.annotation.Nullsafe
+# Keep Nullsafe annotation and its inner classes
+-keep class com.facebook.infer.annotation.** { *; }
+-dontwarn com.facebook.infer.annotation.**
+
 
 
 # Uncomment this to preserve the line number information for
