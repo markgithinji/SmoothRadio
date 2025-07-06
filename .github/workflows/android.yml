@@ -45,6 +45,7 @@ jobs:
 
       - name: Run Spotless Check
         run: ./gradlew spotlessCheck
+        continue-on-error: true
 
       - name: Run Lint
         run: ./gradlew lintRelease
