@@ -20,8 +20,8 @@ android {
         applicationId = "com.smoothradio.radio"
         minSdk = 23
         targetSdk = 36
-        versionCode = 17
-        versionName = "2.10"
+        versionCode = 18
+        versionName = "3.0.0"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
