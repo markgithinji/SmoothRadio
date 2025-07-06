@@ -43,21 +43,11 @@ class AboutFragment : DialogFragment() {
     private fun underlineTextViews() = with(binding) {
         fbAddress.paintFlags = Paint.UNDERLINE_TEXT_FLAG
         tvEmail.paintFlags = Paint.UNDERLINE_TEXT_FLAG
-        tvWatchTv.paintFlags = Paint.UNDERLINE_TEXT_FLAG
     }
 
     private fun setupClickListeners() = with(binding) {
-        tvWatchTv.setOnClickListener { openTvAppOnPlayStore() }
         fbAddress.setOnClickListener { openFacebookPage() }
         tvEmail.setOnClickListener { sendFeedbackEmail() }
-    }
-
-    private fun openTvAppOnPlayStore() {
-        val intent = Intent(
-            Intent.ACTION_VIEW,
-            "market://details?id=${getString(R.string.tv_app_package)}".toUri()
-        )
-        startActivity(intent)
     }
 
     private fun openFacebookPage() {

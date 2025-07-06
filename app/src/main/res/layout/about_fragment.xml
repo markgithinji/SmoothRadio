@@ -90,21 +90,6 @@
             android:layout_weight="1"
             app:srcCompat="@drawable/borderline" />
 
-        <TextView
-            android:id="@+id/tvWatchTv"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_weight="1"
-            android:background="?android:attr/selectableItemBackground"
-            android:fontFamily="@font/source_sans_pro"
-            android:paddingTop="5dp"
-            android:paddingBottom="10dp"
-            android:text="Watch Kenyan Tv App (35 Tv Stations)"
-            android:textColor="#6393CD"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
         <ImageView
             android:id="@+id/ivFb"
             android:layout_width="20dp"
