@@ -208,8 +208,15 @@ class RadioListFragment : Fragment() {
     }
 
     fun filterStations(query: String) {
+        // Defensive check to avoid crash:
+        // (e.g., when restoring state or early input from search box).
+        // Ensure adapter is ready before calling filter to avoid lateinit crash.
+        if (!::radioListRecyclerViewAdapter.isInitialized) {
+            return
+        }
         radioListRecyclerViewAdapter.filter(query)
     }
+
 
     fun sortStations(option: SortOption) {
         when (option) {

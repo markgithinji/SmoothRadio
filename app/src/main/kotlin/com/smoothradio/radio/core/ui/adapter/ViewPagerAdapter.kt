@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.ui.adapter
 
-import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
@@ -10,39 +9,50 @@ import androidx.viewpager2.widget.ViewPager2
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
 import com.smoothradio.radio.feature.player.ui.PlayerFragment
 import com.smoothradio.radio.feature.radiolist.ui.RadioListFragment
+import timber.log.Timber
 
 class ViewPagerAdapter(
-    fragmentManager: FragmentManager,
+    private val fragmentManager: FragmentManager,
     lifecycle: Lifecycle,
     private val viewPager2: ViewPager2,
     private val swipeSensitivityFactor: Int = 3,
     private val adjustTouch: Boolean = true
 ) : FragmentStateAdapter(fragmentManager, lifecycle) {
 
-    private val fragments = listOf(
-        RadioListFragment(),
-        PlayerFragment(),
-        DiscoverFragment()
+    private val fragmentFactories = listOf(
+        { RadioListFragment() },
+        { PlayerFragment() },
+        { DiscoverFragment() }
     )
+
+    private val fragmentMap = mutableMapOf<Int, Fragment>()
 
     init {
         if (adjustTouch) adjustTouchSlop()
     }
 
+    override fun getItemCount(): Int = fragmentFactories.size
+
+    override fun createFragment(position: Int): Fragment {
+        return fragmentFactories[position]().also { fragment ->
+            fragmentMap[position] = fragment
+        }
+    }
+
+    fun getRadioListFragment(): RadioListFragment? {
+        val tag = "f0" // ViewPager2 uses "f{position}" as the tag by default
+        return (fragmentManager.findFragmentByTag(tag) as? RadioListFragment)
+    }
+
     /**
      * Adjusts the touch slop of the ViewPager2's RecyclerView to make it more or less sensitive to swipes.
      *
-     * <p>Touch slop is the distance a touch can wander before it is considered a scroll or swipe.
-     * By multiplying the default touch slop by {@code swipeSensitivityFactor}, we can control
+     * Touch slop is the distance a touch can wander before it is considered a scroll or swipe.
+     * By multiplying the default touch slop by [swipeSensitivityFactor], we can control
      * how easily the ViewPager2 initiates a swipe.
      *
-     * <p>This method uses reflection to access private fields of {@link ViewPager2} and {@link RecyclerView}.
+     * This method uses reflection to access private fields of [ViewPager2] and [RecyclerView].
      * If these internal implementations change in future Android versions, this method might break.
-     * It includes error handling to log failures if reflection fails.
-     *
-     * <p><b>Note:</b> Modifying internal framework behavior using reflection is generally discouraged
-     * as it can lead to instability and compatibility issues across different Android versions
-     * or devices. Use this approach with caution and be prepared for potential breakage.
      */
     private fun adjustTouchSlop() {
         runCatching {
@@ -57,15 +67,8 @@ class ViewPagerAdapter(
             val touchSlop = touchSlopField.get(recyclerView) as Int
             touchSlopField.set(recyclerView, touchSlop * swipeSensitivityFactor)
         }.onFailure {
-            Log.e("ViewPagerAdapter", "Failed to adjust touch slop", it)
+            Timber.tag("ViewPagerAdapter").e(it, "Failed to adjust touch slop")
         }
     }
-
-    fun getRadioListFragment(): RadioListFragment? {
-        return fragments.getOrNull(0) as? RadioListFragment
-    }
-
-    override fun createFragment(position: Int): Fragment = fragments[position]
-
-    override fun getItemCount(): Int = fragments.size
 }
+
