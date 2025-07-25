@@ -67,7 +67,7 @@ object RadioStationLinksHelper {
         "https://spicefm-atunwadigital.streamguys1.com/spicefm?aw_0_1st.playerid=SGplayer&aw_0_1st.skey=1618609821672&awparams=playerid%3ASGplayer%3B&us_privacy=1YNN&us_privacy=1YNN&aw_0_req.gdpr=true&us_privacy=1YNN",  // 50
         "http://s2.myradiostream.com:5788/;stream.nsv",  // 51
         "http://node-12.zeno.fm/8d58094z4neuv?rj-ttl=5&rj-tok=AAABeNzD6GQA0EEZxXHqLW0ofQ",  // 52
-        "https://cast1.asurahosting.com:2199/start/infonets\n",  // 53
+        "https://cast1.asurahosting.com:2199/start/infonets",  // 53
         "https://atunwadigital.streamguys1.com/capitalfm",  // 54
         "https://beatlock-radiohosting.radioca.st/1",  // 55
         "http://node-12.zeno.fm/2kcm5f3mga0uv.aac?rj-ttl=5&rj-tok=AAABeaBnIvQARefbFHMp6jVEtw",  // 56
