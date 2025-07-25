@@ -57,19 +57,20 @@ class PlayerManager {
     private fun setupBroadcastReceiver() {
         if (isReceiverRegistered) return
 
-        serviceIntent = Intent(activity, StreamService::class.java)
-        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(activity?.packageName)
+        activity?.let { activity ->
+            serviceIntent = Intent(activity, StreamService::class.java)
+            eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(activity.packageName)
 
-        val eventFilter = IntentFilter().apply {
-            addAction(StreamService.ACTION_EVENT_CHANGE)
-        }
-
-        activity?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                it.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                it.registerReceiver(eventReceiver, eventFilter)
+            val eventFilter = IntentFilter().apply {
+                addAction(StreamService.ACTION_EVENT_CHANGE)
             }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                activity.registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                activity.registerReceiver(eventReceiver, eventFilter)
+            }
+
             isReceiverRegistered = true
         }
     }
@@ -244,23 +245,31 @@ class PlayerManager {
     }
 
     private fun checkInternet() {
-        val cm = activity?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cm = activity?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+
         val network = cm.activeNetwork
         val capabilities = cm.getNetworkCapabilities(network)
         val connected =
             capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+
         if (!connected) {
-            activity?.let { showToast(it.getString(R.string.check_internet)) }
+            activity?.let {
+                showToast(it.getString(R.string.check_internet))
+            }
         }
     }
+
 
     private fun showToast(msg: String) {
         Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
     }
 
     fun unregisterBroadcastReceiver() {
-        activity?.unregisterReceiver(eventReceiver)
-        isReceiverRegistered = false
+        if (isReceiverRegistered) {
+            activity?.unregisterReceiver(eventReceiver)
+            isReceiverRegistered = false
+        }
     }
 
     inner class EventReceiver : BroadcastReceiver() {
