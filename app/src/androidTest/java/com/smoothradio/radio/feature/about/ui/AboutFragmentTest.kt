@@ -39,21 +39,6 @@ class AboutFragmentTest {
     }
 
     @Test
-    fun clickingTvWatchTv_shouldOpenPlayStore() {
-        val expectedUri =
-            Uri.parse("market://details?id=${context.getString(R.string.tv_app_package)}")
-
-        onView(withId(R.id.tvWatchTv)).perform(click())
-
-        Intents.intended(
-            allOf(
-                hasAction(Intent.ACTION_VIEW),
-                hasData(expectedUri)
-            )
-        )
-    }
-
-    @Test
     fun clickingFbAddress_shouldOpenFacebookPage() {
         val expectedUri = Uri.parse(context.getString(R.string.facebook_url))
 

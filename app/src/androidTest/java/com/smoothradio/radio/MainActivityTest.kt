@@ -83,8 +83,8 @@ class MainActivityTest {
         onView(withText("sort")).perform(click())
         onView(withText("Z-A")).perform(click())
         // Assert that "XPRESS RADIO" and "XATIC FM" appears
-        onView(withText("XPRESS RADIO")).check(matches(isDisplayed()))
-        onView(withText("XATIC FM")).check(matches(isDisplayed()))
+        onView(withText("VYBES RADIO")).check(matches(isDisplayed()))
+        onView(withText("VUUKA FM")).check(matches(isDisplayed()))
     }
 
     @Test

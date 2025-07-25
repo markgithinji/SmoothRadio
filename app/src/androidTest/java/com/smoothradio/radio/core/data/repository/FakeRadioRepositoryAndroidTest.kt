@@ -53,8 +53,13 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
     override val playingStation: Flow<RadioStation?> = _playingStation
 
     override suspend fun setPlayingStation(id: Int) {
-        _playingStation.value = _allStations.value.find { it.id == id }
+        val updated = _allStations.value.map {
+            it.copy(isPlaying = it.id == id)
+        }
+        _allStations.value = updated
+        _playingStation.value = updated.find { it.id == id }
     }
+
 
     override suspend fun insertStations(stations: List<RadioStation>) {
         _allStations.value = stations
@@ -67,6 +72,13 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         }
         _allStations.value = updated
         _favoriteStations.value = updated.filter { it.isFavorite }
+    }
+
+    override suspend fun deleteStations(stations: List<RadioStation>) {
+        _allStations.value = _allStations.value.filterNot { station ->
+            stations.any { it.id == station.id }
+        }
+        _favoriteStations.value = _allStations.value.filter { it.isFavorite }
     }
 
     override suspend fun clearAllStations() {

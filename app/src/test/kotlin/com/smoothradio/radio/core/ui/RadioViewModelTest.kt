@@ -9,6 +9,7 @@ import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
+import com.smoothradio.radio.core.domain.usecase.ToggleFavoriteUseCase
 import com.smoothradio.radio.testutils.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -32,6 +33,7 @@ class RadioViewModelTest {
     private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
     private lateinit var remoteLinksUseCase: ProcessRemoteLinksUseCase
     private lateinit var fakeRadioStationDao: RadioStationDao
+    private lateinit var toggleFavoriteUseCase: ToggleFavoriteUseCase
 
     private val application: Application = mock()
 
@@ -42,12 +44,14 @@ class RadioViewModelTest {
         fakeRadioLinkRepository = FakeRadioLinkRepository()
         remoteLinksUseCase =
             ProcessRemoteLinksUseCase(fakeRadioRepository, fakeRadioLinkRepository)
+        toggleFavoriteUseCase = ToggleFavoriteUseCase(fakeRadioRepository)
 
         viewModel = RadioViewModel(
             application,
             fakeRadioLinkRepository,
             fakeRadioRepository,
-            remoteLinksUseCase
+            remoteLinksUseCase,
+            toggleFavoriteUseCase
         )
     }
 
@@ -101,18 +105,21 @@ class RadioViewModelTest {
     }
 
     @Test
-    fun updateFavoriteStatus_shouldUpdateFavoritesFlow() = runTest {
-        val stations = listOf(
-            RadioStation(1, 0, "One", "99.1", "City", "url", false, false,0),
-            RadioStation(2, 0, "Two", "100.2", "City", "url", false, false,1)
-        )
-        fakeRadioRepository.insertStations(stations)
+    fun toggleFavorite_shouldEmitSuccessAndUpdateFavorites() = runTest {
+        val station = RadioStation(1, 0, "One", "99.1", "City", "url", false, false, 0)
+        fakeRadioRepository.insertStations(listOf(station))
 
-        viewModel.updateFavoriteStatus(2, true)
+        val results = mutableListOf<Boolean>()
+        val job = launch { viewModel.favoriteToggleResult.toList(results) }
+
+        viewModel.toggleFavorite(1, true)
         advanceUntilIdle()
 
-        val favorites = fakeRadioRepository.favoriteStations.first()
-        assertThat(favorites.map { it.id }).containsExactly(2)
+        val updatedFavorites = fakeRadioRepository.favoriteStations.first()
+        assertThat(updatedFavorites.map { it.id }).containsExactly(1)
+        assertThat(results).containsExactly(true)
+
+        job.cancel()
     }
 
     @Test

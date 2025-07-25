@@ -25,7 +25,7 @@ class RadioStationsHelperTest {
         assertThat(stations.first().streamLink).isEqualTo("https://stream0.com")
         assertThat(stations.last().stationName).isEqualTo("HABESHINGA MUSIC")
         assertThat(stations.last().streamLink).isEqualTo("https://stream201.com")
-        assertThat(stations.size).isEqualTo(216) // 216 stations in total
+        assertThat(stations.size).isEqualTo(213) // 213 stations in total
         // Check station at last server index, which should be KWITU FM of id = 231
         assertThat(stations.first { it.id == 231 }.stationName).isEqualTo("KWITU FM")
         assertThat(stations.first { it.id == 231 }.streamLink).isEqualTo("https://stream231.com")

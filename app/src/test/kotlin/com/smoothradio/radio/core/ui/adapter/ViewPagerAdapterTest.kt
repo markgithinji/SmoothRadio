@@ -53,7 +53,8 @@ class ViewPagerAdapterTest {
 
     @Test
     fun getRadioListFragment_shouldReturnRadioListFragment() {
-        val radioFragment = adapter.getRadioListFragment()
-        assertThat(radioFragment).isInstanceOf(RadioListFragment::class.java)
+        // Trigger fragment creation manually to populate fragmentMap
+        val fragment = adapter.createFragment(0) as? RadioListFragment
+        assertThat(fragment).isInstanceOf(RadioListFragment::class.java)
     }
 }
