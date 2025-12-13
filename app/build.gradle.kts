@@ -20,8 +20,8 @@ android {
         applicationId = "com.smoothradio.radio"
         minSdk = 23
         targetSdk = 36
-        versionCode = 19
-        versionName = "3.0.4"
+        versionCode = 24
+        versionName = "3.0.6"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
@@ -128,6 +128,4 @@ dependencies {
     androidTestImplementation(libs.androidx.uiautomator)
     debugImplementation(libs.androidx.espresso.intents) // set to debug impl due to known bugs
     debugImplementation(libs.androidx.fragment.testing) // set to debug impl due to known bugs
-
-
 }
