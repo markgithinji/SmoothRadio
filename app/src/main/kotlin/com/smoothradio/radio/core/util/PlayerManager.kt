@@ -17,6 +17,7 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.smoothradio.radio.AnalyticsHelper
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.service.StreamService
@@ -186,34 +187,43 @@ class PlayerManager {
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 interstitialAd = null
                 isShowingAd = false
+
+                AnalyticsHelper.trackPlaybackEvent(
+                    "ad_show_failed_code_${adError.code}", radioStation?.id, mapOf(
+                        "ad_error_type" to "show_failed"
+                    )
+                )
                 activity?.stopService(serviceIntent)
             }
         }
     }
 
     private fun handleAdLoadFailure(loadAdError: LoadAdError) {
-        if (loadAdError.code == ERROR_CODE_INVALID_REQUEST || loadAdError.code == ERROR_CODE_NO_FILL) {
-            playOnly()
-            isShowingAd = false
-            adFailedCountdown = 0
-        } else {
-            countdownAdFailed()
-        }
-    }
+        AnalyticsHelper.trackPlaybackEvent(
+            "ad_load_failed_code_${loadAdError.code}", radioStation?.id, mapOf(
+                "ad_error_type" to when (loadAdError.code) {
+                    ERROR_CODE_INVALID_REQUEST -> "invalid_request"
+                    ERROR_CODE_NO_FILL -> "no_fill"
+                    else -> "unknown"
+                },
+                "attempt_count" to adFailedCountdown + 1
+            )
+        )
 
-    private fun countdownAdFailed() {
         adFailedCountdown++
         if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
+            // Retry loading the ad
             loadInterstitialAd()
-            return
-        }
+        } else {
+            // After max attempts, start playback regardless of failure reason
+            adFailedCountdown = 0
+            isShowingAd = false
+            playOnly()
 
-        activity?.stopService(serviceIntent)
-        state = ""
-        broadcastState(state)
-        isShowingAd = false
-        adFailedCountdown = 0
-        activity?.let { showToast(it.getString(R.string.toast_ad_load_fail)) }
+//            activity?.let {
+//                showToast(it.getString(R.string.toast_ad_load_fail) + loadAdError.code.toString())
+//            }
+        }
     }
 
     private fun preloadInterstitialAd() {
@@ -260,7 +270,6 @@ class PlayerManager {
         }
     }
 
-
     private fun showToast(msg: String) {
         Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
     }
@@ -275,6 +284,8 @@ class PlayerManager {
     inner class EventReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val state = intent?.getStringExtra(StreamService.EXTRA_STATE)
+            val previousPlayingState = isPlaying
+
             isPlaying = when (state) {
                 StreamService.StreamStates.PREPARING,
                 StreamService.StreamStates.PLAYING,
@@ -284,6 +295,20 @@ class PlayerManager {
                 StreamService.StreamStates.ENDED -> false
 
                 else -> false
+            }
+
+            // Analytics: Track unexpected playback stops
+            if (previousPlayingState && !isPlaying && state == StreamService.StreamStates.IDLE) {
+                AnalyticsHelper.trackPlaybackError(
+                    errorCode = -1,
+                    errorMessage = "Unexpected transition to IDLE state",
+                    stationId = radioStation?.id,
+                    additionalInfo = mapOf(
+                        "failure_type" to "unexpected_idle",
+                        "previous_state" to "playing",
+                        "station_name" to (radioStation?.stationName ?: "unknown")
+                    )
+                )
             }
         }
     }
