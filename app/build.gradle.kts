@@ -79,6 +79,24 @@ spotless {
     }
 }
 
+tasks.register("codeQualityCheck") {
+    group = "verification"
+    description = "Runs all code quality checks"
+    dependsOn("lintDebug", "detekt", "spotlessCheck")
+}
+
+tasks.register("formatCode") {
+    group = "formatting"
+    description = "Formats code using Spotless"
+    dependsOn("spotlessApply")
+}
+
+tasks.register("qualityAndFormat") {
+    group = "verification"
+    description = "Formats code then runs quality checks"
+    dependsOn("spotlessApply", "codeQualityCheck")
+}
+
 dependencies {
     implementation(libs.material)
     implementation(libs.androidx.core.splashscreen)
