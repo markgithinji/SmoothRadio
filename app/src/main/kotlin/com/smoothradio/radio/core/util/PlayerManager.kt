@@ -18,6 +18,7 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.smoothradio.radio.AnalyticsHelper
+import com.smoothradio.radio.LoggingHelper
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.service.StreamService
@@ -45,6 +46,7 @@ class PlayerManager {
     var isShowingAd = false
     private var adFailedCountdown = 0
 
+    // TODO: Check if can be moved to VM
     private var isPlaying = false
     private var radioStation: RadioStation? = null
 
@@ -96,8 +98,16 @@ class PlayerManager {
     }
 
     fun playFromMainActivity() {
+        LoggingHelper.playback(
+            "MAIN - Play from main activity | Playing: $isPlaying, ShowingAd: $isShowingAd",
+            radioStation?.id
+        )
+
         isPlaying = true
-        if (isShowingAd) return
+        if (isShowingAd) {
+            LoggingHelper.w("MAIN - Blocked by isShowingAd")
+            return
+        }
 
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
@@ -118,9 +128,18 @@ class PlayerManager {
 
     fun playOrStop() {
         if (isPlaying) {
+            LoggingHelper.playback(
+                "STOP - User pressed stop | Playing: $isPlaying, ShowingAd: $isShowingAd",
+                radioStation?.id
+            )
             activity?.stopService(serviceIntent)
             return
         }
+
+        LoggingHelper.playback(
+            "PLAY - User pressed play | Playing: $isPlaying, ShowingAd: $isShowingAd",
+            radioStation?.id
+        )
 
         state = StreamService.StreamStates.PREPARING
         broadcastState(state)
@@ -141,30 +160,45 @@ class PlayerManager {
     }
 
     private fun loadInterstitialAd() {
+        LoggingHelper.playback(
+            "LOAD_AD - Starting ad load | isShowingAd: $isShowingAd",
+            radioStation?.id
+        )
         isShowingAd = true
+
         if (interstitialAd != null) {
+            LoggingHelper.playback(
+                "LOAD_AD - Ad already loaded, showing immediately",
+                radioStation?.id
+            )
             if (isPlaying) showAd()
             return
         }
 
         val adRequest = AdRequest.Builder().build()
         activity?.let {
+            LoggingHelper.playback("LOAD_AD - Requesting new ad from AdMob", radioStation?.id)
             InterstitialAd.load(
                 it,
                 AdConfig.interstitialAdId,
                 adRequest,
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
+                        LoggingHelper.playback("LOAD_AD - Ad loaded successfully", radioStation?.id)
                         interstitialAd = ad
                         if (isPlaying) showAd()
                     }
 
                     override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                        LoggingHelper.e("LOAD_AD - Ad failed to load: ${loadAdError.code} - ${loadAdError.message}")
                         interstitialAd = null
                         handleAdLoadFailure(loadAdError)
                     }
                 }
             )
+        } ?: run {
+            LoggingHelper.e("LOAD_AD - Activity is null, cannot load ad")
+            isShowingAd = false
         }
     }
 
@@ -214,15 +248,18 @@ class PlayerManager {
         if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
             // Retry loading the ad
             loadInterstitialAd()
+            activity?.let {
+                showToast("retry no: " + MAX_AD_LOAD_ATTEMPTS + " error: " + loadAdError.code.toString())
+            }
         } else {
             // After max attempts, start playback regardless of failure reason
             adFailedCountdown = 0
             isShowingAd = false
             playOnly()
 
-//            activity?.let {
-//                showToast(it.getString(R.string.toast_ad_load_fail) + loadAdError.code.toString())
-//            }
+            activity?.let {
+                showToast(it.getString(R.string.toast_ad_load_fail) + loadAdError.code.toString())
+            }
         }
     }
 
