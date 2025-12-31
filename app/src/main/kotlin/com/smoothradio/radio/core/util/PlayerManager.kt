@@ -248,18 +248,18 @@ class PlayerManager {
         if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
             // Retry loading the ad
             loadInterstitialAd()
-            activity?.let {
-                showToast("retry no: " + MAX_AD_LOAD_ATTEMPTS + " error: " + loadAdError.code.toString())
-            }
+//            activity?.let {
+//                showToast("retry no: " + MAX_AD_LOAD_ATTEMPTS + " error: " + loadAdError.code.toString())
+//            }
         } else {
             // After max attempts, start playback regardless of failure reason
             adFailedCountdown = 0
             isShowingAd = false
             playOnly()
 
-            activity?.let {
-                showToast(it.getString(R.string.toast_ad_load_fail) + loadAdError.code.toString())
-            }
+//            activity?.let {
+//                showToast(it.getString(R.string.toast_ad_load_fail) + loadAdError.code.toString())
+//            }
         }
     }
 
