@@ -149,7 +149,7 @@ class PlayerFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        playerManager.unbindActivity()
+//        playerManager.unbindActivity()
     }
 
     private fun broadcastState(state: String) {

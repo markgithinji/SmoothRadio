@@ -197,7 +197,7 @@ class RadioListFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        playerManager.unbindActivity()
+//        playerManager.unbindActivity()
     }
 
     override fun onDestroy() {
