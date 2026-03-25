@@ -18,13 +18,27 @@
             </InsightsFilterSettings>
           </value>
         </entry>
-        <entry key="Firebase Crashlytics">
+        <entry key="Android vitals">
           <value>
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.smoothradio.radio" />
-                  <option name="mobileSdkAppId" value="1:336633997023:android:65d5a868413d6fd747eb6a" />
+                </ConnectionSetting>
+              </option>
+              <option name="signal" value="SIGNAL_UNSPECIFIED" />
+              <option name="timeIntervalDays" value="SEVEN_DAYS" />
+              <option name="visibilityType" value="ALL" />
+            </InsightsFilterSettings>
+          </value>
+        </entry>
+        <entry key="Firebase Crashlytics">
+          <value>
+            <InsightsFilterSettings>
+              <option name="connection">
+                <ConnectionSetting>
+                  <option name="appId" value="com.smoothradio.radio.debug" />
+                  <option name="mobileSdkAppId" value="1:336633997023:android:a6ee833868e6cf2947eb6a" />
                   <option name="projectId" value="smoothradio-8c5d4" />
                   <option name="projectNumber" value="336633997023" />
                 </ConnectionSetting>

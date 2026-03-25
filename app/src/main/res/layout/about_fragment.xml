@@ -31,7 +31,7 @@
             android:layout_weight="1"
             android:fontFamily="@font/source_sans_pro"
             android:gravity="center_horizontal"
-            android:text="version:  3.0.0"
+            android:text="version:  3.1.0"
             android:textColor="@color/light_gray"
             android:textSize="12sp"
             android:textStyle="bold" />

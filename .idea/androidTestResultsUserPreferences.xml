@@ -584,9 +584,11 @@
               <option name="preferredColumnWidths">
                 <map>
                   <entry key="Duration" value="90" />
+                  <entry key="Medium_Phone" value="120" />
                   <entry key="OnePlus LE2100" value="120" />
                   <entry key="Pixel_5_Andorid_11" value="120" />
                   <entry key="Pixel_9" value="120" />
+                  <entry key="Pixel_9_Android_15" value="120" />
                   <entry key="Tests" value="360" />
                 </map>
               </option>
