@@ -584,6 +584,18 @@ class MainActivity : AppCompatActivity() {
     private inner class EventReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val state = intent.getStringExtra(StreamService.EXTRA_STATE) ?: ""
+
+            isPlaying = when (state) {
+                StreamService.StreamStates.PREPARING,
+                StreamService.StreamStates.PLAYING,
+                StreamService.StreamStates.BUFFERING -> true
+
+                StreamService.StreamStates.IDLE,
+                StreamService.StreamStates.ENDED -> false
+
+                else -> false
+            }
+
             playerControlViewModel.updatePlaybackState(state)
 
             when (state) {
