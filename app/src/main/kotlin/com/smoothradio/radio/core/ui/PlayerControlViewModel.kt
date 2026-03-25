@@ -2,7 +2,6 @@ package com.smoothradio.radio.core.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.ads.LoadAdError
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.service.StreamService

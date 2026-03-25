@@ -21,22 +21,16 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.ads.AdRequest
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.databinding.FragmentPlayerBinding
 import com.smoothradio.radio.feature.player.util.TimerSetterHelper
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerFragment : Fragment() {
-
-    @Inject
-    lateinit var playerManager: PlayerManager
-
     private var _binding: FragmentPlayerBinding? = null
     private val binding get() = _binding!!
 
@@ -44,13 +38,10 @@ class PlayerFragment : Fragment() {
     private lateinit var fragmentActivity: FragmentActivity
 
     private lateinit var radioViewModel: RadioViewModel
+    private lateinit var playerControlViewModel: PlayerControlViewModel
 
     private lateinit var eventIntent: Intent
 
-    private var currentStation: RadioStation? = null
-    private var state: String = ""
-
-    private val eventReceiver: BroadcastReceiver = EventReceiver()
     private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
 
     override fun onAttach(context: Context) {
@@ -61,6 +52,8 @@ class PlayerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        playerControlViewModel =
+            ViewModelProvider(fragmentActivity)[PlayerControlViewModel::class.java]
         radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
         eventIntent =
             Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
@@ -68,25 +61,16 @@ class PlayerFragment : Fragment() {
     }
 
     private fun registerBroadcasts() {
-        val eventFilter = IntentFilter().apply {
-            addAction(StreamService.ACTION_EVENT_CHANGE)
-        }
         val metadataFilter = IntentFilter().apply {
             addAction(StreamService.ACTION_METADATA_CHANGE)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(
-                eventReceiver,
-                eventFilter,
-                Context.RECEIVER_NOT_EXPORTED
-            )
             fragmentActivity.registerReceiver(
                 metadataReceiver,
                 metadataFilter,
                 Context.RECEIVER_NOT_EXPORTED
             )
         } else {
-            fragmentActivity.registerReceiver(eventReceiver, eventFilter)
             fragmentActivity.registerReceiver(metadataReceiver, metadataFilter)
         }
     }
@@ -112,18 +96,20 @@ class PlayerFragment : Fragment() {
 
     private fun collectFlows() {
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 launch {
-                    radioViewModel.playingStation.collect { radioStation ->
+                    playerControlViewModel.playingStation.collect { radioStation ->
                         radioStation?.let { station ->
-                            currentStation = station
-                            playerManager.setRadioStation(station)
-
                             with(binding) {
                                 ivLargeLogo.setImageResource(station.logoResource)
                                 tvStationNamePlayerFrag.text = station.stationName
                             }
                         }
+                    }
+                }
+                launch {
+                    playerControlViewModel.playbackState.collect { state ->
+                        updateUI(state)
                     }
                 }
             }
@@ -133,28 +119,49 @@ class PlayerFragment : Fragment() {
     override fun onResume() {
         super.onResume()
 
-        playerManager.bindActivity(fragmentActivity)
+        // send broadcast to ask for ui updates
+        val getStateFromServiceIntent =
+            Intent(StreamService.ACTION_GET_STATE).setPackage(requireContext().packageName)
+        requireContext().sendBroadcast(getStateFromServiceIntent)
+    }
 
-        // update ui or get currently playing state from service
-        val isShowingAd = playerManager.isShowingAd
-        if (isShowingAd) {
-            state = StreamService.StreamStates.PREPARING
-            broadcastState(state)
-        } else {
-            val getStateFromServiceIntent =
-                Intent(StreamService.ACTION_GET_STATE).setPackage(requireContext().packageName)
-            requireContext().sendBroadcast(getStateFromServiceIntent)
+    private fun updateUI(state: String) = with(binding) {
+        TransitionManager.beginDelayedTransition(playerFrag)
+
+        lottieLoadingAnimation.isInvisible = true
+        equalizerAnimation.isInvisible = true
+        tvMetadata.text = ""
+        ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
+
+        when (state) {
+            StreamService.StreamStates.PREPARING,
+            StreamService.StreamStates.BUFFERING -> {
+                tvProgress.text = state
+                lottieLoadingAnimation.isVisible = true
+            }
+
+            StreamService.StreamStates.PLAYING -> {
+                tvProgress.text = state
+                equalizerAnimation.isVisible = true
+                ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
+            }
+
+            StreamService.StreamStates.ENDED,
+            StreamService.StreamStates.IDLE -> {
+                tvProgress.text = ""
+            }
+
+            else -> {
+                tvProgress.text = ""
+                tvMetadata.text = ""
+            }
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-//        playerManager.unbindActivity()
-    }
-
-    private fun broadcastState(state: String) {
-        eventIntent.putExtra(StreamService.EXTRA_STATE, state)
-        fragmentActivity.sendBroadcast(eventIntent)
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+        fragmentActivity.unregisterReceiver(metadataReceiver)
     }
 
     /**
@@ -178,53 +185,16 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    inner class EventReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            state = intent?.getStringExtra(StreamService.EXTRA_STATE) ?: ""
-            updateUI()
-        }
-
-        private fun updateUI() = with(binding) {
-            TransitionManager.beginDelayedTransition(playerFrag)
-
-            tvProgress.text = state
-            lottieLoadingAnimation.isInvisible = true
-            equalizerAnimation.isInvisible = true
-            tvMetadata.text = ""
-            ivPlayButton.setImageResource(R.drawable.playerfragplayicon)
-
-            when (state) {
-                StreamService.StreamStates.PREPARING,
-                StreamService.StreamStates.BUFFERING -> {
-                    lottieLoadingAnimation.isVisible = true
-                }
-
-                StreamService.StreamStates.PLAYING -> {
-                    equalizerAnimation.isVisible = true
-                    ivPlayButton.setImageResource(R.drawable.playerfragpauseicon)
-                }
-
-                StreamService.StreamStates.ENDED,
-                StreamService.StreamStates.IDLE -> { /* no-op */}
-
-                else -> {
-                    tvProgress.text = ""
-                    tvMetadata.text = ""
-                }
-            }
-        }
-    }
-
     inner class Refresh : View.OnClickListener {
         override fun onClick(view: View?) {
-            playerManager.refresh()
+            playerControlViewModel.requestRefresh()
         }
     }
 
     inner class PlayButtonListener : View.OnClickListener {
         override fun onClick(view: View?) {
-            val station = currentStation ?: return
-            radioViewModel.setSelectedStation(station)
+            val station = playerControlViewModel.playingStation.value ?: return
+            playerControlViewModel.requestPlayStation(station)
         }
     }
 
@@ -232,13 +202,5 @@ class PlayerFragment : Fragment() {
         override fun onClick(view: View?) {
             TimerSetterHelper(fragmentActivity, binding.playerFrag).showTimerPicker()
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-        fragmentActivity.unregisterReceiver(eventReceiver)
-        fragmentActivity.unregisterReceiver(metadataReceiver)
-        playerManager.unregisterBroadcastReceiver()
     }
 }
