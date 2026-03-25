@@ -27,11 +27,7 @@ class RadioViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     val allStations = radioRepository.allStations
-    val playingStation = radioRepository.playingStation
     val favoriteStations = radioRepository.favoriteStations
-
-    private val _selectedStation = MutableSharedFlow<RadioStation?>(replay = 0)
-    val selectedStation: SharedFlow<RadioStation?> = _selectedStation
 
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
@@ -42,13 +38,6 @@ class RadioViewModel @Inject constructor(
     fun observeAndProcessRemoteLinks() {
         viewModelScope.launch {
             processRemoteLinksUseCase()
-        }
-    }
-
-    // Radio Station Logic
-    fun savePlayingStationId(id: Int) {
-        viewModelScope.launch {
-            radioRepository.setPlayingStation(id)
         }
     }
 
@@ -65,14 +54,6 @@ class RadioViewModel @Inject constructor(
         }
     }
 
-    // Player Logic
-    fun setSelectedStation(station: RadioStation?) {
-        viewModelScope.launch {
-            _selectedStation.emit(station)
-        }
-    }
-
-    // ViewPager Current Page Logic
     fun setCurrentPage(page: Int) {
         _currentPage.value = page
     }

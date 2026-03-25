@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
@@ -13,6 +15,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -26,15 +29,26 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.gms.ads.AdError
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdRequest.ERROR_CODE_INVALID_REQUEST
+import com.google.android.gms.ads.AdRequest.ERROR_CODE_NO_FILL
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.PlayCommand
+import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter
 import com.smoothradio.radio.core.ui.dialog.SortDialog
 import com.smoothradio.radio.core.ui.dialog.SortOption
 import com.smoothradio.radio.core.ui.dialog.SortOptionListener
+import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.core.util.CacheUtil
 import com.smoothradio.radio.core.util.ConsentHelper
 import com.smoothradio.radio.databinding.ActivityMainBinding
@@ -50,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private val eventReceiver: BroadcastReceiver = EventReceiver()
 
     private lateinit var binding: ActivityMainBinding
+
     private lateinit var radioViewModel: RadioViewModel
 
     private lateinit var viewPagerAdapter: ViewPagerAdapter
@@ -58,8 +73,19 @@ class MainActivity : AppCompatActivity() {
     lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private lateinit var firebaseAnalytics: FirebaseAnalytics
 
+    private lateinit var playerControlViewModel: PlayerControlViewModel
+
+    private lateinit var serviceIntent: Intent
+    private lateinit var eventIntent: Intent
+
+    private var interstitialAd: InterstitialAd? = null
+    private var isShowingAd = false
+    private var adFailedCountdown = 0
+
+    private var isPlaying = false
+    private var currentStation: RadioStation? = null
+
     private var tabPosition = 0
-    private var lastStationId = 0
     private var isSearchVisible = false
     private var isRestoringSearch = true
 
@@ -111,10 +137,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initializeComponents() {
+        playerControlViewModel = ViewModelProvider(this)[PlayerControlViewModel::class.java]
         radioViewModel = ViewModelProvider(this)[RadioViewModel::class.java]
-        inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
+
+        serviceIntent = Intent(this, StreamService::class.java)
+        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(packageName)
 
         ConsentHelper(this).showConsentForm()
     }
@@ -128,9 +158,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun miniPlayerPlayPause() {
         lifecycleScope.launch {
-            val station = radioViewModel.playingStation.firstOrNull()
+            val station = playerControlViewModel.playingStation.firstOrNull()
             station?.let {
-                radioViewModel.setSelectedStation(it)
+                playerControlViewModel.requestPlayStation(it)
             }
         }
     }
@@ -139,12 +169,32 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    radioViewModel.playingStation.collect { station ->
+                    playerControlViewModel.playingStation.collect { station ->
                         station?.let { currentStation ->
-                            lastStationId = currentStation.id
                             updateMiniPlayer(currentStation)
-                            sendFirebaseAnalytics(currentStation.stationName)
                             hideKeyboard()
+                        }
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                playerControlViewModel.playCommand.collect { command ->
+                    when (command) {
+                        is PlayCommand.PlayStation -> {
+                            currentStation = command.station
+                            if (command.station.isPlaying) {
+                                playOrStop()
+                            } else {
+                                startNewPlay()
+                            }
+                            playerControlViewModel.savePlayingStationId(command.station.id)
+                        }
+
+                        is PlayCommand.Refresh -> {
+                            refresh()
                         }
                     }
                 }
@@ -224,7 +274,7 @@ class MainActivity : AppCompatActivity() {
 
                 etSearch.post {
                     etSearch.requestFocus()
-                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                    (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
                         .showSoftInput(etSearch, InputMethodManager.SHOW_IMPLICIT)
                 }
 
@@ -265,7 +315,7 @@ class MainActivity : AppCompatActivity() {
         val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(eventReceiver, eventFilter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(eventReceiver, eventFilter)
         }
@@ -304,42 +354,6 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private inner class EventReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val state = intent.getStringExtra(StreamService.EXTRA_STATE)
-            binding.miniPlayer.tvStatusMiniPlayerLayout.text = state
-
-            when (state) {
-                StreamService.StreamStates.BUFFERING,
-                StreamService.StreamStates.PREPARING -> showBufferingState()
-
-                StreamService.StreamStates.PLAYING -> showPlayingState()
-                else -> showStoppedState()
-            }
-        }
-
-        private fun showBufferingState() = with(binding.miniPlayer) {
-            ivPlayMiniPlayerLayout.isVisible = false
-            loadingAnimationMiniPlayerLayout.isVisible = true
-        }
-
-        private fun showPlayingState() = with(binding.miniPlayer) {
-            ivPlayMiniPlayerLayout.apply {
-                setImageResource(R.drawable.pauseicon)
-                isVisible = true
-            }
-            loadingAnimationMiniPlayerLayout.isVisible = false
-        }
-
-        private fun showStoppedState() = with(binding.miniPlayer) {
-            ivPlayMiniPlayerLayout.apply {
-                setImageResource(R.drawable.playicon)
-                isVisible = true
-            }
-            loadingAnimationMiniPlayerLayout.isVisible = false
-        }
-    }
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu, menu)
         return true
@@ -364,9 +378,256 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun startNewPlay() {
+        LoggingHelper.playback(
+            "MAIN - Play from main activity | Playing: $isPlaying, ShowingAd: $isShowingAd",
+            currentStation?.id
+        )
+
+        isPlaying = true
+        if (isShowingAd) {
+            LoggingHelper.w("MAIN - Blocked by isShowingAd")
+            return
+        }
+
+        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station")
+    }
+
+    fun playOrStop() {
+        if (isPlaying) {
+            stopService(serviceIntent)
+            isPlaying = false
+            playerControlViewModel.updatePlaybackState(StreamService.StreamStates.IDLE)
+            return
+        }
+
+        if (isShowingAd) {
+            LoggingHelper.w("Blocked by isShowingAd")
+            return
+        }
+
+        playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
+        isPlaying = true
+
+        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+    }
+
+    private fun refresh() {
+        if (isShowingAd) return
+
+        isPlaying = true
+        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+        showToast(getString(R.string.refreshed))
+    }
+
+    private fun playOnly() {
+        serviceIntent.action = StreamService.ACTION_START
+        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
+        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
+        startStreamService()
+        playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
+        isPlaying = true
+    }
+
+    private fun startStreamService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+    }
+
+    private fun loadInterstitialAd() {
+        LoggingHelper.playback(
+            "LOAD_AD - Starting ad load | isShowingAd: $isShowingAd",
+            currentStation?.id
+        )
+        isShowingAd = true
+
+        if (interstitialAd != null) {
+            LoggingHelper.playback(
+                "LOAD_AD - Ad already loaded, showing immediately",
+                currentStation?.id
+            )
+            if (isPlaying) showAd()
+            return
+        }
+
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(
+            this,
+            AdConfig.interstitialAdId,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    LoggingHelper.playback("LOAD_AD - Ad loaded successfully", currentStation?.id)
+                    interstitialAd = ad
+                    if (isPlaying) showAd()
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    LoggingHelper.e("LOAD_AD - Ad failed to load: ${loadAdError.code}")
+                    interstitialAd = null
+                    handleAdLoadFailure(loadAdError)
+                }
+            }
+        )
+    }
+
+    private fun showAd() {
+        val ad = interstitialAd ?: run {
+            loadInterstitialAd()
+            return
+        }
+
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                interstitialAd = null
+                playOnly()
+                isShowingAd = false
+                preloadInterstitialAd()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                interstitialAd = null
+                isShowingAd = false
+
+                AnalyticsHelper.trackPlaybackEvent(
+                    "ad_show_failed_code_${adError.code}", currentStation?.id, mapOf(
+                        "ad_error_type" to "show_failed"
+                    )
+                )
+                stopService(serviceIntent)
+            }
+        }
+
+        ad.show(this)
+    }
+
+    private fun handleAdLoadFailure(loadAdError: LoadAdError) {
+        AnalyticsHelper.trackPlaybackEvent(
+            "ad_load_failed_code_${loadAdError.code}", currentStation?.id, mapOf(
+                "ad_error_type" to when (loadAdError.code) {
+                    ERROR_CODE_INVALID_REQUEST -> "invalid_request"
+                    ERROR_CODE_NO_FILL -> "no_fill"
+                    else -> "unknown"
+                },
+                "attempt_count" to adFailedCountdown + 1
+            )
+        )
+
+        adFailedCountdown++
+        if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
+            loadInterstitialAd()
+        } else {
+            adFailedCountdown = 0
+            isShowingAd = false
+            playOnly()
+        }
+    }
+
+    private fun preloadInterstitialAd() {
+        if (interstitialAd == null) {
+            val adRequest = AdRequest.Builder().build()
+            InterstitialAd.load(
+                this,
+                AdConfig.interstitialAdId,
+                adRequest,
+                object : InterstitialAdLoadCallback() {
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        interstitialAd = ad
+                    }
+
+                    override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                        interstitialAd = null
+                        preloadInterstitialAd()
+                    }
+                }
+            )
+        }
+    }
+
+    private fun checkInternet() {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+
+        val network = cm.activeNetwork
+        val capabilities = cm.getNetworkCapabilities(network)
+        val connected =
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+
+        if (!connected) {
+            showToast(getString(R.string.check_internet))
+        }
+    }
+
+    private fun showToast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
     inner class SortOptionHandler : SortOptionListener {
         override fun onSortOptionSelected(option: SortOption) {
             viewPagerAdapter.getRadioListFragment()?.sortStations(option)
         }
+    }
+
+    private inner class EventReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getStringExtra(StreamService.EXTRA_STATE) ?: ""
+            playerControlViewModel.updatePlaybackState(state)
+
+            when (state) {
+                StreamService.StreamStates.BUFFERING,
+                StreamService.StreamStates.PREPARING -> {
+                    showBufferingState(state)
+                }
+
+                StreamService.StreamStates.PLAYING -> {
+                    showPlayingState(state)
+                }
+
+                else -> {
+                    showStoppedState()
+                }
+            }
+        }
+
+        private fun showBufferingState(state: String) = with(binding.miniPlayer) {
+            tvStatusMiniPlayerLayout.text = state
+            ivPlayMiniPlayerLayout.isVisible = false
+            loadingAnimationMiniPlayerLayout.isVisible = true
+        }
+
+        private fun showPlayingState(state: String) = with(binding.miniPlayer) {
+            tvStatusMiniPlayerLayout.text = state
+            ivPlayMiniPlayerLayout.apply {
+                setImageResource(R.drawable.pauseicon)
+                isVisible = true
+            }
+            loadingAnimationMiniPlayerLayout.isVisible = false
+        }
+
+        private fun showStoppedState() = with(binding.miniPlayer) {
+            tvStatusMiniPlayerLayout.text = ""
+            ivPlayMiniPlayerLayout.apply {
+                setImageResource(R.drawable.playicon)
+                isVisible = true
+            }
+            loadingAnimationMiniPlayerLayout.isVisible = false
+        }
+    }
+
+    companion object {
+        private const val MAX_AD_LOAD_ATTEMPTS = 2
     }
 }

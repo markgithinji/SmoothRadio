@@ -9,7 +9,6 @@ import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
-import com.smoothradio.radio.core.util.PlayerManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,10 +32,6 @@ class CoreModule {
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
-
-    @Provides
-    @Singleton
-    fun providePlayerManager() = PlayerManager()
 
     @Provides
     @Singleton
