@@ -4,7 +4,6 @@ import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepositoryAndroid
 import com.smoothradio.radio.core.data.repository.FakeRadioRepositoryAndroidTest
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
-import com.smoothradio.radio.core.util.PlayerManager
 
 import dagger.Module
 import dagger.Provides
@@ -18,7 +17,6 @@ import javax.inject.Singleton
     replaces = [CoreModule::class]
 )
 object FakeAppModule {
-
     @Provides
     @Singleton
     fun provideRadioRepository(): RadioRepository = FakeRadioRepositoryAndroidTest()
@@ -26,8 +24,4 @@ object FakeAppModule {
     @Provides
     @Singleton
     fun provideRadioLinkRepository(): RadioLinkRepository = FakeRadioLinkRepositoryAndroidTest()
-    @Provides
-    @Singleton
-    fun providePlayerManager() = PlayerManager()
-
 }

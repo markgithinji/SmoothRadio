@@ -13,7 +13,6 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.di.CoreModule
-import com.smoothradio.radio.core.util.PlayerManager
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.testutil.launchFragmentInHiltContainer
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -26,16 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 import javax.inject.Inject
 
-
 @HiltAndroidTest
 @UninstallModules(CoreModule::class)
 class RadioListFragmentTest {
 
     @get:Rule
     val hiltRule = HiltAndroidRule(this)
-
-    @Inject
-    lateinit var playerManager: PlayerManager
 
     @Before
     fun setup() {
