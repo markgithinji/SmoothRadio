@@ -9,8 +9,8 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -27,7 +27,6 @@ import com.smoothradio.radio.feature.radiolist.ui.adapter.RadioListRecyclerViewA
 import com.smoothradio.radio.feature.radiolist.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -35,11 +34,10 @@ class RadioListFragment : Fragment() {
     private var _binding: FragmentMusicListBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var radioViewModel: RadioViewModel
-    private lateinit var radioListRecyclerViewAdapter: RadioListRecyclerViewAdapter
-    private lateinit var playerControlViewModel: PlayerControlViewModel
+    private val radioViewModel: RadioViewModel by activityViewModels()
+    private val playerControlViewModel: PlayerControlViewModel by activityViewModels()
 
-    private lateinit var eventIntent: Intent
+    private lateinit var radioListRecyclerViewAdapter: RadioListRecyclerViewAdapter
 
     private var mainActivity: MainActivity? = null
     private lateinit var fragmentActivity: FragmentActivity
@@ -52,16 +50,6 @@ class RadioListFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainActivity = requireActivity() as? MainActivity
-
-        initializeComponents()
-    }
-
-    private fun initializeComponents() {
-        playerControlViewModel =
-            ViewModelProvider(requireActivity())[PlayerControlViewModel::class.java]
-        radioViewModel = ViewModelProvider(requireActivity())[RadioViewModel::class.java]
-        eventIntent =
-            Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(requireActivity().packageName)
     }
 
     override fun onCreateView(
@@ -72,7 +60,7 @@ class RadioListFragment : Fragment() {
         _binding = FragmentMusicListBinding.inflate(inflater, container, false)
         radioListRecyclerViewAdapter = RadioListRecyclerViewAdapter(
             mutableListOf(),
-            RadioStationHandler(radioViewModel)
+            RadioStationHandler()
         )
         radioViewModel.observeAndProcessRemoteLinks()
         collectFlows()
@@ -94,7 +82,7 @@ class RadioListFragment : Fragment() {
                     playerControlViewModel.playbackState.collect { state ->
                         radioListRecyclerViewAdapter.setState(state)
                         val currentStation: RadioStation? =
-                            playerControlViewModel.playingStation.firstOrNull()
+                            playerControlViewModel.playingStation.value
                         currentStation?.let { radioListRecyclerViewAdapter.updateStation(it) }
                     }
                 }
@@ -182,9 +170,7 @@ class RadioListFragment : Fragment() {
         }
     }
 
-    private inner class RadioStationHandler(
-        private val radioViewModel: RadioViewModel
-    ) : RadioStationActionHandler {
+    private inner class RadioStationHandler : RadioStationActionHandler {
 
         override fun onStationSelected(station: RadioStation) {
             playerControlViewModel.requestPlayStation(station)
