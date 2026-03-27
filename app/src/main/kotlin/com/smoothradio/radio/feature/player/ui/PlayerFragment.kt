@@ -14,15 +14,13 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.ads.AdRequest
-import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
-import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.databinding.FragmentPlayerBinding
 import com.smoothradio.radio.feature.player.util.TimerSetterHelper
 import com.smoothradio.radio.service.StreamService
@@ -34,29 +32,19 @@ class PlayerFragment : Fragment() {
     private var _binding: FragmentPlayerBinding? = null
     private val binding get() = _binding!!
 
-    private var mainActivity: MainActivity? = null
     private lateinit var fragmentActivity: FragmentActivity
 
-    private lateinit var radioViewModel: RadioViewModel
-    private lateinit var playerControlViewModel: PlayerControlViewModel
-
-    private lateinit var eventIntent: Intent
+    private val playerControlViewModel: PlayerControlViewModel by activityViewModels()
 
     private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        mainActivity = requireActivity() as? MainActivity
         fragmentActivity = context as FragmentActivity
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        playerControlViewModel =
-            ViewModelProvider(fragmentActivity)[PlayerControlViewModel::class.java]
-        radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
-        eventIntent =
-            Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
         registerBroadcasts()
     }
 
@@ -118,11 +106,11 @@ class PlayerFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-
-        // send broadcast to ask for ui updates
-        val getStateFromServiceIntent =
-            Intent(StreamService.ACTION_GET_STATE).setPackage(requireContext().packageName)
-        requireContext().sendBroadcast(getStateFromServiceIntent)
+        // Update ui or get currently playing state from service
+        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+            setPackage(fragmentActivity.packageName)
+        }
+        fragmentActivity.sendBroadcast(intent)
     }
 
     private fun updateUI(state: String) = with(binding) {
