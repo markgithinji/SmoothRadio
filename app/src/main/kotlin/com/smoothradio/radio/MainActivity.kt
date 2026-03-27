@@ -16,6 +16,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -25,7 +26,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.widget.ViewPager2
@@ -55,7 +55,6 @@ import com.smoothradio.radio.databinding.ActivityMainBinding
 import com.smoothradio.radio.feature.about.ui.AboutFragment
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -65,18 +64,16 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var radioViewModel: RadioViewModel
-
     private lateinit var viewPagerAdapter: ViewPagerAdapter
 
     private lateinit var inputMethodManager: InputMethodManager
     lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private lateinit var firebaseAnalytics: FirebaseAnalytics
 
-    private lateinit var playerControlViewModel: PlayerControlViewModel
+    private val playerControlViewModel: PlayerControlViewModel by viewModels()
+    private val radioViewModel: RadioViewModel by viewModels()
 
     private lateinit var serviceIntent: Intent
-    private lateinit var eventIntent: Intent
 
     private var interstitialAd: InterstitialAd? = null
     private var isShowingAd = false
@@ -137,14 +134,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initializeComponents() {
-        playerControlViewModel = ViewModelProvider(this)[PlayerControlViewModel::class.java]
-        radioViewModel = ViewModelProvider(this)[RadioViewModel::class.java]
         inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
-
         serviceIntent = Intent(this, StreamService::class.java)
-        eventIntent = Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(packageName)
 
         ConsentHelper(this).showConsentForm()
     }
@@ -158,7 +151,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun miniPlayerPlayPause() {
         lifecycleScope.launch {
-            val station = playerControlViewModel.playingStation.firstOrNull()
+            val station = playerControlViewModel.playingStation.value
             station?.let {
                 playerControlViewModel.requestPlayStation(it)
             }
@@ -401,7 +394,6 @@ class MainActivity : AppCompatActivity() {
         if (isPlaying) {
             stopService(serviceIntent)
             isPlaying = false
-            playerControlViewModel.updatePlaybackState(StreamService.StreamStates.IDLE)
             return
         }
 
@@ -410,7 +402,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
         isPlaying = true
 
         serviceIntent.action = StreamService.ACTION_SHOW_AD
@@ -430,6 +421,14 @@ class MainActivity : AppCompatActivity() {
         showToast(getString(R.string.refreshed))
     }
 
+    private fun startStreamService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+    }
+
     private fun playOnly() {
         serviceIntent.action = StreamService.ACTION_START
         serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
@@ -438,14 +437,6 @@ class MainActivity : AppCompatActivity() {
         startStreamService()
         playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
         isPlaying = true
-    }
-
-    private fun startStreamService() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
     }
 
     private fun loadInterstitialAd() {
