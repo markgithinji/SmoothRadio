@@ -28,14 +28,12 @@ class PlayerControlViewModel @Inject constructor(
     private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)
     val playbackState: StateFlow<String> = _playbackState.asStateFlow()
 
-    private val _playingStation = radioRepository.playingStation
+    val playingStation: StateFlow<RadioStation?> = radioRepository.playingStation
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
-
-    val playingStation: StateFlow<RadioStation?> = _playingStation
 
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {

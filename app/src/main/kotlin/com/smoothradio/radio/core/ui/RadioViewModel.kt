@@ -58,7 +58,7 @@ class RadioViewModel @Inject constructor(
         _currentPage.value = page
     }
 
-    public override fun onCleared() {
+    override fun onCleared() {
         super.onCleared()
         radioLinkRepository.clear()
     }
