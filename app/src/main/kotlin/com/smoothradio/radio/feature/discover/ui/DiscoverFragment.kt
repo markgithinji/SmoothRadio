@@ -3,22 +3,25 @@ package com.smoothradio.radio.feature.discover.ui
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.databinding.FragmentDiscoverBinding
 import com.smoothradio.radio.feature.discover.ui.adapter.DiscoverRecyclerViewAdapter
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
+import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.combine
@@ -30,40 +33,30 @@ class DiscoverFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var discoverRecyclerViewAdapter: DiscoverRecyclerViewAdapter
-    private lateinit var radioViewModel: RadioViewModel
-    private lateinit var playerControlViewModel: PlayerControlViewModel
+
+    private val radioViewModel: RadioViewModel by activityViewModels()
+    private val playerControlViewModel: PlayerControlViewModel by activityViewModels()
 
     private lateinit var fragmentActivity: FragmentActivity
-    private var mainActivity: MainActivity? = null
-
-    private lateinit var eventIntent: Intent
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
         fragmentActivity = context as FragmentActivity
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        mainActivity = requireActivity() as? MainActivity
-
-        eventIntent =
-            Intent(StreamService.ACTION_EVENT_CHANGE).setPackage(fragmentActivity.packageName)
-    }
-
     override fun onCreateView(
-        inflater: android.view.LayoutInflater,
-        container: android.view.ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): android.view.View {
+    ): View {
         _binding = FragmentDiscoverBinding.inflate(inflater, container, false)
-        playerControlViewModel =
-            ViewModelProvider(fragmentActivity)[PlayerControlViewModel::class.java]
-        radioViewModel = ViewModelProvider(fragmentActivity)[RadioViewModel::class.java]
-        discoverRecyclerViewAdapter =
-            DiscoverRecyclerViewAdapter(emptyList(), RadioStationActionHandler(radioViewModel))
-        collectFlows()
+
+        discoverRecyclerViewAdapter = DiscoverRecyclerViewAdapter(
+            emptyList(),
+            RadioStationHandler())
+
         setupRecyclerView()
+        collectFlows()
 
         return binding.root
     }
@@ -111,14 +104,13 @@ class DiscoverFragment : Fragment() {
         }
     }
 
-
     override fun onResume() {
         super.onResume()
-
-        // send broadcast to ask for ui updates
-        val getStateFromServiceIntent =
-            Intent(StreamService.ACTION_GET_STATE).setPackage(fragmentActivity.packageName)
-        fragmentActivity.sendBroadcast(getStateFromServiceIntent)
+        // Update ui or get currently playing state from service
+        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+            setPackage(fragmentActivity.packageName)
+        }
+        fragmentActivity.sendBroadcast(intent)
     }
 
     override fun onDestroyView() {
@@ -126,8 +118,8 @@ class DiscoverFragment : Fragment() {
         _binding = null
     }
 
-    inner class RadioStationActionHandler(private val radioViewModel: RadioViewModel) :
-        com.smoothradio.radio.feature.discover.util.RadioStationActionHandler {
+    private inner class RadioStationHandler : RadioStationActionHandler {
+
         override fun onStationSelected(station: RadioStation) {
             playerControlViewModel.requestPlayStation(station)
         }
@@ -137,10 +129,6 @@ class DiscoverFragment : Fragment() {
         }
 
         override fun onRequestShowToast(message: String) {
-            showToast(message)
-        }
-
-        private fun showToast(message: String) {
             Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show()
         }
     }

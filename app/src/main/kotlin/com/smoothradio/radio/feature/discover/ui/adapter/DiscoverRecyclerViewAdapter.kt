@@ -85,11 +85,6 @@ class DiscoverRecyclerViewAdapter(
             }
         }
 
-//        // Remove excess adapters if the new list is smaller
-//        if (categoryAdapters.size > newCategoryList.size) {
-//            categoryAdapters.subList(newCategoryList.size, categoryAdapters.size).clear()
-//        }
-
         diffResult.dispatchUpdatesTo(this)
     }
 
