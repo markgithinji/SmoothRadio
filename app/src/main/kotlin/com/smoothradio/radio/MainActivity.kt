@@ -372,14 +372,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun startNewPlay() {
-        LoggingHelper.playback(
-            "MAIN - Play from main activity | Playing: $isPlaying, ShowingAd: $isShowingAd",
-            currentStation?.id
-        )
-
         isPlaying = true
         if (isShowingAd) {
-            LoggingHelper.w("MAIN - Blocked by isShowingAd")
             return
         }
 
@@ -398,7 +392,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (isShowingAd) {
-            LoggingHelper.w("Blocked by isShowingAd")
             return
         }
 
@@ -440,17 +433,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadInterstitialAd() {
-        LoggingHelper.playback(
-            "LOAD_AD - Starting ad load | isShowingAd: $isShowingAd",
-            currentStation?.id
-        )
         isShowingAd = true
 
         if (interstitialAd != null) {
-            LoggingHelper.playback(
-                "LOAD_AD - Ad already loaded, showing immediately",
-                currentStation?.id
-            )
             if (isPlaying) showAd()
             return
         }
@@ -462,13 +447,11 @@ class MainActivity : AppCompatActivity() {
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
-                    LoggingHelper.playback("LOAD_AD - Ad loaded successfully", currentStation?.id)
                     interstitialAd = ad
                     if (isPlaying) showAd()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    LoggingHelper.e("LOAD_AD - Ad failed to load: ${loadAdError.code}")
                     interstitialAd = null
                     handleAdLoadFailure(loadAdError)
                 }
@@ -529,24 +512,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun preloadInterstitialAd() {
-        if (interstitialAd == null) {
-            val adRequest = AdRequest.Builder().build()
-            InterstitialAd.load(
-                this,
-                AdConfig.interstitialAdId,
-                adRequest,
-                object : InterstitialAdLoadCallback() {
-                    override fun onAdLoaded(ad: InterstitialAd) {
-                        interstitialAd = ad
-                    }
+        if (interstitialAd != null) return
 
-                    override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                        interstitialAd = null
-                        preloadInterstitialAd()
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(
+            this,
+            AdConfig.interstitialAdId,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    interstitialAd = ad
+                    adFailedCountdown = 0
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    interstitialAd = null
+                    // Only retry for specific error codes
+                    when (loadAdError.code) {
+                        // Retry for network issues
+                        AdRequest.ERROR_CODE_NETWORK_ERROR,
+                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> {
+                            adFailedCountdown++
+                            if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
+                                preloadInterstitialAd()
+                            } else {
+                                adFailedCountdown = 0
+                            }
+                        }
                     }
                 }
-            )
-        }
+            }
+        )
     }
 
     private fun checkInternet() {
