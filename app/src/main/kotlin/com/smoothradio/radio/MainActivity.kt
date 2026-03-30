@@ -416,6 +416,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun startStreamService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
+            serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
+            serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
@@ -424,9 +427,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun playOnly() {
         serviceIntent.action = StreamService.ACTION_START
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
         startStreamService()
         playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
         isPlaying = true
