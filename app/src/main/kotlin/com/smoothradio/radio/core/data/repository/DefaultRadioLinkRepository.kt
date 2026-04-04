@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.model.RemoteAdSettings
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.util.RadioStationLinksHelper
 import com.smoothradio.radio.core.util.Resource
@@ -16,10 +17,11 @@ import javax.inject.Singleton
 @Singleton
 class DefaultRadioLinkRepository @Inject constructor(
     private val context: Context,
-    private val firebaseFirestore: FirebaseFirestore,
+    private val firebaseFirestore: FirebaseFirestore
 ) : RadioLinkRepository {
 
-    private var listenerRegistration: ListenerRegistration? = null
+    private var linksListenerRegistration: ListenerRegistration? = null
+    private var adConfigListenerRegistration: ListenerRegistration? = null
 
     /**
      * Retrieves a flow of remote stream links from Firestore.
@@ -44,7 +46,7 @@ class DefaultRadioLinkRepository @Inject constructor(
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = callbackFlow {
         trySend(Resource.Success(getLinksFromHelper()))
 
-        listenerRegistration = firebaseFirestore.collection("links")
+        linksListenerRegistration = firebaseFirestore.collection("links")
             .orderBy("index")
             .addSnapshotListener { value, error ->
                 if (error != null) {
@@ -71,7 +73,65 @@ class DefaultRadioLinkRepository @Inject constructor(
             }
 
         awaitClose {
-            listenerRegistration?.remove()
+            linksListenerRegistration?.remove()
+        }
+    }
+
+    /**
+     * Retrieves a flow of remote ad configuration from Firestore.
+     *
+     * This function establishes a real-time listener to the "config/ad_settings" document in Firestore.
+     *
+     * The Firestore listener observes changes to the ad configuration document.
+     * - On successful data retrieval, it maps the document to an AdConfig object.
+     * - If the document doesn't exist, it emits a default AdConfig.
+     * - If an error occurs during Firestore communication, it emits a Resource.Error.
+     *
+     * The flow will continue to emit new configurations whenever the document is updated.
+     *
+     * The listener is automatically removed when the collecting coroutine is cancelled.
+     *
+     * @return A [Flow] that emits [Resource] objects.
+     *         - [Resource.Success] contains an [AdConfig] object.
+     *         - [Resource.Error] contains an error message string.
+     */
+    override fun getRemoteAdSettingsFlow(): Flow<Resource<RemoteAdSettings>> = callbackFlow {
+        adConfigListenerRegistration = firebaseFirestore.collection("config")
+            .document("ad_settings")
+            .addSnapshotListener { document, error ->
+                if (error != null) {
+                    trySend(
+                        Resource.Error(
+                            error.message ?: context.getString(R.string.error_unexpected)
+                        )
+                    )
+                    return@addSnapshotListener
+                }
+
+                if (document == null || !document.exists()) {
+                    // Return default config if none exists in Firestore
+                    trySend(
+                        Resource.Success(
+                            RemoteAdSettings(
+                                adShowIntervalMinutes = AD_SHOW_INTERVAL_MINUTES,
+                                maxAdsPerHour = MAX_ADS_PER_HOUR
+                            )
+                        )
+                    )
+                    return@addSnapshotListener
+                }
+
+                val adConfig = RemoteAdSettings(
+                    adShowIntervalMinutes = document.getLong("adShowIntervalMinutes")?.toInt()
+                        ?: AD_SHOW_INTERVAL_MINUTES,
+                    maxAdsPerHour = document.getLong("maxAdsPerHour")?.toInt() ?: MAX_ADS_PER_HOUR
+                )
+
+                trySend(Resource.Success(adConfig))
+            }
+
+        awaitClose {
+            adConfigListenerRegistration?.remove()
         }
     }
 
@@ -80,6 +140,12 @@ class DefaultRadioLinkRepository @Inject constructor(
     }
 
     override fun clear() {
-        listenerRegistration?.remove()
+        linksListenerRegistration?.remove()
+        adConfigListenerRegistration?.remove()
+    }
+
+    companion object {
+        private const val AD_SHOW_INTERVAL_MINUTES = 4
+        private const val MAX_ADS_PER_HOUR = 4
     }
 }
