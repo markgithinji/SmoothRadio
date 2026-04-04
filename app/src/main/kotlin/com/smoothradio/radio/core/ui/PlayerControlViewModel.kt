@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
+import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,7 +21,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
-    private val radioRepository: RadioRepository
+    private val radioRepository: RadioRepository,
+    private val canShowAdUseCase: CanShowAdUseCase,
+    private val recordAdShownUseCase: RecordAdShownUseCase,
 ) : ViewModel() {
 
     private val _playCommand = MutableSharedFlow<PlayCommand>()
@@ -35,8 +39,16 @@ class PlayerControlViewModel @Inject constructor(
             initialValue = null
         )
 
+    // Ad state
+    private val _canShowAd = MutableStateFlow(false)
+    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
+
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
+            // Refresh ad status before playing
+            val canShow = canShowAdUseCase()
+            _canShowAd.value = canShow
+
             _playCommand.emit(PlayCommand.PlayStation(station))
         }
     }
@@ -54,6 +66,12 @@ class PlayerControlViewModel @Inject constructor(
     fun savePlayingStationId(id: Int) {
         viewModelScope.launch {
             radioRepository.setPlayingStation(id)
+        }
+    }
+
+    fun recordAdShown() {
+        viewModelScope.launch {
+            recordAdShownUseCase()
         }
     }
 }
