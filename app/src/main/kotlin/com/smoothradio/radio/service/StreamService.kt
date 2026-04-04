@@ -65,6 +65,10 @@ class StreamService : Service() {
     private lateinit var pLayPauseReceiver: PLayPauseReceiver
     private lateinit var requestFocusReceiver: RequestFocusReceiver
 
+    private var isForegroundStarted = false
+    private var currentStationName: String? = null
+    private var currentStationLogo: Int = 0
+
     // === Lifecycle Methods ===
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -76,11 +80,36 @@ class StreamService : Service() {
         setupNotification()
         registerReceivers()
         exoplayerEventListener = EventListener()
+
+        startForeground(1, createDefaultNotification())
+        isForegroundStarted = true
+    }
+
+    private fun createDefaultNotification(): Notification {
+        return notificationBuilder
+            .setContentText(getString(R.string.preparing))
+            .build()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let { handleIntent(it) }
         return START_NOT_STICKY
+    }
+
+    private fun handleIntent(intent: Intent) {
+        // Store station info for later updates
+        currentStationName = intent.getStringExtra(EXTRA_STATION_NAME)
+        currentStationLogo = intent.getIntExtra(EXTRA_LOGO, 0)
+
+        val link = intent.getStringExtra(EXTRA_LINK) ?: ""
+
+        updateNotification(getString(R.string.preparing), showPlay = false, showPause = false)
+
+        when (intent.action) {
+            ACTION_START -> play(link)
+            ACTION_SHOW_AD -> prepareShowAd()
+            else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
+        }
     }
 
     private fun setupAudioFocus() {
@@ -163,27 +192,27 @@ class StreamService : Service() {
             registerReceiver(
                 stopPlayFromTimerReceiver,
                 IntentFilter(ACTION_STOP),
-                Context.RECEIVER_NOT_EXPORTED
+                RECEIVER_NOT_EXPORTED
             )
             registerReceiver(
                 restoreUIReceiver,
                 IntentFilter(ACTION_GET_STATE),
-                Context.RECEIVER_NOT_EXPORTED
+                RECEIVER_NOT_EXPORTED
             )
             registerReceiver(
                 setStopTimerReceiver,
                 IntentFilter(ACTION_SET_TIMER),
-                Context.RECEIVER_NOT_EXPORTED
+                RECEIVER_NOT_EXPORTED
             )
             registerReceiver(
                 pLayPauseReceiver,
                 IntentFilter(ACTION_PLAY_PAUSE),
-                Context.RECEIVER_NOT_EXPORTED
+                RECEIVER_NOT_EXPORTED
             )
             registerReceiver(
                 requestFocusReceiver,
                 IntentFilter(ACTION_REQUEST_AUDIO_FOCUS),
-                Context.RECEIVER_NOT_EXPORTED
+                RECEIVER_NOT_EXPORTED
             )
         } else {
             registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP))
@@ -221,28 +250,8 @@ class StreamService : Service() {
         unregisterReceiver(requestFocusReceiver)
     }
 
-    private fun handleIntent(intent: Intent) {
-        val link = intent.getStringExtra(EXTRA_LINK) ?: ""
-        val logo = intent.getIntExtra(EXTRA_LOGO, 0)
-        val stationName = intent.getStringExtra(EXTRA_STATION_NAME)
-
-        notificationBuilder.apply {
-            setContentTitle(stationName)
-            setContentText(stateChange)
-            setLargeIcon(BitmapFactory.decodeResource(resources, logo))
-        }
-        startForeground(1, notificationBuilder.build())
-
-        when (intent.action) {
-            ACTION_START -> play(link)
-            ACTION_SHOW_AD -> prepareShowAd()
-            else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
-        }
-    }
-
     private fun play(link: String) {
         stateChange = StreamStates.PREPARING
-        updateNotification(stateChange, showPlay = false, showPause = false)
         preparePlayer(link.toUri())
         requestFocus()
         player?.play()
@@ -274,37 +283,41 @@ class StreamService : Service() {
         sendBroadcast(eventIntent)
     }
 
-    private fun updateNotification(state: String, showPlay: Boolean, showPause: Boolean) {
-        notificationBuilder.setContentText(state)
-        notificationBuilder.mActions.clear()
+    private fun updateNotification(state: String, showPlay: Boolean = false, showPause: Boolean = false) {
+        if (!isForegroundStarted) return
 
-        if (showPlay) {
-            notificationBuilder.addAction(
-                R.drawable.play_notification_icon,
-                TITLE_PLAY,
-                playPausePI
-            )
-        }
-        if (showPause) {
-            notificationBuilder.addAction(
-                R.drawable.pause_notification_icon,
-                TITLE_PAUSE,
-                playPausePI
-            )
-        }
-        notificationBuilder.addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+        notificationBuilder.apply {
+            setContentTitle(currentStationName ?: getString(R.string.app_name))
+            setContentText(state)
 
-        val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
-        if (!showPlay && !showPause) {
-            mediaStyle.setShowActionsInCompactView(*intArrayOf(0))
-        } else {
-            mediaStyle.setShowActionsInCompactView(*intArrayOf(0, 1))
-        }
-        notificationBuilder.setStyle(mediaStyle)
+            // Set large icon if available
+            if (currentStationLogo != 0) {
+                setLargeIcon(BitmapFactory.decodeResource(resources, currentStationLogo))
+            }
 
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(1, notificationBuilder.build())
+            // Clear and rebuild actions
+            mActions.clear()
+
+            if (showPlay) {
+                addAction(R.drawable.play_notification_icon, TITLE_PLAY, playPausePI)
+            }
+            if (showPause) {
+                addAction(R.drawable.pause_notification_icon, TITLE_PAUSE, playPausePI)
+            }
+            addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+
+            // Configure media style
+            val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
+            if (!showPlay && !showPause) {
+                mediaStyle.setShowActionsInCompactView(0)
+            } else {
+                mediaStyle.setShowActionsInCompactView(0, 1)
+            }
+            setStyle(mediaStyle)
+        }
+
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
 
     private fun requestFocus() {
@@ -493,6 +506,7 @@ class StreamService : Service() {
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         private const val ACTION_PLAY_PAUSE = "SmoothService:PlayPause"
         private const val ACTION_REQUEST_AUDIO_FOCUS = "SmoothService:RequestAudioFocus"
+        private const val NOTIFICATION_ID = 1
 
         // Broadcast Extras
         const val EXTRA_STATE = "state"

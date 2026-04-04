@@ -22,6 +22,7 @@
     <string name="toast_unexpected_error">unexpected error</string>
     <string name="notification_channel_name">LIVE</string>
     <string name="stopped">Stopped</string>
+    <string name="preparing">preparing</string>
 
     <string name="paused">Paused</string>
     <string name="error_no_links_found">No stream links found.</string>
