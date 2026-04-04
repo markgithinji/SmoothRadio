@@ -4,41 +4,21 @@ import timber.log.Timber
 
 object LoggingHelper {
 
-    private const val TAG = "RadioApp"
+    private const val DEFAULT_TAG = "RadioApp"
 
-    // Info level logging
-    fun i(message: String, vararg args: Any) {
-        Timber.tag(TAG).i(message, *args)
+    fun i(message: String, tag: String = DEFAULT_TAG, vararg args: Any) {
+        Timber.tag(tag).i(message, *args)
     }
 
-    // Debug level logging
-    fun d(message: String, vararg args: Any) {
-        Timber.tag(TAG).d(message, *args)
+    fun d(message: String, tag: String = DEFAULT_TAG, vararg args: Any) {
+        Timber.tag(tag).d(message, *args)
     }
 
-    // Warning level logging
-    fun w(message: String, vararg args: Any) {
-        Timber.tag(TAG).w(message, *args)
+    fun w(message: String, tag: String = DEFAULT_TAG, vararg args: Any) {
+        Timber.tag(tag).w(message, *args)
     }
 
-    // Error level logging
-    fun e(message: String, throwable: Throwable? = null, vararg args: Any) {
-        Timber.tag(TAG).e(throwable, message, *args)
-    }
-
-    // Playback specific logging - now accepts Int for stationId
-    fun playback(message: String, stationId: Int? = null) {
-        val stationInfo = stationId?.let { " - Station: $it" } ?: ""
-        Timber.tag("Playback").d("$message$stationInfo")
-    }
-
-    // Network specific logging
-    fun network(message: String) {
-        Timber.tag("Network").d(message)
-    }
-
-    // Audio specific logging
-    fun audio(message: String) {
-        Timber.tag("Audio").d(message)
+    fun e(message: String, tag: String = DEFAULT_TAG, throwable: Throwable? = null, vararg args: Any) {
+        Timber.tag(tag).e(throwable, message, *args)
     }
 }
