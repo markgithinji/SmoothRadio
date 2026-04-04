@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
-class AdSettingsRepositoryImpl @Inject constructor(
+class DefaultAdSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) : AdSettingsRepository {
 
