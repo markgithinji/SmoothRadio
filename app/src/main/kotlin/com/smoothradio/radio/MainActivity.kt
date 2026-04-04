@@ -86,6 +86,8 @@ class MainActivity : AppCompatActivity() {
     private var isSearchVisible = false
     private var isRestoringSearch = true
 
+    private var canShowAd: Boolean = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -190,6 +192,13 @@ class MainActivity : AppCompatActivity() {
                             refresh()
                         }
                     }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                playerControlViewModel.canShowAd.collect { canShow ->
+                    canShowAd = canShow
                 }
             }
         }
@@ -415,10 +424,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startStreamService() {
+        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
+        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-            serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
-            serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
@@ -460,6 +469,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAd() {
+        if (!canShowAd) {
+            isShowingAd = false
+            playOnly()
+            return
+        }
+
         val ad = interstitialAd ?: run {
             loadInterstitialAd()
             return
@@ -471,17 +486,12 @@ class MainActivity : AppCompatActivity() {
                 playOnly()
                 isShowingAd = false
                 preloadInterstitialAd()
+                playerControlViewModel.recordAdShown()
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 interstitialAd = null
                 isShowingAd = false
-
-                AnalyticsHelper.trackPlaybackEvent(
-                    "ad_show_failed_code_${adError.code}", currentStation?.id, mapOf(
-                        "ad_error_type" to "show_failed"
-                    )
-                )
                 stopService(serviceIntent)
             }
         }
@@ -529,7 +539,6 @@ class MainActivity : AppCompatActivity() {
                     interstitialAd = null
                     // Only retry for specific error codes
                     when (loadAdError.code) {
-                        // Retry for network issues
                         AdRequest.ERROR_CODE_NETWORK_ERROR,
                         AdRequest.ERROR_CODE_INTERNAL_ERROR -> {
                             adFailedCountdown++
