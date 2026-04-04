@@ -12,7 +12,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.di.CoreModule
+import com.smoothradio.radio.core.data.di.CoreDataModule
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.testutil.launchFragmentInHiltContainer
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -23,10 +23,9 @@ import org.hamcrest.Matchers.not
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import javax.inject.Inject
 
 @HiltAndroidTest
-@UninstallModules(CoreModule::class)
+@UninstallModules(CoreDataModule::class)
 class RadioListFragmentTest {
 
     @get:Rule

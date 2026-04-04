@@ -17,7 +17,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.rules.ActivityScenarioRule
-import com.smoothradio.radio.core.di.CoreModule
+import com.smoothradio.radio.core.data.di.CoreDataModule
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -31,7 +31,7 @@ import org.junit.Rule
 import org.junit.Test
 
 @HiltAndroidTest
-@UninstallModules(CoreModule::class)
+@UninstallModules(CoreDataModule::class)
 class MainActivityTest {
 
     @get:Rule(order = 0)
