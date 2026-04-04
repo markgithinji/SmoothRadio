@@ -20,8 +20,8 @@ android {
         applicationId = "com.smoothradio.radio"
         minSdk = 23
         targetSdk = 36
-        versionCode = 28
-        versionName = "3.1.0"
+        versionCode = 29
+        versionName = "3.1.3"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.androidx.media)
     detektPlugins(libs.detekt.formatting)
     implementation(libs.timber)
+    implementation(libs.androidx.datastore.preferences)
     // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
