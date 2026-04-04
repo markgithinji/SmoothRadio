@@ -6,6 +6,7 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
+import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,7 @@ class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
+    private val syncAdSettingsUseCase: SyncAdSettingsUseCase
 ) : ViewModel() {
 
     private val _playCommand = MutableSharedFlow<PlayCommand>()
@@ -32,6 +34,9 @@ class PlayerControlViewModel @Inject constructor(
     private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)
     val playbackState: StateFlow<String> = _playbackState.asStateFlow()
 
+    private val _canShowAd = MutableStateFlow(false)
+    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
+
     val playingStation: StateFlow<RadioStation?> = radioRepository.playingStation
         .stateIn(
             scope = viewModelScope,
@@ -39,9 +44,9 @@ class PlayerControlViewModel @Inject constructor(
             initialValue = null
         )
 
-    // Ad state
-    private val _canShowAd = MutableStateFlow(false)
-    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
+    init {
+        syncAdSettings()
+    }
 
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
@@ -72,6 +77,12 @@ class PlayerControlViewModel @Inject constructor(
     fun recordAdShown() {
         viewModelScope.launch {
             recordAdShownUseCase()
+        }
+    }
+
+    fun syncAdSettings() {
+        viewModelScope.launch {
+            syncAdSettingsUseCase()
         }
     }
 }

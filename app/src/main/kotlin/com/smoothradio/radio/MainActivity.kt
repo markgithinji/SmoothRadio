@@ -152,11 +152,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun miniPlayerPlayPause() {
-        lifecycleScope.launch {
-            val station = playerControlViewModel.playingStation.value
-            station?.let {
-                playerControlViewModel.requestPlayStation(it)
-            }
+        val station = playerControlViewModel.playingStation.value
+        station?.let {
+            playerControlViewModel.requestPlayStation(it)
         }
     }
 

@@ -5,6 +5,7 @@ import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
+import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import com.smoothradio.radio.core.domain.usecase.ToggleFavoriteUseCase
 import dagger.Module
 import dagger.Provides
@@ -39,5 +40,14 @@ class DomainModule {
         adSettingsRepository: AdSettingsRepository
     ): RecordAdShownUseCase {
         return RecordAdShownUseCase(adSettingsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSyncAdSettingsUseCase(
+        adSettingsRepository: AdSettingsRepository,
+        radioLinkRepository: RadioLinkRepository
+    ): SyncAdSettingsUseCase {
+        return SyncAdSettingsUseCase(adSettingsRepository, radioLinkRepository)
     }
 }
