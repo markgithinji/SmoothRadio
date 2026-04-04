@@ -1,12 +1,18 @@
-package com.smoothradio.radio.core.di
+package com.smoothradio.radio.core.data.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.google.firebase.firestore.FirebaseFirestore
 import com.smoothradio.radio.core.data.local.AppDatabase
 import com.smoothradio.radio.core.data.local.RadioStationDao
+import com.smoothradio.radio.core.data.repository.AdSettingsRepositoryImpl
 import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
+import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import dagger.Module
@@ -18,7 +24,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class CoreModule {
+class CoreDataModule {
 
     @Provides
     @Singleton
@@ -46,5 +52,23 @@ class CoreModule {
         firestore: FirebaseFirestore
     ): RadioLinkRepository {
         return DefaultRadioLinkRepository(context, firestore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): DataStore<Preferences> {
+        return PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("ad_preferences") }
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideAdPreferencesManager(
+        dataStore: DataStore<Preferences>
+    ): AdSettingsRepository {
+        return AdSettingsRepositoryImpl(dataStore)
     }
 }
