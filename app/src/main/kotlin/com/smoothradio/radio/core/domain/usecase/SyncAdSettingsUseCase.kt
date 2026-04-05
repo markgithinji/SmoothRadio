@@ -1,6 +1,6 @@
 package com.smoothradio.radio.core.domain.usecase
 
-import com.smoothradio.radio.LoggingHelper
+import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.util.Resource

@@ -1,4 +1,4 @@
-package com.smoothradio.radio
+package com.smoothradio.radio.core.logging
 
 import android.os.Bundle
 import com.google.firebase.analytics.ktx.analytics

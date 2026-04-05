@@ -1,6 +1,8 @@
-package com.smoothradio.radio
+package com.smoothradio.radio.core.logging
 
 // FirebaseCrashReportingTree.kt
+import android.os.Bundle
+import android.util.Log
 import timber.log.Timber
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -17,7 +19,7 @@ class FirebaseCrashReportingTree : Timber.Tree() {
     private val crashlytics: FirebaseCrashlytics by lazy { FirebaseCrashlytics.getInstance() }
 
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-        if (priority == android.util.Log.ERROR || priority == android.util.Log.WARN) {
+        if (priority == Log.ERROR || priority == Log.WARN) {
             // Send errors and warnings to Crashlytics
             crashlytics.log("$tag: $message")
 
@@ -30,14 +32,14 @@ class FirebaseCrashReportingTree : Timber.Tree() {
             }
 
             // Also log important errors to Analytics as custom events
-            if (priority == android.util.Log.ERROR) {
+            if (priority == Log.ERROR) {
                 logErrorToAnalytics(message, tag)
             }
         }
     }
 
     private fun logErrorToAnalytics(message: String, tag: String?) {
-        val bundle = android.os.Bundle().apply {
+        val bundle = Bundle().apply {
             putString("error_message", message)
             putString("error_tag", tag)
             putLong("timestamp", System.currentTimeMillis())
