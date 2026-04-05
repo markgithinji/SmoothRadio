@@ -3,7 +3,6 @@ package com.smoothradio.radio.core.util
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -32,7 +31,6 @@ object CacheUtil {
             cacheDir.mkdirs()
             externalCacheDir?.mkdirs()
         } catch (e: Exception) {
-            Timber.e(e, "Failed to clear app cache")
         }
     }
 
@@ -78,7 +76,6 @@ object CacheUtil {
         try {
             Files.delete(path)
         } catch (e: IOException) {
-            Timber.e(e, "Failed to delete path: $path")
         }
     }
 

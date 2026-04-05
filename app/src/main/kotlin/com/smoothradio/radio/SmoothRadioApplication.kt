@@ -14,10 +14,8 @@ class SmoothRadioApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Setup logging
         setupLogging()
 
-        // Setup Firebase Analytics
         setupFirebaseAnalytics()
     }
 
@@ -28,8 +26,6 @@ class SmoothRadioApplication : Application() {
             // In production, plant a tree that sends errors to Firebase
             Timber.plant(FirebaseCrashReportingTree())
         }
-
-        Timber.d("Logging initialized - Debug mode: ${BuildConfig.DEBUG}")
     }
 
     private fun setupFirebaseAnalytics() {
@@ -40,7 +36,5 @@ class SmoothRadioApplication : Application() {
         analytics.setUserProperty("device_model", Build.MODEL)
         analytics.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         analytics.setUserProperty("build_type", BuildConfig.BUILD_TYPE)
-
-        Timber.d("Firebase Analytics initialized")
     }
 }

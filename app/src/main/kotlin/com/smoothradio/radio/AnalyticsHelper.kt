@@ -3,7 +3,6 @@ package com.smoothradio.radio
 import android.os.Bundle
 import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.ktx.Firebase
-import timber.log.Timber
 
 object AnalyticsHelper {
     private val firebaseAnalytics = Firebase.analytics
@@ -33,9 +32,7 @@ object AnalyticsHelper {
             }
 
             firebaseAnalytics.logEvent("playback_$event", bundle)
-            Timber.d("Playback event tracked: $event - Station: $stationId")
         } catch (e: Exception) {
-            Timber.e(e, "Failed to track playback event: $event")
         }
     }
 
@@ -60,9 +57,7 @@ object AnalyticsHelper {
             }
 
             firebaseAnalytics.logEvent("playback_failure", bundle)
-            Timber.e("Playback error tracked: $errorCode - $errorMessage - Station: $stationId")
         } catch (e: Exception) {
-            Timber.e(e, "Failed to track playback error")
         }
     }
 
@@ -90,9 +85,7 @@ object AnalyticsHelper {
             }
 
             firebaseAnalytics.logEvent("user_action", bundle)
-            Timber.d("User action tracked: $action - Station: $stationId")
         } catch (e: Exception) {
-            Timber.e(e, "Failed to track user action")
         }
     }
 }

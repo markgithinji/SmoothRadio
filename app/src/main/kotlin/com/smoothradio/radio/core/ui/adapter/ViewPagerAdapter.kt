@@ -9,7 +9,6 @@ import androidx.viewpager2.widget.ViewPager2
 import com.smoothradio.radio.feature.discover.ui.DiscoverFragment
 import com.smoothradio.radio.feature.player.ui.PlayerFragment
 import com.smoothradio.radio.feature.radiolist.ui.RadioListFragment
-import timber.log.Timber
 
 class ViewPagerAdapter(
     private val fragmentManager: FragmentManager,
@@ -66,8 +65,6 @@ class ViewPagerAdapter(
             }
             val touchSlop = touchSlopField.get(recyclerView) as Int
             touchSlopField.set(recyclerView, touchSlop * swipeSensitivityFactor)
-        }.onFailure {
-            Timber.tag("ViewPagerAdapter").e(it, "Failed to adjust touch slop")
         }
     }
 }
