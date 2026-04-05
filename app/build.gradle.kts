@@ -1,9 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.services)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.baselineprofile)
@@ -21,7 +19,7 @@ android {
         minSdk = 23
         targetSdk = 36
         versionCode = 29
-        versionName = "3.1.3"
+        versionName = "3.7.5"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
@@ -44,15 +42,13 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
+        buildConfig = true
         viewBinding = true
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
 }
 
@@ -115,7 +111,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     implementation(libs.androidx.profileinstaller)
     "baselineProfile"(project(":baselineprofile"))
     // Ads
@@ -137,7 +133,7 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     // Instrumentation tests
     androidTestImplementation(libs.hilt.android.testing)
-    kaptAndroidTest(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     androidTestImplementation(libs.jetbrains.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockito.android)
     androidTestImplementation(libs.truth)
