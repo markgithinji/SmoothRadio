@@ -35,12 +35,16 @@ import com.google.android.gms.ads.AdRequest.ERROR_CODE_INVALID_REQUEST
 import com.google.android.gms.ads.AdRequest.ERROR_CODE_NO_FILL
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.tabs.TabLayout
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.logging.AnalyticsHelper
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -50,17 +54,18 @@ import com.smoothradio.radio.core.ui.dialog.SortOption
 import com.smoothradio.radio.core.ui.dialog.SortOptionListener
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.core.util.CacheUtil
-import com.smoothradio.radio.core.util.ConsentHelper
 import com.smoothradio.radio.databinding.ActivityMainBinding
 import com.smoothradio.radio.feature.about.ui.AboutFragment
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private val eventReceiver: BroadcastReceiver = EventReceiver()
+    private lateinit var serviceIntent: Intent
 
     private lateinit var binding: ActivityMainBinding
 
@@ -73,11 +78,10 @@ class MainActivity : AppCompatActivity() {
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
     private val radioViewModel: RadioViewModel by viewModels()
 
-    private lateinit var serviceIntent: Intent
-
     private var interstitialAd: InterstitialAd? = null
     private var isShowingAd = false
     private var adFailedCountdown = 0
+    private var canShowAd: Boolean = true
 
     private var isPlaying = false
     private var currentStation: RadioStation? = null
@@ -86,7 +90,7 @@ class MainActivity : AppCompatActivity() {
     private var isSearchVisible = false
     private var isRestoringSearch = true
 
-    private var canShowAd: Boolean = true
+    private val isMobileAdsInitializeCalled = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         setupBroadcastReceiver()
         requestPermissions()
+        showConsentForm()
     }
 
     private fun applyEdgeToEdgeForVersion() {
@@ -140,8 +145,6 @@ class MainActivity : AppCompatActivity() {
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
         serviceIntent = Intent(this, StreamService::class.java)
-
-        ConsentHelper(this).showConsentForm()
     }
 
     private fun setupUI() {
@@ -326,6 +329,41 @@ class MainActivity : AppCompatActivity() {
             val permissions = arrayOf(android.Manifest.permission.POST_NOTIFICATIONS)
             ActivityCompat.requestPermissions(this, permissions, 0)
         }
+    }
+
+    private fun showConsentForm() {
+        val params = ConsentRequestParameters.Builder().build()
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            params,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                    this
+                ) { loadAndShowError ->
+                    if (loadAndShowError == null && consentInformation.canRequestAds()) {
+                        initializeMobileAdsSdk()
+                    }
+                }
+            },
+            { _ ->
+                // Consent gathering failed - still initialize ads
+                if (consentInformation.canRequestAds()) {
+                    initializeMobileAdsSdk()
+                }
+            }
+        )
+
+        // If consent is already available, initialize ads
+        if (consentInformation.canRequestAds()) {
+            initializeMobileAdsSdk()
+        }
+    }
+
+    private fun initializeMobileAdsSdk() {
+        if (isMobileAdsInitializeCalled.getAndSet(true)) return
+        MobileAds.initialize(this)
     }
 
     override fun onDestroy() {
