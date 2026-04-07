@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -165,9 +166,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    playerControlViewModel.playingStation.collect { station ->
-                        station?.let { currentStation ->
-                            updateMiniPlayer(currentStation)
+                    playerControlViewModel.playingStation.collect { playingStation ->
+                        playingStation?.let {
+                            currentStation = it
+                            updateMiniPlayer(playingStation)
                             hideKeyboard()
                         }
                     }

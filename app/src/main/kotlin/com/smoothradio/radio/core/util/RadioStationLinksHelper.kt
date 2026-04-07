@@ -9,12 +9,12 @@ package com.smoothradio.radio.core.util
  *
  * Example:
  * ```
- * val firstStationLink = RadioStationLinksHelper.RADIO_STATIONS[0] // Accesses "http://freeuk28.listen2myradio.com:15203/;stream.nsv"
+ * val firstStationLink = RadioStationLinksHelper.RADIO_STATIONS[0] // Accesses "https://a5.asurahosting.com:7530/radio.mp3"
  * ```
  */
 object RadioStationLinksHelper {
     val RADIO_STATIONS = arrayOf(
-        "http://freeuk28.listen2myradio.com:15203/;stream.nsv", // 0
+        "https://a5.asurahosting.com:7530/radio.mp3", // 0
         "http://stream.group8.africa:44001/soundcityfmnrb", // 1
         "https://streamingv2.shoutcast.com/kiss100", // 2
         "https://streamingv2.shoutcast.com/nrg-radio-ke?ver=388771", // 3
