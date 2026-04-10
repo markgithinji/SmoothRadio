@@ -2,8 +2,8 @@ package com.smoothradio.radio
 
 import android.app.Application
 import android.os.Build
-import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.analytics.analytics
 import com.smoothradio.radio.core.logging.FirebaseCrashReportingTree
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
