@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.activityViewModels
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import com.smoothradio.radio.SmoothRadioTheme
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -112,15 +114,15 @@ class RadioListFragment : Fragment() {
 
     private fun setupRecyclerViewScrollBehavior() {
         binding.rvRadioList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                mainActivity?.bottomSheetBehavior?.let { bottomSheetBehavior ->
-                    if (!recyclerView.canScrollVertically(1)) {
-                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-                    } else {
-                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                    }
-                }
-            }
+//            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+//                mainActivity?.bottomSheetBehavior?.let { bottomSheetBehavior ->
+//                    if (!recyclerView.canScrollVertically(1)) {
+//                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+//                    } else {
+//                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+//                    }
+//                }
+//            }
         })
     }
 
