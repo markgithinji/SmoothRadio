@@ -17,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,8 +37,10 @@ import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.PlayerScreen
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
+import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.atomic.AtomicBoolean
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -82,7 +85,6 @@ class MainActivity : ComponentActivity() {
             },
             bottomBar = {
                 Column {
-                    // Bottom Navigation Bar
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -102,7 +104,13 @@ class MainActivity : ComponentActivity() {
                                         contentDescription = title
                                     )
                                 },
-                                label = { Text(title) }
+                                label = { Text(title) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
@@ -119,9 +127,11 @@ class MainActivity : ComponentActivity() {
                         radioViewModel = radioViewModel,
                         playerControlViewModel = playerControlViewModel
                     )
+
                     1 -> PlayerScreen(
                         playerControlViewModel = playerControlViewModel
                     )
+
                     2 -> DiscoverScreen(
                         radioViewModel = radioViewModel,
                         playerControlViewModel = playerControlViewModel
