@@ -1,95 +1,48 @@
 package com.smoothradio.radio
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.graphics.Color
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.Build
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
-import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import android.view.View
-import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.isVisible
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import androidx.viewpager2.widget.ViewPager2
-import com.google.android.gms.ads.AdError
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdRequest.ERROR_CODE_INVALID_REQUEST
-import com.google.android.gms.ads.AdRequest.ERROR_CODE_NO_FILL
-import com.google.android.gms.ads.FullScreenContentCallback
-import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.interstitial.InterstitialAd
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.tabs.TabLayout
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
-import com.google.firebase.analytics.FirebaseAnalytics
-import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.logging.AnalyticsHelper
-import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.ui.adapter.ViewPagerAdapter
-import com.smoothradio.radio.core.ui.dialog.SortDialog
-import com.smoothradio.radio.core.ui.dialog.SortOption
-import com.smoothradio.radio.core.ui.dialog.SortOptionListener
-import com.smoothradio.radio.core.util.AdConfig
-import com.smoothradio.radio.core.util.CacheUtil
-import com.smoothradio.radio.databinding.ActivityMainBinding
-import com.smoothradio.radio.feature.about.ui.AboutFragment
-import com.smoothradio.radio.service.StreamService
+import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
+import com.smoothradio.radio.feature.player.PlayerScreen
+import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
-
-    private val eventReceiver: BroadcastReceiver = EventReceiver()
-    private lateinit var serviceIntent: Intent
-
-    private lateinit var binding: ActivityMainBinding
-
-    private lateinit var viewPagerAdapter: ViewPagerAdapter
-
-    private lateinit var inputMethodManager: InputMethodManager
-    lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
-    private lateinit var firebaseAnalytics: FirebaseAnalytics
+class MainActivity : ComponentActivity() {
 
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
     private val radioViewModel: RadioViewModel by viewModels()
-
-    private var interstitialAd: InterstitialAd? = null
-    private var isShowingAd = false
-    private var adFailedCountdown = 0
-    private var canShowAd: Boolean = true
-
-    private var isPlaying = false
-    private var currentStation: RadioStation? = null
-
-    private var tabPosition = 0
-    private var isSearchVisible = false
-    private var isRestoringSearch = true
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
 
@@ -97,239 +50,84 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         installSplashScreen()
-
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        applyEdgeToEdgeForVersion()
-        initializeComponents()
-        collectFlows()
-        setupUI()
-        setupBroadcastReceiver()
-        requestPermissions()
         showConsentForm()
-    }
 
-    private fun applyEdgeToEdgeForVersion() {
-        val isAndroid15OrAbove = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-
-        if (isAndroid15OrAbove) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            // Handle insets manually
-            ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-                val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-                view.setPadding(
-                    systemBars.left,
-                    systemBars.top,
-                    systemBars.right,
-                    systemBars.bottom
+        setContent {
+            SmoothRadioTheme {
+                RadioApp(
+                    playerControlViewModel = playerControlViewModel,
+                    radioViewModel = radioViewModel
                 )
-                insets
             }
-
-            WindowInsetsControllerCompat(window, window.decorView).apply {
-                isAppearanceLightStatusBars = true
-                isAppearanceLightNavigationBars = true
-            }
-        } else {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            @Suppress("DEPRECATION")
-            window.statusBarColor = Color.WHITE
-
-            WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars =
-                true
         }
     }
 
-    private fun initializeComponents() {
-        inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
-        bottomSheetBehavior = BottomSheetBehavior.from(binding.miniPlayer.bottomSheetLayout)
-        serviceIntent = Intent(this, StreamService::class.java)
-    }
+    @Composable
+    fun RadioApp(
+        playerControlViewModel: PlayerControlViewModel,
+        radioViewModel: RadioViewModel
+    ) {
+        var selectedTab by remember { mutableStateOf(0) }
+        val playingStation by playerControlViewModel.playingStation.collectAsState()
+        val playbackState by playerControlViewModel.playbackState.collectAsState()
 
-    private fun setupUI() {
-        setSupportActionBar(binding.toolbar)
-        setupViewPagerAndTabs()
-        setupSearchUI()
-        binding.miniPlayer.ivPlayMiniPlayerLayout.setOnClickListener { miniPlayerPlayPause() }
-    }
-
-    private fun miniPlayerPlayPause() {
-        val station = playerControlViewModel.playingStation.value
-        station?.let {
-            playerControlViewModel.requestPlayStation(it)
-        }
-    }
-
-    private fun collectFlows() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    playerControlViewModel.playingStation.collect { playingStation ->
-                        playingStation?.let {
-                            currentStation = it
-                            updateMiniPlayer(playingStation)
-                            hideKeyboard()
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                RadioTopBar(
+                    onSearchClick = { /* Handle search */ },
+                    onSortClick = { /* Handle sort */ },
+                    onInfoClick = { /* Show about dialog */ }
+                )
+            },
+            bottomBar = {
+                Column {
+                    // Bottom Navigation Bar
+                    NavigationBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
+                            NavigationBarItem(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                icon = {
+                                    Icon(
+                                        imageVector = when (index) {
+                                            0 -> Icons.Default.Radio
+                                            1 -> Icons.Default.MusicNote
+                                            else -> Icons.Default.Explore
+                                        },
+                                        contentDescription = title
+                                    )
+                                },
+                                label = { Text(title) }
+                            )
                         }
                     }
                 }
             }
-        }
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                playerControlViewModel.playCommand.collect { command ->
-                    when (command) {
-                        is PlayCommand.PlayStation -> {
-                            currentStation = command.station
-                            if (command.station.isPlaying) {
-                                playOrStop()
-                            } else {
-                                startNewPlay()
-                            }
-                            playerControlViewModel.savePlayingStationId(command.station.id)
-                        }
-
-                        is PlayCommand.Refresh -> {
-                            refresh()
-                        }
-                    }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when (selectedTab) {
+                    0 -> RadioStationsScreen(
+                        radioViewModel = radioViewModel,
+                        playerControlViewModel = playerControlViewModel
+                    )
+                    1 -> PlayerScreen(
+                        playerControlViewModel = playerControlViewModel
+                    )
+                    2 -> DiscoverScreen(
+                        radioViewModel = radioViewModel,
+                        playerControlViewModel = playerControlViewModel
+                    )
                 }
             }
-        }
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                playerControlViewModel.canShowAd.collect { canShow ->
-                    canShowAd = canShow
-                }
-            }
-        }
-    }
-
-    private fun updateMiniPlayer(radioStation: RadioStation) = with(binding.miniPlayer) {
-        ivLogoMiniPlayerLayout.setImageResource(radioStation.logoResource)
-        tvStationNameMiniPlayerLayout.text = radioStation.stationName
-    }
-
-    private fun sendFirebaseAnalytics(stationName: String) {
-        val event = stationName.lowercase().replace(" ", "")
-        val bundle = Bundle().apply {
-            putString("station_name", stationName)
-        }
-        firebaseAnalytics.logEvent(event, bundle)
-    }
-
-    private fun setupViewPagerAndTabs() {
-        viewPagerAdapter = ViewPagerAdapter(
-            fragmentManager = supportFragmentManager,
-            lifecycle = lifecycle,
-            viewPager2 = binding.viewPager,
-            swipeSensitivityFactor = 4
-        )
-        binding.viewPager.adapter = viewPagerAdapter
-
-        // Define tab titles
-        val tabTitles = listOf(
-            getString(R.string.tab_stations),
-            getString(R.string.tab_live),
-            getString(R.string.tab_discover)
-        )
-
-        tabTitles.forEach { title ->
-            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(title))
-        }
-
-        // Setup tab selection listener
-        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) {
-                tabPosition = tab.position
-                binding.viewPager.currentItem = tabPosition
-                viewPagerAdapter.notifyDataSetChanged()
-
-                // Update bottom sheet state based on tab selection
-                bottomSheetBehavior.state = if (tabPosition == 0) {
-                    BottomSheetBehavior.STATE_COLLAPSED
-                } else {
-                    BottomSheetBehavior.STATE_HIDDEN
-                }
-            }
-
-            override fun onTabUnselected(tab: TabLayout.Tab) {}
-            override fun onTabReselected(tab: TabLayout.Tab) {}
-        })
-
-        // Sync the ViewPager with the TabLayout
-        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                binding.tabLayout.selectTab(binding.tabLayout.getTabAt(position))
-            }
-        })
-    }
-
-    private fun setupSearchUI() = with(binding) {
-        ivSearch.setOnClickListener {
-            if (isSearchVisible) {
-                etSearch.isVisible = false
-                ivClearSearch.isVisible = false
-                isSearchVisible = false
-                hideKeyboard()
-            } else {
-                if (tabPosition != 0) viewPager.currentItem = 0
-
-                etSearch.post {
-                    etSearch.requestFocus()
-                    (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
-                        .showSoftInput(etSearch, InputMethodManager.SHOW_IMPLICIT)
-                }
-
-                etSearch.isVisible = true
-                isSearchVisible = true
-                ivClearSearch.isVisible = etSearch.text?.isNotEmpty() == true
-            }
-        }
-
-        etSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-
-            override fun afterTextChanged(editable: Editable) {
-                if (isRestoringSearch) return
-                viewPagerAdapter.getRadioListFragment()?.filterStations(editable.toString())
-                ivClearSearch.isVisible = editable.isNotEmpty()
-            }
-        })
-        // Delay the first change check until restoration is complete. Prevents crash on configuration changes
-        etSearch.post {
-            isRestoringSearch = false
-        }
-
-        ivClearSearch.setOnClickListener { etSearch.setText("") }
-    }
-
-    private fun hideKeyboard() {
-        inputMethodManager.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
-        binding.apply {
-            etSearch.visibility = View.INVISIBLE
-            ivClearSearch.visibility = View.INVISIBLE
-        }
-        isSearchVisible = false
-    }
-
-    private fun setupBroadcastReceiver() {
-        val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(eventReceiver, eventFilter)
-        }
-    }
-
-    private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permissions = arrayOf(android.Manifest.permission.POST_NOTIFICATIONS)
-            ActivityCompat.requestPermissions(this, permissions, 0)
         }
     }
 
@@ -341,339 +139,20 @@ class MainActivity : AppCompatActivity() {
             this,
             params,
             {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(
-                    this
-                ) { loadAndShowError ->
-                    if (loadAndShowError == null && consentInformation.canRequestAds()) {
-                        initializeMobileAdsSdk()
-                    }
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { _ ->
+                    if (consentInformation.canRequestAds()) initializeMobileAdsSdk()
                 }
             },
-            { _ ->
-                // Consent gathering failed - still initialize ads
-                if (consentInformation.canRequestAds()) {
-                    initializeMobileAdsSdk()
-                }
+            {
+                if (consentInformation.canRequestAds()) initializeMobileAdsSdk()
             }
         )
 
-        // If consent is already available, initialize ads
-        if (consentInformation.canRequestAds()) {
-            initializeMobileAdsSdk()
-        }
+        if (consentInformation.canRequestAds()) initializeMobileAdsSdk()
     }
 
     private fun initializeMobileAdsSdk() {
         if (isMobileAdsInitializeCalled.getAndSet(true)) return
         MobileAds.initialize(this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(eventReceiver)
-        CacheUtil.clearAppCache(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        radioViewModel.setCurrentPage(binding.viewPager.currentItem)
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        val currentPage = radioViewModel.currentPage.value
-        binding.viewPager.currentItem = currentPage
-        binding.tabLayout.selectTab(binding.tabLayout.getTabAt(currentPage))
-
-        binding.ivClearSearch.visibility =
-            if (isSearchVisible && (binding.etSearch.text?.length ?: 0) > 0) {
-                View.VISIBLE
-            } else {
-                View.INVISIBLE
-            }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_sort -> {
-                if (tabPosition != 0) {
-                    binding.viewPager.currentItem = 0
-                }
-                SortDialog(SortOptionHandler()).show(supportFragmentManager, "sortDialog")
-                true
-            }
-
-            R.id.action_info -> {
-                AboutFragment().show(supportFragmentManager, "aboutDialog")
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    fun startNewPlay() {
-        isPlaying = true
-        if (isShowingAd) {
-            return
-        }
-
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station")
-    }
-
-    fun playOrStop() {
-        if (isPlaying) {
-            stopService(serviceIntent)
-            isPlaying = false
-            return
-        }
-
-        if (isShowingAd) {
-            return
-        }
-
-        isPlaying = true
-
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-    }
-
-    private fun refresh() {
-        if (isShowingAd) return
-
-        isPlaying = true
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-        showToast(getString(R.string.refreshed))
-    }
-
-    private fun startStreamService() {
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-    }
-
-    private fun playOnly() {
-        serviceIntent.action = StreamService.ACTION_START
-        startStreamService()
-        playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
-        isPlaying = true
-    }
-
-    private fun loadInterstitialAd() {
-        isShowingAd = true
-
-        if (interstitialAd != null) {
-            if (isPlaying) showAd()
-            return
-        }
-
-        val adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(
-            this,
-            AdConfig.interstitialAdId,
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
-                    if (isPlaying) showAd()
-                }
-
-                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    interstitialAd = null
-                    handleAdLoadFailure(loadAdError)
-                }
-            }
-        )
-    }
-
-    private fun showAd() {
-        if (!canShowAd) {
-            isShowingAd = false
-            playOnly()
-            return
-        }
-
-        val ad = interstitialAd ?: run {
-            loadInterstitialAd()
-            return
-        }
-
-        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() {
-                interstitialAd = null
-                playOnly()
-                isShowingAd = false
-                preloadInterstitialAd()
-                playerControlViewModel.recordAdShown()
-            }
-
-            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                interstitialAd = null
-                isShowingAd = false
-                stopService(serviceIntent)
-            }
-        }
-
-        ad.show(this)
-    }
-
-    private fun handleAdLoadFailure(loadAdError: LoadAdError) {
-        AnalyticsHelper.trackPlaybackEvent(
-            "ad_load_failed_code_${loadAdError.code}", currentStation?.id, mapOf(
-                "ad_error_type" to when (loadAdError.code) {
-                    ERROR_CODE_INVALID_REQUEST -> "invalid_request"
-                    ERROR_CODE_NO_FILL -> "no_fill"
-                    else -> "unknown"
-                },
-                "attempt_count" to adFailedCountdown + 1
-            )
-        )
-
-        adFailedCountdown++
-        if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
-            loadInterstitialAd()
-        } else {
-            adFailedCountdown = 0
-            isShowingAd = false
-            playOnly()
-        }
-    }
-
-    private fun preloadInterstitialAd() {
-        if (interstitialAd != null) return
-
-        val adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(
-            this,
-            AdConfig.interstitialAdId,
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
-                    adFailedCountdown = 0
-                }
-
-                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    interstitialAd = null
-                    // Only retry for specific error codes
-                    when (loadAdError.code) {
-                        AdRequest.ERROR_CODE_NETWORK_ERROR,
-                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> {
-                            adFailedCountdown++
-                            if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
-                                preloadInterstitialAd()
-                            } else {
-                                adFailedCountdown = 0
-                            }
-                        }
-                    }
-                }
-            }
-        )
-    }
-
-    private fun checkInternet() {
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
-
-        val network = cm.activeNetwork
-        val capabilities = cm.getNetworkCapabilities(network)
-        val connected =
-            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-
-        if (!connected) {
-            showToast(getString(R.string.check_internet))
-        }
-    }
-
-    private fun showToast(msg: String) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-    }
-
-    inner class SortOptionHandler : SortOptionListener {
-        override fun onSortOptionSelected(option: SortOption) {
-            viewPagerAdapter.getRadioListFragment()?.sortStations(option)
-        }
-    }
-
-    private inner class EventReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val state = intent.getStringExtra(StreamService.EXTRA_STATE) ?: ""
-
-            isPlaying = when (state) {
-                StreamService.StreamStates.PREPARING,
-                StreamService.StreamStates.PLAYING,
-                StreamService.StreamStates.BUFFERING -> true
-
-                StreamService.StreamStates.IDLE,
-                StreamService.StreamStates.ENDED -> false
-
-                else -> false
-            }
-
-            playerControlViewModel.updatePlaybackState(state)
-
-            when (state) {
-                StreamService.StreamStates.BUFFERING,
-                StreamService.StreamStates.PREPARING -> {
-                    showBufferingState(state)
-                }
-
-                StreamService.StreamStates.PLAYING -> {
-                    showPlayingState(state)
-                }
-
-                else -> {
-                    showStoppedState()
-                }
-            }
-        }
-
-        private fun showBufferingState(state: String) = with(binding.miniPlayer) {
-            tvStatusMiniPlayerLayout.text = state
-            ivPlayMiniPlayerLayout.isVisible = false
-            loadingAnimationMiniPlayerLayout.isVisible = true
-        }
-
-        private fun showPlayingState(state: String) = with(binding.miniPlayer) {
-            tvStatusMiniPlayerLayout.text = state
-            ivPlayMiniPlayerLayout.apply {
-                setImageResource(R.drawable.pauseicon)
-                isVisible = true
-            }
-            loadingAnimationMiniPlayerLayout.isVisible = false
-        }
-
-        private fun showStoppedState() = with(binding.miniPlayer) {
-            tvStatusMiniPlayerLayout.text = ""
-            ivPlayMiniPlayerLayout.apply {
-                setImageResource(R.drawable.playicon)
-                isVisible = true
-            }
-            loadingAnimationMiniPlayerLayout.isVisible = false
-        }
-    }
-
-    companion object {
-        private const val MAX_AD_LOAD_ATTEMPTS = 2
     }
 }
