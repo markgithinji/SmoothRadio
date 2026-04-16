@@ -1,5 +1,8 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
+import android.util.Log
+import android.util.Size
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -33,18 +37,26 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.smoothradio.radio.core.domain.model.RadioStation
+
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.smoothradio.radio.R
 
 @Composable
 fun RadioStationRow(
@@ -55,6 +67,10 @@ fun RadioStationRow(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isBuffering = isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
+    val isLivePlaying = isPlaying && playbackState == "Playing"
+    val context = LocalContext.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -62,28 +78,107 @@ fun RadioStationRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo Image
-        Image(
-            painter = painterResource(id = station.logoResource),
-            contentDescription = "${station.stationName} logo",
+        // Logo Image with pulse animation when buffering
+        val infiniteTransition = rememberInfiniteTransition()
+        val pulseScale by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween<Float>(800, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            )
+        )
+
+        Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(10.dp)),
-            contentScale = ContentScale.Crop
-        )
+                .then(
+                    if (isBuffering) Modifier.graphicsLayer {
+                        scaleX = pulseScale
+                        scaleY = pulseScale
+                    } else Modifier
+                )
+        ) {
+            val painter = rememberAsyncImagePainter(
+                model = ImageRequest.Builder(context)
+                    .data(station.logoResource)
+                    .crossfade(true)
+                    .build(),
+                error = painterResource(id = R.drawable.playicon)
+            )
+
+            Image(
+                painter = painter,
+                contentDescription = "${station.stationName} logo",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            if (isBuffering) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(10.dp))
 
         // Station Name and Details Column
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = station.stationName,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 15.sp
-            )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = station.stationName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 15.sp
+                )
+
+                when {
+                    isBuffering -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            repeat(3) { index ->
+                                val delay = (index * 200)
+                                val alpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.3f,
+                                    targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween<Float>(600, delayMillis = delay),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                                        )
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "LOADING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(2.dp))
 
@@ -99,51 +194,34 @@ fun RadioStationRow(
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (isPlaying && playbackState == "Playing") {
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50))
-                    )
-                    Text(
-                        text = "LIVE",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
-                    )
-                } else {
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = station.location,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+                Text(
+                    text = "•",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            // Waveform for playing station
-            if (isPlaying && playbackState == "Playing") {
-                Spacer(modifier = Modifier.height(8.dp))
-                WaveformVisualization(
-                    modifier = Modifier.fillMaxWidth(),
-                    height = 24.dp
+                Text(
+                    text = station.location,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        // Action Buttons
+        // Action Buttons Row with waveform
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (isLivePlaying) {
+                MiniWaveformVisualization(
+                    modifier = Modifier.width(60.dp),
+                    height = 16.dp
+                )
+            }
+
             // Favorite Button
             IconButton(
                 onClick = onFavoriteClick,
@@ -168,36 +246,37 @@ fun RadioStationRow(
 }
 
 @Composable
-fun WaveformVisualization(
+fun MiniWaveformVisualization(
     modifier: Modifier = Modifier,
-    height: Dp = 24.dp
+    height: Dp = 16.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition()
+    val barCount = 8
 
     Row(
         modifier = modifier.height(height),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        repeat(20) { index ->
-            val delay = (index * 50)
+        repeat(barCount) { index ->
+            val delay = (index * 60)
             val amplitude by infiniteTransition.animateFloat(
                 initialValue = 0.3f,
-                targetValue = 1f,
+                targetValue = 0.8f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(400, delayMillis = delay),
+                    animation = tween<Float>(400, delayMillis = delay),
                     repeatMode = RepeatMode.Reverse
                 )
             )
 
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .width(3.dp)
                     .fillMaxHeight(amplitude)
-                    .clip(RoundedCornerShape(2.dp))
+                    .clip(RoundedCornerShape(1.dp))
                     .background(
                         MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.5f + (index % 5) * 0.1f
+                            alpha = 0.7f
                         )
                     )
             )
