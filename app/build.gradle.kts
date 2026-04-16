@@ -107,7 +107,7 @@ dependencies {
     implementation(libs.androidx.compose.material)
     detektPlugins(libs.detekt.formatting)
     implementation(libs.timber)
-
+    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(platform(libs.androidx.compose.bom))
