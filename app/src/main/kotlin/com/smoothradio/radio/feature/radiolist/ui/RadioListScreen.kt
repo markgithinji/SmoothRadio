@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -49,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,13 +69,17 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import kotlin.collections.emptyList
-
 @Composable
 fun RadioStationsScreen(
     radioViewModel: RadioViewModel,
     playerControlViewModel: PlayerControlViewModel,
     modifier: Modifier = Modifier
 ) {
+
+    LaunchedEffect(Unit) {
+        radioViewModel.observeAndProcessRemoteLinks()
+    }
+
     val stations by radioViewModel.allStations.collectAsState(initial = emptyList())
     val playbackState by playerControlViewModel.playbackState.collectAsState(initial = "Idle")
     val playingStation by playerControlViewModel.playingStation.collectAsState(initial = null)
@@ -95,27 +101,40 @@ fun RadioStationsScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Main List
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 0.dp,
-                top = 8.dp,
-                end = 0.dp,
-                bottom = 80.dp  // Space for floating mini player
-            )
-        ) {
-            items(
-                items = filteredStations,
-                key = { it.id }
-            ) { station ->
-                RadioStationRow(
-                    station = station,
-                    isPlaying = playingStation?.id == station.id,
-                    playbackState = playbackState,
-                    onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
+        if (stations.isEmpty()) {
+            // Show loading state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Loading stations...")
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 0.dp,
+                    top = 8.dp,
+                    end = 0.dp,
+                    bottom = 80.dp
                 )
+            ) {
+                items(
+                    items = filteredStations,
+                    key = { it.id }
+                ) { station ->
+                    RadioStationRow(
+                        station = station,
+                        isPlaying = playingStation?.id == station.id,
+                        playbackState = playbackState,
+                        onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                        onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
+                    )
+                }
             }
         }
 

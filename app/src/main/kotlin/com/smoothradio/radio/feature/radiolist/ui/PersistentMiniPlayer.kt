@@ -41,11 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 
@@ -57,6 +60,7 @@ fun PersistentMiniPlayer(
 ) {
     val isBuffering = playbackState == "Buffering" || playbackState == "Preparing Audio"
     val isPlaying = playbackState == "Playing"
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -96,8 +100,16 @@ fun PersistentMiniPlayer(
                         } else Modifier
                     )
             ) {
+                val painter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(context)
+                        .data(station?.logoResource ?: R.drawable.playicon)
+                        .crossfade(true)
+                        .build(),
+                    error = painterResource(id = R.drawable.playicon)
+                )
+
                 Image(
-                    painter = painterResource(id = station?.logoResource ?: R.drawable.playicon),
+                    painter = painter,
                     contentDescription = "${station?.stationName} logo",
                     modifier = Modifier
                         .fillMaxSize()
@@ -188,7 +200,6 @@ fun PersistentMiniPlayer(
             // Play/Pause Button
             when {
                 isBuffering -> {
-                    // 3-dot loading indicator
                     Box(
                         modifier = Modifier.size(40.dp),
                         contentAlignment = Alignment.Center
