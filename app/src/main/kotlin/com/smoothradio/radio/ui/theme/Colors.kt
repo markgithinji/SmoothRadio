@@ -1,24 +1,22 @@
 package com.smoothradio.radio.ui.theme
 
 import androidx.compose.ui.graphics.Color
-
-// ============ PRIMARY COLORS (Crimson Red Theme) ============
-val PrimaryLight = Color(0xFFC41E3A)      // Crimson Red
-val OnPrimaryLight = Color(0xFFFFFFFF)    // White
-val PrimaryContainerLight = Color(0xFFFFDADE)
-val OnPrimaryContainerLight = Color(0xFF41000B)
+val PrimaryLight = Color(0xFF455A64)      // Blue Grey
+val OnPrimaryLight = Color.Black
+val PrimaryContainerLight = Color(0xFFECEFF1)
+val OnPrimaryContainerLight = Color(0xFF263238)
 
 // ============ SECONDARY COLORS ============
-val SecondaryLight = Color(0xFF75565F)    // Dusty Rose
+val SecondaryLight = Color(0xFF607D8B)    // Blue Grey
 val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFFFDADE)
-val OnSecondaryContainerLight = Color(0xFF2C151D)
+val SecondaryContainerLight = Color(0xFFECEFF1)
+val OnSecondaryContainerLight = Color(0xFF263238)
 
 // ============ TERTIARY COLORS ============
-val TertiaryLight = Color(0xFF8C4B3A)     // Terracotta
+val TertiaryLight = Color(0xFF78909C)     // Light Blue Grey
 val OnTertiaryLight = Color(0xFFFFFFFF)
-val TertiaryContainerLight = Color(0xFFFFDBD0)
-val OnTertiaryContainerLight = Color(0xFF351005)
+val TertiaryContainerLight = Color(0xFFECEFF1)
+val OnTertiaryContainerLight = Color(0xFF263238)
 
 // ============ ERROR COLORS ============
 val ErrorLight = Color(0xFFBA1A1A)
@@ -27,52 +25,52 @@ val ErrorContainerLight = Color(0xFFFFDAD6)
 val OnErrorContainerLight = Color(0xFF410002)
 
 // ============ SURFACE & BACKGROUND ============
-val BackgroundLight = Color(0xFFFEF8F8)   // Very light pink-white
-val OnBackgroundLight = Color(0xFF201A1A)
+val BackgroundLight = Color.White
+val OnBackgroundLight = Color(0xFF1C1B1F)
 
-val SurfaceLight = Color(0xFFFFFFFF)
-val OnSurfaceLight = Color(0xFF201A1A)
+val SurfaceLight = Color.White
+val OnSurfaceLight = Color(0xFF1C1B1F)
 
-val SurfaceVariantLight = Color(0xFFF3DDDF)
-val OnSurfaceVariantLight = Color(0xFF524346)
+val SurfaceVariantLight = Color(0xFFE7E0EC)
+val OnSurfaceVariantLight = Color(0xFF49454F)  // This is the grey for frequency text
 
-val InverseSurfaceLight = Color(0xFF362F2F)
-val InverseOnSurfaceLight = Color(0xFFFBEEEE)
+val InverseSurfaceLight = Color(0xFF2B2930)
+val InverseOnSurfaceLight = Color(0xFFF4EFF4)
 
 // ============ OTHER ============
-val OutlineLight = Color(0xFF857375)
+val OutlineLight = Color(0xFF79747E)
 
 // ============ DARK THEME COLORS ============
-val PrimaryDark = Color(0xFFFFB3BB)       // Light pink-red
-val OnPrimaryDark = Color(0xFF68001A)
-val PrimaryContainerDark = Color(0xFF9E0024)
-val OnPrimaryContainerDark = Color(0xFFFFDADE)
+val PrimaryDark = Color(0xFF90A4AE)       // Light Blue Grey
+val OnPrimaryDark = Color(0xFF1A237E)
+val PrimaryContainerDark = Color(0xFF283593)
+val OnPrimaryContainerDark = Color(0xFFE8EAF6)
 
-val SecondaryDark = Color(0xFFE5BDC6)
-val OnSecondaryDark = Color(0xFF442933)
-val SecondaryContainerDark = Color(0xFF5D3F48)
-val OnSecondaryContainerDark = Color(0xFFFFDADE)
+val SecondaryDark = Color(0xFF90A4AE)
+val OnSecondaryDark = Color(0xFF1A237E)
+val SecondaryContainerDark = Color(0xFF455A64)
+val OnSecondaryContainerDark = Color(0xFFECEFF1)
 
-val TertiaryDark = Color(0xFFFFB5A0)
-val OnTertiaryDark = Color(0xFF4F2415)
-val TertiaryContainerDark = Color(0xFF713425)
-val OnTertiaryContainerDark = Color(0xFFFFDBD0)
+val TertiaryDark = Color(0xFFB0BEC5)
+val OnTertiaryDark = Color(0xFF263238)
+val TertiaryContainerDark = Color(0xFF546E7A)
+val OnTertiaryContainerDark = Color(0xFFECEFF1)
 
 val ErrorDark = Color(0xFFFFB4AB)
 val OnErrorDark = Color(0xFF690005)
 val ErrorContainerDark = Color(0xFF93000A)
 val OnErrorContainerDark = Color(0xFFFFDAD6)
 
-val BackgroundDark = Color(0xFF201A1A)
-val OnBackgroundDark = Color(0xFFECE0E0)
+val BackgroundDark = Color(0xFF1C1B1F)
+val OnBackgroundDark = Color(0xFFE6E1E5)
 
-val SurfaceDark = Color(0xFF201A1A)
-val OnSurfaceDark = Color(0xFFECE0E0)
+val SurfaceDark = Color(0xFF1C1B1F)
+val OnSurfaceDark = Color(0xFFE6E1E5)
 
-val SurfaceVariantDark = Color(0xFF524346)
-val OnSurfaceVariantDark = Color(0xFFD7C1C4)
+val SurfaceVariantDark = Color(0xFF49454F)
+val OnSurfaceVariantDark = Color(0xFFCAC4D0)
 
-val InverseSurfaceDark = Color(0xFFECE0E0)
-val InverseOnSurfaceDark = Color(0xFF201A1A)
+val InverseSurfaceDark = Color(0xFFE6E1E5)
+val InverseOnSurfaceDark = Color(0xFF1C1B1F)
 
-val OutlineDark = Color(0xFF8F7A7D)
+val OutlineDark = Color(0xFF938F99)

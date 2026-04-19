@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Compose-optimized base theme -->
+    <!-- Minimal theme for Compose - only system bars -->
     <style name="Theme.SmoothRadio" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
-
-        <!-- Status bar -->
-        <item name="android:statusBarColor">@color/red</item>
+        <!-- Status bar - match white top bar -->
+        <item name="android:statusBarColor">@android:color/white</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
 
         <!-- Navigation bar -->
@@ -23,13 +21,5 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreen_icon</item>
         <item name="windowSplashScreenAnimationDuration">300</item>
         <item name="postSplashScreenTheme">@style/Theme.SmoothRadio</item>
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
-    </style>
-
-    <!-- Keep for any remaining XML views -->
-    <style name="CustomTabText" parent="TextAppearance.Design.Tab">
-        <item name="android:textSize">14sp</item>
-        <item name="android:maxLines">1</item>
-        <item name="fontFamily">@font/source_sans_pro</item>
     </style>
 </resources>

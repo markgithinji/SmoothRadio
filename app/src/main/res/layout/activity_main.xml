@@ -124,7 +124,6 @@
                 app:tabIndicator="@drawable/indicatortest"
                 app:tabInlineLabel="true"
                 app:tabSelectedTextColor="@color/red"
-                app:tabTextAppearance="@style/CustomTabText"
                 app:tabTextColor="@color/black">
 
             </com.google.android.material.tabs.TabLayout>
