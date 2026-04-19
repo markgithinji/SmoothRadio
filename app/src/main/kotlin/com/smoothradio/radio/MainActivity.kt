@@ -120,13 +120,6 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            topBar = {
-                RadioTopBar(
-                    onSearchClick = { /* Handle search */ },
-                    onSortClick = { /* Handle sort */ },
-                    onInfoClick = { /* Show about dialog */ }
-                )
-            },
             bottomBar = {
                 Column {
                     // Bottom Navigation Bar

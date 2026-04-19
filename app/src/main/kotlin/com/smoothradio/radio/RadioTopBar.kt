@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
@@ -27,7 +28,7 @@ fun RadioTopBar(
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
                 letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = Color.Black
             )
         },
         actions = {
@@ -35,14 +36,14 @@ fun RadioTopBar(
                 Icon(
                     Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = Color.Black
                 )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = Color.White,
+            titleContentColor = Color.Black,
+            actionIconContentColor = Color.Black
         )
     )
 }
