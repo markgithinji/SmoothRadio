@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,8 +34,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun RadioTopBar(
     onSearchClick: () -> Unit,
-    onSortClick: () -> Unit,
-    onInfoClick: () -> Unit
+    onViewToggleClick: () -> Unit,
+    isGridView: Boolean
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -56,17 +59,32 @@ fun RadioTopBar(
                     color = Color.Black
                 )
 
-                IconButton(onClick = onSearchClick) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color.Black,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // View Toggle Button
+                    IconButton(onClick = onViewToggleClick) {
+                        Icon(
+                            imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                            contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
+                            tint = Color.Black,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Search Button
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color.Black,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
 
-            // Bottom divider
+            // Subtle bottom divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

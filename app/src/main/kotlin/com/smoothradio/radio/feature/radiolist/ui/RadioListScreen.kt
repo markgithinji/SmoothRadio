@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -44,17 +47,13 @@ fun RadioStationsScreen(
     playerControlViewModel: PlayerControlViewModel,
     modifier: Modifier = Modifier
 ) {
-
-    LaunchedEffect(Unit) {
-        radioViewModel.observeAndProcessRemoteLinks()
-    }
+    var isGridView by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var currentSort by remember { mutableStateOf(SortType.POPULAR) }
 
     val stations by radioViewModel.allStations.collectAsState(initial = emptyList())
     val playbackState by playerControlViewModel.playbackState.collectAsState(initial = "Idle")
     val playingStation by playerControlViewModel.playingStation.collectAsState(initial = null)
-
-    var searchQuery by remember { mutableStateOf("") }
-    var currentSort by remember { mutableStateOf(SortType.POPULAR) }
 
     val filteredStations = remember(stations, searchQuery, currentSort) {
         stations
@@ -71,16 +70,13 @@ fun RadioStationsScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
             RadioTopBar(
                 onSearchClick = { /* Handle search */ },
-                onSortClick = { /* Handle sort */ },
-                onInfoClick = { /* Show about dialog */ }
+                onViewToggleClick = { isGridView = !isGridView },
+                isGridView = isGridView
             )
 
-            // Content
             if (stations.isEmpty()) {
-                // Show 3-dot loading state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -119,31 +115,58 @@ fun RadioStationsScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 0.dp,
-                        top = 8.dp,
-                        end = 0.dp,
-                        bottom = 80.dp
-                    )
-                ) {
-                    items(
-                        items = filteredStations,
-                        key = { it.id }
-                    ) { station ->
-                        RadioStationRow(
-                            station = station,
-                            isPlaying = playingStation?.id == station.id,
-                            playbackState = playbackState,
-                            onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                            onFavoriteClick = {
-                                radioViewModel.toggleFavorite(
-                                    station.id,
-                                    !station.isFavorite
-                                )
-                            }
+                if (isGridView) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 12.dp,
+                            top = 12.dp,
+                            end = 12.dp,
+                            bottom = 100.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = filteredStations,
+                            key = { it.id }
+                        ) { station ->
+                            RadioStationGridItem(
+                                station = station,
+                                isPlaying = playingStation?.id == station.id,
+                                playbackState = playbackState,
+                                onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                onFavoriteClick = {
+                                    radioViewModel.toggleFavorite(station.id, !station.isFavorite)
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 0.dp,
+                            top = 8.dp,
+                            end = 0.dp,
+                            bottom = 100.dp
                         )
+                    ) {
+                        items(
+                            items = filteredStations,
+                            key = { it.id }
+                        ) { station ->
+                            RadioStationRow(
+                                station = station,
+                                isPlaying = playingStation?.id == station.id,
+                                playbackState = playbackState,
+                                onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                onFavoriteClick = {
+                                    radioViewModel.toggleFavorite(station.id, !station.isFavorite)
+                                }
+                            )
+                        }
                     }
                 }
             }
