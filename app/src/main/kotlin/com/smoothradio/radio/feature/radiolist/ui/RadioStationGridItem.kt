@@ -48,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -61,11 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.smoothradio.radio.core.domain.model.RadioStation
-
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.smoothradio.radio.R
-
 
 @Composable
 fun RadioStationGridItem(
@@ -81,6 +80,39 @@ fun RadioStationGridItem(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
 
+    // Overlay color animation
+    val overlayColor by animateColorAsState(
+        targetValue = when {
+            isLivePlaying -> colorScheme.primary.copy(alpha = 0.08f)
+            isBuffering -> colorScheme.tertiary.copy(alpha = 0.08f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "overlayColor"
+    )
+
+    // Logo pulse animation when buffering
+    val infiniteTransition = rememberInfiniteTransition()
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween<Float>(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // Name color animation
+    val nameColor by animateColorAsState(
+        targetValue = when {
+            isLivePlaying -> colorScheme.primary
+            isBuffering -> colorScheme.tertiary
+            else -> colorScheme.onSurface
+        },
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "nameColor"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -88,87 +120,160 @@ fun RadioStationGridItem(
             .clickable { onPlayClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = colorScheme.surface
+            containerColor = Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(overlayColor)
         ) {
-            // Logo
-            Box(
-                modifier = Modifier.size(60.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                val painter = rememberAsyncImagePainter(
-                    model = ImageRequest.Builder(context)
-                        .data(station.logoResource)
-                        .crossfade(true)
-                        .build(),
-                    error = painterResource(id = R.drawable.playicon)
-                )
-
-                Image(
-                    painter = painter,
-                    contentDescription = "${station.stationName} logo",
+                // Logo
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop
-                )
+                        .size(55.dp)
+                        .then(
+                            if (isBuffering) Modifier.graphicsLayer {
+                                scaleX = pulseScale
+                                scaleY = pulseScale
+                            } else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(context)
+                            .data(station.logoResource)
+                            .crossfade(true)
+                            .build(),
+                        error = painterResource(id = R.drawable.playicon)
+                    )
 
-                // Playing indicator overlay
-                if (isLivePlaying) {
-                    Box(
+                    Image(
+                        painter = painter,
+                        contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
                     )
-                    // Small play icon overlay
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Playing",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+
+                    // Buffering overlay
+                    if (isBuffering) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(colorScheme.primary.copy(alpha = 0.15f))
+                        )
+                    }
+
+                    // Playing indicator overlay
+                    if (isLivePlaying) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f))
+                                .clip(RoundedCornerShape(10.dp))
+                        )
+                        val playIconScale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(800, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Playing",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(playIconScale)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Station Name with animated color
+                Text(
+                    text = station.stationName,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 11.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    color = nameColor
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Loading indicator for buffering
+                if (isBuffering) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(3) { index ->
+                            val delay = (index * 150)
+                            val alpha by infiniteTransition.animateFloat(
+                                initialValue = 0.3f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween<Float>(400, delayMillis = delay),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(3.dp)
+                                    .clip(CircleShape)
+                                    .background(colorScheme.tertiary.copy(alpha = alpha))
+                            )
+                        }
+                        Text(
+                            text = "LOAD",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.tertiary
+                        )
+                    }
+                } else {
+                    // Frequency
+                    Text(
+                        text = station.frequency,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp,
+                        color = colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
-            }
 
-            // Station Name
-            Text(
-                text = station.stationName,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 11.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+                Spacer(modifier = Modifier.height(4.dp))
 
-            // Frequency
-            Text(
-                text = station.frequency,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 10.sp,
-                color = colorScheme.onSurfaceVariant
-            )
-
-            // Favorite Button
-            IconButton(
-                onClick = onFavoriteClick,
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = if (station.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (station.isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (station.isFavorite) Color.Red else colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
+                // Favorite Button
+                IconButton(
+                    onClick = onFavoriteClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = if (station.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = null,
+                        tint = if (station.isFavorite) Color.Red else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
