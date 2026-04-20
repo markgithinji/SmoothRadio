@@ -73,6 +73,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -129,6 +130,15 @@ fun PlayerScreen(
         animationSpec = tween(1000, easing = FastOutSlowInEasing),
         label = "background color"
     )
+
+    // Clear metadata when playback stops (not playing and not buffering)
+    LaunchedEffect(playbackState) {
+        if (playbackState != "Playing" &&
+            playbackState != "Buffering" &&
+            playbackState != "Preparing Audio") {
+            metadata = ""
+        }
+    }
 
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
@@ -281,7 +291,7 @@ fun PlayerScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Status indicator with 3-dot loading
             Row(
@@ -293,7 +303,7 @@ fun PlayerScreen(
                         Text(
                             text = "NOW PLAYING",
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             letterSpacing = 1.5.sp,
                             fontWeight = FontWeight.Medium,
                             color = colorScheme.primary
@@ -340,30 +350,24 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Metadata / Song Title
-            if (metadata.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                ) {
-                    Text(
-                        text = metadata,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            // Metadata
+            if (metadata.isNotEmpty() && playbackState == "Playing") {
+                Text(
+                    text = metadata,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            } else if (playbackState == "Playing") {
+                // Small spacer when no metadata but playing
+                Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             Spacer(modifier = Modifier.weight(1f))
