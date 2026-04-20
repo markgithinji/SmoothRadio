@@ -103,14 +103,23 @@ fun RadioStationGridItem(
         )
     )
 
-    // Pulsing dot animation for playing state
-    val dotAlpha by animateFloatAsState(
-        targetValue = if (isLivePlaying) 1f else 0.3f,
-        animationSpec = repeatable(
-            iterations = Integer.MAX_VALUE,
-            animation = tween(800, easing = FastOutSlowInEasing)
-        ),
-        label = "dotAlpha"
+    // Animated pulse for live dot
+    val liveDotScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    val liveDotAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
     )
 
     // Name color animation
@@ -230,6 +239,7 @@ fun RadioStationGridItem(
                         }
                     }
                     isLivePlaying -> {
+                        // Animated pulsing live dot
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -237,8 +247,9 @@ fun RadioStationGridItem(
                             Box(
                                 modifier = Modifier
                                     .size(6.dp)
+                                    .scale(liveDotScale)
                                     .clip(CircleShape)
-                                    .background(colorScheme.primary.copy(alpha = dotAlpha))
+                                    .background(colorScheme.primary.copy(alpha = liveDotAlpha))
                             )
                             Text(
                                 text = "LIVE",
