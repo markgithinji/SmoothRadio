@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -102,6 +103,16 @@ fun RadioStationGridItem(
         )
     )
 
+    // Pulsing dot animation for playing state
+    val dotAlpha by animateFloatAsState(
+        targetValue = if (isLivePlaying) 1f else 0.3f,
+        animationSpec = repeatable(
+            iterations = Integer.MAX_VALUE,
+            animation = tween(800, easing = FastOutSlowInEasing)
+        ),
+        label = "dotAlpha"
+    )
+
     // Name color animation
     val nameColor by animateColorAsState(
         targetValue = when {
@@ -174,37 +185,11 @@ fun RadioStationGridItem(
                                 .background(colorScheme.primary.copy(alpha = 0.15f))
                         )
                     }
-
-                    // Playing indicator overlay
-                    if (isLivePlaying) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f))
-                                .clip(RoundedCornerShape(10.dp))
-                        )
-                        val playIconScale by infiniteTransition.animateFloat(
-                            initialValue = 1f,
-                            targetValue = 1.1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(800, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            )
-                        )
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Playing",
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .scale(playIconScale)
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Station Name with animated color
+                // Station Name
                 Text(
                     text = station.stationName,
                     style = MaterialTheme.typography.bodySmall,
@@ -216,48 +201,63 @@ fun RadioStationGridItem(
                     color = nameColor
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // Loading indicator for buffering
-                if (isBuffering) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        repeat(3) { index ->
-                            val delay = (index * 150)
-                            val alpha by infiniteTransition.animateFloat(
-                                initialValue = 0.3f,
-                                targetValue = 1f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween<Float>(400, delayMillis = delay),
-                                    repeatMode = RepeatMode.Reverse
+                // Status indicator
+                when {
+                    isBuffering -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            repeat(3) { index ->
+                                val delay = (index * 150)
+                                val alpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.3f,
+                                    targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween<Float>(400, delayMillis = delay),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
                                 )
-                            )
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.tertiary.copy(alpha = alpha))
+                                )
+                            }
+                        }
+                    }
+                    isLivePlaying -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(3.dp)
+                                    .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(colorScheme.tertiary.copy(alpha = alpha))
+                                    .background(colorScheme.primary.copy(alpha = dotAlpha))
+                            )
+                            Text(
+                                text = "LIVE",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colorScheme.primary
                             )
                         }
+                    }
+                    else -> {
                         Text(
-                            text = "LOAD",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 7.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colorScheme.tertiary
+                            text = station.frequency,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 9.sp,
+                            color = colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
                     }
-                } else {
-                    // Frequency
-                    Text(
-                        text = station.frequency,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 10.sp,
-                        color = colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
