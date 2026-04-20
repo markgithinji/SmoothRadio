@@ -2,11 +2,14 @@ package com.smoothradio.radio.feature.radiolist.ui
 
 import android.util.Log
 import android.util.Size
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.repeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -70,11 +73,24 @@ fun RadioStationRow(
     val isBuffering = isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
     val isLivePlaying = isPlaying && playbackState == "Playing"
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    // Row background color animation
+    val rowBackgroundColor by animateColorAsState(
+        targetValue = when {
+            isLivePlaying -> colorScheme.primary.copy(alpha = 0.08f)
+            isBuffering -> colorScheme.tertiary.copy(alpha = 0.08f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "rowBackgroundColor"
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onPlayClick() }
+            .background(rowBackgroundColor)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -121,7 +137,7 @@ fun RadioStationRow(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        .background(colorScheme.primary.copy(alpha = 0.15f))
                 )
             }
         }
@@ -134,13 +150,26 @@ fun RadioStationRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Station name with animated color
+                val nameColor by animateColorAsState(
+                    targetValue = when {
+                        isLivePlaying -> colorScheme.primary
+                        isBuffering -> colorScheme.tertiary
+                        else -> colorScheme.onSurface
+                    },
+                    animationSpec = tween(500, easing = FastOutSlowInEasing),
+                    label = "nameColor"
+                )
+
                 Text(
                     text = station.stationName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    color = nameColor
                 )
 
+                // Status indicator with animated colors
                 when {
                     isBuffering -> {
                         Row(
@@ -162,7 +191,7 @@ fun RadioStationRow(
                                         .size(4.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                                            colorScheme.tertiary.copy(alpha = alpha)
                                         )
                                 )
                             }
@@ -172,7 +201,7 @@ fun RadioStationRow(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = colorScheme.tertiary,
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -182,6 +211,17 @@ fun RadioStationRow(
 
             Spacer(modifier = Modifier.height(2.dp))
 
+            // Frequency text with animated color
+            val freqColor by animateColorAsState(
+                targetValue = when {
+                    isLivePlaying -> colorScheme.primary
+                    isBuffering -> colorScheme.tertiary
+                    else -> colorScheme.onSurfaceVariant
+                },
+                animationSpec = tween(500, easing = FastOutSlowInEasing),
+                label = "freqColor"
+            )
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -190,22 +230,21 @@ fun RadioStationRow(
                     text = station.frequency,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 12.sp,
-                    color = if (isPlaying) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = freqColor
                 )
 
                 Text(
                     text = "•",
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = station.location,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -218,7 +257,8 @@ fun RadioStationRow(
             if (isLivePlaying) {
                 MiniWaveformVisualization(
                     modifier = Modifier.width(60.dp),
-                    height = 16.dp
+                    height = 16.dp,
+                    color = colorScheme.primary
                 )
             }
 
@@ -230,7 +270,7 @@ fun RadioStationRow(
                 Icon(
                     imageVector = if (station.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = null,
-                    tint = if (station.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (station.isFavorite) Color.Red else colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -241,14 +281,15 @@ fun RadioStationRow(
     HorizontalDivider(
         modifier = Modifier.padding(start = 72.dp),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        color = colorScheme.outline.copy(alpha = 0.1f)
     )
 }
 
 @Composable
 fun MiniWaveformVisualization(
     modifier: Modifier = Modifier,
-    height: Dp = 16.dp
+    height: Dp = 16.dp,
+    color: Color
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val barCount = 8
@@ -274,11 +315,7 @@ fun MiniWaveformVisualization(
                     .width(3.dp)
                     .fillMaxHeight(amplitude)
                     .clip(RoundedCornerShape(1.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.7f
-                        )
-                    )
+                    .background(color.copy(alpha = 0.7f))
             )
         }
     }
