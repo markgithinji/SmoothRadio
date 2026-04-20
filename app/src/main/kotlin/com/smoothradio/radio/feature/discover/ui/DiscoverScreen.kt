@@ -137,8 +137,8 @@ fun DiscoverScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(
                     items = categories,
@@ -151,16 +151,16 @@ fun DiscoverScreen(
                             Text(
                                 text = category.label,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             )
 
                             // Horizontal scrolling grid items
                             LazyRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 items(
                                     items = category.categoryRadioStationList,
@@ -174,7 +174,9 @@ fun DiscoverScreen(
                                         onFavoriteClick = {
                                             radioViewModel.toggleFavorite(station.id, !station.isFavorite)
                                         },
-                                        modifier = Modifier.width(140.dp)
+                                        modifier = Modifier
+                                            .width(130.dp)
+                                            .height(150.dp)
                                     )
                                 }
                             }
