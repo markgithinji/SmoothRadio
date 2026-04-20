@@ -18,7 +18,11 @@ data class RadioStation(
 ) : ListItem {
 
     override fun equals(other: Any?): Boolean {
-        return this === other || (other is RadioStation && id == other.id)
+        if (this === other) return true
+        if (other !is RadioStation) return false
+        return id == other.id &&
+                isFavorite == other.isFavorite &&
+                isPlaying == other.isPlaying
     }
 
     override fun hashCode(): Int = id.hashCode()
