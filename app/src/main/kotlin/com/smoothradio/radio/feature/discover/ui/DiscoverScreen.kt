@@ -1,10 +1,19 @@
 package com.smoothradio.radio.feature.discover.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -31,15 +41,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
+import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
 
 @Composable
 fun DiscoverScreen(
@@ -49,115 +63,124 @@ fun DiscoverScreen(
 ) {
     val stations by radioViewModel.allStations.collectAsState(initial = emptyList())
     val favorites by radioViewModel.favoriteStations.collectAsState(initial = emptyList())
-    val playingStation by playerControlViewModel.playingStation.collectAsState()
-    val playbackState by playerControlViewModel.playbackState.collectAsState()
+    val playbackState by playerControlViewModel.playbackState.collectAsState(initial = "Idle")
+    val playingStation by playerControlViewModel.playingStation.collectAsState(initial = null)
 
-    // Group stations by category TODO: implement CategoryHelper logic
+    val isLoading = stations.isEmpty()
+
+    // Create categories
     val categories = remember(stations) {
         CategoryHelper.createCategories(stations)
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(categories) { category ->
-            Column {
-                Text(
-                    text = category.label,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(category.categoryRadioStationList) { station ->
-                        DiscoverStationCard(
-                            station = station,
-                            isPlaying = playingStation?.id == station.id,
-                            playbackState = playbackState,
-                            onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                            onFavoriteClick = {
-                                radioViewModel.toggleFavorite(station.id, !station.isFavorite)
-                            }
-                        )
+    Box(modifier = modifier.fillMaxSize()) {
+        if (isLoading) {
+            // Loading state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val infiniteTransition = rememberInfiniteTransition()
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(3) { index ->
+                            val delay = (index * 200)
+                            val scale by infiniteTransition.animateFloat(
+                                initialValue = 0.5f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween<Float>(400, delayMillis = delay),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .scale(scale)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Loading stations...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun DiscoverStationCard(
-    station: RadioStation,
-    isPlaying: Boolean,
-    playbackState: String,
-    onPlayClick: () -> Unit,
-    onFavoriteClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .width(120.dp)
-            .height(140.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Logo
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                modifier = Modifier.size(48.dp)
+        } else if (categories.isEmpty()) {
+            // Empty state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(id = station.logoResource),
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No stations available",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Name
-            Text(
-                text = station.stationName,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Favorite Button
-            IconButton(
-                onClick = onFavoriteClick,
-                modifier = Modifier.size(32.dp)
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = if (station.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = null,
-                    tint = if (station.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+                items(
+                    items = categories,
+                    key = { it.label }
+                ) { category ->
+                    // Only show category if it has stations
+                    if (category.categoryRadioStationList.isNotEmpty()) {
+                        Column {
+                            // Category Header
+                            Text(
+                                text = category.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
 
-            // Play Button
-            IconButton(
-                onClick = onPlayClick,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying && playbackState == "Playing") Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                            // Horizontal scrolling grid items
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(
+                                    items = category.categoryRadioStationList,
+                                    key = { it.id }
+                                ) { station ->
+                                    RadioStationGridItem(
+                                        station = station,
+                                        isPlaying = playingStation?.id == station.id,
+                                        playbackState = playbackState,
+                                        onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                        onFavoriteClick = {
+                                            radioViewModel.toggleFavorite(station.id, !station.isFavorite)
+                                        },
+                                        modifier = Modifier.width(140.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
