@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Radio
@@ -60,6 +61,7 @@ fun DiscoverScreen(
     radioViewModel: RadioViewModel,
     playerControlViewModel: PlayerControlViewModel,
     discoverScrollState: LazyListState,
+    categoryScrollStates: MutableMap<String, LazyListState>,
     modifier: Modifier = Modifier
 ) {
     val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
@@ -72,6 +74,13 @@ fun DiscoverScreen(
     // Create categories
     val categories = remember(stations, favorites) {
         CategoryHelper.createCategories(stations)
+    }
+
+    // Initialize scroll states for each category if not already present
+    categories.forEach { category ->
+        if (!categoryScrollStates.containsKey(category.label)) {
+            categoryScrollStates[category.label] = LazyListState()
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -151,6 +160,9 @@ fun DiscoverScreen(
                         key = { it.label }
                     ) { category ->
                         if (category.categoryRadioStationList.isNotEmpty()) {
+                            // Get the saved scroll state for this category
+                            val rowScrollState = categoryScrollStates[category.label] ?: rememberLazyListState()
+
                             Column {
                                 Text(
                                     text = category.label,
@@ -161,6 +173,7 @@ fun DiscoverScreen(
                                 )
 
                                 LazyRow(
+                                    state = rowScrollState,
                                     modifier = Modifier.fillMaxWidth(),
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -169,16 +182,13 @@ fun DiscoverScreen(
                                         items = category.categoryRadioStationList,
                                         key = { it.id }
                                     ) { station ->
-                                        // For favorites category, add animated item with removal animation
                                         if (category.label == "Your Favorites") {
                                             AnimatedFavoriteItem(
                                                 station = station,
                                                 isPlaying = playingStation?.id == station.id,
                                                 playbackState = playbackState,
                                                 onPlayClick = {
-                                                    playerControlViewModel.requestPlayStation(
-                                                        station
-                                                    )
+                                                    playerControlViewModel.requestPlayStation(station)
                                                 },
                                                 onFavoriteClick = {
                                                     radioViewModel.toggleFavorite(
@@ -193,9 +203,7 @@ fun DiscoverScreen(
                                                 isPlaying = playingStation?.id == station.id,
                                                 playbackState = playbackState,
                                                 onPlayClick = {
-                                                    playerControlViewModel.requestPlayStation(
-                                                        station
-                                                    )
+                                                    playerControlViewModel.requestPlayStation(station)
                                                 },
                                                 onFavoriteClick = {
                                                     radioViewModel.toggleFavorite(

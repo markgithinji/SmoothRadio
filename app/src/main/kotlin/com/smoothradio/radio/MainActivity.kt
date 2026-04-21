@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -116,9 +118,11 @@ class MainActivity : ComponentActivity() {
         val playingStation by playerControlViewModel.playingStation.collectAsState()
         val playbackState by playerControlViewModel.playbackState.collectAsState()
 
-        val listScrollState = rememberLazyListState()      // For Stations list view
-        val gridScrollState = rememberLazyGridState()      // For Stations grid view
-        val discoverScrollState = rememberLazyListState()  // For Discover screen
+        val listScrollState = rememberLazyListState()           // For Stations list view
+        val gridScrollState = rememberLazyGridState()           // For Stations grid view
+        val discoverScrollState = rememberLazyListState()       // For Discover screen
+        // Store scroll states for each category in Discover screen
+        val discoverCategoryScrollStates = remember { mutableStateMapOf<String, LazyListState>() }
 
         // Update current station when playing station changes
         LaunchedEffect(playingStation) {
@@ -180,7 +184,8 @@ class MainActivity : ComponentActivity() {
                     2 -> DiscoverScreen(
                         radioViewModel = radioViewModel,
                         playerControlViewModel = playerControlViewModel,
-                        discoverScrollState = discoverScrollState
+                        discoverScrollState = discoverScrollState,
+                        categoryScrollStates = discoverCategoryScrollStates
                     )
                 }
             }
