@@ -87,6 +87,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -131,7 +132,7 @@ fun PlayerScreen(
         label = "background color"
     )
 
-    // Clear metadata when playback stops (not playing and not buffering)
+    // Clear metadata when playback stops
     LaunchedEffect(playbackState) {
         if (playbackState != "Playing" &&
             playbackState != "Buffering" &&
@@ -281,7 +282,7 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = playingStation?.stationName ?: "No station playing",
@@ -350,24 +351,40 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Metadata
+            // Metadata / Song Title with built-in marquee scrolling
             if (metadata.isNotEmpty() && playbackState == "Playing") {
-                Text(
-                    text = metadata,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.TextView(ctx).apply {
+                            text = metadata
+                            textSize = 14f
+                            setTextColor(colorScheme.onSurface.toArgb())
+                            maxLines = 1
+                            ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+                            marqueeRepeatLimit = -1 // Infinite scrolling
+                            isSelected = true
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            gravity = android.view.Gravity.CENTER
+                            setPadding(
+                                (16 * resources.displayMetrics.density).toInt(),
+                                0,
+                                (16 * resources.displayMetrics.density).toInt(),
+                                0
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             } else if (playbackState == "Playing") {
-                // Small spacer when no metadata but playing
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             } else {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
 
             Spacer(modifier = Modifier.weight(1f))
