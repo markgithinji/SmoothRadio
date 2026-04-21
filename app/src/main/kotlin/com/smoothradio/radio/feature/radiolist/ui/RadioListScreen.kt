@@ -18,10 +18,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.RadioTopBar
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -45,27 +50,24 @@ import com.smoothradio.radio.core.ui.RadioViewModel
 fun RadioStationsScreen(
     radioViewModel: RadioViewModel,
     playerControlViewModel: PlayerControlViewModel,
+    listScrollState: LazyListState,
+    gridScrollState: LazyGridState,
     modifier: Modifier = Modifier
 ) {
     var isGridView by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var currentSort by remember { mutableStateOf(SortType.POPULAR) }
 
-    val stations by radioViewModel.allStations.collectAsState(initial = emptyList())
+    val stations by radioViewModel.allStations.collectAsStateWithLifecycle(initialValue = emptyList())
     val playbackState by playerControlViewModel.playbackState.collectAsState(initial = "Idle")
     val playingStation by playerControlViewModel.playingStation.collectAsState(initial = null)
 
-    val filteredStations = remember(stations, searchQuery, currentSort) {
-        stations
-            .filter { it.stationName.contains(searchQuery, ignoreCase = true) }
-            .let { list ->
-                when (currentSort) {
-                    SortType.POPULAR -> list
-                    SortType.A_TO_Z -> list.sortedBy { it.stationName.lowercase() }
-                    SortType.Z_TO_A -> list.sortedByDescending { it.stationName.lowercase() }
-                    SortType.FAVORITES -> list.filter { it.isFavorite }
-                }
-            }
+    // Filter stations by search query
+    val filteredStations = remember(stations, searchQuery) {
+        if (searchQuery.isEmpty()) {
+            stations
+        } else {
+            stations.filter { it.stationName.contains(searchQuery, ignoreCase = true) }
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -118,6 +120,7 @@ fun RadioStationsScreen(
                 if (isGridView) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
+                        state = gridScrollState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 12.dp,
@@ -145,6 +148,7 @@ fun RadioStationsScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listScrollState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 0.dp,
@@ -188,11 +192,4 @@ fun RadioStationsScreen(
             )
         }
     }
-}
-
-enum class SortType(val displayName: String) {
-    POPULAR("Most Popular"),
-    A_TO_Z("A - Z"),
-    Z_TO_A("Z - A"),
-    FAVORITES("Favorites")
 }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MusicNote
@@ -64,6 +66,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.jvm.java
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -112,6 +115,9 @@ class MainActivity : ComponentActivity() {
         var selectedTab by remember { mutableStateOf(0) }
         val playingStation by playerControlViewModel.playingStation.collectAsState()
         val playbackState by playerControlViewModel.playbackState.collectAsState()
+
+        val listScrollState = rememberLazyListState()
+        val gridScrollState = rememberLazyGridState()
 
         // Update current station when playing station changes
         LaunchedEffect(playingStation) {
@@ -163,7 +169,9 @@ class MainActivity : ComponentActivity() {
                 when (selectedTab) {
                     0 -> RadioStationsScreen(
                         radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel
+                        playerControlViewModel = playerControlViewModel,
+                        listScrollState = listScrollState,
+                        gridScrollState = gridScrollState
                     )
                     1 -> PlayerScreen(
                         playerControlViewModel = playerControlViewModel
