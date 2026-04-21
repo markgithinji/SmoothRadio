@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.SimpleTopBar
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
 
@@ -65,6 +66,7 @@ fun DiscoverScreen(
     modifier: Modifier = Modifier
 ) {
     val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
+    val favorites by radioViewModel.favoriteStations.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
 
@@ -75,112 +77,114 @@ fun DiscoverScreen(
         CategoryHelper.createCategories(stations)
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        if (isLoading) {
-            // Loading state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val infiniteTransition = rememberInfiniteTransition()
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        repeat(3) { index ->
-                            val delay = (index * 200)
-                            val scale by infiniteTransition.animateFloat(
-                                initialValue = 0.5f,
-                                targetValue = 1f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween<Float>(400, delayMillis = delay),
-                                    repeatMode = RepeatMode.Reverse
-                                )
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .scale(scale)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Loading stations...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else if (categories.isEmpty()) {
-            // Empty state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Radio,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No stations available",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                state = discoverScrollState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    items = categories,
-                    key = { it.label }
-                ) { category ->
-                    // Only show category if it has stations
-                    if (category.categoryRadioStationList.isNotEmpty()) {
-                        Column {
-                            // Category Header
-                            Text(
-                                text = category.label,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
+    Column(modifier = modifier.fillMaxSize()) {
 
-                            // Horizontal scrolling grid items
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(
-                                    items = category.categoryRadioStationList,
-                                    key = { it.id }
-                                ) { station ->
-                                    RadioStationGridItem(
-                                        station = station,
-                                        isPlaying = playingStation?.id == station.id,
-                                        playbackState = playbackState,
-                                        onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                        onFavoriteClick = {
-                                            radioViewModel.toggleFavorite(station.id, !station.isFavorite)
-                                        },
-                                        modifier = Modifier
-                                            .width(130.dp)
-                                            .height(150.dp)
+        SimpleTopBar(title = "DISCOVER")
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (isLoading) {
+                // Loading state
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val infiniteTransition = rememberInfiniteTransition()
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            repeat(3) { index ->
+                                val delay = (index * 200)
+                                val scale by infiniteTransition.animateFloat(
+                                    initialValue = 0.5f,
+                                    targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween<Float>(400, delayMillis = delay),
+                                        repeatMode = RepeatMode.Reverse
                                     )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .scale(scale)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading stations...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else if (categories.isEmpty()) {
+                // Empty state
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Radio,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No stations available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = discoverScrollState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = categories,
+                        key = { it.label }
+                    ) { category ->
+                        if (category.categoryRadioStationList.isNotEmpty()) {
+                            Column {
+                                Text(
+                                    text = category.label,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                LazyRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(
+                                        items = category.categoryRadioStationList,
+                                        key = { it.id }
+                                    ) { station ->
+                                        RadioStationGridItem(
+                                            station = station,
+                                            isPlaying = playingStation?.id == station.id,
+                                            playbackState = playbackState,
+                                            onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                            onFavoriteClick = {
+                                                radioViewModel.toggleFavorite(station.id, !station.isFavorite)
+                                            },
+                                            modifier = Modifier
+                                                .width(130.dp)
+                                                .height(150.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

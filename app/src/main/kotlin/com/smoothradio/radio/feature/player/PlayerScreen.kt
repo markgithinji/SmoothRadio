@@ -107,6 +107,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.SimpleTopBar
 import com.smoothradio.radio.service.StreamService
 import kotlin.collections.emptyList
 
@@ -156,403 +157,395 @@ fun PlayerScreen(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        animatedColor,
-                        colorScheme.background
-                    ),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
-                )
-            )
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
+        
+        SimpleTopBar(title = "LIVE")
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-        ) {
-            val infiniteTransition = rememberInfiniteTransition()
-
-            // Scale animation
-            val scale by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 1.03f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(2000, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            animatedColor,
+                            colorScheme.background
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
                 )
-            )
-
-            Box(
-                modifier = Modifier.size(280.dp),
-                contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
             ) {
-                // Radar wave rings
-                if (playbackState == "Playing") {
-                    val waveRadius1 by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        )
+                val infiniteTransition = rememberInfiniteTransition()
+                val scale by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.03f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
                     )
+                )
 
-                    val waveRadius2 by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing, delayMillis = 1500),
-                            repeatMode = RepeatMode.Restart
-                        )
-                    )
-
-                    // Expanding circles
-                    Box(
-                        modifier = Modifier
-                            .size(280.dp * waveRadius1)
-                            .align(Alignment.Center)
-                            .clip(CircleShape)
-                            .background(
-                                colorScheme.primary.copy(
-                                    alpha = (1f - waveRadius1) * 0.06f
-                                )
-                            )
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(280.dp * waveRadius2)
-                            .align(Alignment.Center)
-                            .clip(CircleShape)
-                            .background(
-                                colorScheme.primary.copy(
-                                    alpha = (1f - waveRadius2) * 0.06f
-                                )
-                            )
-                    )
-
-                    // Ring outline
-                    val ringAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.4f,
-                        targetValue = 0f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        )
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(280.dp * waveRadius1)
-                            .align(Alignment.Center)
-                            .clip(CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = colorScheme.primary.copy(alpha = ringAlpha),
-                                shape = CircleShape
-                            )
-                    )
-                }
-
-                // Logo Surface
-                Surface(
-                    shape = RoundedCornerShape(40.dp),
-                    color = colorScheme.primary.copy(alpha = 0.08f),
-                    modifier = Modifier
-                        .size(200.dp)
-                        .scale(if (playbackState == "Playing") scale else 1f)
+                Box(
+                    modifier = Modifier.size(280.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = painterResource(id = playingStation?.logoResource ?: R.drawable.playicon),
-                            contentDescription = "${playingStation?.stationName} logo",
+                    // Radar wave rings
+                    if (playbackState == "Playing") {
+                        val waveRadius1 by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            )
+                        )
+
+                        val waveRadius2 by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing, delayMillis = 1500),
+                                repeatMode = RepeatMode.Restart
+                            )
+                        )
+
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(40.dp),
-                            contentScale = ContentScale.Fit
+                                .size(280.dp * waveRadius1)
+                                .align(Alignment.Center)
+                                .clip(CircleShape)
+                                .background(
+                                    colorScheme.primary.copy(
+                                        alpha = (1f - waveRadius1) * 0.06f
+                                    )
+                                )
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(280.dp * waveRadius2)
+                                .align(Alignment.Center)
+                                .clip(CircleShape)
+                                .background(
+                                    colorScheme.primary.copy(
+                                        alpha = (1f - waveRadius2) * 0.06f
+                                    )
+                                )
+                        )
+
+                        val ringAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.4f,
+                            targetValue = 0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            )
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(280.dp * waveRadius1)
+                                .align(Alignment.Center)
+                                .clip(CircleShape)
+                                .border(
+                                    width = 1.dp,
+                                    color = colorScheme.primary.copy(alpha = ringAlpha),
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(40.dp),
+                        color = colorScheme.primary.copy(alpha = 0.08f),
+                        modifier = Modifier
+                            .size(200.dp)
+                            .scale(if (playbackState == "Playing") scale else 1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Image(
+                                painter = painterResource(id = playingStation?.logoResource ?: R.drawable.playicon),
+                                contentDescription = "${playingStation?.stationName} logo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(40.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = playingStation?.stationName ?: "No station playing",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    when {
+                        playbackState == "Playing" -> {
+                            Text(
+                                text = "NOW PLAYING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 11.sp,
+                                letterSpacing = 1.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colorScheme.primary
+                            )
+                        }
+                        playbackState == "Buffering" || playbackState == "Preparing Audio" -> {
+                            repeat(3) { index ->
+                                val delay = (index * 200)
+                                val alpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.3f,
+                                    targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(400, delayMillis = delay),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.tertiary.copy(alpha = alpha))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "BUFFERING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                letterSpacing = 1.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colorScheme.tertiary
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = playbackState.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                letterSpacing = 1.5.sp,
+                                color = colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (metadata.isNotEmpty() && playbackState == "Playing") {
+                    AndroidView(
+                        factory = { ctx ->
+                            android.widget.TextView(ctx).apply {
+                                text = metadata
+                                textSize = 14f
+                                setTextColor(colorScheme.onSurface.toArgb())
+                                maxLines = 1
+                                ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+                                marqueeRepeatLimit = -1
+                                isSelected = true
+                                isFocusable = true
+                                isFocusableInTouchMode = true
+                                gravity = android.view.Gravity.CENTER
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else if (playbackState == "Playing") {
+                    Spacer(modifier = Modifier.height(40.dp))
+                } else {
+                    Spacer(modifier = Modifier.height(40.dp))
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Playback Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { /* Implement previous */ },
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            modifier = Modifier.size(32.dp),
+                            tint = colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .shadow(
+                                elevation = 16.dp,
+                                shape = CircleShape,
+                                ambientColor = colorScheme.primary,
+                                spotColor = colorScheme.primary
+                            )
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        colorScheme.primary,
+                                        colorScheme.primary.copy(alpha = 0.8f)
+                                    )
+                                )
+                            )
+                            .clickable {
+                                playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (playbackState == "Playing") Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playbackState == "Playing") "Pause" else "Play",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.White
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { /* Implement next */ },
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            modifier = Modifier.size(32.dp),
+                            tint = colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = playingStation?.stationName ?: "No station playing",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Status indicator with 3-dot loading
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                when {
-                    playbackState == "Playing" -> {
-                        Text(
-                            text = "NOW PLAYING",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
-                            letterSpacing = 1.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colorScheme.primary
-                        )
-                    }
-                    playbackState == "Buffering" || playbackState == "Preparing Audio" -> {
-                        repeat(3) { index ->
-                            val delay = (index * 200)
-                            val alpha by infiniteTransition.animateFloat(
-                                initialValue = 0.3f,
-                                targetValue = 1f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(400, delayMillis = delay),
-                                    repeatMode = RepeatMode.Reverse
-                                )
+                // Secondary Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = { playerControlViewModel.requestRefresh() },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                modifier = Modifier.size(24.dp),
+                                tint = colorScheme.onSurfaceVariant
                             )
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(colorScheme.tertiary.copy(alpha = alpha))
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "BUFFERING",
+                            text = "Refresh",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
-                            letterSpacing = 1.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colorScheme.tertiary
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
-                    else -> {
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = { /* Show timer dialog */ },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Sleep Timer",
+                                modifier = Modifier.size(24.dp),
+                                tint = colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
-                            text = playbackState.uppercase(),
+                            text = "Sleep",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
-                            letterSpacing = 1.5.sp,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = { /* Share station */ },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                                modifier = Modifier.size(24.dp),
+                                tint = colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "Share",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             color = colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Metadata / Song Title with built-in marquee scrolling
-            if (metadata.isNotEmpty() && playbackState == "Playing") {
-                AndroidView(
-                    factory = { ctx ->
-                        android.widget.TextView(ctx).apply {
-                            text = metadata
-                            textSize = 14f
-                            setTextColor(colorScheme.onSurface.toArgb())
-                            maxLines = 1
-                            ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
-                            marqueeRepeatLimit = -1 // Infinite scrolling
-                            isSelected = true
-                            isFocusable = true
-                            isFocusableInTouchMode = true
-                            gravity = android.view.Gravity.CENTER
-                            setPadding(
-                                (16 * resources.displayMetrics.density).toInt(),
-                                0,
-                                (16 * resources.displayMetrics.density).toInt(),
-                                0
-                            )
-                        }
-                    },
+                // Ad Banner
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            } else if (playbackState == "Playing") {
-                Spacer(modifier = Modifier.height(40.dp))
-            } else {
-                Spacer(modifier = Modifier.height(40.dp))
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Playback Controls
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { /* Implement previous */ },
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        modifier = Modifier.size(32.dp),
-                        tint = colorScheme.onSurfaceVariant
+                        .height(80.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .shadow(
-                            elevation = 16.dp,
-                            shape = CircleShape,
-                            ambientColor = colorScheme.primary,
-                            spotColor = colorScheme.primary
-                        )
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    colorScheme.primary,
-                                    colorScheme.primary.copy(alpha = 0.8f)
-                                )
-                            )
-                        )
-                        .clickable {
-                            playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            AdView(ctx).apply {
+                                adUnitId = "ca-app-pub-9799428944156340/4540584810"
+                                setAdSize(AdSize.LARGE_BANNER)
+                                loadAd(AdRequest.Builder().build())
+                            }
                         },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (playbackState == "Playing") Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (playbackState == "Playing") "Pause" else "Play",
-                        modifier = Modifier.size(48.dp),
-                        tint = Color.White
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
-                IconButton(
-                    onClick = { /* Implement next */ },
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        modifier = Modifier.size(32.dp),
-                        tint = colorScheme.onSurfaceVariant
-                    )
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Secondary Controls
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = { playerControlViewModel.requestRefresh() },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            modifier = Modifier.size(24.dp),
-                            tint = colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        text = "Refresh",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = { /* Show timer dialog */ },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = "Sleep Timer",
-                            modifier = Modifier.size(24.dp),
-                            tint = colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        text = "Sleep",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = { /* Share station */ },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
-                            modifier = Modifier.size(24.dp),
-                            tint = colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        text = "Share",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Ad Banner
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                AndroidView(
-                    factory = { ctx ->
-                        AdView(ctx).apply {
-                            adUnitId = "ca-app-pub-9799428944156340/4540584810"
-                            setAdSize(AdSize.LARGE_BANNER)
-                            loadAd(AdRequest.Builder().build())
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
