@@ -185,7 +185,6 @@ fun RadioStationGridItem(
                         contentScale = ContentScale.Crop
                     )
 
-                    // Buffering overlay
                     if (isBuffering) {
                         Box(
                             modifier = Modifier
@@ -204,10 +203,11 @@ fun RadioStationGridItem(
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 11.sp,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
-                    color = nameColor
+                    color = nameColor,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -239,7 +239,6 @@ fun RadioStationGridItem(
                         }
                     }
                     isLivePlaying -> {
-                        // Animated pulsing live dot
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -256,7 +255,8 @@ fun RadioStationGridItem(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = colorScheme.primary
+                                color = colorScheme.primary,
+                                maxLines = 1
                             )
                         }
                     }
@@ -266,7 +266,8 @@ fun RadioStationGridItem(
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 9.sp,
                             color = colorScheme.onSurfaceVariant,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

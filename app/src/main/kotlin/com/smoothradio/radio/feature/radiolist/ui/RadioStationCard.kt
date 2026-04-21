@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,7 +95,7 @@ fun RadioStationRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo Image with pulse animation when buffering
+        // Logo
         val infiniteTransition = rememberInfiniteTransition()
         val pulseScale by infiniteTransition.animateFloat(
             initialValue = 1f,
@@ -146,11 +147,12 @@ fun RadioStationRow(
 
         // Station Name and Details Column
         Column(modifier = Modifier.weight(1f)) {
+            // First row: Name + Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Station name with animated color
+                // Station name
                 val nameColor by animateColorAsState(
                     targetValue = when {
                         isLivePlaying -> colorScheme.primary
@@ -166,10 +168,12 @@ fun RadioStationRow(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 15.sp,
-                    color = nameColor
+                    color = nameColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                // Status indicator with animated colors
+                // Status indicator
                 when {
                     isBuffering -> {
                         Row(
@@ -211,7 +215,7 @@ fun RadioStationRow(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Frequency text with animated color
+            // Second row: Frequency and location
             val freqColor by animateColorAsState(
                 targetValue = when {
                     isLivePlaying -> colorScheme.primary
@@ -244,12 +248,14 @@ fun RadioStationRow(
                     text = station.location,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 12.sp,
-                    color = colorScheme.onSurfaceVariant
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
-        // Action Buttons Row with waveform
+        // Action Buttons
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -262,7 +268,6 @@ fun RadioStationRow(
                 )
             }
 
-            // Favorite Button
             IconButton(
                 onClick = onFavoriteClick,
                 modifier = Modifier.size(32.dp)
