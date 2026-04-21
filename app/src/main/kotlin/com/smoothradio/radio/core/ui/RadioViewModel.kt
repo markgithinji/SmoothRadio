@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -53,6 +54,32 @@ class RadioViewModel @Inject constructor(
     private val _isGridView = MutableStateFlow(false)
     val isGridView: StateFlow<Boolean> = _isGridView.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
+    // Filtered stations based on search query
+    val filteredStations = combine(
+        allStations,
+        _searchQuery
+    ) { stations, query ->
+        if (query.isEmpty()) {
+            stations
+        } else {
+            stations.filter { station ->
+                station.stationName.contains(query, ignoreCase = true) ||
+                        station.frequency.contains(query, ignoreCase = true) ||
+                        station.location.contains(query, ignoreCase = true)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     init {
         loadViewPreference()
     }
@@ -69,6 +96,17 @@ class RadioViewModel @Inject constructor(
         viewModelScope.launch {
             val newValue = !_isGridView.value
             viewPreferenceRepository.saveIsGridView(newValue)
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setSearchActive(active: Boolean) {
+        _isSearchActive.value = active
+        if (!active) {
+            _searchQuery.value = "" // Clear search when exiting
         }
     }
 

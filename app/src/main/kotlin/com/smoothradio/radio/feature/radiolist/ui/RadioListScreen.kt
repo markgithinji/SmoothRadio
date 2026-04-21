@@ -32,9 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,26 +50,13 @@ fun RadioStationsScreen(
     gridScrollState: LazyGridState,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-
-    val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
+    val filteredStations by radioViewModel.filteredStations.collectAsStateWithLifecycle()
+    val allStations by radioViewModel.allStations.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val isGridView by radioViewModel.isGridView.collectAsStateWithLifecycle()
-
-    // Filter stations by search query
-    val filteredStations = remember(stations, searchQuery) {
-        if (searchQuery.isEmpty()) {
-            stations
-        } else {
-            stations.filter {
-                it.stationName.contains(searchQuery, ignoreCase = true) ||
-                        it.frequency.contains(searchQuery, ignoreCase = true) ||
-                        it.location.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
+    val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
+    val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -80,12 +64,12 @@ fun RadioStationsScreen(
                 onViewToggleClick = { radioViewModel.toggleViewPreference() },
                 isGridView = isGridView,
                 searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
+                onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
                 isSearchActive = isSearchActive,
-                onSearchActiveChange = { isSearchActive = it }
+                onSearchActiveChange = { radioViewModel.setSearchActive(it) }
             )
 
-            if (stations.isEmpty()) {
+            if (allStations.isEmpty()) {
                 // Loading state
                 Box(
                     modifier = Modifier.fillMaxSize(),
