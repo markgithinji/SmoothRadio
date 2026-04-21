@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -59,12 +61,12 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
 fun DiscoverScreen(
     radioViewModel: RadioViewModel,
     playerControlViewModel: PlayerControlViewModel,
+    discoverScrollState: LazyListState,
     modifier: Modifier = Modifier
 ) {
-    val stations by radioViewModel.allStations.collectAsState(initial = emptyList())
-    val favorites by radioViewModel.favoriteStations.collectAsState(initial = emptyList())
-    val playbackState by playerControlViewModel.playbackState.collectAsState(initial = "Idle")
-    val playingStation by playerControlViewModel.playingStation.collectAsState(initial = null)
+    val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
+    val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
+    val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
 
     val isLoading = stations.isEmpty()
 
@@ -136,6 +138,7 @@ fun DiscoverScreen(
             }
         } else {
             LazyColumn(
+                state = discoverScrollState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)

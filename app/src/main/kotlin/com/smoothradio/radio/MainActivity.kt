@@ -116,8 +116,9 @@ class MainActivity : ComponentActivity() {
         val playingStation by playerControlViewModel.playingStation.collectAsState()
         val playbackState by playerControlViewModel.playbackState.collectAsState()
 
-        val listScrollState = rememberLazyListState()
-        val gridScrollState = rememberLazyGridState()
+        val listScrollState = rememberLazyListState()      // For Stations list view
+        val gridScrollState = rememberLazyGridState()      // For Stations grid view
+        val discoverScrollState = rememberLazyListState()  // For Discover screen
 
         // Update current station when playing station changes
         LaunchedEffect(playingStation) {
@@ -178,7 +179,8 @@ class MainActivity : ComponentActivity() {
                     )
                     2 -> DiscoverScreen(
                         radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel
+                        playerControlViewModel = playerControlViewModel,
+                        discoverScrollState = discoverScrollState
                     )
                 }
             }
