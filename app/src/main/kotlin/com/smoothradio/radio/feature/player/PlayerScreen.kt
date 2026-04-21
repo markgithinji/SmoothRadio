@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -158,12 +160,13 @@ fun PlayerScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        
+        // Top Bar
         SimpleTopBar(title = "LIVE")
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -179,7 +182,8 @@ fun PlayerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Top
             ) {
                 val infiniteTransition = rememberInfiniteTransition()
                 val scale by infiniteTransition.animateFloat(
@@ -191,8 +195,9 @@ fun PlayerScreen(
                     )
                 )
 
+                // Logo
                 Box(
-                    modifier = Modifier.size(280.dp),
+                    modifier = Modifier.size(240.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     // Radar wave rings
@@ -217,7 +222,7 @@ fun PlayerScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(280.dp * waveRadius1)
+                                .size(240.dp * waveRadius1)
                                 .align(Alignment.Center)
                                 .clip(CircleShape)
                                 .background(
@@ -229,7 +234,7 @@ fun PlayerScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(280.dp * waveRadius2)
+                                .size(240.dp * waveRadius2)
                                 .align(Alignment.Center)
                                 .clip(CircleShape)
                                 .background(
@@ -250,7 +255,7 @@ fun PlayerScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(280.dp * waveRadius1)
+                                .size(240.dp * waveRadius1)
                                 .align(Alignment.Center)
                                 .clip(CircleShape)
                                 .border(
@@ -265,7 +270,7 @@ fun PlayerScreen(
                         shape = RoundedCornerShape(40.dp),
                         color = colorScheme.primary.copy(alpha = 0.08f),
                         modifier = Modifier
-                            .size(200.dp)
+                            .size(180.dp)
                             .scale(if (playbackState == "Playing") scale else 1f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -274,25 +279,26 @@ fun PlayerScreen(
                                 contentDescription = "${playingStation?.stationName} logo",
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(40.dp),
+                                    .padding(36.dp),
                                 contentScale = ContentScale.Fit
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = playingStation?.stationName ?: "No station playing",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 28.sp,
+                    fontSize = 24.sp,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Status indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
@@ -351,6 +357,7 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Metadata
                 if (metadata.isNotEmpty() && playbackState == "Playing") {
                     AndroidView(
                         factory = { ctx ->
@@ -372,11 +379,6 @@ fun PlayerScreen(
                             .height(48.dp)
                             .padding(horizontal = 16.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                } else if (playbackState == "Playing") {
-                    Spacer(modifier = Modifier.height(40.dp))
-                } else {
-                    Spacer(modifier = Modifier.height(40.dp))
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -523,25 +525,32 @@ fun PlayerScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Ad Banner
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            AdView(ctx).apply {
-                                adUnitId = "ca-app-pub-9799428944156340/4540584810"
-                                setAdSize(AdSize.LARGE_BANNER)
-                                loadAd(AdRequest.Builder().build())
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Card(
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .height(70.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        AndroidView(
+                            factory = { ctx ->
+                                AdView(ctx).apply {
+                                    adUnitId = "ca-app-pub-9799428944156340/4540584810"
+                                    setAdSize(AdSize.BANNER)
+                                    loadAd(AdRequest.Builder().build())
+                                }
+                            },
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .fillMaxHeight()
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
