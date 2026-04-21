@@ -46,14 +46,15 @@ class PlayerControlViewModel @Inject constructor(
 
     init {
         syncAdSettings()
+        // Initialize canShowAd
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+        }
     }
 
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
-            // Refresh ad status before playing
-            val canShow = canShowAdUseCase()
-            _canShowAd.value = canShow
-
+            _canShowAd.value = canShowAdUseCase()
             _playCommand.emit(PlayCommand.PlayStation(station))
         }
     }
@@ -80,7 +81,7 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
-    fun syncAdSettings() {
+    private fun syncAdSettings() {
         viewModelScope.launch {
             syncAdSettingsUseCase()
         }
