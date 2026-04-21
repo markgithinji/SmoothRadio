@@ -125,6 +125,10 @@ fun PlayerScreen(
 
     var metadata by remember { mutableStateOf("") }
 
+    // Cache the last known station to prevent flashing
+    val cachedStation by remember { mutableStateOf(playingStation) }
+    val displayStation = playingStation ?: cachedStation
+
     val animatedColor by animateColorAsState(
         targetValue = when {
             playbackState == "Playing" -> colorScheme.primary.copy(alpha = 0.15f)
@@ -160,7 +164,6 @@ fun PlayerScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Top Bar
         SimpleTopBar(title = "LIVE")
 
         Box(
@@ -201,7 +204,7 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     // Radar wave rings
-                    if (playbackState == "Playing") {
+                    if (playbackState == "Playing" && displayStation != null) {
                         val waveRadius1 by infiniteTransition.animateFloat(
                             initialValue = 0f,
                             targetValue = 1f,
@@ -274,22 +277,32 @@ fun PlayerScreen(
                             .scale(if (playbackState == "Playing") scale else 1f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Image(
-                                painter = painterResource(id = playingStation?.logoResource ?: R.drawable.playicon),
-                                contentDescription = "${playingStation?.stationName} logo",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(36.dp),
-                                contentScale = ContentScale.Fit
-                            )
+                            if (displayStation != null) {
+                                Image(
+                                    painter = painterResource(id = displayStation.logoResource),
+                                    contentDescription = "${displayStation.stationName} logo",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(36.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                // Show nothing or a subtle placeholder
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(colorScheme.primary.copy(alpha = 0.05f))
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Station Name
                 Text(
-                    text = playingStation?.stationName ?: "No station playing",
+                    text = displayStation?.stationName ?: "",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp,
@@ -420,7 +433,7 @@ fun PlayerScreen(
                                 )
                             )
                             .clickable {
-                                playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                                displayStation?.let { playerControlViewModel.requestPlayStation(it) }
                             },
                         contentAlignment = Alignment.Center
                     ) {
