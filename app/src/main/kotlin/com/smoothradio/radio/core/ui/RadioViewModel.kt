@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.domain.usecase.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +26,8 @@ class RadioViewModel @Inject constructor(
     private val radioLinkRepository: RadioLinkRepository,
     private val radioRepository: RadioRepository,
     private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase,
-    private val toggleFavoriteUseCase: ToggleFavoriteUseCase
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+    private val viewPreferenceRepository: ViewPreferenceRepository
 ) : AndroidViewModel(application) {
 
     val allStations = radioRepository.allStations
@@ -47,6 +49,28 @@ class RadioViewModel @Inject constructor(
 
     private val _favoriteToggleResult = MutableSharedFlow<Boolean>()
     val favoriteToggleResult: SharedFlow<Boolean> = _favoriteToggleResult
+
+    private val _isGridView = MutableStateFlow(false)
+    val isGridView: StateFlow<Boolean> = _isGridView.asStateFlow()
+
+    init {
+        loadViewPreference()
+    }
+
+    private fun loadViewPreference() {
+        viewModelScope.launch {
+            viewPreferenceRepository.getIsGridViewFlow().collect { isGridView ->
+                _isGridView.value = isGridView
+            }
+        }
+    }
+
+    fun toggleViewPreference() {
+        viewModelScope.launch {
+            val newValue = !_isGridView.value
+            viewPreferenceRepository.saveIsGridView(newValue)
+        }
+    }
 
     fun observeAndProcessRemoteLinks() {
         viewModelScope.launch {

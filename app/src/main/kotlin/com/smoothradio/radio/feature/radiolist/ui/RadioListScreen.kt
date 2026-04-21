@@ -50,12 +50,12 @@ fun RadioStationsScreen(
     gridScrollState: LazyGridState,
     modifier: Modifier = Modifier
 ) {
-    var isGridView by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
     val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
+    val isGridView by radioViewModel.isGridView.collectAsStateWithLifecycle()
 
     // Filter stations by search query
     val filteredStations = remember(stations, searchQuery) {
@@ -70,11 +70,12 @@ fun RadioStationsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             RadioTopBar(
                 onSearchClick = { /* Handle search */ },
-                onViewToggleClick = { isGridView = !isGridView },
+                onViewToggleClick = { radioViewModel.toggleViewPreference() },
                 isGridView = isGridView
             )
 
             if (stations.isEmpty()) {
+                // Loading state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
