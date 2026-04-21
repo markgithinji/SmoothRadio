@@ -25,6 +25,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +54,7 @@ fun RadioStationsScreen(
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
 
     val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
@@ -62,16 +66,23 @@ fun RadioStationsScreen(
         if (searchQuery.isEmpty()) {
             stations
         } else {
-            stations.filter { it.stationName.contains(searchQuery, ignoreCase = true) }
+            stations.filter {
+                it.stationName.contains(searchQuery, ignoreCase = true) ||
+                        it.frequency.contains(searchQuery, ignoreCase = true) ||
+                        it.location.contains(searchQuery, ignoreCase = true)
+            }
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             RadioTopBar(
-                onSearchClick = { /* Handle search */ },
                 onViewToggleClick = { radioViewModel.toggleViewPreference() },
-                isGridView = isGridView
+                isGridView = isGridView,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                isSearchActive = isSearchActive,
+                onSearchActiveChange = { isSearchActive = it }
             )
 
             if (stations.isEmpty()) {
@@ -109,6 +120,32 @@ fun RadioStationsScreen(
                         Text(
                             text = "Loading stations...",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
+                // No search results
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No stations found",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Try a different search term",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

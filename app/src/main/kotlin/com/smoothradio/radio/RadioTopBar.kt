@@ -9,8 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
@@ -26,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,9 +38,12 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RadioTopBar(
-    onSearchClick: () -> Unit,
     onViewToggleClick: () -> Unit,
-    isGridView: Boolean
+    isGridView: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    isSearchActive: Boolean,
+    onSearchActiveChange: (Boolean) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -51,35 +59,91 @@ fun RadioTopBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "SMOOTH RADIO",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    letterSpacing = 2.sp,
-                    color = Color.Black
-                )
+                if (isSearchActive) {
+                    // Search mode
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = {
+                            onSearchQueryChange("")
+                            onSearchActiveChange(false)
+                        }) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.Black
+                            )
+                        }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // View Toggle Button
-                    IconButton(onClick = onViewToggleClick) {
-                        Icon(
-                            imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
-                            contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
-                            tint = Color.Black,
-                            modifier = Modifier.size(24.dp)
+                        // Search Field
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            textStyle = TextStyle(
+                                fontSize = 16.sp,
+                                color = Color.Black
+                            ),
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search stations...",
+                                            color = Color.Gray,
+                                            fontSize = 16.sp
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            },
+                            singleLine = true
                         )
+
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChange("") }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color.Black
+                                )
+                            }
+                        }
                     }
+                } else {
+                    // Normal mode
+                    Text(
+                        "SMOOTH RADIO",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        letterSpacing = 2.sp,
+                        color = Color.Black
+                    )
 
-                    // Search Button
-                    IconButton(onClick = onSearchClick) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = Color.Black,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // View Toggle Button
+                        IconButton(onClick = onViewToggleClick) {
+                            Icon(
+                                imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                                contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Search Button
+                        IconButton(onClick = { onSearchActiveChange(true) }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
