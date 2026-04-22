@@ -44,9 +44,11 @@ class PlayerControlViewModel @Inject constructor(
             initialValue = null
         )
 
+    private val _metadata = MutableStateFlow("")
+    val metadata: StateFlow<String> = _metadata.asStateFlow()
+
     init {
         syncAdSettings()
-        // Initialize canShowAd
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
         }
@@ -67,6 +69,10 @@ class PlayerControlViewModel @Inject constructor(
 
     fun updatePlaybackState(state: String) {
         _playbackState.value = state
+    }
+
+    fun updateMetadata(metadata: String) {
+        _metadata.value = metadata
     }
 
     fun savePlayingStationId(id: Int) {

@@ -120,10 +120,8 @@ fun PlayerScreen(
 ) {
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
-
-    var metadata by remember { mutableStateOf("") }
 
     // Cache the last known station to prevent flashing
     val cachedStation by remember { mutableStateOf(playingStation) }
@@ -138,30 +136,6 @@ fun PlayerScreen(
         animationSpec = tween(1000, easing = FastOutSlowInEasing),
         label = "background color"
     )
-
-    // Clear metadata when playback stops
-    LaunchedEffect(playbackState) {
-        if (playbackState != "Playing" &&
-            playbackState != "Buffering" &&
-            playbackState != "Preparing Audio") {
-            metadata = ""
-        }
-    }
-
-    DisposableEffect(Unit) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                metadata = intent?.getStringExtra(StreamService.EXTRA_TITLE) ?: ""
-            }
-        }
-        val filter = IntentFilter(StreamService.ACTION_METADATA_CHANGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, filter)
-        }
-        onDispose { context.unregisterReceiver(receiver) }
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         SimpleTopBar(title = "LIVE")
@@ -287,7 +261,6 @@ fun PlayerScreen(
                                     contentScale = ContentScale.Fit
                                 )
                             } else {
-                                // Show nothing or a subtle placeholder
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -300,7 +273,6 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Station Name
                 Text(
                     text = displayStation?.stationName ?: "",
                     style = MaterialTheme.typography.headlineMedium,

@@ -8,6 +8,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -73,6 +74,7 @@ import kotlin.jvm.java
 class MainActivity : ComponentActivity() {
 
     private val eventReceiver: BroadcastReceiver = EventReceiver()
+    private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
     private val radioViewModel: RadioViewModel by viewModels()
 
@@ -95,7 +97,7 @@ class MainActivity : ComponentActivity() {
         serviceIntent = Intent(this, StreamService::class.java)
 
         showConsentForm()
-        setupBroadcastReceiver()
+        setupBroadcastReceivers()  // Updated to setup both receivers
 
         setContent {
             SmoothRadioTheme {
@@ -121,7 +123,6 @@ class MainActivity : ComponentActivity() {
         val listScrollState = rememberLazyListState()           // For Stations list view
         val gridScrollState = rememberLazyGridState()           // For Stations grid view
         val discoverScrollState = rememberLazyListState()       // For Discover screen
-        // Store scroll states for each category in Discover screen
         val discoverCategoryScrollStates = remember { mutableStateMapOf<String, LazyListState>() }
 
         // Update current station when playing station changes
@@ -133,7 +134,6 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
                 Column {
-                    // Bottom Navigation Bar
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -192,13 +192,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setupBroadcastReceiver() {
+    private fun setupBroadcastReceivers() {
+        // Event receiver
         val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(eventReceiver, eventFilter)
+        }
+
+        // Metadata receiver - stays alive across screen navigation
+        val metadataFilter = IntentFilter(StreamService.ACTION_METADATA_CHANGE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(metadataReceiver, metadataFilter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(metadataReceiver, metadataFilter)
+        }
+    }
+
+    private inner class MetadataReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val metadata = intent.getStringExtra(StreamService.EXTRA_TITLE)
+            playerControlViewModel.updateMetadata(metadata?:"")
         }
     }
 
@@ -447,6 +462,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(eventReceiver)
+        unregisterReceiver(metadataReceiver)
     }
 
     companion object {
