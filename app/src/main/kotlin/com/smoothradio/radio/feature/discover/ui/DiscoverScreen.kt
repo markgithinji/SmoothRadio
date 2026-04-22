@@ -71,6 +71,11 @@ fun DiscoverScreen(
 
     val isLoading = stations.isEmpty()
 
+    // Request state update when screen becomes visible
+    LaunchedEffect(Unit) {
+        playerControlViewModel.requestStateUpdate()
+    }
+
     // Create categories
     val categories = remember(stations, favorites) {
         CategoryHelper.createCategories(stations)

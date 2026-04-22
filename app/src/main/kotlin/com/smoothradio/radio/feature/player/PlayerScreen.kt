@@ -127,6 +127,11 @@ fun PlayerScreen(
     val cachedStation by remember { mutableStateOf(playingStation) }
     val displayStation = playingStation ?: cachedStation
 
+    // Request state update when screen becomes visible
+    LaunchedEffect(Unit) {
+        playerControlViewModel.requestStateUpdate()
+    }
+
     val animatedColor by animateColorAsState(
         targetValue = when {
             playbackState == "Playing" -> colorScheme.primary.copy(alpha = 0.15f)

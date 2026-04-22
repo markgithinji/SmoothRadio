@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
         serviceIntent = Intent(this, StreamService::class.java)
 
         showConsentForm()
-        setupBroadcastReceivers()  // Updated to setup both receivers
+        setupBroadcastReceivers()
 
         setContent {
             SmoothRadioTheme {
@@ -109,6 +109,20 @@ class MainActivity : ComponentActivity() {
         }
 
         collectPlaybackFlows()
+        collectViewModelEvents()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Request state update when app resumes
+        requestPlaybackState()
+    }
+
+    private fun requestPlaybackState() {
+        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
     }
 
     @Composable
@@ -120,14 +134,20 @@ class MainActivity : ComponentActivity() {
         val playingStation by playerControlViewModel.playingStation.collectAsState()
         val playbackState by playerControlViewModel.playbackState.collectAsState()
 
-        val listScrollState = rememberLazyListState()           // For Stations list view
-        val gridScrollState = rememberLazyGridState()           // For Stations grid view
-        val discoverScrollState = rememberLazyListState()       // For Discover screen
+        val listScrollState = rememberLazyListState()
+        val gridScrollState = rememberLazyGridState()
+        val discoverScrollState = rememberLazyListState()
         val discoverCategoryScrollStates = remember { mutableStateMapOf<String, LazyListState>() }
 
-        // Update current station when playing station changes
         LaunchedEffect(playingStation) {
             currentStation = playingStation
+        }
+
+        // Listen for requestState events from ViewModel
+        LaunchedEffect(Unit) {
+            playerControlViewModel.requestState.collect {
+                requestPlaybackState()
+            }
         }
 
         Scaffold(
@@ -193,7 +213,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupBroadcastReceivers() {
-        // Event receiver
         val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
@@ -201,7 +220,6 @@ class MainActivity : ComponentActivity() {
             registerReceiver(eventReceiver, eventFilter)
         }
 
-        // Metadata receiver - stays alive across screen navigation
         val metadataFilter = IntentFilter(StreamService.ACTION_METADATA_CHANGE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(metadataReceiver, metadataFilter, RECEIVER_NOT_EXPORTED)
@@ -210,10 +228,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private inner class MetadataReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val metadata = intent.getStringExtra(StreamService.EXTRA_TITLE)
-            playerControlViewModel.updateMetadata(metadata?:"")
+    private fun collectViewModelEvents() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    playerControlViewModel.requestState.collect {
+                        requestPlaybackState()
+                    }
+                }
+            }
         }
     }
 
@@ -456,6 +479,13 @@ class MainActivity : ComponentActivity() {
             }
 
             playerControlViewModel.updatePlaybackState(state)
+        }
+    }
+
+    private inner class MetadataReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val metadata = intent.getStringExtra(StreamService.EXTRA_TITLE) ?: ""
+            playerControlViewModel.updateMetadata(metadata)
         }
     }
 

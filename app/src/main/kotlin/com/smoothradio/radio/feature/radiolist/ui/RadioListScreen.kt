@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,11 @@ fun RadioStationsScreen(
     val isGridView by radioViewModel.isGridView.collectAsStateWithLifecycle()
     val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
     val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
+
+    // Request state update when screen becomes visible
+    LaunchedEffect(Unit) {
+        playerControlViewModel.requestStateUpdate()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {

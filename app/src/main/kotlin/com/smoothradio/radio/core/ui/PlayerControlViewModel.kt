@@ -47,6 +47,9 @@ class PlayerControlViewModel @Inject constructor(
     private val _metadata = MutableStateFlow("")
     val metadata: StateFlow<String> = _metadata.asStateFlow()
 
+    private val _requestState = MutableSharedFlow<Unit>()
+    val requestState: SharedFlow<Unit> = _requestState.asSharedFlow()
+
     init {
         syncAdSettings()
         viewModelScope.launch {
@@ -90,6 +93,12 @@ class PlayerControlViewModel @Inject constructor(
     private fun syncAdSettings() {
         viewModelScope.launch {
             syncAdSettingsUseCase()
+        }
+    }
+
+    fun requestStateUpdate() {
+        viewModelScope.launch {
+            _requestState.emit(Unit)
         }
     }
 }
