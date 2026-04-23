@@ -10,14 +10,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.support.v4.media.session.MediaSessionCompat
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -53,8 +54,10 @@ class StreamService : Service() {
     private lateinit var metadataIntent: Intent
     private lateinit var playPauseIntent: Intent
 
+    // Media Session
+    private lateinit var mediaSession: MediaSessionCompat
+
     // Notification Components
-    private lateinit var notificationBuilder: NotificationCompat.Builder
     private lateinit var stopPI: PendingIntent
     private lateinit var playPausePI: PendingIntent
 
@@ -77,18 +80,146 @@ class StreamService : Service() {
         super.onCreate()
         setupAudioFocus()
         setupIntents()
-        setupNotification()
+        setupMediaSession()
+        setupNotificationChannel()
         registerReceivers()
         exoplayerEventListener = EventListener()
 
-        startForeground(1, createDefaultNotification())
+        startForeground(NOTIFICATION_ID, createMediaStyleNotification())
         isForegroundStarted = true
     }
 
-    private fun createDefaultNotification(): Notification {
-        return notificationBuilder
-            .setContentText(getString(R.string.preparing))
+    private fun setupMediaSession() {
+        mediaSession = MediaSessionCompat(this, "StreamService")
+        mediaSession.setFlags(
+            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+        )
+
+        mediaSession.setCallback(object : MediaSessionCompat.Callback() {
+            override fun onPlay() {
+                if (!isPlaying) {
+                    resumePlayer()
+                }
+            }
+
+            override fun onPause() {
+                if (isPlaying) {
+                    pausePlayer(null)
+                }
+            }
+
+            override fun onStop() {
+                stopSelf()
+            }
+        })
+
+        mediaSession.isActive = true
+    }
+
+    private fun setupNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                setSound(null, null)
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createMediaStyleNotification(): Notification {
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        playPausePI = getPlayPausePendingIntent()
+        stopPI = getStopPendingIntent()
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notificationicon)
+            .setContentTitle(currentStationName ?: getString(R.string.app_name))
+            .setContentText(stateChange.ifEmpty { getString(R.string.preparing) })
+            .setLargeIcon(getStationLogo())
+            .setContentIntent(contentIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(isPlaying)
+            .addAction(
+                if (isPlaying) R.drawable.pause_notification_icon else R.drawable.play_notification_icon,
+                if (isPlaying) TITLE_PAUSE else TITLE_PLAY,
+                playPausePI
+            )
+            .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession.sessionToken)
+                    .setShowActionsInCompactView(0)
+            )
             .build()
+    }
+
+    private fun getPlayPausePendingIntent(): PendingIntent {
+        val intent = Intent(ACTION_PLAY_PAUSE).setPackage(packageName)
+        return PendingIntent.getBroadcast(
+            this, 1, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun getStopPendingIntent(): PendingIntent {
+        val intent = Intent(ACTION_STOP).setPackage(packageName)
+        return PendingIntent.getBroadcast(
+            this, 2, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun getStationLogo(): Bitmap? {
+        return if (currentStationLogo != 0) {
+            BitmapFactory.decodeResource(resources, currentStationLogo)
+        } else {
+            null
+        }
+    }
+
+    private fun updateMediaStyleNotification() {
+        if (!isForegroundStarted) return
+
+        playPausePI = getPlayPausePendingIntent()
+        stopPI = getStopPendingIntent()
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notificationicon)
+            .setContentTitle(currentStationName ?: getString(R.string.app_name))
+            .setContentText(stateChange)
+            .setLargeIcon(getStationLogo())
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(isPlaying)
+            .addAction(
+                if (isPlaying) R.drawable.pause_notification_icon else R.drawable.play_notification_icon,
+                if (isPlaying) TITLE_PAUSE else TITLE_PLAY,
+                playPausePI
+            )
+            .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+            .setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession.sessionToken)
+                    .setShowActionsInCompactView(0)
+            )
+            .build()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,11 +234,17 @@ class StreamService : Service() {
 
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
-        updateNotification(getString(R.string.preparing), showPlay = false, showPause = false)
-
         when (intent.action) {
-            ACTION_START -> play(link)
-            ACTION_SHOW_AD -> prepareShowAd()
+            ACTION_START -> {
+                updateMediaStyleNotification()
+                play(link)
+            }
+
+            ACTION_SHOW_AD -> {
+                updateMediaStyleNotification()
+                prepareShowAd()
+            }
+
             else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
         }
     }
@@ -129,56 +266,6 @@ class StreamService : Service() {
     private fun setupIntents() {
         eventIntent = Intent(ACTION_EVENT_CHANGE).setPackage(packageName)
         metadataIntent = Intent(ACTION_METADATA_CHANGE).setPackage(packageName)
-    }
-
-    private fun setupNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                setSound(null, null)
-                setShowBadge(false)
-            }
-            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
-                channel
-            )
-        }
-
-        val notificationIntent = Intent(this, MainActivity::class.java).setPackage(packageName)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            notificationIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val stopIntent = Intent(ACTION_STOP).setPackage(packageName)
-        stopPI = PendingIntent.getBroadcast(
-            this, 1, stopIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        playPauseIntent.setAction(ACTION_PLAY_PAUSE).setPackage(packageName)
-        playPausePI = PendingIntent.getBroadcast(
-            this, 1, playPauseIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID).apply {
-            priority = Notification.PRIORITY_DEFAULT
-            setSmallIcon(R.drawable.notificationicon)
-            setContentIntent(pendingIntent)
-            setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            addAction(R.drawable.pause_notification_icon, TITLE_PAUSE, playPausePI)
-            addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
-            setColor(ContextCompat.getColor(this@StreamService, R.color.red))
-            setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setShowActionsInCompactView(0, 1)
-            )
-        }
     }
 
     private fun registerReceivers() {
@@ -238,6 +325,8 @@ class StreamService : Service() {
         isPlaying = false
         stateChange = ""
         broadcastState(stateChange)
+        mediaSession.isActive = false
+        mediaSession.release()
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
         unregisterAllReceivers()
     }
@@ -255,6 +344,7 @@ class StreamService : Service() {
         preparePlayer(link.toUri())
         requestFocus()
         player?.play()
+        updateMediaStyleNotification()
     }
 
     private fun preparePlayer(uri: Uri) {
@@ -276,48 +366,12 @@ class StreamService : Service() {
         isPlaying = false
         stateChange = StreamStates.PREPARING
         broadcastState(stateChange)
+        updateMediaStyleNotification()
     }
 
     private fun broadcastState(state: String) {
         eventIntent.putExtra(EXTRA_STATE, state)
         sendBroadcast(eventIntent)
-    }
-
-    private fun updateNotification(state: String, showPlay: Boolean = false, showPause: Boolean = false) {
-        if (!isForegroundStarted) return
-
-        notificationBuilder.apply {
-            setContentTitle(currentStationName ?: getString(R.string.app_name))
-            setContentText(state)
-
-            // Set large icon if available
-            if (currentStationLogo != 0) {
-                setLargeIcon(BitmapFactory.decodeResource(resources, currentStationLogo))
-            }
-
-            // Clear and rebuild actions
-            mActions.clear()
-
-            if (showPlay) {
-                addAction(R.drawable.play_notification_icon, TITLE_PLAY, playPausePI)
-            }
-            if (showPause) {
-                addAction(R.drawable.pause_notification_icon, TITLE_PAUSE, playPausePI)
-            }
-            addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
-
-            // Configure media style
-            val mediaStyle = androidx.media.app.NotificationCompat.MediaStyle()
-            if (!showPlay && !showPause) {
-                mediaStyle.setShowActionsInCompactView(0)
-            } else {
-                mediaStyle.setShowActionsInCompactView(0, 1)
-            }
-            setStyle(mediaStyle)
-        }
-
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
 
     private fun requestFocus() {
@@ -330,19 +384,6 @@ class StreamService : Service() {
 
     private fun abandonFocus() {
         audioManager.abandonAudioFocus(onAudioFocusChangeListener)
-    }
-
-    inner class PLayPauseReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val source = intent.getStringExtra(EXTRA_SOURCE)
-            if (isPlaying) {
-                pausePlayer(source)
-            } else {
-                resumePlayer()
-                mediaMetadataOR = player?.mediaMetadata
-                mediaMetadataOR?.let { sendMetadataBroadcast(it) }
-            }
-        }
     }
 
     private fun sendMetadataBroadcast(metadata: MediaMetadata) {
@@ -359,7 +400,7 @@ class StreamService : Service() {
         isPlaying = false
         stateChange = StreamStates.IDLE
         broadcastState(stateChange)
-        updateNotification(getString(R.string.paused), showPlay = true, showPause = false)
+        updateMediaStyleNotification()
     }
 
     private fun resumePlayer() {
@@ -368,7 +409,20 @@ class StreamService : Service() {
         isPlaying = true
         stateChange = StreamStates.PLAYING
         broadcastState(stateChange)
-        updateNotification(stateChange, showPlay = false, showPause = true)
+        updateMediaStyleNotification()
+        mediaMetadataOR = player?.mediaMetadata
+        mediaMetadataOR?.let { sendMetadataBroadcast(it) }
+    }
+
+    inner class PLayPauseReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val source = intent.getStringExtra(EXTRA_SOURCE)
+            if (isPlaying) {
+                pausePlayer(source)
+            } else {
+                resumePlayer()
+            }
+        }
     }
 
     inner class StopPlayFromTimerReceiver : BroadcastReceiver() {
@@ -378,14 +432,6 @@ class StreamService : Service() {
         }
     }
 
-    /**
-     * BroadcastReceiver responsible for setting a timer to stop music playback.
-     *
-     * This receiver is triggered when an intent with the action to set a stop timer is received.
-     * It schedules an alarm using {@link AlarmManager} to send a broadcast intent
-     * ({@link #stopPlayFromTimerIntent}) at the specified time. This broadcast will then
-     * be handled by another receiver to actually stop the music playback.
-     */
     inner class SetStopTimerReceiver : BroadcastReceiver() {
         private val stopPlayFromTimerIntent = Intent(ACTION_STOP).setPackage(packageName)
 
@@ -431,7 +477,7 @@ class StreamService : Service() {
                 stateChange = StreamStates.PLAYING
                 this@StreamService.isPlaying = true
                 broadcastState(stateChange)
-                updateNotification(state = stateChange, showPlay = false, showPause = true)
+                updateMediaStyleNotification()
             }
         }
 
@@ -459,7 +505,7 @@ class StreamService : Service() {
             abandonFocus()
             stateChange = StreamStates.BUFFERING
             broadcastState(stateChange)
-            updateNotification(state = stateChange, showPlay = false, showPause = false)
+            updateMediaStyleNotification()
         }
 
         private fun handleIdleState() {
@@ -467,7 +513,7 @@ class StreamService : Service() {
             stateChange = StreamStates.IDLE
             isPlaying = false
             broadcastState(stateChange)
-            updateNotification(state = stateChange, showPlay = true, showPause = false)
+            updateMediaStyleNotification()
         }
 
         private fun handleReadyState() {
@@ -475,7 +521,7 @@ class StreamService : Service() {
             stateChange = StreamStates.PLAYING
             isPlaying = true
             broadcastState(stateChange)
-            updateNotification(state = stateChange, showPlay = false, showPause = true)
+            updateMediaStyleNotification()
         }
 
         private fun handleEndedState() {
@@ -483,7 +529,7 @@ class StreamService : Service() {
             stateChange = StreamStates.ENDED
             isPlaying = false
             broadcastState(stateChange)
-            updateNotification(state = stateChange, showPlay = true, showPause = false)
+            updateMediaStyleNotification()
         }
     }
 
@@ -499,7 +545,7 @@ class StreamService : Service() {
         // Broadcast Actions
         const val ACTION_START = "SmoothService:Start"
         const val ACTION_STOP = "SmoothService:Stop"
-        const val ACTION_SHOW_AD = "SmoothService:Stop"
+        const val ACTION_SHOW_AD = "SmoothService:ShowAd"
         const val ACTION_EVENT_CHANGE = "SmoothService:EventChangeListener"
         const val ACTION_METADATA_CHANGE = "SmoothService:MetadataChangeListener"
         const val ACTION_GET_STATE = "SmoothService:GetState"
@@ -518,7 +564,7 @@ class StreamService : Service() {
         const val EXTRA_SOURCE = "source"
 
         // Notification Info
-        private const val CHANNEL_ID = "serviceChannel"
+        private const val CHANNEL_ID = "media_playback_channel"
         private const val TITLE_PLAY = "Play"
         private const val TITLE_PAUSE = "Pause"
         private const val TITLE_STOP = "Stop"
