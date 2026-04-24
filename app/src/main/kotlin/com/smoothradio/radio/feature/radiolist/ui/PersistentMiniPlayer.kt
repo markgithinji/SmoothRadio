@@ -162,19 +162,14 @@ fun PersistentMiniPlayer(
 
                 // Station Info
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = station?.stationName ?: "No station selected",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = station?.stationName ?: "No station selected",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
                     Spacer(modifier = Modifier.height(2.dp))
 
@@ -189,10 +184,7 @@ fun PersistentMiniPlayer(
                         label = "statusColor"
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Box(modifier = Modifier.height(14.dp)) {
                         when {
                             isBuffering -> {
                                 Text(
@@ -210,14 +202,6 @@ fun PersistentMiniPlayer(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = statusColor
-                                )
-                            }
-                            else -> {
-                                Text(
-                                    text = playbackState,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
                                     color = statusColor
                                 )
                             }

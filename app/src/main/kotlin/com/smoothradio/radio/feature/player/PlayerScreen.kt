@@ -354,15 +354,6 @@ fun PlayerScreen(
                                 color = colorScheme.tertiary
                             )
                         }
-                        else -> {
-                            Text(
-                                text = playbackState.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
-                                letterSpacing = 1.5.sp,
-                                color = colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
 
