@@ -468,6 +468,7 @@ class StreamService : Service() {
 
     inner class EventListener : Player.Listener {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            mediaMetadataOR = mediaMetadata
             sendMetadataBroadcast(mediaMetadata)
         }
 

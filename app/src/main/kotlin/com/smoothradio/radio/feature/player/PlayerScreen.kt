@@ -25,10 +25,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +97,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -102,10 +107,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -121,6 +131,7 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.SimpleTopBar
 import com.smoothradio.radio.service.StreamService
+import kotlinx.coroutines.delay
 import kotlin.collections.emptyList
 
 @Composable
@@ -357,27 +368,11 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Metadata
-                if (metadata.isNotEmpty() && playbackState == "Playing") {
-                    AndroidView(
-                        factory = { ctx ->
-                            android.widget.TextView(ctx).apply {
-                                text = metadata
-                                textSize = 14f
-                                setTextColor(colorScheme.onSurface.toArgb())
-                                maxLines = 1
-                                ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
-                                marqueeRepeatLimit = -1
-                                isSelected = true
-                                isFocusable = true
-                                isFocusableInTouchMode = true
-                                gravity = android.view.Gravity.CENTER
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp)
+                // Animated Metadata with marquee
+                if (playbackState == "Playing") {
+                    AnimatedMetadataWithMarquee(
+                        metadata = metadata,
+                        isVisible = playbackState == "Playing"
                     )
                 }
 
@@ -531,6 +526,85 @@ fun PlayerScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun AnimatedMetadataWithMarquee(
+    metadata: String,
+    isVisible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    // Fade and slide animation for metadata appearance
+    val metadataVisible by animateFloatAsState(
+        targetValue = if (isVisible && metadata.isNotEmpty()) 1f else 0f,
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "metadataVisibility"
+    )
+
+    val metadataOffset by animateFloatAsState(
+        targetValue = if (isVisible && metadata.isNotEmpty()) 0f else 20f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "metadataOffset"
+    )
+
+    AnimatedContent(
+        targetState = metadata,
+        transitionSpec = {
+            (slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = tween(500, easing = FastOutSlowInEasing)
+            ) + fadeIn(tween(400))) togetherWith
+                    (slideOutVertically(
+                        targetOffsetY = { -it / 2 },
+                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                    ) + fadeOut(tween(300)))
+        },
+        label = "metadataTransition"
+    ) { currentMetadata ->
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 16.dp)
+                .graphicsLayer {
+                    alpha = metadataVisible
+                    translationY = metadataOffset
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = currentMetadata,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            animationMode = MarqueeAnimationMode.Immediately,
+                            initialDelayMillis = 1000,
+                            velocity = 30.dp
+                        )
+                    )
+                }
             }
         }
     }
