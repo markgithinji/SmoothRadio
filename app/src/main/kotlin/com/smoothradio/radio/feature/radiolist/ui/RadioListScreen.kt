@@ -33,6 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,8 +43,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.RadioTopBar
+import com.smoothradio.radio.core.ui.AppToast
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.ToastType
 
 @Composable
 fun RadioStationsScreen(
@@ -59,12 +64,24 @@ fun RadioStationsScreen(
     val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
     val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
 
+    // Toast state
+    var toastMessage by remember { mutableStateOf("") }
+    var isToastVisible by remember { mutableStateOf(false) }
+
+    // Observe favorite limit events
+    LaunchedEffect(Unit) {
+        radioViewModel.favoriteLimitExceeded.collect { message ->
+            toastMessage = message
+            isToastVisible = true
+        }
+    }
+
     // Request state update when screen becomes visible
     LaunchedEffect(Unit) {
         playerControlViewModel.requestStateUpdate()
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             RadioTopBar(
                 onViewToggleClick = { radioViewModel.toggleViewPreference() },
@@ -215,5 +232,15 @@ fun RadioStationsScreen(
                 }
             )
         }
+
+        // Toast for favorite limit exceeded
+        AppToast(
+            toastType = ToastType.Error(toastMessage),
+            isVisible = isToastVisible,
+            onDismiss = { isToastVisible = false },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 100.dp) // Above mini player
+        )
     }
 }

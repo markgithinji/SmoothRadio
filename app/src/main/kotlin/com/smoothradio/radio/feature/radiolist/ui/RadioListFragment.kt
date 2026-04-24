@@ -92,9 +92,9 @@ class RadioListFragment : Fragment() {
                     }
                 }
                 launch {
-                    radioViewModel.favoriteToggleResult.collect { success ->
-                        if (!success) showToast(getString(R.string.favorite_limit_reached))
-                    }
+//                    radioViewModel.favoriteToggleResult.collect { success ->
+//                        if (!success) showToast(getString(R.string.favorite_limit_reached))
+//                    }
                 }
             }
         }
