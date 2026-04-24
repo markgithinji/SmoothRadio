@@ -6,16 +6,26 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.util.Log
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -391,36 +401,13 @@ fun PlayerScreen(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .shadow(
-                                elevation = 16.dp,
-                                shape = CircleShape,
-                                ambientColor = colorScheme.primary,
-                                spotColor = colorScheme.primary
-                            )
-                            .clip(CircleShape)
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        colorScheme.primary,
-                                        colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-                                )
-                            )
-                            .clickable {
-                                displayStation?.let { playerControlViewModel.requestPlayStation(it) }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (playbackState == "Playing") Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playbackState == "Playing") "Pause" else "Play",
-                            modifier = Modifier.size(48.dp),
-                            tint = Color.White
-                        )
-                    }
+                    // Animated Play/Pause Button
+                    AnimatedPlayPauseButton(
+                        playbackState = playbackState,
+                        onClick = {
+                            displayStation?.let { playerControlViewModel.requestPlayStation(it) }
+                        }
+                    )
 
                     IconButton(
                         onClick = { /* Implement next */ },
@@ -544,6 +531,88 @@ fun PlayerScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun AnimatedPlayPauseButton(
+    playbackState: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val isPlaying = playbackState == "Playing"
+
+    // Animate button color transition
+    val buttonColor by animateColorAsState(
+        targetValue = if (isPlaying) colorScheme.primary else colorScheme.primary.copy(alpha = 0.8f),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "buttonColor"
+    )
+
+    // Animate button elevation
+    val buttonElevation by animateDpAsState(
+        targetValue = if (isPlaying) 20.dp else 16.dp,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "buttonElevation"
+    )
+
+    Box(
+        modifier = modifier.size(80.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Main button
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .shadow(
+                    elevation = buttonElevation,
+                    shape = CircleShape,
+                    ambientColor = colorScheme.primary.copy(alpha = 0.3f),
+                    spotColor = colorScheme.primary.copy(alpha = 0.3f)
+                )
+                .clip(CircleShape)
+                .background(buttonColor)
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            // Crossfade between play and pause icons
+            AnimatedContent(
+                targetState = isPlaying,
+                transitionSpec = {
+                    if (targetState) {
+                        // Play -> Pause
+                        (scaleIn(
+                            initialScale = 0.6f,
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(tween(300))) togetherWith
+                                (scaleOut(
+                                    targetScale = 0.6f,
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    } else {
+                        // Pause -> Play
+                        (scaleIn(
+                            initialScale = 0.6f,
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(tween(300))) togetherWith
+                                (scaleOut(
+                                    targetScale = 0.6f,
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    }
+                },
+                label = "playPauseIcon"
+            ) { playing ->
+                Icon(
+                    imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (playing) "Pause" else "Play",
+                    modifier = Modifier
+                        .size(48.dp),
+                    tint = Color.White
+                )
             }
         }
     }
