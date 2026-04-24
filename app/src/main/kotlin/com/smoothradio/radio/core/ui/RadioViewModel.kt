@@ -9,6 +9,7 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.domain.usecase.ToggleFavoriteUseCase
+import com.smoothradio.radio.core.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,8 +49,8 @@ class RadioViewModel @Inject constructor(
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    private val _favoriteToggleResult = MutableSharedFlow<Boolean>()
-    val favoriteToggleResult: SharedFlow<Boolean> = _favoriteToggleResult
+    private val _favoriteLimitExceeded = MutableSharedFlow<String>()
+    val favoriteLimitExceeded: SharedFlow<String> = _favoriteLimitExceeded
 
     private val _isGridView = MutableStateFlow(false)
     val isGridView: StateFlow<Boolean> = _isGridView.asStateFlow()
@@ -106,7 +107,7 @@ class RadioViewModel @Inject constructor(
     fun setSearchActive(active: Boolean) {
         _isSearchActive.value = active
         if (!active) {
-            _searchQuery.value = "" // Clear search when exiting
+            _searchQuery.value = ""
         }
     }
 
@@ -124,8 +125,21 @@ class RadioViewModel @Inject constructor(
 
     fun toggleFavorite(stationId: Int, newState: Boolean) {
         viewModelScope.launch {
-            val result = toggleFavoriteUseCase(stationId, newState)
-            _favoriteToggleResult.emit(result)
+            when (val result = toggleFavoriteUseCase(stationId, newState)) {
+                is Resource.Error -> {
+                    result.message?.let { message ->
+                        _favoriteLimitExceeded.emit(message)
+                    }
+                }
+
+                is Resource.Success -> {
+                    // Successfully toggled favorite, no action needed
+                }
+
+                is Resource.Loading -> {
+                    // Not applicable for this use case
+                }
+            }
         }
     }
 
