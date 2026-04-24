@@ -116,16 +116,8 @@ fun RadioStationRow(
                     } else Modifier
                 )
         ) {
-            val painter = rememberAsyncImagePainter(
-                model = ImageRequest.Builder(context)
-                    .data(station.logoResource)
-                    .crossfade(true)
-                    .build(),
-                error = painterResource(id = R.drawable.playicon)
-            )
-
             Image(
-                painter = painter,
+                painter = painterResource(id = station.logoResource),
                 contentDescription = "${station.stationName} logo",
                 modifier = Modifier
                     .fillMaxSize()

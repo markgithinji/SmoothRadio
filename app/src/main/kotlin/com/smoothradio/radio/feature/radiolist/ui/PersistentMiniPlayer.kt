@@ -37,6 +37,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,8 +64,11 @@ fun PersistentMiniPlayer(
 ) {
     val isBuffering = playbackState == "Buffering" || playbackState == "Preparing Audio"
     val isPlaying = playbackState == "Playing"
-    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+
+    // Cache the last known station to prevent flashing TODO: Improve this
+    val cachedStation by remember { mutableStateOf(station) }
+    val displayStation = station ?: cachedStation
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -97,7 +102,6 @@ fun PersistentMiniPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Station Logo with pulse animation when buffering
                 val infiniteTransition = rememberInfiniteTransition()
                 val pulseScale by infiniteTransition.animateFloat(
                     initialValue = 1f,
@@ -116,26 +120,20 @@ fun PersistentMiniPlayer(
                                 scaleX = pulseScale
                                 scaleY = pulseScale
                             } else Modifier
-                        )
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(context)
-                            .data(station?.logoResource ?: R.drawable.playicon)
-                            .crossfade(true)
-                            .build(),
-                        error = painterResource(id = R.drawable.playicon)
-                    )
+                    if (displayStation != null) {
+                        Image(
+                            painter = painterResource(id = displayStation.logoResource),
+                            contentDescription = "${displayStation.stationName} logo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
 
-                    Image(
-                        painter = painter,
-                        contentDescription = "${station?.stationName} logo",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(10.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    // Subtle ripple overlay when buffering
                     if (isBuffering) {
                         val rippleRadius by infiniteTransition.animateFloat(
                             initialValue = 0f,
@@ -160,10 +158,9 @@ fun PersistentMiniPlayer(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Station Info
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = station?.stationName ?: "No station selected",
+                        text = displayStation?.stationName ?: "No station selected",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface,
@@ -173,7 +170,6 @@ fun PersistentMiniPlayer(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    // Status text color
                     val statusColor by animateColorAsState(
                         targetValue = when {
                             isPlaying -> colorScheme.primary
@@ -209,7 +205,6 @@ fun PersistentMiniPlayer(
                     }
                 }
 
-                // Play/Pause Button
                 when {
                     isBuffering -> {
                         Box(
