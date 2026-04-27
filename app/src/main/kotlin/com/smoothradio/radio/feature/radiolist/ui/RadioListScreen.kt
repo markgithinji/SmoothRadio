@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.RadioTopBar
 import com.smoothradio.radio.core.ui.AppToast
+import com.smoothradio.radio.core.ui.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.ToastType
@@ -103,30 +104,7 @@ fun RadioStationsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val infiniteTransition = rememberInfiniteTransition()
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            repeat(3) { index ->
-                                val delay = (index * 200)
-                                val scale by infiniteTransition.animateFloat(
-                                    initialValue = 0.5f,
-                                    targetValue = 1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween<Float>(400, delayMillis = delay),
-                                        repeatMode = RepeatMode.Reverse
-                                    )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .scale(scale)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-                        }
+                        DotLoadingAnimation()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Loading stations...",

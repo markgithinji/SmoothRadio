@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.DotLoadingAnimation
 
 @Composable
 fun PersistentMiniPlayer(
@@ -194,35 +195,14 @@ fun PersistentMiniPlayer(
 
                 when {
                     isBuffering -> {
-                        Box(
-                            modifier = Modifier.size(40.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                repeat(3) { index ->
-                                    val delay = (index * 150)
-                                    val alpha by infiniteTransition.animateFloat(
-                                        initialValue = 0.3f,
-                                        targetValue = 1f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween<Float>(400, delayMillis = delay),
-                                            repeatMode = RepeatMode.Reverse
-                                        )
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                colorScheme.tertiary.copy(alpha = alpha)
-                                            )
-                                    )
-                                }
-                            }
-                        }
+                        DotLoadingAnimation(
+                            dotSize = 5.dp,
+                            dotSpacing = 3.dp,
+                            color = colorScheme.tertiary,
+                            animationDelay = 150,
+                            animationDuration = 400,
+                            modifier = Modifier.size(40.dp)
+                        )
                     }
                     else -> {
                         IconButton(

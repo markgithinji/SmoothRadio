@@ -128,6 +128,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.SimpleTopBar
@@ -346,24 +347,13 @@ fun PlayerScreen(
                             )
                         }
                         playbackState == "Buffering" || playbackState == "Preparing Audio" -> {
-                            repeat(3) { index ->
-                                val delay = (index * 200)
-                                val alpha by infiniteTransition.animateFloat(
-                                    initialValue = 0.3f,
-                                    targetValue = 1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(400, delayMillis = delay),
-                                        repeatMode = RepeatMode.Reverse
-                                    )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(colorScheme.tertiary.copy(alpha = alpha))
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                            }
+                            DotLoadingAnimation(
+                                dotSize = 8.dp,
+                                dotSpacing = 6.dp,
+                                color = colorScheme.tertiary,
+                                animationDelay = 200,
+                                animationDuration = 400
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "BUFFERING",
