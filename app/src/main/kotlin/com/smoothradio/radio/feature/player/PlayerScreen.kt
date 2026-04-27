@@ -149,6 +149,7 @@ fun PlayerScreen(
     val colorScheme = MaterialTheme.colorScheme
 
     var swipeDirection by remember { mutableStateOf(0f) }
+    var showSleepDialog by remember { mutableStateOf(false) }
 
     if (playingStation == null) {
         Box(
@@ -270,7 +271,7 @@ fun PlayerScreen(
                         Text("Refresh", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(onClick = { }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+                        IconButton(onClick = { showSleepDialog = true }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
                             Icon(Icons.Default.Timer, "Sleep Timer", Modifier.size(24.dp), tint = colorScheme.onSurfaceVariant)
                         }
                         Text("Sleep", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
@@ -297,6 +298,16 @@ fun PlayerScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+
+    if (showSleepDialog) {
+        SleepTimerDialog(
+            onDismiss = { showSleepDialog = false },
+            onConfirm = { minutes ->
+                showSleepDialog = false
+                playerControlViewModel.setSleepTimer(minutes)
+            }
+        )
     }
 }
 
@@ -604,4 +615,38 @@ fun AnimatedPlayPauseButton(
             }
         }
     }
+}
+
+@Composable
+fun SleepTimerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val options = listOf(5, 10, 15, 30, 45, 60)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sleep Timer") },
+        text = {
+            Column {
+                Text("Stop playback after:", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                options.forEach { minutes ->
+                    TextButton(
+                        onClick = { onConfirm(minutes) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (minutes < 60) "$minutes minutes" else "1 hour",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

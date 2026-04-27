@@ -256,6 +256,7 @@ class MainActivity : ComponentActivity() {
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.Next -> playNext()
                             is PlayCommand.Previous -> playPrevious()
+                            is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                         }
                     }
                 }
@@ -269,6 +270,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun setSleepTimer(minutes: Int) {
+        val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        val intent = Intent(StreamService.ACTION_SET_TIMER).apply {
+            setPackage(packageName)
+            putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+        }
+        sendBroadcast(intent)
+        Toast.makeText(this, "Sleep timer set for $minutes minutes", Toast.LENGTH_SHORT).show()
     }
 
     private fun playNext() {

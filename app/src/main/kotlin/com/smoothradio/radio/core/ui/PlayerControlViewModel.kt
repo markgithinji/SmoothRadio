@@ -12,16 +12,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
@@ -76,6 +70,26 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun requestNextStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Next)
+        }
+    }
+
+    fun requestPreviousStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Previous)
+        }
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        viewModelScope.launch {
+            _playCommand.emit(PlayCommand.SetSleepTimer(minutes))
+        }
+    }
+
     fun updatePlaybackState(state: String) {
         _playbackState.value = state
     }
@@ -107,20 +121,6 @@ class PlayerControlViewModel @Inject constructor(
             _requestState.emit(Unit)
         }
     }
-    
-    fun requestNextStation() {
-        viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.emit(PlayCommand.Next)
-        }
-    }
-
-    fun requestPreviousStation() {
-        viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.emit(PlayCommand.Previous)
-        }
-    }
 }
 
 sealed class PlayCommand {
@@ -128,4 +128,5 @@ sealed class PlayCommand {
     object Refresh : PlayCommand()
     object Next : PlayCommand()
     object Previous : PlayCommand()
+    data class SetSleepTimer(val minutes: Int) : PlayCommand()
 }
