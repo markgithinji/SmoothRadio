@@ -1,12 +1,20 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -193,27 +201,84 @@ fun PersistentMiniPlayer(
                     }
                 }
 
-                when {
-                    isBuffering -> {
-                        DotLoadingAnimation(
-                            dotSize = 5.dp,
-                            dotSpacing = 3.dp,
-                            color = colorScheme.tertiary,
-                            animationDelay = 150,
-                            animationDuration = 400,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                    else -> {
-                        IconButton(
-                            onClick = onPlayPauseClick,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = colorScheme.primary
-                            )
+                // Animated control button
+                AnimatedContent(
+                    targetState = when {
+                        isBuffering -> "buffering"
+                        isPlaying -> "playing"
+                        else -> "idle"
+                    },
+                    transitionSpec = {
+                        when {
+                            targetState == "buffering" -> {
+                                (fadeIn(tween(300)) + scaleIn(
+                                    initialScale = 0.5f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )) togetherWith
+                                        (fadeOut(tween(200)) + scaleOut(
+                                            targetScale = 0.5f,
+                                            animationSpec = tween(200)
+                                        ))
+                            }
+                            initialState == "buffering" -> {
+                                (fadeIn(tween(300)) + scaleIn(
+                                    initialScale = 0.5f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )) togetherWith
+                                        (fadeOut(tween(200)) + scaleOut(
+                                            targetScale = 0.5f,
+                                            animationSpec = tween(200)
+                                        ))
+                            }
+                            else -> {
+                                (fadeIn(tween(300)) + scaleIn(
+                                    initialScale = 0.7f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )) togetherWith
+                                        (fadeOut(tween(200)) + scaleOut(
+                                            targetScale = 0.7f,
+                                            animationSpec = tween(200)
+                                        ))
+                            }
+                        }
+                    },
+                    label = "controlButton"
+                ) { state ->
+                    Box(
+                        modifier = Modifier.size(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when (state) {
+                            "buffering" -> {
+                                DotLoadingAnimation(
+                                    dotSize = 5.dp,
+                                    dotSpacing = 3.dp,
+                                    color = colorScheme.tertiary,
+                                    animationDelay = 150,
+                                    animationDuration = 400
+                                )
+                            }
+                            else -> {
+                                IconButton(
+                                    onClick = onPlayPauseClick,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isPlaying) "Pause" else "Play",
+                                        tint = colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
