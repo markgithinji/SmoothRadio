@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -188,6 +187,7 @@ fun PersistentMiniPlayer(
                                     letterSpacing = 0.5.sp
                                 )
                             }
+
                             isPlaying -> {
                                 Text(
                                     text = "PLAYING",
@@ -211,43 +211,48 @@ fun PersistentMiniPlayer(
                     transitionSpec = {
                         when {
                             targetState == "buffering" -> {
-                                (fadeIn(tween(300)) + scaleIn(
-                                    initialScale = 0.5f,
+                                // Idle/Playing -> Buffering: icon shrinks away, dots pop in
+                                (scaleIn(
+                                    initialScale = 0.3f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessLow
                                     )
-                                )) togetherWith
-                                        (fadeOut(tween(200)) + scaleOut(
-                                            targetScale = 0.5f,
-                                            animationSpec = tween(200)
-                                        ))
+                                ) + fadeIn(tween(200))) togetherWith
+                                        (scaleOut(
+                                            targetScale = 1.8f,
+                                            animationSpec = tween(250, easing = FastOutSlowInEasing)
+                                        ) + fadeOut(tween(200)))
                             }
+
                             initialState == "buffering" -> {
-                                (fadeIn(tween(300)) + scaleIn(
-                                    initialScale = 0.5f,
+                                // Buffering -> Idle/Playing: dots shrink away, icon pops in
+                                (scaleIn(
+                                    initialScale = 1.8f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessLow
                                     )
-                                )) togetherWith
-                                        (fadeOut(tween(200)) + scaleOut(
-                                            targetScale = 0.5f,
-                                            animationSpec = tween(200)
-                                        ))
+                                ) + fadeIn(tween(200))) togetherWith
+                                        (scaleOut(
+                                            targetScale = 0.3f,
+                                            animationSpec = tween(250, easing = FastOutSlowInEasing)
+                                        ) + fadeOut(tween(200)))
                             }
+
                             else -> {
-                                (fadeIn(tween(300)) + scaleIn(
-                                    initialScale = 0.7f,
+                                // Playing <-> Idle: crossfade with bouncy scale
+                                (scaleIn(
+                                    initialScale = 0.3f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessLow
                                     )
-                                )) togetherWith
-                                        (fadeOut(tween(200)) + scaleOut(
-                                            targetScale = 0.7f,
+                                ) + fadeIn(tween(300))) togetherWith
+                                        (scaleOut(
+                                            targetScale = 0.3f,
                                             animationSpec = tween(200)
-                                        ))
+                                        ) + fadeOut(tween(200)))
                             }
                         }
                     },
@@ -267,6 +272,7 @@ fun PersistentMiniPlayer(
                                     animationDuration = 400
                                 )
                             }
+
                             else -> {
                                 IconButton(
                                     onClick = onPlayPauseClick,
