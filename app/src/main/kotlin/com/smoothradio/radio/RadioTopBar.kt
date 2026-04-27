@@ -1,5 +1,19 @@
 package com.smoothradio.radio
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,35 +27,33 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,10 +68,11 @@ fun RadioTopBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
-    // Auto-focus when search becomes active
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
+            delay(200)
             focusRequester.requestFocus()
+            keyboardController?.show()
         }
     }
 
@@ -69,25 +82,56 @@ fun RadioTopBar(
         shadowElevation = 0.dp
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isSearchActive) {
+            AnimatedContent(
+                targetState = isSearchActive,
+                transitionSpec = {
+                    if (targetState) {
+                        // Normal -> Search: title slides left, search slides in from right
+                        (slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ) + fadeIn(tween(300))) togetherWith
+                                (slideOutHorizontally(
+                                    targetOffsetX = { -it / 3 },
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    } else {
+                        // Search -> Normal: search slides out right, title slides in from left
+                        (slideInHorizontally(
+                            initialOffsetX = { -it / 3 },
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ) + fadeIn(tween(300))) togetherWith
+                                (slideOutHorizontally(
+                                    targetOffsetX = { it },
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    }
+                },
+                label = "topBarMode"
+            ) { searchMode ->
+                if (searchMode) {
                     // Search mode
                     Row(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IconButton(onClick = {
-                            onSearchQueryChange("")
-                            onSearchActiveChange(false)
-                        }) {
+                        IconButton(
+                            onClick = {
+                                keyboardController?.hide()
+                                onSearchQueryChange("")
+                                onSearchActiveChange(false)
+                            }
+                        ) {
                             Icon(
                                 Icons.Default.ArrowBack,
                                 contentDescription = "Back",
@@ -95,7 +139,6 @@ fun RadioTopBar(
                             )
                         }
 
-                        // Search Field
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
@@ -128,7 +171,17 @@ fun RadioTopBar(
                             })
                         )
 
-                        if (searchQuery.isNotEmpty()) {
+                        AnimatedVisibility(
+                            visible = searchQuery.isNotEmpty(),
+                            enter = scaleIn(
+                                initialScale = 0.5f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            ) + fadeIn(tween(200)),
+                            exit = scaleOut(targetScale = 0.5f, animationSpec = tween(200)) + fadeOut(tween(200))
+                        ) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
                                 Icon(
                                     Icons.Default.Close,
@@ -140,35 +193,40 @@ fun RadioTopBar(
                     }
                 } else {
                     // Normal mode
-                    Text(
-                        "SMOOTH RADIO",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        letterSpacing = 2.sp,
-                        color = Color.Black
-                    )
-
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // View Toggle Button
-                        IconButton(onClick = onViewToggleClick) {
-                            Icon(
-                                imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
-                                contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
-                                tint = Color.Black,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        Text(
+                            "SMOOTH RADIO",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 2.sp,
+                            color = Color.Black
+                        )
 
-                        // Search Button
-                        IconButton(onClick = { onSearchActiveChange(true) }) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = Color.Black,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(onClick = onViewToggleClick) {
+                                Icon(
+                                    imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                                    contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            IconButton(onClick = { onSearchActiveChange(true) }) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
