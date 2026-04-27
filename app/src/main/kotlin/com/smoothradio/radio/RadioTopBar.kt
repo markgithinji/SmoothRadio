@@ -1,5 +1,6 @@
 package com.smoothradio.radio
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -68,6 +69,13 @@ fun RadioTopBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
+    // Handle back press when search is active
+    BackHandler(enabled = isSearchActive) {
+        keyboardController?.hide()
+        onSearchQueryChange("")
+        onSearchActiveChange(false)
+    }
+
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
             delay(200)
@@ -75,6 +83,16 @@ fun RadioTopBar(
             keyboardController?.show()
         }
     }
+
+    // View toggle icon rotation animation
+    val viewRotation by animateFloatAsState(
+        targetValue = if (isGridView) 180f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "viewRotation"
+    )
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -215,7 +233,11 @@ fun RadioTopBar(
                                     imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
                                     contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
                                     tint = Color.Black,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .graphicsLayer {
+                                            rotationY = viewRotation
+                                        }
                                 )
                             }
 
