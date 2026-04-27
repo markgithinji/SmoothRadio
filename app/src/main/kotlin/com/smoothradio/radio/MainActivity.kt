@@ -66,10 +66,10 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.jvm.java
-
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -114,7 +114,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Request state update when app resumes
         requestPlaybackState()
     }
 
@@ -143,7 +142,6 @@ class MainActivity : ComponentActivity() {
             currentStation = playingStation
         }
 
-        // Listen for requestState events from ViewModel
         LaunchedEffect(Unit) {
             playerControlViewModel.requestState.collect {
                 requestPlaybackState()
@@ -255,9 +253,9 @@ class MainActivity : ComponentActivity() {
                                 }
                                 playerControlViewModel.savePlayingStationId(command.station.id)
                             }
-                            is PlayCommand.Refresh -> {
-                                refresh()
-                            }
+                            is PlayCommand.Refresh -> refresh()
+                            is PlayCommand.Next -> playNext()
+                            is PlayCommand.Previous -> playPrevious()
                         }
                     }
                 }
@@ -269,6 +267,30 @@ class MainActivity : ComponentActivity() {
                 playerControlViewModel.canShowAd.collect { canShow ->
                     canShowAd = canShow
                 }
+            }
+        }
+    }
+
+    private fun playNext() {
+        lifecycleScope.launch {
+            val stations = radioViewModel.allStations.first()
+            val index = stations.indexOfFirst { it.id == currentStation?.id }
+            if (index < stations.lastIndex) {
+                currentStation = stations[index + 1]
+                startNewPlay()
+                playerControlViewModel.savePlayingStationId(currentStation!!.id)
+            }
+        }
+    }
+
+    private fun playPrevious() {
+        lifecycleScope.launch {
+            val stations = radioViewModel.allStations.first()
+            val index = stations.indexOfFirst { it.id == currentStation?.id }
+            if (index > 0) {
+                currentStation = stations[index - 1]
+                startNewPlay()
+                playerControlViewModel.savePlayingStationId(currentStation!!.id)
             }
         }
     }

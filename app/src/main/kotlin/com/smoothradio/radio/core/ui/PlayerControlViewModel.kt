@@ -107,9 +107,25 @@ class PlayerControlViewModel @Inject constructor(
             _requestState.emit(Unit)
         }
     }
+    
+    fun requestNextStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Next)
+        }
+    }
+
+    fun requestPreviousStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Previous)
+        }
+    }
 }
 
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()
     object Refresh : PlayCommand()
+    object Next : PlayCommand()
+    object Previous : PlayCommand()
 }
