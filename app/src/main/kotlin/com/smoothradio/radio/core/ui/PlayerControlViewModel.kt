@@ -16,8 +16,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,12 +41,8 @@ class PlayerControlViewModel @Inject constructor(
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
 
-    val playingStation: StateFlow<RadioStation?> = radioRepository.playingStation
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        )
+    private val _playingStation = MutableStateFlow<RadioStation?>(null)
+    val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
 
     private val _metadata = MutableStateFlow("")
     val metadata: StateFlow<String> = _metadata.asStateFlow()
@@ -54,6 +54,12 @@ class PlayerControlViewModel @Inject constructor(
         syncAdSettings()
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
+        }
+        viewModelScope.launch {
+            radioRepository.playingStation.collect { station ->
+                // Only update when we have a real station
+                station?.let { _playingStation.value = it }
+            }
         }
     }
 

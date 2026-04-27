@@ -1,9 +1,7 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -19,14 +17,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
@@ -37,23 +33,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
-import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 
 @Composable
@@ -62,13 +52,12 @@ fun PersistentMiniPlayer(
     playbackState: String,
     onPlayPauseClick: () -> Unit
 ) {
+    // Don't render if no station
+    if (station == null) return
+
     val isBuffering = playbackState == "Buffering" || playbackState == "Preparing Audio"
     val isPlaying = playbackState == "Playing"
     val colorScheme = MaterialTheme.colorScheme
-
-    // Cache the last known station to prevent flashing TODO: Improve this
-    val cachedStation by remember { mutableStateOf(station) }
-    val displayStation = station ?: cachedStation
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -123,16 +112,14 @@ fun PersistentMiniPlayer(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (displayStation != null) {
-                        Image(
-                            painter = painterResource(id = displayStation.logoResource),
-                            contentDescription = "${displayStation.stationName} logo",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(10.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+                    Image(
+                        painter = painterResource(id = station.logoResource),
+                        contentDescription = "${station.stationName} logo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
+                    )
 
                     if (isBuffering) {
                         val rippleRadius by infiniteTransition.animateFloat(
@@ -160,7 +147,7 @@ fun PersistentMiniPlayer(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = displayStation?.stationName ?: "No station selected",
+                        text = station.stationName,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface,

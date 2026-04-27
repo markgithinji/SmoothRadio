@@ -68,6 +68,10 @@ fun RadioStationsScreen(
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        radioViewModel.observeAndProcessRemoteLinks()
+    }
+
     // Observe favorite limit events
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->

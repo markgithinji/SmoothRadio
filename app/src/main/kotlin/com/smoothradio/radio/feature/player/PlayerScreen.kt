@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -144,9 +145,36 @@ fun PlayerScreen(
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
-    // Cache the last known station to prevent flashing
-    val cachedStation by remember { mutableStateOf(playingStation) }
-    val displayStation = playingStation ?: cachedStation
+    // Return empty state if no station
+    if (playingStation == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "No station playing",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Select a station to start listening",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+        return
+    }
+
+    val currentStation = playingStation!!
 
     // Request state update when screen becomes visible
     LaunchedEffect(Unit) {
@@ -204,7 +232,7 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     // Radar wave rings
-                    if (playbackState == "Playing" && displayStation != null) {
+                    if (playbackState == "Playing") {
                         val waveRadius1 by infiniteTransition.animateFloat(
                             initialValue = 0f,
                             targetValue = 1f,
@@ -277,22 +305,14 @@ fun PlayerScreen(
                             .scale(if (playbackState == "Playing") scale else 1f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            if (displayStation != null) {
-                                Image(
-                                    painter = painterResource(id = displayStation.logoResource),
-                                    contentDescription = "${displayStation.stationName} logo",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(36.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(colorScheme.primary.copy(alpha = 0.05f))
-                                )
-                            }
+                            Image(
+                                painter = painterResource(id = currentStation.logoResource),
+                                contentDescription = "${currentStation.stationName} logo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(36.dp),
+                                contentScale = ContentScale.Fit
+                            )
                         }
                     }
                 }
@@ -300,7 +320,7 @@ fun PlayerScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = displayStation?.stationName ?: "",
+                    text = currentStation.stationName,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp,
@@ -376,7 +396,7 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { /* Implement previous */ },
+                        onClick = { },
                         modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
@@ -387,16 +407,13 @@ fun PlayerScreen(
                         )
                     }
 
-                    // Animated Play/Pause Button
                     AnimatedPlayPauseButton(
                         playbackState = playbackState,
-                        onClick = {
-                            displayStation?.let { playerControlViewModel.requestPlayStation(it) }
-                        }
+                        onClick = { playerControlViewModel.requestPlayStation(currentStation) }
                     )
 
                     IconButton(
-                        onClick = { /* Implement next */ },
+                        onClick = { },
                         modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
@@ -440,7 +457,7 @@ fun PlayerScreen(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
-                            onClick = { /* Show timer dialog */ },
+                            onClick = { },
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
@@ -463,7 +480,7 @@ fun PlayerScreen(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
-                            onClick = { /* Share station */ },
+                            onClick = { },
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)

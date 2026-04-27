@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.logging
 
-// FirebaseCrashReportingTree.kt
 import android.os.Bundle
 import android.util.Log
 import timber.log.Timber
