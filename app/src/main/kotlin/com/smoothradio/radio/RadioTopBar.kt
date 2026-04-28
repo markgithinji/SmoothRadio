@@ -32,7 +32,9 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,12 +66,12 @@ fun RadioTopBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     isSearchActive: Boolean,
-    onSearchActiveChange: (Boolean) -> Unit
+    onSearchActiveChange: (Boolean) -> Unit,
+    onAboutClick: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
-    // Handle back press when search is active
     BackHandler(enabled = isSearchActive) {
         keyboardController?.hide()
         onSearchQueryChange("")
@@ -84,7 +86,6 @@ fun RadioTopBar(
         }
     }
 
-    // View toggle icon rotation animation
     val viewRotation by animateFloatAsState(
         targetValue = if (isGridView) 180f else 0f,
         animationSpec = spring(
@@ -104,7 +105,6 @@ fun RadioTopBar(
                 targetState = isSearchActive,
                 transitionSpec = {
                     if (targetState) {
-                        // Normal -> Search: title slides left, search slides in from right
                         (slideInHorizontally(
                             initialOffsetX = { it },
                             animationSpec = spring(
@@ -117,7 +117,6 @@ fun RadioTopBar(
                                     animationSpec = tween(300, easing = FastOutSlowInEasing)
                                 ) + fadeOut(tween(200)))
                     } else {
-                        // Search -> Normal: search slides out right, title slides in from left
                         (slideInHorizontally(
                             initialOffsetX = { -it / 3 },
                             animationSpec = spring(
@@ -134,7 +133,6 @@ fun RadioTopBar(
                 label = "topBarMode"
             ) { searchMode ->
                 if (searchMode) {
-                    // Search mode
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -150,67 +148,38 @@ fun RadioTopBar(
                                 onSearchActiveChange(false)
                             }
                         ) {
-                            Icon(
-                                Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.Black
-                            )
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Black)
                         }
 
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            textStyle = TextStyle(
-                                fontSize = 16.sp,
-                                color = Color.Black
-                            ),
+                            modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                            textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
                             decorationBox = { innerTextField ->
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
+                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                                     if (searchQuery.isEmpty()) {
-                                        Text(
-                                            "Search stations...",
-                                            color = Color.Gray,
-                                            fontSize = 16.sp
-                                        )
+                                        Text("Search stations...", color = Color.Gray, fontSize = 16.sp)
                                     }
                                     innerTextField()
                                 }
                             },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                keyboardController?.hide()
-                            })
+                            keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                         )
 
                         AnimatedVisibility(
                             visible = searchQuery.isNotEmpty(),
-                            enter = scaleIn(
-                                initialScale = 0.5f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            ) + fadeIn(tween(200)),
+                            enter = scaleIn(initialScale = 0.5f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(200)),
                             exit = scaleOut(targetScale = 0.5f, animationSpec = tween(200)) + fadeOut(tween(200))
                         ) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    tint = Color.Black
-                                )
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Black)
                             }
                         }
                     }
                 } else {
-                    // Normal mode
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -227,34 +196,28 @@ fun RadioTopBar(
                             color = Color.Black
                         )
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(onClick = onViewToggleClick) {
                                 Icon(
                                     imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
                                     contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
                                     tint = Color.Black,
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .graphicsLayer {
-                                            rotationY = viewRotation
-                                        }
+                                    modifier = Modifier.size(24.dp).graphicsLayer { rotationY = viewRotation }
                                 )
                             }
 
                             IconButton(onClick = { onSearchActiveChange(true) }) {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Black, modifier = Modifier.size(24.dp))
+                            }
+
+                            IconButton(onClick = onAboutClick) {
+                                Icon(Icons.Outlined.Info, contentDescription = "About", tint = Color.Black, modifier = Modifier.size(24.dp))
                             }
                         }
                     }
                 }
             }
 
-            // Subtle bottom divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.RadioTopBar
@@ -48,6 +49,7 @@ import com.smoothradio.radio.core.ui.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.ToastType
+import com.smoothradio.radio.feature.about.ui.AboutDialog
 
 @Composable
 fun RadioStationsScreen(
@@ -68,6 +70,8 @@ fun RadioStationsScreen(
     // Toast state
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         radioViewModel.observeAndProcessRemoteLinks()
@@ -94,7 +98,8 @@ fun RadioStationsScreen(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
                 isSearchActive = isSearchActive,
-                onSearchActiveChange = { radioViewModel.setSearchActive(it) }
+                onSearchActiveChange = { radioViewModel.setSearchActive(it) },
+                onAboutClick = { showAboutDialog = true }
             )
 
             if (allStations.isEmpty()) {
@@ -222,7 +227,15 @@ fun RadioStationsScreen(
             onDismiss = { isToastVisible = false },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 100.dp) // Above mini player
+                .padding(bottom = 100.dp)
+        )
+    }
+
+    // About Dialog
+    if (showAboutDialog) {
+        AboutDialog(
+            onDismiss = { showAboutDialog = false },
+            context = context
         )
     }
 }
