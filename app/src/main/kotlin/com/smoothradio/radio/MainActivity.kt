@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -56,9 +57,11 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.AppToast
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.ToastType
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.PlayerScreen
@@ -70,6 +73,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.jvm.java
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -138,6 +142,10 @@ class MainActivity : ComponentActivity() {
         val discoverScrollState = rememberLazyListState()
         val discoverCategoryScrollStates = remember { mutableStateMapOf<String, LazyListState>() }
 
+        // Toast state
+        var toastType by remember { mutableStateOf<ToastType>(ToastType.Info("")) }
+        var isToastVisible by remember { mutableStateOf(false) }
+
         LaunchedEffect(playingStation) {
             currentStation = playingStation
         }
@@ -148,65 +156,84 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            bottomBar = {
-                Column {
-                    NavigationBar(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 8.dp
-                    ) {
-                        listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
-                            NavigationBarItem(
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                icon = {
-                                    Icon(
-                                        imageVector = when (index) {
-                                            0 -> Icons.Default.Radio
-                                            1 -> Icons.Default.MusicNote
-                                            else -> Icons.Default.Explore
-                                        },
-                                        contentDescription = title
+        // Collect toast events
+        LaunchedEffect(Unit) {
+            playerControlViewModel.toastMessage.collect { type ->
+                toastType = type
+                isToastVisible = true
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                bottomBar = {
+                    Column {
+                        NavigationBar(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
+                                NavigationBarItem(
+                                    selected = selectedTab == index,
+                                    onClick = { selectedTab = index },
+                                    icon = {
+                                        Icon(
+                                            imageVector = when (index) {
+                                                0 -> Icons.Default.Radio
+                                                1 -> Icons.Default.MusicNote
+                                                else -> Icons.Default.Explore
+                                            },
+                                            contentDescription = title
+                                        )
+                                    },
+                                    label = { Text(title) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                },
-                                label = { Text(title) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            )
+                            }
                         }
                     }
                 }
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                when (selectedTab) {
-                    0 -> RadioStationsScreen(
-                        radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel,
-                        listScrollState = listScrollState,
-                        gridScrollState = gridScrollState
-                    )
-                    1 -> PlayerScreen(
-                        playerControlViewModel = playerControlViewModel
-                    )
-                    2 -> DiscoverScreen(
-                        radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel,
-                        discoverScrollState = discoverScrollState,
-                        categoryScrollStates = discoverCategoryScrollStates
-                    )
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    when (selectedTab) {
+                        0 -> RadioStationsScreen(
+                            radioViewModel = radioViewModel,
+                            playerControlViewModel = playerControlViewModel,
+                            listScrollState = listScrollState,
+                            gridScrollState = gridScrollState
+                        )
+                        1 -> PlayerScreen(
+                            playerControlViewModel = playerControlViewModel
+                        )
+                        2 -> DiscoverScreen(
+                            radioViewModel = radioViewModel,
+                            playerControlViewModel = playerControlViewModel,
+                            discoverScrollState = discoverScrollState,
+                            categoryScrollStates = discoverCategoryScrollStates
+                        )
+                    }
                 }
             }
+
+            AppToast(
+                toastType = toastType,
+                isVisible = isToastVisible,
+                onDismiss = { isToastVisible = false },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 100.dp) // Above the navigation bar
+            )
         }
     }
 
@@ -279,7 +306,7 @@ class MainActivity : ComponentActivity() {
             putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
         }
         sendBroadcast(intent)
-        Toast.makeText(this, "Sleep timer set for $minutes minutes", Toast.LENGTH_SHORT).show()
+        playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
     private fun playNext() {
@@ -469,7 +496,7 @@ class MainActivity : ComponentActivity() {
         val connected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 
         if (!connected) {
-            Toast.makeText(this, getString(R.string.check_internet), Toast.LENGTH_SHORT).show()
+            playerControlViewModel.showToast(ToastType.Error(getString(R.string.check_internet)))
         }
     }
 

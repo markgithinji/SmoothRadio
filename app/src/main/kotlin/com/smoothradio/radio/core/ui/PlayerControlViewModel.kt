@@ -44,6 +44,9 @@ class PlayerControlViewModel @Inject constructor(
     private val _requestState = MutableSharedFlow<Unit>()
     val requestState: SharedFlow<Unit> = _requestState.asSharedFlow()
 
+    private val _toastMessage = MutableSharedFlow<ToastType>()
+    val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
+
     init {
         syncAdSettings()
         viewModelScope.launch {
@@ -54,6 +57,12 @@ class PlayerControlViewModel @Inject constructor(
                 // Only update when we have a real station
                 station?.let { _playingStation.value = it }
             }
+        }
+    }
+
+    fun showToast(toastType: ToastType) {
+        viewModelScope.launch {
+            _toastMessage.emit(toastType)
         }
     }
 

@@ -229,7 +229,7 @@ fun DiscoverScreen(
             onDismiss = { isToastVisible = false },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp) // No mini player on this screen
+                .padding(bottom = 16.dp)
         )
     }
 }
