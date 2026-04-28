@@ -387,11 +387,47 @@ class StreamService : Service() {
     }
 
     private fun sendMetadataBroadcast(metadata: MediaMetadata) {
-        if (metadata.title != null && isPlaying) {
-            val currentTitle = metadata.title.toString()
-            metadataIntent.putExtra(EXTRA_TITLE, currentTitle)
-            sendBroadcast(metadataIntent)
+        val rawTitle = metadata.title?.toString() ?: ""
+        val cleanTitle = extractSongTitle(rawTitle)
+
+        metadataIntent.putExtra(EXTRA_TITLE, cleanTitle)
+        sendBroadcast(metadataIntent)
+    }
+
+    private fun extractSongTitle(rawTitle: String): String {
+        val trimmed = rawTitle.trim()
+
+        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
+            return try {
+                val songPattern = Regex(
+                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
+                    RegexOption.DOT_MATCHES_ALL
+                )
+                val match = songPattern.find(trimmed)
+
+                if (match != null) {
+                    val title = match.groupValues[1].replace("&amp;", "&").trim()
+                    val artist = match.groupValues[2].replace("&amp;", "&").trim()
+                    if (title.isNotEmpty()) "$title - $artist" else ""
+                } else {
+                    val fallbackPattern =
+                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
+                    val fallbackMatch = fallbackPattern.find(trimmed)
+                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                }
+            } catch (e: Exception) {
+                ""
+            }
         }
+
+        val cleanTitle = trimmed
+            .replace(Regex("<[^>]*>"), "")
+            .replace("\n", " ")
+            .replace("\r", "")
+            .replace("\\s+".toRegex(), " ")
+            .trim()
+
+        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     private fun pausePlayer(source: String?) {
