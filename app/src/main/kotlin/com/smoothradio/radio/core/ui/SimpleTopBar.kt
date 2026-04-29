@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +26,7 @@ import androidx.compose.ui.unit.sp
 fun SimpleTopBar(title: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp
     ) {
         Column {
@@ -42,19 +43,17 @@ fun SimpleTopBar(title: String) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 2.sp,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Empty box to balance layout (no action buttons)
                 Box(modifier = Modifier.size(40.dp))
             }
 
-            // Subtle bottom divider
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(Color.Black.copy(alpha = 0.08f))
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             )
         }
     }

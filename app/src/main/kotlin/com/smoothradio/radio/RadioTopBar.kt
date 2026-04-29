@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,6 +72,7 @@ fun RadioTopBar(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
+    val colorScheme = MaterialTheme.colorScheme
 
     BackHandler(enabled = isSearchActive) {
         keyboardController?.hide()
@@ -97,7 +99,7 @@ fun RadioTopBar(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
+        color = colorScheme.surface,
         shadowElevation = 0.dp
     ) {
         Column {
@@ -107,10 +109,7 @@ fun RadioTopBar(
                     if (targetState) {
                         (slideInHorizontally(
                             initialOffsetX = { it },
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            )
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
                         ) + fadeIn(tween(300))) togetherWith
                                 (slideOutHorizontally(
                                     targetOffsetX = { -it / 3 },
@@ -119,10 +118,7 @@ fun RadioTopBar(
                     } else {
                         (slideInHorizontally(
                             initialOffsetX = { -it / 3 },
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            )
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
                         ) + fadeIn(tween(300))) togetherWith
                                 (slideOutHorizontally(
                                     targetOffsetX = { it },
@@ -134,32 +130,27 @@ fun RadioTopBar(
             ) { searchMode ->
                 if (searchMode) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IconButton(
-                            onClick = {
-                                keyboardController?.hide()
-                                onSearchQueryChange("")
-                                onSearchActiveChange(false)
-                            }
-                        ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                        IconButton(onClick = {
+                            keyboardController?.hide()
+                            onSearchQueryChange("")
+                            onSearchActiveChange(false)
+                        }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = colorScheme.onSurface)
                         }
 
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
                             modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                            textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
+                            textStyle = TextStyle(fontSize = 16.sp, color = colorScheme.onSurface),
                             decorationBox = { innerTextField ->
                                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                                     if (searchQuery.isEmpty()) {
-                                        Text("Search stations...", color = Color.Gray, fontSize = 16.sp)
+                                        Text("Search stations...", color = colorScheme.onSurfaceVariant, fontSize = 16.sp)
                                     }
                                     innerTextField()
                                 }
@@ -175,16 +166,13 @@ fun RadioTopBar(
                             exit = scaleOut(targetScale = 0.5f, animationSpec = tween(200)) + fadeOut(tween(200))
                         ) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Black)
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = colorScheme.onSurface)
                             }
                         }
                     }
                 } else {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -193,7 +181,7 @@ fun RadioTopBar(
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             letterSpacing = 2.sp,
-                            color = Color.Black
+                            color = colorScheme.onSurface
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -201,17 +189,15 @@ fun RadioTopBar(
                                 Icon(
                                     imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
                                     contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
-                                    tint = Color.Black,
+                                    tint = colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp).graphicsLayer { rotationY = viewRotation }
                                 )
                             }
-
                             IconButton(onClick = { onSearchActiveChange(true) }) {
-                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Black, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = colorScheme.onSurface, modifier = Modifier.size(24.dp))
                             }
-
                             IconButton(onClick = onAboutClick) {
-                                Icon(Icons.Outlined.Info, contentDescription = "About", tint = Color.Black, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Outlined.Info, contentDescription = "About", tint = colorScheme.onSurface, modifier = Modifier.size(24.dp))
                             }
                         }
                     }
@@ -219,10 +205,8 @@ fun RadioTopBar(
             }
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color.Black.copy(alpha = 0.08f))
+                modifier = Modifier.fillMaxWidth().height(1.dp)
+                    .background(colorScheme.outline.copy(alpha = 0.2f))
             )
         }
     }
