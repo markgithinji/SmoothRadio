@@ -8,6 +8,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,14 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -82,17 +83,14 @@ fun AboutDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Description
                 Text(
                     "Your favorite radio stations in one place. Stream live radio from Kenya and beyond.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
                 )
 
-                // Divider
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
 
-                // Contact section
                 Text(
                     "Get in Touch",
                     style = MaterialTheme.typography.titleSmall,
@@ -100,85 +98,74 @@ fun AboutDialog(
                     color = colorScheme.onSurface
                 )
 
-                // Email button
-                Surface(
-                    onClick = {
-                        sendFeedbackEmail(
-                            context,
-                            appVersion,
-                            deviceInfo,
-                            androidVersion
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Email,
-                            contentDescription = null,
-                            tint = colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Column {
-                            Text(
-                                "Send Feedback",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurface
-                            )
-                            Text(
-                                context.getString(R.string.email_address),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colorScheme.primary,
-                                textDecoration = TextDecoration.Underline
-                            )
+                // Report a Problem
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable {
+                            sendFeedbackEmail(context, appVersion, deviceInfo, androidVersion)
                         }
-                    }
-                }
-
-                // Facebook button
-                Surface(
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            context.getString(R.string.facebook_url).toUri()
-                        )
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = null,
-                            tint = colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Column {
                         Text(
-                            "Follow us on Facebook",
+                            "Report a Problem",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = colorScheme.onSurface
                         )
+                        Text(
+                            context.getString(R.string.email_address),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
                     }
                 }
 
-                // Divider
+                // Follow on Facebook
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                context.getString(R.string.facebook_url).toUri()
+                            )
+                            context.startActivity(intent)
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Follow us on Facebook",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.onSurface
+                    )
+                }
+
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
 
-                // Credits
                 Text(
                     "Made with ❤️ in Kenya",
                     style = MaterialTheme.typography.labelSmall,
