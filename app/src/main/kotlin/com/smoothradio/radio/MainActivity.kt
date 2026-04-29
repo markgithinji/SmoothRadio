@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -11,8 +12,11 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -98,6 +103,8 @@ class MainActivity : ComponentActivity() {
 
         installSplashScreen()
 
+        setupSystemBars()
+
         serviceIntent = Intent(this, StreamService::class.java)
 
         showConsentForm()
@@ -114,6 +121,34 @@ class MainActivity : ComponentActivity() {
 
         collectPlaybackFlows()
         collectViewModelEvents()
+    }
+
+    /**
+     * Configures system bars (status bar and navigation bar) to match the app's surface color.
+     * This ensures visual consistency between the top app bar, bottom navigation bar,
+     * and system bars in both light and dark themes.
+     */
+    private fun setupSystemBars() {
+        val isDark = resources.configuration.uiMode and
+                Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
+        val surfaceColor = if (isDark) {
+            android.graphics.Color.parseColor("#1E1E1E")  // SurfaceDark
+        } else {
+            android.graphics.Color.parseColor("#FFFFFF")  // SurfaceLight
+        }
+
+        enableEdgeToEdge(
+            statusBarStyle = if (isDark) {
+                SystemBarStyle.dark(surfaceColor)
+            } else {
+                SystemBarStyle.light(surfaceColor, surfaceColor)
+            }
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
     }
 
     override fun onResume() {

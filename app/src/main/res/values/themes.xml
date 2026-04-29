@@ -1,21 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Minimal theme for Compose - only system bars -->
     <style name="Theme.SmoothRadio" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Status bar - match white top bar -->
-        <item name="android:statusBarColor">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
-
-        <!-- Navigation bar -->
-        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
-
-        <!-- Window background -->
         <item name="android:windowBackground">@android:color/white</item>
     </style>
 
-    <!-- Splash screen theme -->
     <style name="SplashScreenTheme" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/white</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreen_icon</item>
