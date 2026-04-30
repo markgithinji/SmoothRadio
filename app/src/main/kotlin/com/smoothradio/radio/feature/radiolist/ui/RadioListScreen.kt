@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -85,12 +87,27 @@ fun RadioStationsScreen(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val showMiniPlayer = maxHeight > 400.dp
-        val gridItemWidth = maxWidth / 3 // Each item gets 1/3 of the width
-
-        LaunchedEffect(maxWidth, maxHeight) {
-            Log.d("ScreenSize", "Screen: ${maxWidth}x$maxHeight, GridItem: $gridItemWidth, isSmall: ${gridItemWidth < 100.dp}")
+        val miniPlayerMaxWidth = when {
+            maxWidth < 500.dp -> 600.dp   // Phone: no limit
+            else -> 500.dp                 // Tablet/large: constrain width
         }
 
+        val gridColumns = when {
+            maxWidth < 360.dp -> 2   // Small phone/split screen
+            maxWidth < 500.dp -> 3   // Normal phone
+            maxWidth < 700.dp -> 4   // Large phone/small tablet
+            maxWidth < 900.dp -> 5   // Tablet
+            else -> 7                 // Large tablet/landscape
+        }
+        val gridItemWidth = maxWidth / gridColumns
+
+        val horizontalSpacing = when (gridColumns) {
+            2 -> 16.dp
+            3 -> 12.dp
+            4 -> 10.dp
+            5 -> 8.dp
+            else -> 6.dp
+        }
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -124,11 +141,16 @@ fun RadioStationsScreen(
                 } else {
                     if (isGridView) {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
+                            columns = GridCells.Fixed(gridColumns),
                             state = gridScrollState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = if (showMiniPlayer) 100.dp else 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(
+                                start = horizontalSpacing,
+                                top = 12.dp,
+                                end = horizontalSpacing,
+                                bottom = if (showMiniPlayer) 100.dp else 12.dp
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(items = filteredStations, key = { it.id }) { station ->
@@ -164,13 +186,26 @@ fun RadioStationsScreen(
 
             if (showMiniPlayer) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    PersistentMiniPlayer(
-                        station = playingStation,
-                        playbackState = playbackState,
-                        onPlayPauseClick = { playingStation?.let { playerControlViewModel.requestPlayStation(it) } }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                    ) {
+                        Box(modifier = Modifier.widthIn(max = miniPlayerMaxWidth)) {
+                            PersistentMiniPlayer(
+                                station = playingStation,
+                                playbackState = playbackState,
+                                onPlayPauseClick = {
+                                    playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
