@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,12 +59,10 @@ fun RadioStationRow(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isBuffering =
-        isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
+    val isBuffering = isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
     val isLivePlaying = isPlaying && playbackState == "Playing"
     val colorScheme = MaterialTheme.colorScheme
 
-    // Row background color animation
     val rowBackgroundColor by animateColorAsState(
         targetValue = when {
             isLivePlaying -> colorScheme.primary.copy(alpha = 0.08f)
@@ -74,183 +73,133 @@ fun RadioStationRow(
         label = "rowBackgroundColor"
     )
 
-    // Favorite button animation with smoother spring
     var isAnimating by remember { mutableStateOf(false) }
     LaunchedEffect(isAnimating) {
         if (isAnimating) {
-            delay(200) // Wait for scale-down animation
+            delay(200)
             onFavoriteClick()
             isAnimating = false
         }
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onPlayClick() }
-            .background(rowBackgroundColor)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Logo
-        val infiniteTransition = rememberInfiniteTransition()
-        val pulseScale by infiniteTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.08f,
-            animationSpec = infiniteRepeatable(
-                animation = tween<Float>(800, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            )
-        )
+    BoxWithConstraints(modifier = modifier) {
+        val isSmall = maxWidth < 360.dp
 
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .then(
-                    if (isBuffering) Modifier.graphicsLayer {
-                        scaleX = pulseScale
-                        scaleY = pulseScale
-                    } else Modifier
-                )
+                .fillMaxWidth()
+                .clickable { onPlayClick() }
+                .background(rowBackgroundColor)
+                .padding(horizontal = if (isSmall) 8.dp else 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = station.logoResource),
-                contentDescription = "${station.stationName} logo",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp)),
-                contentScale = ContentScale.Crop
+            val infiniteTransition = rememberInfiniteTransition()
+            val pulseScale by infiniteTransition.animateFloat(
+                initialValue = 1f, targetValue = 1.08f,
+                animationSpec = infiniteRepeatable(animation = tween<Float>(800, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
             )
 
-            if (isBuffering) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colorScheme.primary.copy(alpha = 0.15f))
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        // Station Name and Details Column
-        Column(modifier = Modifier.weight(1f)) {
-            // First row: Name + Status
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                modifier = Modifier
+                    .size(if (isSmall) 36.dp else 48.dp)
+                    .then(if (isBuffering) Modifier.graphicsLayer { scaleX = pulseScale; scaleY = pulseScale } else Modifier)
             ) {
-                // Station name
-                val nameColor by animateColorAsState(
-                    targetValue = when {
-                        isLivePlaying -> colorScheme.primary
-                        isBuffering -> colorScheme.tertiary
-                        else -> colorScheme.onSurface
-                    },
-                    animationSpec = tween(500, easing = FastOutSlowInEasing),
-                    label = "nameColor"
+                Image(
+                    painter = painterResource(id = station.logoResource),
+                    contentDescription = "${station.stationName} logo",
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
                 )
-
-                Text(
-                    text = station.stationName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 15.sp,
-                    color = nameColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                // Status indicator
                 if (isBuffering) {
-                    DotLoadingAnimation(
-                        dotSize = 4.dp,
-                        dotSpacing = 3.dp,
-                        color = colorScheme.tertiary,
-                        animationDelay = 200,
-                        animationDuration = 600
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "LOADING",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colorScheme.tertiary,
-                        letterSpacing = 0.5.sp
-                    )
+                    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(colorScheme.primary.copy(alpha = 0.15f)))
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.width(if (isSmall) 6.dp else 10.dp))
 
-            // Second row: Frequency and location
-            val freqColor by animateColorAsState(
-                targetValue = when {
-                    isLivePlaying -> colorScheme.primary
-                    isBuffering -> colorScheme.tertiary
-                    else -> colorScheme.onSurfaceVariant
-                },
-                animationSpec = tween(500, easing = FastOutSlowInEasing),
-                label = "freqColor"
-            )
+            // Station Name and Details Column
+            Column(modifier = Modifier.weight(1f)) {
+                // First row: Name + Status
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(if (isSmall) 4.dp else 8.dp)
+                ) {
+                    // Station name
+                    val nameColor by animateColorAsState(
+                        targetValue = when {
+                            isLivePlaying -> colorScheme.primary
+                            isBuffering -> colorScheme.tertiary
+                            else -> colorScheme.onSurface
+                        },
+                        animationSpec = tween(500, easing = FastOutSlowInEasing),
+                        label = "nameColor"
+                    )
+
+                    Text(
+                        text = station.stationName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = if (isSmall) 13.sp else 15.sp,
+                        color = nameColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    // Status indicator
+                    if (isBuffering && !isSmall) {
+                        DotLoadingAnimation(dotSize = 4.dp, dotSpacing = 3.dp, color = colorScheme.tertiary, animationDelay = 200, animationDuration = 600)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("LOADING", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = colorScheme.tertiary, letterSpacing = 0.5.sp)
+                    }
+                }
+
+                // Second row: Frequency and location
+                if (!isSmall) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    val freqColor by animateColorAsState(
+                        targetValue = when {
+                            isLivePlaying -> colorScheme.primary
+                            isBuffering -> colorScheme.tertiary
+                            else -> colorScheme.onSurfaceVariant
+                        },
+                        animationSpec = tween(500, easing = FastOutSlowInEasing),
+                        label = "freqColor"
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = freqColor)
+                        Text("•", style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant)
+                        Text(station.location, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isSmall) 2.dp else 8.dp),
             ) {
-                Text(
-                    text = station.frequency,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
-                    color = freqColor
-                )
-
-                Text(
-                    text = "•",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = station.location,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                if (isLivePlaying && !isSmall) {
+                    MiniWaveformVisualization(modifier = Modifier.width(60.dp), height = 16.dp, color = colorScheme.primary)
+                }
+                FavoriteIcon(
+                    isFavorite = station.isFavorite,
+                    onFavoriteClick = onFavoriteClick,
+                    buttonSize = if (isSmall) 28.dp else 32.dp,
+                    iconSize = if (isSmall) 16.dp else 18.dp
                 )
             }
         }
 
-        // Action Buttons
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (isLivePlaying) {
-                MiniWaveformVisualization(
-                    modifier = Modifier.width(60.dp),
-                    height = 16.dp,
-                    color = colorScheme.primary
-                )
-            }
-
-            FavoriteIcon(
-                isFavorite = station.isFavorite,
-                onFavoriteClick = onFavoriteClick
-            )
-        }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = if (isSmall) 52.dp else 72.dp),
+            thickness = 0.5.dp,
+            color = colorScheme.outline.copy(alpha = 0.1f)
+        )
     }
-
-    // Divider
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 72.dp),
-        thickness = 0.5.dp,
-        color = colorScheme.outline.copy(alpha = 0.1f)
-    )
 }
 
 @Composable
