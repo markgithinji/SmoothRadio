@@ -69,6 +69,8 @@ class PlayerControlViewModel @Inject constructor(
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
+            _playingStation.value = station
+            _playbackState.value = StreamService.StreamStates.IDLE
             _playCommand.emit(PlayCommand.PlayStation(station))
         }
     }

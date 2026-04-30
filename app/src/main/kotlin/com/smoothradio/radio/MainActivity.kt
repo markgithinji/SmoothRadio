@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
         val isDark = resources.configuration.uiMode and
                 Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
-        val surfaceColor = if (isDark) {
+        val surfaceColor = if (isDark) { // TODO: Move from hardcoded colors
             android.graphics.Color.parseColor("#1E1E1E")  // SurfaceDark
         } else {
             android.graphics.Color.parseColor("#FFFFFF")  // SurfaceLight
@@ -169,8 +169,6 @@ class MainActivity : ComponentActivity() {
         radioViewModel: RadioViewModel
     ) {
         var selectedTab by remember { mutableStateOf(0) }
-        val playingStation by playerControlViewModel.playingStation.collectAsState()
-        val playbackState by playerControlViewModel.playbackState.collectAsState()
 
         val listScrollState = rememberLazyListState()
         val gridScrollState = rememberLazyGridState()
@@ -180,10 +178,6 @@ class MainActivity : ComponentActivity() {
         // Toast state
         var toastType by remember { mutableStateOf<ToastType>(ToastType.Info("")) }
         var isToastVisible by remember { mutableStateOf(false) }
-
-        LaunchedEffect(playingStation) {
-            currentStation = playingStation
-        }
 
         LaunchedEffect(Unit) {
             playerControlViewModel.requestState.collect {
