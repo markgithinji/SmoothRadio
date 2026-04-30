@@ -168,7 +168,7 @@ class MainActivity : ComponentActivity() {
         playerControlViewModel: PlayerControlViewModel,
         radioViewModel: RadioViewModel
     ) {
-        var selectedTab by remember { mutableStateOf(0) }
+        val selectedTab by radioViewModel.selectedTab.collectAsState()
 
         val listScrollState = rememberLazyListState()
         val gridScrollState = rememberLazyGridState()
@@ -206,7 +206,7 @@ class MainActivity : ComponentActivity() {
                             listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
                                 NavigationBarItem(
                                     selected = selectedTab == index,
-                                    onClick = { selectedTab = index },
+                                    onClick = { radioViewModel.setSelectedTab(index) },
                                     icon = {
                                         Icon(
                                             imageVector = when (index) {

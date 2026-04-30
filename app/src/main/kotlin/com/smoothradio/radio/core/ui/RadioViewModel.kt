@@ -46,8 +46,8 @@ class RadioViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _currentPage = MutableStateFlow(0)
-    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+    private val _selectedTab = MutableStateFlow(0)
+    val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     private val _favoriteLimitExceeded = MutableSharedFlow<String>()
     val favoriteLimitExceeded: SharedFlow<String> = _favoriteLimitExceeded
@@ -66,7 +66,7 @@ class RadioViewModel @Inject constructor(
         allStations,
         _searchQuery
     ) { stations, query ->
-        if (query.isEmpty()) {
+        if (query.trim().isEmpty()) {
             stations
         } else {
             stations.filter { station ->
@@ -143,8 +143,8 @@ class RadioViewModel @Inject constructor(
         }
     }
 
-    fun setCurrentPage(page: Int) {
-        _currentPage.value = page
+    fun setSelectedTab(tab: Int) {
+        _selectedTab.value = tab
     }
 
     override fun onCleared() {
