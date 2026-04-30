@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -77,7 +78,6 @@ fun RadioStationsScreen(
         radioViewModel.observeAndProcessRemoteLinks()
     }
 
-    // Observe favorite limit events
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->
             toastMessage = message
@@ -85,157 +85,130 @@ fun RadioStationsScreen(
         }
     }
 
-    // Request state update when screen becomes visible
     LaunchedEffect(Unit) {
         playerControlViewModel.requestStateUpdate()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            RadioTopBar(
-                onViewToggleClick = { radioViewModel.toggleViewPreference() },
-                isGridView = isGridView,
-                searchQuery = searchQuery,
-                onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
-                isSearchActive = isSearchActive,
-                onSearchActiveChange = { radioViewModel.setSearchActive(it) },
-                onAboutClick = { showAboutDialog = true }
-            )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Hide mini player in small screens (split screen, etc.)
+        val showMiniPlayer = maxHeight > 400.dp
 
-            if (allStations.isEmpty()) {
-                // Loading state
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        DotLoadingAnimation()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading stations...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
-                // No search results
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.SearchOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No stations found",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Try a different search term",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                if (isGridView) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        state = gridScrollState,
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                RadioTopBar(
+                    onViewToggleClick = { radioViewModel.toggleViewPreference() },
+                    isGridView = isGridView,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
+                    isSearchActive = isSearchActive,
+                    onSearchActiveChange = { radioViewModel.setSearchActive(it) },
+                    onAboutClick = { showAboutDialog = true }
+                )
+
+                if (allStations.isEmpty()) {
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 12.dp,
-                            top = 12.dp,
-                            end = 12.dp,
-                            bottom = 100.dp
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(
-                            items = filteredStations,
-                            key = { it.id }
-                        ) { station ->
-                            RadioStationGridItem(
-                                station = station,
-                                isPlaying = playingStation?.id == station.id,
-                                playbackState = playbackState,
-                                onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                onFavoriteClick = {
-                                    radioViewModel.toggleFavorite(station.id, !station.isFavorite)
-                                }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            DotLoadingAnimation()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Loading stations...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                } else {
-                    LazyColumn(
-                        state = listScrollState,
+                } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 0.dp,
-                            top = 8.dp,
-                            end = 0.dp,
-                            bottom = 100.dp
-                        )
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(
-                            items = filteredStations,
-                            key = { it.id }
-                        ) { station ->
-                            RadioStationRow(
-                                station = station,
-                                isPlaying = playingStation?.id == station.id,
-                                playbackState = playbackState,
-                                onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                onFavoriteClick = {
-                                    radioViewModel.toggleFavorite(station.id, !station.isFavorite)
-                                }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.SearchOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No stations found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Try a different search term", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else {
+                    if (isGridView) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            state = gridScrollState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = if (showMiniPlayer) 100.dp else 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = filteredStations, key = { it.id }) { station ->
+                                RadioStationGridItem(
+                                    station = station,
+                                    isPlaying = playingStation?.id == station.id,
+                                    playbackState = playbackState,
+                                    onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listScrollState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 0.dp, top = 8.dp, end = 0.dp, bottom = if (showMiniPlayer) 100.dp else 12.dp)
+                        ) {
+                            items(items = filteredStations, key = { it.id }) { station ->
+                                RadioStationRow(
+                                    station = station,
+                                    isPlaying = playingStation?.id == station.id,
+                                    playbackState = playbackState,
+                                    onPlayClick = { playerControlViewModel.requestPlayStation(station) },
+                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // Floating Mini Player
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            PersistentMiniPlayer(
-                station = playingStation,
-                playbackState = playbackState,
-                onPlayPauseClick = {
-                    playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+            // Floating Mini Player - only show when screen is tall enough
+            if (showMiniPlayer) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    PersistentMiniPlayer(
+                        station = playingStation,
+                        playbackState = playbackState,
+                        onPlayPauseClick = {
+                            playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                        }
+                    )
                 }
+            }
+
+            // Toast
+            AppToast(
+                toastType = ToastType.Error(toastMessage),
+                isVisible = isToastVisible,
+                onDismiss = { isToastVisible = false },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = if (showMiniPlayer) 100.dp else 16.dp)
             )
         }
-
-        // Toast for favorite limit exceeded
-        AppToast(
-            toastType = ToastType.Error(toastMessage),
-            isVisible = isToastVisible,
-            onDismiss = { isToastVisible = false },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 100.dp)
-        )
     }
 
     // About Dialog
     if (showAboutDialog) {
-        AboutDialog(
-            onDismiss = { showAboutDialog = false },
-            context = context
-        )
+        AboutDialog(onDismiss = { showAboutDialog = false }, context = context)
     }
 }
