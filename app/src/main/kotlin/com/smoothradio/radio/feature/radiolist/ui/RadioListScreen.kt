@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
+import android.util.Log
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -68,30 +69,28 @@ fun RadioStationsScreen(
     val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
     val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
 
-    // Toast state
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
-        radioViewModel.observeAndProcessRemoteLinks()
-    }
-
+    LaunchedEffect(Unit) { radioViewModel.observeAndProcessRemoteLinks() }
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->
             toastMessage = message
             isToastVisible = true
         }
     }
-
-    LaunchedEffect(Unit) {
-        playerControlViewModel.requestStateUpdate()
-    }
+    LaunchedEffect(Unit) { playerControlViewModel.requestStateUpdate() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // Hide mini player in small screens (split screen, etc.)
         val showMiniPlayer = maxHeight > 400.dp
+        val gridItemWidth = maxWidth / 3 // Each item gets 1/3 of the width
+
+        LaunchedEffect(maxWidth, maxHeight) {
+            Log.d("ScreenSize", "Screen: ${maxWidth}x$maxHeight, GridItem: $gridItemWidth, isSmall: ${gridItemWidth < 100.dp}")
+        }
+
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -106,32 +105,17 @@ fun RadioStationsScreen(
                 )
 
                 if (allStations.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             DotLoadingAnimation()
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Loading stations...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("Loading stations...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Icon(Icons.Default.SearchOff, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("No stations found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("Try a different search term", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -153,7 +137,8 @@ fun RadioStationsScreen(
                                     isPlaying = playingStation?.id == station.id,
                                     playbackState = playbackState,
                                     onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
+                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
+                                    gridItemWidth = gridItemWidth
                                 )
                             }
                         }
@@ -177,37 +162,27 @@ fun RadioStationsScreen(
                 }
             }
 
-            // Floating Mini Player - only show when screen is tall enough
             if (showMiniPlayer) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     PersistentMiniPlayer(
                         station = playingStation,
                         playbackState = playbackState,
-                        onPlayPauseClick = {
-                            playingStation?.let { playerControlViewModel.requestPlayStation(it) }
-                        }
+                        onPlayPauseClick = { playingStation?.let { playerControlViewModel.requestPlayStation(it) } }
                     )
                 }
             }
 
-            // Toast
             AppToast(
                 toastType = ToastType.Error(toastMessage),
                 isVisible = isToastVisible,
                 onDismiss = { isToastVisible = false },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = if (showMiniPlayer) 100.dp else 16.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (showMiniPlayer) 100.dp else 16.dp)
             )
         }
     }
 
-    // About Dialog
     if (showAboutDialog) {
         AboutDialog(onDismiss = { showAboutDialog = false }, context = context)
     }
