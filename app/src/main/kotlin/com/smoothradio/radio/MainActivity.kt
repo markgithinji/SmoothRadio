@@ -9,16 +9,14 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -46,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
@@ -77,7 +74,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.jvm.java
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -175,7 +171,6 @@ class MainActivity : ComponentActivity() {
         val discoverScrollState = rememberLazyListState()
         val discoverCategoryScrollStates = remember { mutableStateMapOf<String, LazyListState>() }
 
-        // Toast state
         var toastType by remember { mutableStateOf<ToastType>(ToastType.Info("")) }
         var isToastVisible by remember { mutableStateOf(false) }
 
@@ -197,11 +192,14 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
-                    Column {
-                        NavigationBar(
+                    NavigationBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
                                 NavigationBarItem(
@@ -242,9 +240,11 @@ class MainActivity : ComponentActivity() {
                             listScrollState = listScrollState,
                             gridScrollState = gridScrollState
                         )
+
                         1 -> PlayerScreen(
                             playerControlViewModel = playerControlViewModel
                         )
+
                         2 -> DiscoverScreen(
                             radioViewModel = radioViewModel,
                             playerControlViewModel = playerControlViewModel,
@@ -309,6 +309,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 playerControlViewModel.savePlayingStationId(command.station.id)
                             }
+
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.Next -> playNext()
                             is PlayCommand.Previous -> playPrevious()
@@ -522,7 +523,8 @@ class MainActivity : ComponentActivity() {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
         val network = cm.activeNetwork
         val capabilities = cm.getNetworkCapabilities(network)
-        val connected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val connected =
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 
         if (!connected) {
             playerControlViewModel.showToast(ToastType.Error(getString(R.string.check_internet)))
@@ -562,8 +564,10 @@ class MainActivity : ComponentActivity() {
                 StreamService.StreamStates.PREPARING,
                 StreamService.StreamStates.PLAYING,
                 StreamService.StreamStates.BUFFERING -> true
+
                 StreamService.StreamStates.IDLE,
                 StreamService.StreamStates.ENDED -> false
+
                 else -> false
             }
 

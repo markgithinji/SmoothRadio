@@ -93,7 +93,7 @@ fun RadioStationsScreen(
         }
 
         val gridColumns = when {
-            maxWidth < 360.dp -> 2   // Small phone/split screen
+//            maxWidth < 360.dp -> 2   // Small phone/split screen
             maxWidth < 500.dp -> 3   // Normal phone
             maxWidth < 700.dp -> 4   // Large phone/small tablet
             maxWidth < 900.dp -> 5   // Tablet
