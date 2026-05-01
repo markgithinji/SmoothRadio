@@ -12,7 +12,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
@@ -20,6 +19,8 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -45,14 +46,9 @@ class StreamService : Service() {
     private var mediaMetadataOR: MediaMetadata? = null
     private lateinit var exoplayerEventListener: EventListener
 
-    // System Services
-    private lateinit var audioManager: AudioManager
-    private lateinit var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener
-
     // Broadcast Intents
     private lateinit var eventIntent: Intent
     private lateinit var metadataIntent: Intent
-    private lateinit var playPauseIntent: Intent
 
     // Media Session
     private lateinit var mediaSession: MediaSessionCompat
@@ -78,7 +74,6 @@ class StreamService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        setupAudioFocus()
         setupIntents()
         setupMediaSession()
         setupNotificationChannel()
@@ -249,20 +244,6 @@ class StreamService : Service() {
         }
     }
 
-    private fun setupAudioFocus() {
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        playPauseIntent = Intent()
-        onAudioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-            when (focusChange) {
-                AudioManager.AUDIOFOCUS_GAIN -> player?.play()
-                AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    playPauseIntent.putExtra(EXTRA_SOURCE, "audioFocus")
-                    sendBroadcast(playPauseIntent)
-                }
-            }
-        }
-    }
-
     private fun setupIntents() {
         eventIntent = Intent(ACTION_EVENT_CHANGE).setPackage(packageName)
         metadataIntent = Intent(ACTION_METADATA_CHANGE).setPackage(packageName)
@@ -316,7 +297,6 @@ class StreamService : Service() {
     }
 
     private fun cleanupResources() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
         player?.let {
             it.stop()
             it.removeListener(exoplayerEventListener)
@@ -342,7 +322,6 @@ class StreamService : Service() {
     private fun play(link: String) {
         stateChange = StreamStates.PREPARING
         preparePlayer(link.toUri())
-        requestFocus()
         player?.play()
         updateMediaStyleNotification()
     }
@@ -350,15 +329,23 @@ class StreamService : Service() {
     private fun preparePlayer(uri: Uri) {
         player?.release()
         val mediaItem = MediaItem.fromUri(uri)
-        player = ExoPlayer.Builder(this).build().apply {
-            setMediaItem(mediaItem)
-            prepare()
-            addListener(exoplayerEventListener)
-        }
+
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
+        player = ExoPlayer.Builder(this)
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .build().apply {
+                setMediaItem(mediaItem)
+                prepare()
+                addListener(exoplayerEventListener)
+            }
     }
 
     private fun prepareShowAd() {
-        abandonFocus()
         player?.let {
             it.stop()
             it.release()
@@ -372,18 +359,6 @@ class StreamService : Service() {
     private fun broadcastState(state: String) {
         eventIntent.putExtra(EXTRA_STATE, state)
         sendBroadcast(eventIntent)
-    }
-
-    private fun requestFocus() {
-        audioManager.requestAudioFocus(
-            onAudioFocusChangeListener,
-            AudioManager.STREAM_MUSIC,
-            AudioManager.AUDIOFOCUS_GAIN
-        )
-    }
-
-    private fun abandonFocus() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
     }
 
     private fun sendMetadataBroadcast(metadata: MediaMetadata) {
@@ -432,7 +407,6 @@ class StreamService : Service() {
 
     private fun pausePlayer(source: String?) {
         player?.pause()
-        if (source == null) abandonFocus()
         isPlaying = false
         stateChange = StreamStates.IDLE
         broadcastState(stateChange)
@@ -440,7 +414,6 @@ class StreamService : Service() {
     }
 
     private fun resumePlayer() {
-        requestFocus()
         player?.play()
         isPlaying = true
         stateChange = StreamStates.PLAYING
@@ -487,7 +460,6 @@ class StreamService : Service() {
     inner class RequestFocusReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             player?.play()
-            requestFocus()
         }
     }
 
@@ -509,13 +481,14 @@ class StreamService : Service() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            this@StreamService.isPlaying = isPlaying
             if (isPlaying) {
-                requestFocus()
                 stateChange = StreamStates.PLAYING
-                this@StreamService.isPlaying = true
-                broadcastState(stateChange)
-                updateMediaStyleNotification()
+            } else if (player?.playbackState == Player.STATE_READY) {
+                stateChange = StreamStates.IDLE
             }
+            broadcastState(stateChange)
+            updateMediaStyleNotification()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -539,14 +512,12 @@ class StreamService : Service() {
         }
 
         private fun handleBufferingState() {
-            abandonFocus()
             stateChange = StreamStates.BUFFERING
             broadcastState(stateChange)
             updateMediaStyleNotification()
         }
 
         private fun handleIdleState() {
-            abandonFocus()
             stateChange = StreamStates.IDLE
             isPlaying = false
             broadcastState(stateChange)
@@ -554,15 +525,14 @@ class StreamService : Service() {
         }
 
         private fun handleReadyState() {
-            requestFocus()
-            stateChange = StreamStates.PLAYING
-            isPlaying = true
-            broadcastState(stateChange)
-            updateMediaStyleNotification()
+            if (player?.isPlaying == true) {
+                stateChange = StreamStates.PLAYING
+                broadcastState(stateChange)
+                updateMediaStyleNotification()
+            }
         }
 
         private fun handleEndedState() {
-            abandonFocus()
             stateChange = StreamStates.ENDED
             isPlaying = false
             broadcastState(stateChange)
