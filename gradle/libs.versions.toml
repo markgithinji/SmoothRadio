@@ -32,6 +32,7 @@ facebook = "6.20.0.0"
 # Media3
 media3Exoplayer = "1.7.1"
 media3ExoplayerHls = "1.7.1"
+media3Session = "1.7.1"
 # Room & DI
 roomRuntime = "2.7.1"
 hilt = "2.59.2"
@@ -77,6 +78,7 @@ lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
 # Media3 (ExoPlayer)
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3Exoplayer" }
 androidx-media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "media3ExoplayerHls" }
+androidx-media3-session = { module = "androidx.media3:media3-session", version.ref = "media3Session" }
 # Room
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }

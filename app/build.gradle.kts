@@ -120,6 +120,7 @@ dependencies {
     // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.session)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
