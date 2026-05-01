@@ -5,7 +5,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,8 +13,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
-import android.os.IBinder
-import android.support.v4.media.session.MediaSessionCompat
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
@@ -26,17 +23,21 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
 
 /**
- * A background service that manages audio streaming using ExoPlayer.
+ * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
  *
  * This service handles playback, pause/resume, stop, audio focus management,
  * notifications, and broadcast communication with the UI. It supports playing
  * audio streams from URLs and responds to various actions triggered by the UI or system events.
  */
-class StreamService : Service() {
+@UnstableApi
+class StreamService : MediaSessionService() {
     // Playback State
     private var isPlaying = false
     private var stateChange = ""
@@ -51,7 +52,7 @@ class StreamService : Service() {
     private lateinit var metadataIntent: Intent
 
     // Media Session
-    private lateinit var mediaSession: MediaSessionCompat
+    private var mediaSession: MediaSession? = null
 
     // Notification Components
     private lateinit var stopPI: PendingIntent
@@ -68,48 +69,48 @@ class StreamService : Service() {
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
 
-    // === Lifecycle Methods ===
-
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onCreate() {
         super.onCreate()
         setupIntents()
+        setupPlayer()
         setupMediaSession()
         setupNotificationChannel()
         registerReceivers()
-        exoplayerEventListener = EventListener()
 
         startForeground(NOTIFICATION_ID, createMediaStyleNotification())
         isForegroundStarted = true
     }
 
+    private fun setupPlayer() {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
+        exoplayerEventListener = EventListener()
+        player = ExoPlayer.Builder(this)
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .build().apply {
+                addListener(exoplayerEventListener)
+            }
+    }
+
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "StreamService")
-        mediaSession.setFlags(
-            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-        )
-
-        mediaSession.setCallback(object : MediaSessionCompat.Callback() {
-            override fun onPlay() {
-                if (!isPlaying) {
-                    resumePlayer()
-                }
-            }
-
-            override fun onPause() {
-                if (isPlaying) {
-                    pausePlayer(null)
-                }
-            }
-
-            override fun onStop() {
-                stopSelf()
-            }
-        })
-
-        mediaSession.isActive = true
+        player?.let {
+            mediaSession = MediaSession.Builder(this, it)
+                .setSessionActivity(
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+                )
+                .build()
+        }
     }
 
     private fun setupNotificationChannel() {
@@ -155,9 +156,10 @@ class StreamService : Service() {
             )
             .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
             .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setMediaSession(mediaSession.sessionToken)
-                    .setShowActionsInCompactView(0)
+                mediaSession?.let {
+                    androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                        .setShowActionsInCompactView(0)
+                }
             )
             .build()
     }
@@ -207,9 +209,10 @@ class StreamService : Service() {
             )
             .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
             .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setMediaSession(mediaSession.sessionToken)
-                    .setShowActionsInCompactView(0)
+                mediaSession?.let {
+                    androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                        .setShowActionsInCompactView(0)
+                }
             )
             .build()
 
@@ -218,8 +221,9 @@ class StreamService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
         intent?.let { handleIntent(it) }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun handleIntent(intent: Intent) {
@@ -240,7 +244,9 @@ class StreamService : Service() {
                 prepareShowAd()
             }
 
-            else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
+            else -> {
+                // Ignore unknown actions
+            }
         }
     }
 
@@ -257,31 +263,11 @@ class StreamService : Service() {
         requestFocusReceiver = RequestFocusReceiver()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                stopPlayFromTimerReceiver,
-                IntentFilter(ACTION_STOP),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                restoreUIReceiver,
-                IntentFilter(ACTION_GET_STATE),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                setStopTimerReceiver,
-                IntentFilter(ACTION_SET_TIMER),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                pLayPauseReceiver,
-                IntentFilter(ACTION_PLAY_PAUSE),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                requestFocusReceiver,
-                IntentFilter(ACTION_REQUEST_AUDIO_FOCUS),
-                RECEIVER_NOT_EXPORTED
-            )
+            registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP), RECEIVER_NOT_EXPORTED)
+            registerReceiver(restoreUIReceiver, IntentFilter(ACTION_GET_STATE), RECEIVER_NOT_EXPORTED)
+            registerReceiver(setStopTimerReceiver, IntentFilter(ACTION_SET_TIMER), RECEIVER_NOT_EXPORTED)
+            registerReceiver(pLayPauseReceiver, IntentFilter(ACTION_PLAY_PAUSE), RECEIVER_NOT_EXPORTED)
+            registerReceiver(requestFocusReceiver, IntentFilter(ACTION_REQUEST_AUDIO_FOCUS), RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP))
             registerReceiver(restoreUIReceiver, IntentFilter(ACTION_GET_STATE))
@@ -292,31 +278,34 @@ class StreamService : Service() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         cleanupResources()
+        super.onDestroy()
     }
 
     private fun cleanupResources() {
-        player?.let {
-            it.stop()
-            it.removeListener(exoplayerEventListener)
-            it.release()
+        mediaSession?.run {
+            player.release()
+            release()
+            mediaSession = null
         }
+        player = null
         isPlaying = false
         stateChange = ""
         broadcastState(stateChange)
-        mediaSession.isActive = false
-        mediaSession.release()
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
         unregisterAllReceivers()
     }
 
     private fun unregisterAllReceivers() {
-        unregisterReceiver(stopPlayFromTimerReceiver)
-        unregisterReceiver(setStopTimerReceiver)
-        unregisterReceiver(restoreUIReceiver)
-        unregisterReceiver(pLayPauseReceiver)
-        unregisterReceiver(requestFocusReceiver)
+        try {
+            unregisterReceiver(stopPlayFromTimerReceiver)
+            unregisterReceiver(setStopTimerReceiver)
+            unregisterReceiver(restoreUIReceiver)
+            unregisterReceiver(pLayPauseReceiver)
+            unregisterReceiver(requestFocusReceiver)
+        } catch (e: Exception) {
+            // Receivers might not be registered
+        }
     }
 
     private fun play(link: String) {
@@ -327,29 +316,14 @@ class StreamService : Service() {
     }
 
     private fun preparePlayer(uri: Uri) {
-        player?.release()
+        player?.stop()
         val mediaItem = MediaItem.fromUri(uri)
-
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .build()
-
-        player = ExoPlayer.Builder(this)
-            .setAudioAttributes(audioAttributes, true)
-            .setHandleAudioBecomingNoisy(true)
-            .build().apply {
-                setMediaItem(mediaItem)
-                prepare()
-                addListener(exoplayerEventListener)
-            }
+        player?.setMediaItem(mediaItem)
+        player?.prepare()
     }
 
     private fun prepareShowAd() {
-        player?.let {
-            it.stop()
-            it.release()
-        }
+        player?.stop()
         isPlaying = false
         stateChange = StreamStates.PREPARING
         broadcastState(stateChange)
