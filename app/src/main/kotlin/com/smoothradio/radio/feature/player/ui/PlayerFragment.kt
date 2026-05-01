@@ -36,7 +36,7 @@ class PlayerFragment : Fragment() {
 
     private val playerControlViewModel: PlayerControlViewModel by activityViewModels()
 
-    private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
+//    private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -45,23 +45,23 @@ class PlayerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        registerBroadcasts()
+//        registerBroadcasts()
     }
 
-    private fun registerBroadcasts() {
-        val metadataFilter = IntentFilter().apply {
-            addAction(StreamService.ACTION_METADATA_CHANGE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            fragmentActivity.registerReceiver(
-                metadataReceiver,
-                metadataFilter,
-                Context.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            fragmentActivity.registerReceiver(metadataReceiver, metadataFilter)
-        }
-    }
+//    private fun registerBroadcasts() {
+//        val metadataFilter = IntentFilter().apply {
+////            addAction(StreamService.ACTION_METADATA_CHANGE)
+//        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//            fragmentActivity.registerReceiver(
+//                metadataReceiver,
+//                metadataFilter,
+//                Context.RECEIVER_NOT_EXPORTED
+//            )
+//        } else {
+//            fragmentActivity.registerReceiver(metadataReceiver, metadataFilter)
+//        }
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -104,14 +104,14 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Update ui or get currently playing state from service
-        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
-            setPackage(fragmentActivity.packageName)
-        }
-        fragmentActivity.sendBroadcast(intent)
-    }
+//    override fun onResume() {
+//        super.onResume()
+//        // Update ui or get currently playing state from service
+//        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+//            setPackage(fragmentActivity.packageName)
+//        }
+//        fragmentActivity.sendBroadcast(intent)
+//    }
 
     private fun updateUI(state: String) = with(binding) {
         TransitionManager.beginDelayedTransition(playerFrag)
@@ -149,7 +149,7 @@ class PlayerFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        fragmentActivity.unregisterReceiver(metadataReceiver)
+//        fragmentActivity.unregisterReceiver(metadataReceiver)
     }
 
     /**
@@ -162,16 +162,16 @@ class PlayerFragment : Fragment() {
      * truncated title.  It also uses a `TransitionManager` to animate the UI update for a smoother
      * user experience.
      */
-    inner class MetadataReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val metadata = intent?.getStringExtra(StreamService.EXTRA_TITLE)
-            metadata?.let {
-                val truncatedMetadata = it.substring(0, minOf(it.length, 70))
-                binding.tvMetadata.text = truncatedMetadata
-                TransitionManager.beginDelayedTransition(binding.playerFrag)
-            }
-        }
-    }
+//    inner class MetadataReceiver : BroadcastReceiver() {
+//        override fun onReceive(context: Context?, intent: Intent?) {
+//            val metadata = intent?.getStringExtra(StreamService.EXTRA_TITLE)
+//            metadata?.let {
+//                val truncatedMetadata = it.substring(0, minOf(it.length, 70))
+//                binding.tvMetadata.text = truncatedMetadata
+//                TransitionManager.beginDelayedTransition(binding.playerFrag)
+//            }
+//        }
+//    }
 
     inner class Refresh : View.OnClickListener {
         override fun onClick(view: View?) {

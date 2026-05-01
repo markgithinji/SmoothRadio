@@ -104,14 +104,14 @@ class DiscoverFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Update ui or get currently playing state from service
-        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
-            setPackage(fragmentActivity.packageName)
-        }
-        fragmentActivity.sendBroadcast(intent)
-    }
+//    override fun onResume() {
+//        super.onResume()
+//        // Update ui or get currently playing state from service
+//        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+//            setPackage(fragmentActivity.packageName)
+//        }
+//        fragmentActivity.sendBroadcast(intent)
+//    }
 
     override fun onDestroyView() {
         super.onDestroyView()
@@ -121,7 +121,7 @@ class DiscoverFragment : Fragment() {
     private inner class RadioStationHandler : RadioStationActionHandler {
 
         override fun onStationSelected(station: RadioStation) {
-            playerControlViewModel.requestPlayStation(station)
+//            playerControlViewModel.requestPlayStation(station)
         }
 
         override fun onToggleFavorite(station: RadioStation, isFavorite: Boolean) {

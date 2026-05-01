@@ -123,16 +123,16 @@ class RadioListFragment : Fragment() {
         })
     }
 
-    override fun onResume() {
-        super.onResume()
-        mainActivity = requireActivity() as? MainActivity
-
-        // Update ui or get currently playing state from service
-        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
-            setPackage(fragmentActivity.packageName)
-        }
-        fragmentActivity.sendBroadcast(intent)
-    }
+//    override fun onResume() {
+//        super.onResume()
+//        mainActivity = requireActivity() as? MainActivity
+//
+//        // Update ui or get currently playing state from service
+//        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
+//            setPackage(fragmentActivity.packageName)
+//        }
+//        fragmentActivity.sendBroadcast(intent)
+//    }
 
     private fun showToast(message: String) {
         Toast.makeText(fragmentActivity, message, Toast.LENGTH_SHORT).show()
