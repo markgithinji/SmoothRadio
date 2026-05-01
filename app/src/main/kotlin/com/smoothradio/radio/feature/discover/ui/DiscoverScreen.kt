@@ -1,5 +1,6 @@
 package com.smoothradio.radio.feature.discover.ui
 
+import android.util.Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -79,7 +80,6 @@ fun DiscoverScreen(
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
 
-    // Observe favorite limit events
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->
             toastMessage = message
@@ -95,7 +95,6 @@ fun DiscoverScreen(
         CategoryHelper.createCategories(stations)
     }
 
-    // Initialize scroll states for each category if not already present
     categories.forEach { category ->
         if (!categoryScrollStates.containsKey(category.label)) {
             categoryScrollStates[category.label] = LazyListState()
@@ -103,14 +102,14 @@ fun DiscoverScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val screenWidth = maxWidth
         val screenHeight = maxHeight
 
         val itemWidth = when {
-            screenHeight < 400.dp -> 100.dp
-            screenHeight < 600.dp -> 130.dp
-            else -> 150.dp
+            screenWidth < 300.dp -> 96.dp
+            screenWidth < 400.dp -> 130.dp
+            else -> 137.dp
         }
-        val itemHeight = itemWidth * 1.15f
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -118,7 +117,6 @@ fun DiscoverScreen(
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isLoading) {
-                        // Loading state
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 DotLoadingAnimation()
@@ -127,7 +125,6 @@ fun DiscoverScreen(
                             }
                         }
                     } else if (categories.isEmpty()) {
-                        // Empty state
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Radio, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -139,8 +136,8 @@ fun DiscoverScreen(
                         LazyColumn(
                             state = discoverScrollState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            contentPadding = PaddingValues(vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
                             items(items = categories, key = { it.label }) { category ->
                                 if (category.categoryRadioStationList.isNotEmpty()) {
@@ -154,6 +151,8 @@ fun DiscoverScreen(
                                             fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
                                             modifier = Modifier.padding(horizontal = 16.dp)
                                         )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
 
                                         LazyRow(
                                             state = rowScrollState,
@@ -170,7 +169,7 @@ fun DiscoverScreen(
                                                         onPlayClick = { playerControlViewModel.requestPlayStation(station) },
                                                         onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
                                                         gridItemWidth = itemWidth,
-                                                        modifier = Modifier.size(width = itemWidth, height = itemHeight)
+                                                        modifier = Modifier.width(itemWidth)
                                                     )
                                                 } else {
                                                     RadioStationGridItem(
@@ -180,7 +179,7 @@ fun DiscoverScreen(
                                                         onPlayClick = { playerControlViewModel.requestPlayStation(station) },
                                                         onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
                                                         gridItemWidth = itemWidth,
-                                                        modifier = Modifier.size(width = itemWidth, height = itemHeight)
+                                                        modifier = Modifier.width(itemWidth)
                                                     )
                                                 }
                                             }
@@ -193,7 +192,6 @@ fun DiscoverScreen(
                 }
             }
 
-            // Toast for favorite limit exceeded
             AppToast(
                 toastType = ToastType.Error(toastMessage),
                 isVisible = isToastVisible,
