@@ -10,7 +10,7 @@
         <activity
             android:name=".HiltTestActivity"
             android:exported="false"
-            android:theme="@style/Theme.MyApplication"/>
+            android:theme="@style/Theme.SmoothRadio"/>
 
         <service android:name=".service.StreamService"
             android:foregroundServiceType="mediaPlayback"/>

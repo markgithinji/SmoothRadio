@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -93,9 +92,9 @@ class RadioListFragment : Fragment() {
                     }
                 }
                 launch {
-                    radioViewModel.favoriteToggleResult.collect { success ->
-                        if (!success) showToast(getString(R.string.favorite_limit_reached))
-                    }
+//                    radioViewModel.favoriteToggleResult.collect { success ->
+//                        if (!success) showToast(getString(R.string.favorite_limit_reached))
+//                    }
                 }
             }
         }
@@ -112,15 +111,15 @@ class RadioListFragment : Fragment() {
 
     private fun setupRecyclerViewScrollBehavior() {
         binding.rvRadioList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                mainActivity?.bottomSheetBehavior?.let { bottomSheetBehavior ->
-                    if (!recyclerView.canScrollVertically(1)) {
-                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
-                    } else {
-                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-                    }
-                }
-            }
+//            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+//                mainActivity?.bottomSheetBehavior?.let { bottomSheetBehavior ->
+//                    if (!recyclerView.canScrollVertically(1)) {
+//                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+//                    } else {
+//                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+//                    }
+//                }
+//            }
         })
     }
 

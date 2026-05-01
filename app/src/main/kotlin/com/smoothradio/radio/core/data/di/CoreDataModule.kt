@@ -12,9 +12,11 @@ import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.DefaultAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
+import com.smoothradio.radio.core.data.repository.DefaultViewPreferenceRepository
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -56,19 +58,27 @@ class CoreDataModule {
 
     @Provides
     @Singleton
-    fun provideAdPreferencesDataStore(
+    fun providePreferencesDataStore(
         @ApplicationContext context: Context
     ): DataStore<Preferences> {
         return PreferenceDataStoreFactory.create(
-            produceFile = { context.preferencesDataStoreFile("ad_preferences") }
+            produceFile = { context.preferencesDataStoreFile("preferences") }
         )
     }
 
     @Provides
     @Singleton
-    fun provideAdPreferencesManager(
+    fun provideAdSettingsRepository(
         dataStore: DataStore<Preferences>
     ): AdSettingsRepository {
         return DefaultAdSettingsRepository(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideViewPreferenceRepository(
+        dataStore: DataStore<Preferences>
+    ): ViewPreferenceRepository {
+        return DefaultViewPreferenceRepository(dataStore)
     }
 }

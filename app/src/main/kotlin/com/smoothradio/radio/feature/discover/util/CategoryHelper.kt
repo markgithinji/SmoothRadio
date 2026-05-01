@@ -125,7 +125,7 @@ object CategoryHelper {
             178
         ),
         "ISLAM" to listOf(
-            34, 67, 68, 222, 87, 154, 192, 149
+            34, 67, 222, 87, 154, 192, 149
         ),
         "COASTAL REGION" to listOf(
             23, 123, 146, 35, 36, 49, 63, 58
@@ -153,10 +153,20 @@ object CategoryHelper {
     fun createCategories(radioStations: List<RadioStation>): List<Category> {
         val categoriesList = mutableListOf<Category>()
 
+        // Add "Your Favorites" category if there are any favorites
+        val favoriteStations = radioStations.filter { it.isFavorite }
+        if (favoriteStations.isNotEmpty()) {
+            categoriesList.add(Category("Your Favorites", favoriteStations))
+        }
+
+        // Then add all the predefined categories
         categories.forEach { (categoryName, categoryIds) ->
-            val categorizedStations =
-                radioStations.filter { station -> categoryIds.contains(station.id) }
-            categoriesList.add(Category(categoryName, categorizedStations))
+            val categorizedStations = radioStations.filter { station ->
+                categoryIds.contains(station.id)
+            }
+            if (categorizedStations.isNotEmpty()) {
+                categoriesList.add(Category(categoryName, categorizedStations))
+            }
         }
 
         return categoriesList

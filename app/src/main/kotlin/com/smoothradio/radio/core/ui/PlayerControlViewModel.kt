@@ -12,11 +12,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,23 +35,42 @@ class PlayerControlViewModel @Inject constructor(
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
 
-    val playingStation: StateFlow<RadioStation?> = radioRepository.playingStation
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        )
+    private val _playingStation = MutableStateFlow<RadioStation?>(null)
+    val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
+
+    private val _metadata = MutableStateFlow("")
+    val metadata: StateFlow<String> = _metadata.asStateFlow()
+
+    private val _requestState = MutableSharedFlow<Unit>()
+    val requestState: SharedFlow<Unit> = _requestState.asSharedFlow()
+
+    private val _toastMessage = MutableSharedFlow<ToastType>()
+    val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
 
     init {
         syncAdSettings()
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+        }
+        viewModelScope.launch {
+            radioRepository.playingStation.collect { station ->
+                // Only update when we have a real station
+                station?.let { _playingStation.value = it }
+            }
+        }
+    }
+
+    fun showToast(toastType: ToastType) {
+        viewModelScope.launch {
+            _toastMessage.emit(toastType)
+        }
     }
 
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
-            // Refresh ad status before playing
-            val canShow = canShowAdUseCase()
-            _canShowAd.value = canShow
-
+            _canShowAd.value = canShowAdUseCase()
+            _playingStation.value = station
+            _playbackState.value = StreamService.StreamStates.IDLE
             _playCommand.emit(PlayCommand.PlayStation(station))
         }
     }
@@ -64,8 +81,32 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun requestNextStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Next)
+        }
+    }
+
+    fun requestPreviousStation() {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.emit(PlayCommand.Previous)
+        }
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        viewModelScope.launch {
+            _playCommand.emit(PlayCommand.SetSleepTimer(minutes))
+        }
+    }
+
     fun updatePlaybackState(state: String) {
         _playbackState.value = state
+    }
+
+    fun updateMetadata(metadata: String) {
+        _metadata.value = metadata
     }
 
     fun savePlayingStationId(id: Int) {
@@ -80,9 +121,15 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
-    fun syncAdSettings() {
+    private fun syncAdSettings() {
         viewModelScope.launch {
             syncAdSettingsUseCase()
+        }
+    }
+
+    fun requestStateUpdate() {
+        viewModelScope.launch {
+            _requestState.emit(Unit)
         }
     }
 }
@@ -90,4 +137,7 @@ class PlayerControlViewModel @Inject constructor(
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()
     object Refresh : PlayCommand()
+    object Next : PlayCommand()
+    object Previous : PlayCommand()
+    data class SetSleepTimer(val minutes: Int) : PlayCommand()
 }

@@ -1,8 +1,8 @@
 package com.smoothradio.radio.core.logging
 
 import android.os.Bundle
-import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.analytics.analytics
+import com.google.firebase.Firebase
 
 object AnalyticsHelper {
     private val firebaseAnalytics = Firebase.analytics
