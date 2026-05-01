@@ -28,6 +28,8 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
@@ -37,13 +39,15 @@ import com.smoothradio.radio.R
  * audio streams from URLs and responds to various actions triggered by the UI or system events.
  */
 @UnstableApi
+@AndroidEntryPoint
 class StreamService : MediaSessionService() {
     // Playback State
     private var isPlaying = false
     private var stateChange = ""
 
-    // Playback Components
-    private var player: ExoPlayer? = null
+    @Inject
+    lateinit var player: ExoPlayer
+
     private var mediaMetadataOR: MediaMetadata? = null
     private lateinit var exoplayerEventListener: EventListener
 
@@ -74,7 +78,8 @@ class StreamService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         setupIntents()
-        setupPlayer()
+        exoplayerEventListener = EventListener()
+        player.addListener(exoplayerEventListener)
         setupMediaSession()
         setupNotificationChannel()
         registerReceivers()
@@ -83,34 +88,17 @@ class StreamService : MediaSessionService() {
         isForegroundStarted = true
     }
 
-    private fun setupPlayer() {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .build()
-
-        exoplayerEventListener = EventListener()
-        player = ExoPlayer.Builder(this)
-            .setAudioAttributes(audioAttributes, true)
-            .setHandleAudioBecomingNoisy(true)
-            .build().apply {
-                addListener(exoplayerEventListener)
-            }
-    }
-
     private fun setupMediaSession() {
-        player?.let {
-            mediaSession = MediaSession.Builder(this, it)
-                .setSessionActivity(
-                    PendingIntent.getActivity(
-                        this,
-                        0,
-                        Intent(this, MainActivity::class.java),
-                        PendingIntent.FLAG_IMMUTABLE
-                    )
+        mediaSession = MediaSession.Builder(this, player)
+            .setSessionActivity(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, MainActivity::class.java),
+                    PendingIntent.FLAG_IMMUTABLE
                 )
-                .build()
-        }
+            )
+            .build()
     }
 
     private fun setupNotificationChannel() {
@@ -284,11 +272,11 @@ class StreamService : MediaSessionService() {
 
     private fun cleanupResources() {
         mediaSession?.run {
+            player.removeListener(exoplayerEventListener)
             player.release()
             release()
             mediaSession = null
         }
-        player = null
         isPlaying = false
         stateChange = ""
         broadcastState(stateChange)
@@ -311,19 +299,19 @@ class StreamService : MediaSessionService() {
     private fun play(link: String) {
         stateChange = StreamStates.PREPARING
         preparePlayer(link.toUri())
-        player?.play()
+        player.play()
         updateMediaStyleNotification()
     }
 
     private fun preparePlayer(uri: Uri) {
-        player?.stop()
+        player.stop()
         val mediaItem = MediaItem.fromUri(uri)
-        player?.setMediaItem(mediaItem)
-        player?.prepare()
+        player.setMediaItem(mediaItem)
+        player.prepare()
     }
 
     private fun prepareShowAd() {
-        player?.stop()
+        player.stop()
         isPlaying = false
         stateChange = StreamStates.PREPARING
         broadcastState(stateChange)
@@ -380,7 +368,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun pausePlayer(source: String?) {
-        player?.pause()
+        player.pause()
         isPlaying = false
         stateChange = StreamStates.IDLE
         broadcastState(stateChange)
@@ -388,12 +376,12 @@ class StreamService : MediaSessionService() {
     }
 
     private fun resumePlayer() {
-        player?.play()
+        player.play()
         isPlaying = true
         stateChange = StreamStates.PLAYING
         broadcastState(stateChange)
         updateMediaStyleNotification()
-        mediaMetadataOR = player?.mediaMetadata
+        mediaMetadataOR = player.mediaMetadata
         mediaMetadataOR?.let { sendMetadataBroadcast(it) }
     }
 
@@ -433,18 +421,16 @@ class StreamService : MediaSessionService() {
 
     inner class RequestFocusReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            player?.play()
+            player.play()
         }
     }
 
     inner class RestoreUIReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            player?.let {
-                eventIntent.putExtra(EXTRA_STATE, stateChange)
-                sendBroadcast(eventIntent)
-                mediaMetadataOR = it.mediaMetadata
-                mediaMetadataOR?.let { metadata -> sendMetadataBroadcast(metadata) }
-            }
+            eventIntent.putExtra(EXTRA_STATE, stateChange)
+            sendBroadcast(eventIntent)
+            mediaMetadataOR = player.mediaMetadata
+            mediaMetadataOR?.let { metadata -> sendMetadataBroadcast(metadata) }
         }
     }
 
@@ -458,7 +444,7 @@ class StreamService : MediaSessionService() {
             this@StreamService.isPlaying = isPlaying
             if (isPlaying) {
                 stateChange = StreamStates.PLAYING
-            } else if (player?.playbackState == Player.STATE_READY) {
+            } else if (player.playbackState == Player.STATE_READY) {
                 stateChange = StreamStates.IDLE
             }
             broadcastState(stateChange)
