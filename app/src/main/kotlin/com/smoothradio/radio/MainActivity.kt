@@ -1,9 +1,11 @@
 package com.smoothradio.radio
 
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -15,6 +17,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -50,10 +53,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
+import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -80,11 +89,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
+@UnstableApi
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val eventReceiver: BroadcastReceiver = EventReceiver()
-    private val metadataReceiver: BroadcastReceiver = MetadataReceiver()
+    private var mediaController: MediaController? = null
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
     private val radioViewModel: RadioViewModel by viewModels()
 
@@ -103,13 +112,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         installSplashScreen()
-
         setupSystemBars()
 
         serviceIntent = Intent(this, StreamService::class.java)
 
         showConsentForm()
-        setupBroadcastReceivers()
 
         setContent {
             SmoothRadioTheme {
@@ -152,16 +159,104 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        requestPlaybackState()
+    override fun onStart() {
+        super.onStart()
+        connectToMediaController()
     }
 
-    private fun requestPlaybackState() {
-        val intent = Intent(StreamService.ACTION_GET_STATE).apply {
-            setPackage(packageName)
+    override fun onStop() {
+        super.onStop()
+        disconnectMediaController()
+    }
+
+    private fun connectToMediaController() {
+        val sessionToken = SessionToken(this, ComponentName(this, StreamService::class.java))
+        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture.addListener({
+            try {
+                mediaController = controllerFuture.get()
+                mediaController?.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        this@MainActivity.isPlaying = isPlaying
+                        playerControlViewModel.updatePlaybackState(
+                            if (isPlaying) StreamService.StreamStates.PLAYING
+                            else StreamService.StreamStates.IDLE
+                        )
+                    }
+
+                    override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+                        val rawTitle = mediaMetadata.title?.toString() ?: ""
+                        playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
+                    }
+
+                    override fun onPlaybackStateChanged(state: Int) {
+                        val uiState = when (state) {
+                            Player.STATE_BUFFERING -> StreamService.StreamStates.BUFFERING
+                            Player.STATE_READY -> if (mediaController?.isPlaying == true) StreamService.StreamStates.PLAYING else StreamService.StreamStates.IDLE
+                            Player.STATE_ENDED -> StreamService.StreamStates.ENDED
+                            else -> StreamService.StreamStates.IDLE
+                        }
+                        playerControlViewModel.updatePlaybackState(uiState)
+                    }
+                })
+
+                // Initial state sync
+                mediaController?.let { controller ->
+                    isPlaying = controller.isPlaying
+                    playerControlViewModel.updatePlaybackState(
+                        if (controller.isPlaying) StreamService.StreamStates.PLAYING
+                        else StreamService.StreamStates.IDLE
+                    )
+                    val rawTitle = controller.mediaMetadata.title?.toString() ?: ""
+                    playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
+                }
+            } catch (e: Exception) {
+                // Connection failed
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun disconnectMediaController() {
+        mediaController?.let {
+            it.release()
+            mediaController = null
         }
-        sendBroadcast(intent)
+    }
+
+    private fun extractSongTitle(rawTitle: String): String {
+        val trimmed = rawTitle.trim()
+
+        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
+            return try {
+                val songPattern = Regex(
+                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
+                    RegexOption.DOT_MATCHES_ALL
+                )
+                val match = songPattern.find(trimmed)
+
+                if (match != null) {
+                    val title = match.groupValues[1].replace("&amp;", "&").trim()
+                    val artist = match.groupValues[2].replace("&amp;", "&").trim()
+                    if (title.isNotEmpty()) "$title - $artist" else ""
+                } else {
+                    val fallbackPattern =
+                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
+                    val fallbackMatch = fallbackPattern.find(trimmed)
+                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                }
+            } catch (e: Exception) {
+                ""
+            }
+        }
+
+        val cleanTitle = trimmed
+            .replace(Regex("<[^>]*>"), "")
+            .replace("\n", " ")
+            .replace("\r", "")
+            .replace("\\s+".toRegex(), " ")
+            .trim()
+
+        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     @Composable
@@ -179,12 +274,6 @@ class MainActivity : ComponentActivity() {
         var toastType by remember { mutableStateOf<ToastType>(ToastType.Info("")) }
         var isToastVisible by remember { mutableStateOf(false) }
 
-        LaunchedEffect(Unit) {
-            playerControlViewModel.requestState.collect {
-                requestPlaybackState()
-            }
-        }
-
         // Collect toast events
         LaunchedEffect(Unit) {
             playerControlViewModel.toastMessage.collect { type ->
@@ -196,7 +285,7 @@ class MainActivity : ComponentActivity() {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
-                contentWindowInsets = WindowInsets(0,0,0,0),
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth(),
@@ -268,24 +357,8 @@ class MainActivity : ComponentActivity() {
                 onDismiss = { isToastVisible = false },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 100.dp) // Above the navigation bar
+                    .padding(bottom = 100.dp)
             )
-        }
-    }
-
-    private fun setupBroadcastReceivers() {
-        val eventFilter = IntentFilter(StreamService.ACTION_EVENT_CHANGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(eventReceiver, eventFilter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(eventReceiver, eventFilter)
-        }
-
-        val metadataFilter = IntentFilter(StreamService.ACTION_METADATA_CHANGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(metadataReceiver, metadataFilter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(metadataReceiver, metadataFilter)
         }
     }
 
@@ -294,7 +367,16 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     playerControlViewModel.requestState.collect {
-                        requestPlaybackState()
+                        // Request initial sync if controller is already connected
+                        mediaController?.let { controller ->
+                            isPlaying = controller.isPlaying
+                            playerControlViewModel.updatePlaybackState(
+                                if (controller.isPlaying) StreamService.StreamStates.PLAYING
+                                else StreamService.StreamStates.IDLE
+                            )
+                            val rawTitle = controller.mediaMetadata.title?.toString() ?: ""
+                            playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
+                        }
                     }
                 }
             }
@@ -382,9 +464,7 @@ class MainActivity : ComponentActivity() {
 
     private fun playOrStop() {
         if (isPlaying) {
-            stopService(serviceIntent)
-            isPlaying = false
-            playerControlViewModel.updatePlaybackState(StreamService.StreamStates.IDLE)
+            mediaController?.pause()
             return
         }
 
@@ -563,36 +643,9 @@ class MainActivity : ComponentActivity() {
         MobileAds.initialize(this)
     }
 
-    private inner class EventReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val state = intent.getStringExtra(StreamService.EXTRA_STATE) ?: ""
-
-            isPlaying = when (state) {
-                StreamService.StreamStates.PREPARING,
-                StreamService.StreamStates.PLAYING,
-                StreamService.StreamStates.BUFFERING -> true
-
-                StreamService.StreamStates.IDLE,
-                StreamService.StreamStates.ENDED -> false
-
-                else -> false
-            }
-
-            playerControlViewModel.updatePlaybackState(state)
-        }
-    }
-
-    private inner class MetadataReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val metadata = intent.getStringExtra(StreamService.EXTRA_TITLE) ?: ""
-            playerControlViewModel.updateMetadata(metadata)
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(eventReceiver)
-        unregisterReceiver(metadataReceiver)
+        disconnectMediaController()
     }
 
     companion object {
