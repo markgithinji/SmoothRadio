@@ -148,9 +148,26 @@ fun RadioStationRow(
 
                     // Status indicator
                     if (isBuffering && !isSmall) {
-                        DotLoadingAnimation(dotSize = 4.dp, dotSpacing = 3.dp, color = colorScheme.tertiary, animationDelay = 200, animationDuration = 600)
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text("LOADING", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = colorScheme.tertiary, letterSpacing = 0.5.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            DotLoadingAnimation(
+                                modifier = Modifier.padding(end = 4.dp),
+                                dotSize = 4.dp,
+                                dotSpacing = 3.dp,
+                                color = colorScheme.tertiary,
+                                animationDelay = 200,
+                                animationDuration = 600
+                            )
+                            Text(
+                                "LOADING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colorScheme.tertiary,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
 
