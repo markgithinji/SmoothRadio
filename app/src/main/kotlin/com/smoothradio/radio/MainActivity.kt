@@ -129,7 +129,6 @@ class MainActivity : ComponentActivity() {
         }
 
         collectPlaybackFlows()
-        collectViewModelEvents()
     }
 
     /**
@@ -176,21 +175,8 @@ class MainActivity : ComponentActivity() {
         controllerFuture.addListener({
             try {
                 mediaController = controllerFuture.get()
-                mediaController?.addListener(object : Player.Listener {
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        this@MainActivity.isPlaying = isPlaying
-                        Log.e("MainActivityLogs" , " addListener.isPlaying1 $isPlaying")
-                    }
-                })
-
-                // Initial state sync
-                mediaController?.let { controller ->
-                    isPlaying = controller.isPlaying
-                    Log.e("MainActivityLogs" , " addListener.isPlaying2 ${controller.isPlaying}")
-                }
             } catch (e: Exception) {
-                // Connection failed
-                Log.e("MainActivityLogs" , "MediaController connection failed", e)
+                Log.e("MainActivityLogs", "MediaController connection failed", e)
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -305,27 +291,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun collectViewModelEvents() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    playerControlViewModel.playbackState.collect { state ->
-                        val previousIsPlaying = isPlaying
-                        isPlaying = when (state) {
-                            StreamService.StreamStates.PLAYING,
-                            StreamService.StreamStates.BUFFERING,
-                            StreamService.StreamStates.IDLE,
-                            StreamService.StreamStates.PREPARING -> true
-                            StreamService.StreamStates.ENDED -> false
-                            else -> isPlaying
-                        }
-                        Log.d("MainActivityLogs", "playbackState=$state | isPlaying: $previousIsPlaying→$isPlaying")
-                    }
-                }
-            }
-        }
-    }
-
     private fun collectPlaybackFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -437,6 +402,7 @@ class MainActivity : ComponentActivity() {
 
         Log.d("MainActivityLogs", "  → START (not playing, starting fresh)")
         isPlaying = true
+        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
