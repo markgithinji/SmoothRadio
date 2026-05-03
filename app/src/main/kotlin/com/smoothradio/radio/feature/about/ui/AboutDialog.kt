@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
@@ -82,7 +85,12 @@ fun AboutDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
                     "Your favorite radio stations in one place. Stream live radio from Kenya and beyond.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -207,7 +215,6 @@ private fun sendFeedbackEmail(context: Context, version: String, device: String,
     try {
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.send_mail)))
     } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT)
-            .show()
+        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT).show()
     }
 }
