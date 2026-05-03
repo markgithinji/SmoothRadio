@@ -136,7 +136,7 @@ class StreamService : MediaSessionService() {
         }
 
         val stationDisplay = currentStationName ?: stateRepository.stationName.value ?: getString(R.string.app_name)
-        
+
         Log.d("StreamService", "createNotification: title=$title, text=$stationDisplay")
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -170,7 +170,8 @@ class StreamService : MediaSessionService() {
     }
 
     private fun handleIntent(intent: Intent) {
-        Log.d("StreamService", "handleIntent: action=${intent.action}, extras=${intent.extras?.keySet()}")
+        val action = intent.action ?: return // Ignore null action (fixes log flood)
+
         val name = intent.getStringExtra(EXTRA_STATION_NAME)
         if (name != null) {
             currentStationName = name
@@ -184,10 +185,9 @@ class StreamService : MediaSessionService() {
 
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
-        Log.d("StreamService", "handleIntent: station=$currentStationName")
-        notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
+        updateNotificationInternal()
 
-        when (intent.action) {
+        when (action) {
             ACTION_START -> {
                 Log.d("StreamService", "🎵 ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
@@ -196,14 +196,14 @@ class StreamService : MediaSessionService() {
             }
 
             ACTION_SHOW_AD -> {
-                Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
+                Log.d("StreamService", "📢 ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 setState(StreamStates.PREPARING)
                 prepareShowAd()
             }
 
             ACTION_STOP -> {
-                Log.d("StreamService", " ACTION_STOP")
+                Log.d("StreamService", "🛑 ACTION_STOP")
                 isPreparingForAd = false
                 player.pause()
                 player.stop()
@@ -214,9 +214,15 @@ class StreamService : MediaSessionService() {
     }
 
     private fun setState(newState: String) {
+        if (stateChange == newState) return
+
         Log.d("StreamService", "  → state: $newState")
         stateChange = newState
         stateRepository.updateState(newState)
+        updateNotificationInternal()
+    }
+
+    private fun updateNotificationInternal() {
         notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
     }
 
@@ -317,8 +323,12 @@ class StreamService : MediaSessionService() {
     inner class EventListener : Player.Listener {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
-            stateRepository.updateMetadata(extractSongTitle(rawTitle))
-            notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
+            val cleaned = extractSongTitle(rawTitle)
+
+            if (stateRepository.metadata.value != cleaned) {
+                stateRepository.updateMetadata(cleaned)
+                updateNotificationInternal()
+            }
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
