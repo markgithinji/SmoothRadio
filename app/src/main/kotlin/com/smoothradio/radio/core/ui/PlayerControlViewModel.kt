@@ -68,7 +68,10 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestPlayStation(station: RadioStation) {
-//        stateRepository.updateState(StreamService.StreamStates.IDLE)
+        val currentState = stateRepository.playbackState.value
+        if (currentState != StreamService.StreamStates.PREPARING) {
+            stateRepository.updateState(StreamService.StreamStates.IDLE)
+        }
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
             _playingStation.value = station
@@ -77,7 +80,10 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestRefresh() {
-        stateRepository.updateState(StreamService.StreamStates.IDLE)
+        val currentState = stateRepository.playbackState.value
+        if (currentState != StreamService.StreamStates.PREPARING) {
+            stateRepository.updateState(StreamService.StreamStates.IDLE)
+        }
         viewModelScope.launch {
             _playCommand.emit(PlayCommand.Refresh)
         }

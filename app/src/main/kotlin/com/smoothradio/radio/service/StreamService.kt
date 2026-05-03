@@ -176,7 +176,6 @@ class StreamService : MediaSessionService() {
                 player.stop()
                 player.clearMediaItems()
                 setState(StreamStates.IDLE)
-                stopForeground(STOP_FOREGROUND_REMOVE)
             }
         }
     }
