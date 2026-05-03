@@ -13,6 +13,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -24,8 +25,10 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
+import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
@@ -54,7 +57,6 @@ class StreamService : MediaSessionService() {
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
-    private var isForegroundStarted = false
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
 
@@ -68,8 +70,8 @@ class StreamService : MediaSessionService() {
         setupNotificationChannel()
         registerTimerReceivers()
 
-        startForeground(NOTIFICATION_ID, createMediaStyleNotification())
-        isForegroundStarted = true
+        // Set the custom notification provider to avoid double notifications
+        setMediaNotificationProvider(CustomNotificationProvider())
     }
 
     private fun setupMediaSession() {
@@ -109,10 +111,17 @@ class StreamService : MediaSessionService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val songTitle = stateRepository.metadata.value
+        val displayBody = if (isPlaying && songTitle.isNotEmpty()) {
+            songTitle
+        } else {
+            stateChange.ifEmpty { getString(R.string.preparing) }
+        }
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
             .setContentTitle(currentStationName ?: getString(R.string.app_name))
-            .setContentText(stateChange.ifEmpty { getString(R.string.preparing) })
+            .setContentText(displayBody)
             .setLargeIcon(getStationLogo())
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -134,13 +143,6 @@ class StreamService : MediaSessionService() {
         }
     }
 
-    private fun updateMediaStyleNotification() {
-        if (!isForegroundStarted) return
-        val notification = createMediaStyleNotification()
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         intent?.let { handleIntent(it) }
@@ -157,7 +159,6 @@ class StreamService : MediaSessionService() {
                 Log.d("StreamService", "🎵 ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
                 setState(StreamStates.PREPARING)
-                updateMediaStyleNotification()
                 play(link)
             }
 
@@ -165,21 +166,17 @@ class StreamService : MediaSessionService() {
                 Log.d("StreamService", "📢 ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 setState(StreamStates.PREPARING)
-                updateMediaStyleNotification()
                 prepareShowAd()
             }
 
             ACTION_STOP -> {
-                Log.d("StreamService", "🛑 ACTION_STOP - stopping all playback")
+                Log.d("StreamService", "🛑 ACTION_STOP")
                 isPreparingForAd = false
-
-                // FULLY stop and release the player
                 player.pause()
                 player.stop()
-                player.clearMediaItems()      // Release audio resources
-
+                player.clearMediaItems()
                 setState(StreamStates.IDLE)
-//                stopSelf()
+                stopForeground(STOP_FOREGROUND_REMOVE)
             }
         }
     }
@@ -205,7 +202,7 @@ class StreamService : MediaSessionService() {
 
     override fun onDestroy() {
         cleanupResources()
-        Log.d("StreamService", "ondestroy called")
+        Log.d("StreamService", "onDestroy")
         super.onDestroy()
     }
 
@@ -219,7 +216,6 @@ class StreamService : MediaSessionService() {
         isPlaying = false
         stateChange = ""
         isPreparingForAd = false
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
         unregisterTimerReceivers()
     }
 
@@ -227,21 +223,28 @@ class StreamService : MediaSessionService() {
         try {
             unregisterReceiver(stopPlayFromTimerReceiver)
             unregisterReceiver(setStopTimerReceiver)
-        } catch (e: Exception) {
-            // Receivers might not be registered
-        }
+        } catch (e: Exception) { }
     }
 
     private fun play(link: String) {
         isPreparingForAd = false
         preparePlayer(link.toUri())
         player.play()
-        updateMediaStyleNotification()
     }
 
     private fun preparePlayer(uri: Uri) {
         player.stop()
-        val mediaItem = MediaItem.fromUri(uri)
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(currentStationName)
+            .setArtist(getString(R.string.app_name))
+            .build()
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(uri)
+            .setMediaMetadata(metadata)
+            .build()
+
         player.setMediaItem(mediaItem)
         player.prepare()
     }
@@ -249,7 +252,22 @@ class StreamService : MediaSessionService() {
     private fun prepareShowAd() {
         player.stop()
         isPlaying = false
-        updateMediaStyleNotification()
+    }
+
+    /**
+     * Custom Provider to sync Media3's internal notification with our custom one.
+     */
+    private inner class CustomNotificationProvider : MediaNotification.Provider {
+        override fun createNotification(
+            session: MediaSession,
+            customLayout: ImmutableList<CommandButton>,
+            actionFactory: MediaNotification.ActionFactory,
+            onNotificationChangedCallback: MediaNotification.Provider.Callback
+        ): MediaNotification {
+            return MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
+        }
+
+        override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean = false
     }
 
     inner class StopPlayFromTimerReceiver : BroadcastReceiver() {
@@ -291,7 +309,6 @@ class StreamService : MediaSessionService() {
 
             Log.d("StreamService", "  → onIsPlayingChanged: $newState")
             setState(newState)
-            updateMediaStyleNotification()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -317,7 +334,6 @@ class StreamService : MediaSessionService() {
 
             Log.d("StreamService", "  → playbackState: $newState")
             setState(newState)
-            updateMediaStyleNotification()
         }
     }
 
