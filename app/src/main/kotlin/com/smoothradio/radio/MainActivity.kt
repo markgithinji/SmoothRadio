@@ -11,6 +11,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -178,40 +179,18 @@ class MainActivity : ComponentActivity() {
                 mediaController?.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         this@MainActivity.isPlaying = isPlaying
-                        playerControlViewModel.updatePlaybackState(
-                            if (isPlaying) StreamService.StreamStates.PLAYING
-                            else StreamService.StreamStates.IDLE
-                        )
-                    }
-
-                    override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                        val rawTitle = mediaMetadata.title?.toString() ?: ""
-                        playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
-                    }
-
-                    override fun onPlaybackStateChanged(state: Int) {
-                        val uiState = when (state) {
-                            Player.STATE_BUFFERING -> StreamService.StreamStates.BUFFERING
-                            Player.STATE_READY -> if (mediaController?.isPlaying == true) StreamService.StreamStates.PLAYING else StreamService.StreamStates.IDLE
-                            Player.STATE_ENDED -> StreamService.StreamStates.ENDED
-                            else -> StreamService.StreamStates.IDLE
-                        }
-                        playerControlViewModel.updatePlaybackState(uiState)
+                        Log.e("MainActivityLogs" , " addListener.isPlaying1 $isPlaying")
                     }
                 })
 
                 // Initial state sync
                 mediaController?.let { controller ->
                     isPlaying = controller.isPlaying
-                    playerControlViewModel.updatePlaybackState(
-                        if (controller.isPlaying) StreamService.StreamStates.PLAYING
-                        else StreamService.StreamStates.IDLE
-                    )
-                    val rawTitle = controller.mediaMetadata.title?.toString() ?: ""
-                    playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
+                    Log.e("MainActivityLogs" , " addListener.isPlaying2 ${controller.isPlaying}")
                 }
             } catch (e: Exception) {
                 // Connection failed
+                Log.e("MainActivityLogs" , "MediaController connection failed", e)
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -221,42 +200,6 @@ class MainActivity : ComponentActivity() {
             it.release()
             mediaController = null
         }
-    }
-
-    private fun extractSongTitle(rawTitle: String): String {
-        val trimmed = rawTitle.trim()
-
-        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
-            return try {
-                val songPattern = Regex(
-                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
-                    RegexOption.DOT_MATCHES_ALL
-                )
-                val match = songPattern.find(trimmed)
-
-                if (match != null) {
-                    val title = match.groupValues[1].replace("&amp;", "&").trim()
-                    val artist = match.groupValues[2].replace("&amp;", "&").trim()
-                    if (title.isNotEmpty()) "$title - $artist" else ""
-                } else {
-                    val fallbackPattern =
-                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
-                    val fallbackMatch = fallbackPattern.find(trimmed)
-                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
-                }
-            } catch (e: Exception) {
-                ""
-            }
-        }
-
-        val cleanTitle = trimmed
-            .replace(Regex("<[^>]*>"), "")
-            .replace("\n", " ")
-            .replace("\r", "")
-            .replace("\\s+".toRegex(), " ")
-            .trim()
-
-        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     @Composable
@@ -366,17 +309,17 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    playerControlViewModel.requestState.collect {
-                        // Request initial sync if controller is already connected
-                        mediaController?.let { controller ->
-                            isPlaying = controller.isPlaying
-                            playerControlViewModel.updatePlaybackState(
-                                if (controller.isPlaying) StreamService.StreamStates.PLAYING
-                                else StreamService.StreamStates.IDLE
-                            )
-                            val rawTitle = controller.mediaMetadata.title?.toString() ?: ""
-                            playerControlViewModel.updateMetadata(extractSongTitle(rawTitle))
+                    playerControlViewModel.playbackState.collect { state ->
+                        val previousIsPlaying = isPlaying
+                        isPlaying = when (state) {
+                            StreamService.StreamStates.PLAYING,
+                            StreamService.StreamStates.BUFFERING,
+                            StreamService.StreamStates.IDLE,
+                            StreamService.StreamStates.PREPARING -> true
+                            StreamService.StreamStates.ENDED -> false
+                            else -> isPlaying
                         }
+                        Log.d("MainActivityLogs", "playbackState=$state | isPlaying: $previousIsPlaying→$isPlaying")
                     }
                 }
             }
@@ -390,10 +333,21 @@ class MainActivity : ComponentActivity() {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
+                                val station = command.station
+                                val repoState = playerControlViewModel.playbackState.value
+
+                                Log.d("MainActivityLogs" , "▶ Tap: ${station.stationName} | " +
+                                        "station.isPlaying=${station.isPlaying} | " +
+                                        "local=$isPlaying | " +
+                                        "repo=$repoState | " +
+                                        "sameStation=${currentStation?.id == station.id}")
+
                                 currentStation = command.station
                                 if (command.station.isPlaying) {
+                                    Log.d("MainActivityLogs" , "  → playOrStop()")
                                     playOrStop()
                                 } else {
+                                    Log.d("MainActivityLogs" , "  → startNewPlay()")
                                     startNewPlay()
                                 }
                                 playerControlViewModel.savePlayingStationId(command.station.id)
@@ -453,8 +407,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startNewPlay() {
+        Log.d("MainActivityLogs" , "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
         isPlaying = true
-        if (isShowingAd) return
+        if (isShowingAd) {
+            Log.d("MainActivityLogs" , "  → BLOCKED: ad showing")
+            return
+        }
 
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
@@ -464,19 +422,26 @@ class MainActivity : ComponentActivity() {
 
     private fun playOrStop() {
         if (isPlaying) {
-            mediaController?.pause()
+            Log.d("MainActivityLogs", "  → STOP (was loading, stopping service)")
+            isPlaying = false
+            isShowingAd = false
+            serviceIntent.action = StreamService.ACTION_STOP
+            startService(serviceIntent)  // Send stop to service
             return
         }
 
-        if (isShowingAd) return
+        if (isShowingAd) {
+            Log.d("MainActivityLogs", "  → BLOCKED: ad showing")
+            return
+        }
 
+        Log.d("MainActivityLogs", "  → START (not playing, starting fresh)")
         isPlaying = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
         checkInternet()
     }
-
     private fun refresh() {
         if (isShowingAd) return
 
@@ -499,9 +464,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playOnly() {
+        if (!isPlaying) {
+            Log.d("MainActivityLogs", "playOnly: user stopped - skipping")
+            return
+        }
+
         serviceIntent.action = StreamService.ACTION_START
         startStreamService()
-        playerControlViewModel.updatePlaybackState(StreamService.StreamStates.PREPARING)
         isPlaying = true
     }
 

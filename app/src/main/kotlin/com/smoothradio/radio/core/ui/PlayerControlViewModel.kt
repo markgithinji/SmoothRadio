@@ -24,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
+    private val stateRepository: PlaybackStateRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
     private val syncAdSettingsUseCase: SyncAdSettingsUseCase
@@ -32,17 +33,14 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = MutableSharedFlow<PlayCommand>()
     val playCommand: SharedFlow<PlayCommand> = _playCommand.asSharedFlow()
 
-    private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)
-    val playbackState: StateFlow<String> = _playbackState.asStateFlow()
+    val playbackState: StateFlow<String> = stateRepository.playbackState
+    val metadata: StateFlow<String> = stateRepository.metadata
 
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
 
     private val _playingStation = MutableStateFlow<RadioStation?>(null)
     val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
-
-    private val _metadata = MutableStateFlow("")
-    val metadata: StateFlow<String> = _metadata.asStateFlow()
 
     private val _requestState = MutableSharedFlow<Unit>()
     val requestState: SharedFlow<Unit> = _requestState.asSharedFlow()
@@ -70,15 +68,16 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestPlayStation(station: RadioStation) {
+//        stateRepository.updateState(StreamService.StreamStates.IDLE)
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
             _playingStation.value = station
-            _playbackState.value = StreamService.StreamStates.IDLE
             _playCommand.emit(PlayCommand.PlayStation(station))
         }
     }
 
     fun requestRefresh() {
+        stateRepository.updateState(StreamService.StreamStates.IDLE)
         viewModelScope.launch {
             _playCommand.emit(PlayCommand.Refresh)
         }
@@ -105,11 +104,11 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun updatePlaybackState(state: String) {
-        _playbackState.value = state
+        stateRepository.updateState(state)
     }
 
     fun updateMetadata(metadata: String) {
-        _metadata.value = metadata
+        stateRepository.updateMetadata(metadata)
     }
 
     fun savePlayingStationId(id: Int) {

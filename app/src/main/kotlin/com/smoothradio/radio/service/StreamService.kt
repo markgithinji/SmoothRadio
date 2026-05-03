@@ -13,6 +13,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
@@ -27,6 +28,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -37,19 +39,18 @@ import javax.inject.Inject
 @UnstableApi
 @AndroidEntryPoint
 class StreamService : MediaSessionService() {
-    // Playback State
     private var isPlaying = false
     private var stateChange = ""
+    private var isPreparingForAd = false
 
     @Inject
     lateinit var player: ExoPlayer
 
+    @Inject
+    lateinit var stateRepository: PlaybackStateRepository
+
     private lateinit var exoplayerEventListener: EventListener
-
-    // Media Session
     private var mediaSession: MediaSession? = null
-
-    // Timer Receivers
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
@@ -81,33 +82,7 @@ class StreamService : MediaSessionService() {
                     PendingIntent.FLAG_IMMUTABLE
                 )
             )
-            .setCallback(object : MediaSession.Callback {
-                override fun onConnect(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo
-                ): MediaSession.ConnectionResult {
-                    // Send current state to newly connected controller
-                    sendStateToSession(stateChange)
-                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
-                }
-            })
             .build()
-    }
-
-    /**
-     * Updates the MediaSession custom layout to signal state changes to all connected controllers.
-     * The display name of the first command button carries the stream state string.
-     * This is synchronous and immediate - no async delay.
-     */
-    private fun sendStateToSession(state: String) {
-        mediaSession?.setCustomLayout(
-            listOf(
-                CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-                    .setDisplayName(state)
-                    .setEnabled(false)
-                    .build()
-            )
-        )
     }
 
     private fun setupNotificationChannel() {
@@ -161,7 +136,6 @@ class StreamService : MediaSessionService() {
 
     private fun updateMediaStyleNotification() {
         if (!isForegroundStarted) return
-
         val notification = createMediaStyleNotification()
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(NOTIFICATION_ID, notification)
@@ -174,45 +148,46 @@ class StreamService : MediaSessionService() {
     }
 
     private fun handleIntent(intent: Intent) {
-        // Store station info for later updates
         currentStationName = intent.getStringExtra(EXTRA_STATION_NAME)
         currentStationLogo = intent.getIntExtra(EXTRA_LOGO, 0)
-
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
         when (intent.action) {
             ACTION_START -> {
-                // Signal PREPARING state IMMEDIATELY before player operations
+                Log.d("StreamService", "🎵 ACTION_START → ${currentStationName}")
+                isPreparingForAd = false
                 setState(StreamStates.PREPARING)
                 updateMediaStyleNotification()
                 play(link)
             }
 
             ACTION_SHOW_AD -> {
-                // Signal PREPARING state IMMEDIATELY before player operations
+                Log.d("StreamService", "📢 ACTION_SHOW_AD → ${currentStationName}")
+                isPreparingForAd = true
                 setState(StreamStates.PREPARING)
                 updateMediaStyleNotification()
                 prepareShowAd()
             }
 
             ACTION_STOP -> {
-                setState(StreamStates.IDLE)
-                stopSelf()
-            }
+                Log.d("StreamService", "🛑 ACTION_STOP - stopping all playback")
+                isPreparingForAd = false
 
-            else -> {
-                // Ignore unknown actions
+                // FULLY stop and release the player
+                player.pause()
+                player.stop()
+                player.clearMediaItems()      // Release audio resources
+
+                setState(StreamStates.IDLE)
+//                stopSelf()
             }
         }
     }
 
-    /**
-     * Centralized state setter that updates both local state and MediaSession.
-     * Called synchronously so UI gets the update before player operations begin.
-     */
     private fun setState(newState: String) {
+        Log.d("StreamService", "  → state: $newState")
         stateChange = newState
-        sendStateToSession(newState)
+        stateRepository.updateState(newState)
     }
 
     private fun registerTimerReceivers() {
@@ -230,6 +205,7 @@ class StreamService : MediaSessionService() {
 
     override fun onDestroy() {
         cleanupResources()
+        Log.d("StreamService", "ondestroy called")
         super.onDestroy()
     }
 
@@ -242,6 +218,7 @@ class StreamService : MediaSessionService() {
         }
         isPlaying = false
         stateChange = ""
+        isPreparingForAd = false
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
         unregisterTimerReceivers()
     }
@@ -256,6 +233,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun play(link: String) {
+        isPreparingForAd = false
         preparePlayer(link.toUri())
         player.play()
         updateMediaStyleNotification()
@@ -298,13 +276,21 @@ class StreamService : MediaSessionService() {
     }
 
     inner class EventListener : Player.Listener {
+        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            val rawTitle = mediaMetadata.title?.toString() ?: ""
+            stateRepository.updateMetadata(extractSongTitle(rawTitle))
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
-            if (isPlaying) {
-                setState(StreamStates.PLAYING)
-            } else if (player.playbackState == Player.STATE_READY) {
-                setState(StreamStates.IDLE)
-            }
+            if (isPreparingForAd) return
+
+            val newState = if (isPlaying) StreamStates.PLAYING
+            else if (player.playbackState == Player.STATE_READY) StreamStates.IDLE
+            else return
+
+            Log.d("StreamService", "  → onIsPlayingChanged: $newState")
+            setState(newState)
             updateMediaStyleNotification()
         }
 
@@ -313,36 +299,50 @@ class StreamService : MediaSessionService() {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> getString(R.string.toast_station_unreachable)
-
                 else -> getString(R.string.toast_unexpected_error)
             }
             Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            when (state) {
-                Player.STATE_BUFFERING -> {
-                    setState(StreamStates.BUFFERING)
-                    updateMediaStyleNotification()
-                }
-                Player.STATE_IDLE -> {
-                    setState(StreamStates.IDLE)
-                    isPlaying = false
-                    updateMediaStyleNotification()
-                }
-                Player.STATE_READY -> {
-                    if (player.isPlaying) {
-                        setState(StreamStates.PLAYING)
-                        updateMediaStyleNotification()
-                    }
-                }
-                Player.STATE_ENDED -> {
-                    setState(StreamStates.ENDED)
-                    isPlaying = false
-                    updateMediaStyleNotification()
-                }
+            if (isPreparingForAd) return
+
+            val newState = when (state) {
+                Player.STATE_BUFFERING -> StreamStates.BUFFERING
+                Player.STATE_IDLE -> { isPlaying = false; StreamStates.IDLE }
+                Player.STATE_READY -> if (player.isPlaying) StreamStates.PLAYING else return
+                Player.STATE_ENDED -> { isPlaying = false; StreamStates.ENDED }
+                else -> return
             }
+
+            Log.d("StreamService", "  → playbackState: $newState")
+            setState(newState)
+            updateMediaStyleNotification()
         }
+    }
+
+    private fun extractSongTitle(rawTitle: String): String {
+        val trimmed = rawTitle.trim()
+        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
+            return try {
+                val songPattern = Regex(
+                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
+                    RegexOption.DOT_MATCHES_ALL
+                )
+                val match = songPattern.find(trimmed)
+                if (match != null) {
+                    val title = match.groupValues[1].replace("&amp;", "&").trim()
+                    val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
+                    if (title.isNotEmpty()) "$title - $artist" else ""
+                } else {
+                    val fallbackPattern = Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
+                    val fallbackMatch = fallbackPattern.find(trimmed)
+                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                }
+            } catch (e: Exception) { "" }
+        }
+        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "").replace("\\s+".toRegex(), " ").trim()
+        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     object StreamStates {
@@ -354,28 +354,18 @@ class StreamService : MediaSessionService() {
     }
 
     companion object {
-        // Service Actions
         const val ACTION_START = "SmoothService:Start"
         const val ACTION_STOP = "SmoothService:Stop"
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
-
-        // Timer Actions (system-level)
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
-
-        // Session Extra Keys
         const val EXTRA_STREAM_STATE = "STREAM_STATE"
-
         private const val NOTIFICATION_ID = 1
-
-        // Broadcast Extras
         const val EXTRA_STATE = "state"
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
         const val EXTRA_LINK = "url"
-
-        // Notification Info
         private const val CHANNEL_ID = "media_playback_channel"
     }
 }
