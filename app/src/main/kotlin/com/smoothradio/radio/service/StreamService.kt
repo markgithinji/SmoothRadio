@@ -18,6 +18,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -49,6 +50,8 @@ class StreamService : MediaSessionService() {
     @Inject
     lateinit var player: ExoPlayer
 
+    private lateinit var wrappedPlayer: Player
+
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
 
@@ -56,6 +59,7 @@ class StreamService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
+    private var notificationCallback: MediaNotification.Provider.Callback? = null
 
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
@@ -64,18 +68,31 @@ class StreamService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        setupWrappedPlayer()
         exoplayerEventListener = EventListener()
-        player.addListener(exoplayerEventListener)
+        wrappedPlayer.addListener(exoplayerEventListener)
         setupMediaSession()
         setupNotificationChannel()
         registerTimerReceivers()
-
-        // Set the custom notification provider to avoid double notifications
         setMediaNotificationProvider(CustomNotificationProvider())
     }
 
+    private fun setupWrappedPlayer() {
+        wrappedPlayer = object : ForwardingPlayer(player) {
+            override fun getMediaMetadata(): MediaMetadata {
+                val metadata = super.getMediaMetadata()
+                val rawTitle = metadata.title?.toString() ?: ""
+                val cleanedTitle = extractSongTitle(rawTitle)
+
+                return metadata.buildUpon()
+                    .setTitle(cleanedTitle)
+                    .build()
+            }
+        }
+    }
+
     private fun setupMediaSession() {
-        mediaSession = MediaSession.Builder(this, player)
+        mediaSession = MediaSession.Builder(this, wrappedPlayer)
             .setSessionActivity(
                 PendingIntent.getActivity(
                     this,
@@ -112,16 +129,20 @@ class StreamService : MediaSessionService() {
         )
 
         val songTitle = stateRepository.metadata.value
-        val displayBody = if (isPlaying && songTitle.isNotEmpty()) {
-            songTitle
-        } else {
-            stateChange.ifEmpty { getString(R.string.preparing) }
+        val title = when {
+            isPlaying && songTitle.isNotEmpty() -> songTitle
+            isPlaying -> "Playing"
+            else -> stateChange.ifEmpty { "Preparing Audio" }
         }
+
+        val stationDisplay = currentStationName ?: stateRepository.stationName.value ?: getString(R.string.app_name)
+        
+        Log.d("StreamService", "createNotification: title=$title, text=$stationDisplay")
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
-            .setContentTitle(currentStationName ?: getString(R.string.app_name))
-            .setContentText(displayBody)
+            .setContentTitle(title)
+            .setContentText(stationDisplay)
             .setLargeIcon(getStationLogo())
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -144,15 +165,27 @@ class StreamService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
         intent?.let { handleIntent(it) }
-        return START_STICKY
+        return super.onStartCommand(intent, flags, startId)
     }
 
     private fun handleIntent(intent: Intent) {
-        currentStationName = intent.getStringExtra(EXTRA_STATION_NAME)
-        currentStationLogo = intent.getIntExtra(EXTRA_LOGO, 0)
+        Log.d("StreamService", "handleIntent: action=${intent.action}, extras=${intent.extras?.keySet()}")
+        val name = intent.getStringExtra(EXTRA_STATION_NAME)
+        if (name != null) {
+            currentStationName = name
+            stateRepository.updateStationName(name)
+        }
+
+        val logo = intent.getIntExtra(EXTRA_LOGO, 0)
+        if (logo != 0) {
+            currentStationLogo = logo
+        }
+
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
+
+        Log.d("StreamService", "handleIntent: station=$currentStationName")
+        notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
 
         when (intent.action) {
             ACTION_START -> {
@@ -163,14 +196,14 @@ class StreamService : MediaSessionService() {
             }
 
             ACTION_SHOW_AD -> {
-                Log.d("StreamService", "📢 ACTION_SHOW_AD → ${currentStationName}")
+                Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 setState(StreamStates.PREPARING)
                 prepareShowAd()
             }
 
             ACTION_STOP -> {
-                Log.d("StreamService", "🛑 ACTION_STOP")
+                Log.d("StreamService", " ACTION_STOP")
                 isPreparingForAd = false
                 player.pause()
                 player.stop()
@@ -184,6 +217,7 @@ class StreamService : MediaSessionService() {
         Log.d("StreamService", "  → state: $newState")
         stateChange = newState
         stateRepository.updateState(newState)
+        notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
     }
 
     private fun registerTimerReceivers() {
@@ -207,7 +241,7 @@ class StreamService : MediaSessionService() {
 
     private fun cleanupResources() {
         mediaSession?.run {
-            player.removeListener(exoplayerEventListener)
+            wrappedPlayer.removeListener(exoplayerEventListener)
             player.release()
             release()
             mediaSession = null
@@ -233,17 +267,7 @@ class StreamService : MediaSessionService() {
 
     private fun preparePlayer(uri: Uri) {
         player.stop()
-
-        val metadata = MediaMetadata.Builder()
-            .setTitle(currentStationName)
-            .setArtist(getString(R.string.app_name))
-            .build()
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(uri)
-            .setMediaMetadata(metadata)
-            .build()
-
+        val mediaItem = MediaItem.fromUri(uri)
         player.setMediaItem(mediaItem)
         player.prepare()
     }
@@ -253,9 +277,6 @@ class StreamService : MediaSessionService() {
         isPlaying = false
     }
 
-    /**
-     * Custom Provider to sync Media3's internal notification with our custom one.
-     */
     private inner class CustomNotificationProvider : MediaNotification.Provider {
         override fun createNotification(
             session: MediaSession,
@@ -263,6 +284,7 @@ class StreamService : MediaSessionService() {
             actionFactory: MediaNotification.ActionFactory,
             onNotificationChangedCallback: MediaNotification.Provider.Callback
         ): MediaNotification {
+            notificationCallback = onNotificationChangedCallback
             return MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
         }
 
@@ -296,6 +318,7 @@ class StreamService : MediaSessionService() {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             stateRepository.updateMetadata(extractSongTitle(rawTitle))
+            notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {

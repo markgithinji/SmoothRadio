@@ -17,11 +17,18 @@ class PlaybackStateRepository @Inject constructor() {
     private val _metadata = MutableStateFlow("")
     val metadata: StateFlow<String> = _metadata.asStateFlow()
 
+    private val _stationName = MutableStateFlow<String?>(null)
+    val stationName: StateFlow<String?> = _stationName.asStateFlow()
+
     fun updateState(state: String) {
         _playbackState.value = state
     }
 
     fun updateMetadata(title: String) {
         _metadata.value = title
+    }
+
+    fun updateStationName(name: String?) {
+        _stationName.value = name
     }
 }
