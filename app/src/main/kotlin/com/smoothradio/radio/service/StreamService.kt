@@ -79,6 +79,25 @@ class StreamService : MediaSessionService() {
 
     private fun setupWrappedPlayer() {
         wrappedPlayer = object : ForwardingPlayer(player) {
+            override fun getAvailableCommands(): Player.Commands {
+                return super.getAvailableCommands().buildUpon()
+                    .remove(Player.COMMAND_SEEK_TO_NEXT)
+                    .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .build()
+            }
+
+            override fun isCommandAvailable(command: Int): Boolean {
+                return when (command) {
+                    Player.COMMAND_SEEK_TO_NEXT,
+                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_PREVIOUS,
+                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> false
+                    else -> super.isCommandAvailable(command)
+                }
+            }
+
             override fun getMediaMetadata(): MediaMetadata {
                 val metadata = super.getMediaMetadata()
                 val rawTitle = metadata.title?.toString() ?: ""
@@ -128,6 +147,20 @@ class StreamService : MediaSessionService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val playPauseIntent = Intent(this, StreamService::class.java).apply {
+            action = if (player.isPlaying) ACTION_PAUSE else ACTION_PLAY
+        }
+        val playPausePendingIntent = PendingIntent.getService(
+            this, 2, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopIntent = Intent(this, StreamService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this, 3, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val songTitle = stateRepository.metadata.value
         val title = when {
             isPlaying && songTitle.isNotEmpty() -> songTitle
@@ -147,10 +180,20 @@ class StreamService : MediaSessionService() {
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(isPlaying)
+            .setOngoing(player.isPlaying)
+            .addAction(
+                if (player.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (player.isPlaying) "Pause" else "Play",
+                playPausePendingIntent
+            )
+            .addAction(
+                R.drawable.ic_stop, "Stop",
+                stopPendingIntent
+            )
             .setStyle(
                 mediaSession?.let {
                     androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                        .setShowActionsInCompactView(0, 1)
                 }
             )
             .build()
@@ -209,7 +252,11 @@ class StreamService : MediaSessionService() {
                 player.stop()
                 player.clearMediaItems()
                 setState(StreamStates.IDLE)
+                stopSelf()
             }
+
+            ACTION_PLAY -> player.play()
+            ACTION_PAUSE -> player.pause()
         }
     }
 
@@ -333,6 +380,7 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
+            updateNotificationInternal()
             if (isPreparingForAd) return
 
             val newState = if (isPlaying) StreamStates.PLAYING
@@ -404,6 +452,8 @@ class StreamService : MediaSessionService() {
     companion object {
         const val ACTION_START = "SmoothService:Start"
         const val ACTION_STOP = "SmoothService:Stop"
+        const val ACTION_PLAY = "SmoothService:Play"
+        const val ACTION_PAUSE = "SmoothService:Pause"
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
