@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -53,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -231,12 +233,15 @@ class MainActivity : ComponentActivity() {
                                     onClick = { radioViewModel.setSelectedTab(index) },
                                     icon = {
                                         Icon(
-                                            imageVector = when (index) {
-                                                0 -> Icons.Default.Radio
-                                                1 -> Icons.Default.MusicNote
-                                                else -> Icons.Default.Explore
-                                            },
-                                            contentDescription = title
+                                            painter = painterResource(
+                                                id = when (index) {
+                                                    0 -> R.drawable.ic_nav_stations
+                                                    1 -> R.drawable.ic_nav_live
+                                                    else -> R.drawable.ic_nav_discover
+                                                }
+                                            ),
+                                            contentDescription = title,
+                                            modifier = Modifier.size(26.dp)
                                         )
                                     },
                                     label = { Text(title) },
