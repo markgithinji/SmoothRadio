@@ -90,7 +90,12 @@ fun RadioStationRow(
                 .fillMaxWidth()
                 .clickable { onPlayClick() }
                 .background(rowBackgroundColor)
-                .padding(horizontal = if (isSmall) 8.dp else 16.dp, vertical = 6.dp),
+                .padding(
+                    start = if (isSmall) 8.dp else 12.dp,
+                    end = if (isSmall) 8.dp else 16.dp,
+                    top = 6.dp,
+                    bottom = 6.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val infiniteTransition = rememberInfiniteTransition()
