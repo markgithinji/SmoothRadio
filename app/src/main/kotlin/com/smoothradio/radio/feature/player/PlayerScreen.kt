@@ -159,7 +159,12 @@ fun PlayerScreen(
     if (playingStation == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.MusicNote, null, Modifier.size(64.dp), tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_player_note),
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("No station playing", style = MaterialTheme.typography.titleMedium, color = colorScheme.onSurfaceVariant)
                 Text("Select a station to start listening", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
@@ -317,10 +322,15 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val btnSize = when { isTinyCompact -> 36.dp; isCompact -> 40.dp; else -> 56.dp }
-                        val iconSize = when { isTinyCompact -> 22.dp; isCompact -> 24.dp; else -> 32.dp }
+                        val iconSize = when { isTinyCompact -> 18.dp; isCompact -> 20.dp; else -> 28.dp }
 
                         IconButton(onClick = { swipeDirection = -1f; playerControlViewModel.requestPreviousStation() }, modifier = Modifier.size(btnSize)) {
-                            Icon(Icons.Default.SkipPrevious, "Previous", Modifier.size(iconSize), tint = colorScheme.onSurfaceVariant)
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_player_prev),
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(iconSize),
+                                tint = colorScheme.onSurfaceVariant
+                            )
                         }
                         AnimatedPlayPauseButton(
                             playbackState = playbackState,
@@ -328,7 +338,12 @@ fun PlayerScreen(
                             modifier = if (isTinyCompact) Modifier.size(56.dp) else if (isCompact) Modifier.size(64.dp) else Modifier
                         )
                         IconButton(onClick = { swipeDirection = 1f; playerControlViewModel.requestNextStation() }, modifier = Modifier.size(btnSize)) {
-                            Icon(Icons.Default.SkipNext, "Next", Modifier.size(iconSize), tint = colorScheme.onSurfaceVariant)
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_player_next),
+                                contentDescription = "Next",
+                                modifier = Modifier.size(iconSize),
+                                tint = colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -338,19 +353,34 @@ fun PlayerScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 IconButton(onClick = { playerControlViewModel.requestRefresh() }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
-                                    Icon(Icons.Default.Refresh, "Refresh", Modifier.size(24.dp), tint = colorScheme.onSurfaceVariant)
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_player_refresh),
+                                        contentDescription = "Refresh",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = colorScheme.onSurfaceVariant
+                                    )
                                 }
                                 Text("Refresh", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 IconButton(onClick = { showSleepDialog = true }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
-                                    Icon(Icons.Default.Timer, "Sleep Timer", Modifier.size(24.dp), tint = colorScheme.onSurfaceVariant)
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_player_timer),
+                                        contentDescription = "Sleep Timer",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = colorScheme.onSurfaceVariant
+                                    )
                                 }
                                 Text("Sleep", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 IconButton(onClick = { }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
-                                    Icon(Icons.Default.Share, "Share", Modifier.size(24.dp), tint = colorScheme.onSurfaceVariant)
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_player_share),
+                                        contentDescription = "Share",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = colorScheme.onSurfaceVariant
+                                    )
                                 }
                                 Text("Share", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                             }
@@ -642,10 +672,9 @@ fun AnimatedPlayPauseButton(
                 label = "playPauseIcon"
             ) { playing ->
                 Icon(
-                    imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    painter = painterResource(id = if (playing) R.drawable.ic_player_pause else R.drawable.ic_player_play),
                     contentDescription = if (playing) "Pause" else "Play",
-                    modifier = Modifier
-                        .size(48.dp),
+                    modifier = Modifier.size(40.dp),
                     tint = Color.White
                 )
             }
@@ -669,10 +698,10 @@ fun SleepTimerDialog(
         textContentColor = colorScheme.onSurfaceVariant,
         icon = {
             Icon(
-                imageVector = Icons.Default.Timer,
+                painter = painterResource(id = R.drawable.ic_player_timer),
                 contentDescription = null,
                 tint = colorScheme.primary,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(28.dp)
             )
         },
         title = {
@@ -711,10 +740,10 @@ fun SleepTimerDialog(
                                 fontWeight = FontWeight.Medium
                             )
                             Icon(
-                                imageVector = Icons.Default.ChevronRight,
+                                painter = painterResource(id = R.drawable.ic_player_chevron_right),
                                 contentDescription = null,
                                 tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
