@@ -88,7 +88,7 @@ fun AboutDialog(
             Column(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .heightIn(max = 400.dp),
+                    .heightIn(max = 450.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -100,11 +100,38 @@ fun AboutDialog(
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
 
                 Text(
-                    "Get in Touch",
+                    "Support & Community",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = colorScheme.onSurface
                 )
+
+                // Share App
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable {
+                            shareApp(context)
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Share App with Friends",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
 
                 // Report a Problem
                 Row(
@@ -158,10 +185,9 @@ fun AboutDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Share,
+                    Image(
+                        painter = painterResource(id = R.drawable.facebooklogo),
                         contentDescription = null,
-                        tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
@@ -217,4 +243,14 @@ private fun sendFeedbackEmail(context: Context, version: String, device: String,
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun shareApp(context: Context) {
+    val appPackage = context.getString(R.string.tv_app_package)
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
+        putExtra(Intent.EXTRA_TEXT, "Check out Smooth Radio - Your favorite radio stations in one place! Download it here: https://play.google.com/store/apps/details?id=$appPackage")
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share via"))
 }
