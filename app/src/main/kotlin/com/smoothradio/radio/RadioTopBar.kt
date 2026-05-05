@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -139,7 +140,12 @@ fun RadioTopBar(
                             onSearchQueryChange("")
                             onSearchActiveChange(false)
                         }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = colorScheme.onSurface)
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_toolbar_back),
+                                contentDescription = "Back",
+                                tint = colorScheme.onSurface,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
 
                         BasicTextField(
@@ -166,7 +172,12 @@ fun RadioTopBar(
                             exit = scaleOut(targetScale = 0.5f, animationSpec = tween(200)) + fadeOut(tween(200))
                         ) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = colorScheme.onSurface)
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_toolbar_close),
+                                    contentDescription = "Clear",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
@@ -187,17 +198,27 @@ fun RadioTopBar(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(onClick = onViewToggleClick) {
                                 Icon(
-                                    imageVector = if (isGridView) Icons.AutoMirrored.Filled.List else Icons.Default.GridView,
+                                    painter = painterResource(id = if (isGridView) R.drawable.ic_toolbar_list else R.drawable.ic_toolbar_grid),
                                     contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
                                     tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp).graphicsLayer { rotationY = viewRotation }
+                                    modifier = Modifier.size(18.dp).graphicsLayer { rotationY = viewRotation }
                                 )
                             }
                             IconButton(onClick = { onSearchActiveChange(true) }) {
-                                Icon(Icons.Default.Search, contentDescription = "Search", tint = colorScheme.onSurface, modifier = Modifier.size(24.dp))
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_toolbar_search),
+                                    contentDescription = "Search",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                             IconButton(onClick = onAboutClick) {
-                                Icon(Icons.Outlined.Info, contentDescription = "About", tint = colorScheme.onSurface, modifier = Modifier.size(24.dp))
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_toolbar_info),
+                                    contentDescription = "About",
+                                    tint = colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
