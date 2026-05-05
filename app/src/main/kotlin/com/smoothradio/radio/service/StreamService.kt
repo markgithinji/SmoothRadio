@@ -29,6 +29,9 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.cast.CastPlayer
+import androidx.media3.cast.SessionAvailabilityListener
+import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
@@ -55,6 +58,9 @@ class StreamService : MediaSessionService() {
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
 
+    private var castPlayer: CastPlayer? = null
+    private var castContext: CastContext? = null
+
     private lateinit var exoplayerEventListener: EventListener
     private var mediaSession: MediaSession? = null
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
@@ -69,12 +75,35 @@ class StreamService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         setupWrappedPlayer()
+        setupCastPlayer()
         exoplayerEventListener = EventListener()
         wrappedPlayer.addListener(exoplayerEventListener)
         setupMediaSession()
         setupNotificationChannel()
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
+    }
+
+    private fun setupCastPlayer() {
+        try {
+            castContext = CastContext.getSharedInstance(this)
+            castPlayer = CastPlayer(castContext!!)
+            castPlayer?.setSessionAvailabilityListener(object : SessionAvailabilityListener {
+                override fun onCastSessionAvailable() {
+                    Log.d("StreamService", "Cast session available - switching player")
+                    castPlayer?.addListener(exoplayerEventListener)
+                    mediaSession?.player = castPlayer!!
+                }
+
+                override fun onCastSessionUnavailable() {
+                    Log.d("StreamService", "Cast session unavailable - switching back to local player")
+                    castPlayer?.removeListener(exoplayerEventListener)
+                    mediaSession?.player = wrappedPlayer
+                }
+            })
+        } catch (e: Exception) {
+            Log.e("StreamService", "CastPlayer initialization failed", e)
+        }
     }
 
     private fun setupWrappedPlayer() {
@@ -296,6 +325,7 @@ class StreamService : MediaSessionService() {
         mediaSession?.run {
             wrappedPlayer.removeListener(exoplayerEventListener)
             player.release()
+            castPlayer?.release()
             release()
             mediaSession = null
         }

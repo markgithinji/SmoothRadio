@@ -374,15 +374,19 @@ fun PlayerScreen(
                                 Text("Sleep", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                IconButton(onClick = { }, modifier = Modifier.size(48.dp).clip(CircleShape).background(colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_player_share),
-                                        contentDescription = "Share",
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    com.smoothradio.radio.core.ui.CastButton(
                                         modifier = Modifier.size(20.dp),
-                                        tint = colorScheme.onSurfaceVariant
+                                        color = colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text("Share", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
+                                Text("Cast", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = colorScheme.onSurfaceVariant)
                             }
                         }
                     }
