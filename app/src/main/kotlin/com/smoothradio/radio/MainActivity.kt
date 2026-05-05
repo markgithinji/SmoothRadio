@@ -177,6 +177,26 @@ class MainActivity : FragmentActivity() {
         controllerFuture.addListener({
             try {
                 mediaController = controllerFuture.get()
+                mediaController?.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        isPlaying = when (state) {
+                            Player.STATE_BUFFERING,
+                            Player.STATE_READY -> true
+                            Player.STATE_IDLE,
+                            Player.STATE_ENDED -> false
+                            else -> isPlaying
+                        }
+                        Log.d("MainActivityLogs", "MediaController state: $state → isPlaying=$isPlaying")
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        this@MainActivity.isPlaying = isPlaying
+                        Log.d("MainActivityLogs", "MediaController isPlaying changed: $isPlaying")
+                    }
+                })
+
+                // Initial sync
+                isPlaying = mediaController!!.isPlaying
             } catch (e: Exception) {
                 Log.e("MainActivityLogs", "MediaController connection failed", e)
             }
