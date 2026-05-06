@@ -78,6 +78,7 @@ import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,7 +97,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
@@ -224,10 +224,10 @@ fun PlayerScreen(
                 actionIcon = {
                     IconButton(onClick = { showEqDialog = true }) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            painter = painterResource(id = R.drawable.ic_toolbar_eq),
                             contentDescription = "Equalizer",
                             tint = colorScheme.onSurface,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -741,69 +741,110 @@ fun EqualizerDialog(
     onBandChange: (Int, Short) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    // Standard 5-band EQ frequencies
     val bands = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         containerColor = colorScheme.surface,
+        tonalElevation = 6.dp,
+        // icon parameter removed
         title = {
             Text(
                 "Equalizer",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
+                color = colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 bands.forEachIndexed { index, frequency ->
-                    var localLevel by remember(currentLevels[index]) { 
-                        mutableStateOf((currentLevels[index] ?: 0).toFloat() / 100f) 
+                    var localLevel by remember(currentLevels[index]) {
+                        mutableStateOf((currentLevels[index] ?: 0).toFloat() / 100f)
                     }
-                    
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                frequency,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = colorScheme.onSurfaceVariant
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (localLevel != 0f)
+                            colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else
+                            colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    frequency,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (localLevel != 0f)
+                                        colorScheme.primary
+                                    else
+                                        colorScheme.outlineVariant
+                                ) {
+                                    Text(
+                                        "${if (localLevel > 0) "+" else ""}${(localLevel).toInt()} dB",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (localLevel != 0f)
+                                            colorScheme.onPrimary
+                                        else
+                                            colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Slider(
+                                value = localLevel,
+                                onValueChange = { localLevel = it },
+                                onValueChangeFinished = {
+                                    onBandChange(index, (localLevel * 100).toInt().toShort())
+                                },
+                                valueRange = -15f..15f,
+                                modifier = Modifier.height(20.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = colorScheme.primary,
+                                    activeTrackColor = colorScheme.primary,
+                                    inactiveTrackColor = colorScheme.outlineVariant
+                                )
                             )
-                            Text(
-                                "${if (localLevel > 0) "+" else ""}${localLevel.toInt()} dB",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = colorScheme.primary
-                            )
+                            // dB indicators
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("-15", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                                Text("0", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                                Text("+15", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                            }
                         }
-                        Slider(
-                            value = localLevel,
-                            onValueChange = { localLevel = it },
-                            onValueChangeFinished = {
-                                onBandChange(index, (localLevel * 100).toInt().toShort())
-                            },
-                            valueRange = -15f..15f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = colorScheme.primary,
-                                activeTrackColor = colorScheme.primary,
-                                inactiveTrackColor = colorScheme.outlineVariant
-                            )
-                        )
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done", fontWeight = FontWeight.Bold)
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
+            ) {
+                Text("Done", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp))
             }
         },
         dismissButton = {
@@ -814,7 +855,7 @@ fun EqualizerDialog(
                     }
                 }
             ) {
-                Text("Reset", color = colorScheme.error)
+                Text("Reset", color = colorScheme.error, fontWeight = FontWeight.Medium)
             }
         }
     )
