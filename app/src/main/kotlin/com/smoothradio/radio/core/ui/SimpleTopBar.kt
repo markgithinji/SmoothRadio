@@ -25,7 +25,10 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SimpleTopBar(title: String) {
+fun SimpleTopBar(
+    title: String,
+    actionIcon: (@Composable () -> Unit)? = null
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -48,7 +51,11 @@ fun SimpleTopBar(title: String) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Box(modifier = Modifier.size(40.dp))
+                if (actionIcon != null) {
+                    actionIcon()
+                } else {
+                    Box(modifier = Modifier.size(40.dp))
+                }
             }
 
             HorizontalDivider(

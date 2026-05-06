@@ -96,6 +96,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -158,6 +161,7 @@ fun PlayerScreen(
 
     var swipeDirection by remember { mutableStateOf(0f) }
     var showSleepDialog by remember { mutableStateOf(false) }
+    var showEqDialog by remember { mutableStateOf(false) }
 
     if (playingStation == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -215,7 +219,19 @@ fun PlayerScreen(
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            SimpleTopBar(title = "LIVE")
+            SimpleTopBar(
+                title = "LIVE",
+                actionIcon = {
+                    IconButton(onClick = { showEqDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Equalizer",
+                            tint = colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            )
 
             Box(
                 modifier = Modifier
@@ -409,6 +425,17 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+
+    if (showEqDialog) {
+        val eqLevels by playerControlViewModel.eqBandLevels.collectAsStateWithLifecycle()
+        EqualizerDialog(
+            currentLevels = eqLevels,
+            onDismiss = { showEqDialog = false },
+            onBandChange = { band, level ->
+                playerControlViewModel.setEqualizerBand(band, level)
+            }
+        )
     }
 
     if (showSleepDialog) {
@@ -705,6 +732,92 @@ fun AnimatedPlayPauseButton(
             }
         }
     }
+}
+
+@Composable
+fun EqualizerDialog(
+    currentLevels: Map<Int, Short>,
+    onDismiss: () -> Unit,
+    onBandChange: (Int, Short) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    // Standard 5-band EQ frequencies
+    val bands = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = colorScheme.surface,
+        title = {
+            Text(
+                "Equalizer",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                bands.forEachIndexed { index, frequency ->
+                    var localLevel by remember(currentLevels[index]) { 
+                        mutableStateOf((currentLevels[index] ?: 0).toFloat() / 100f) 
+                    }
+                    
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                frequency,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "${if (localLevel > 0) "+" else ""}${localLevel.toInt()} dB",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.primary
+                            )
+                        }
+                        Slider(
+                            value = localLevel,
+                            onValueChange = { localLevel = it },
+                            onValueChangeFinished = {
+                                onBandChange(index, (localLevel * 100).toInt().toShort())
+                            },
+                            valueRange = -15f..15f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = colorScheme.primary,
+                                activeTrackColor = colorScheme.primary,
+                                inactiveTrackColor = colorScheme.outlineVariant
+                            )
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    for (i in 0 until 5) {
+                        onBandChange(i, 0)
+                    }
+                }
+            ) {
+                Text("Reset", color = colorScheme.error)
+            }
+        }
+    )
 }
 
 @Composable

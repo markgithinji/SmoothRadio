@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
@@ -14,9 +15,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +28,7 @@ import javax.inject.Inject
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
     private val stateRepository: PlaybackStateRepository,
+    private val equalizerRepository: EqualizerRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
     private val syncAdSettingsUseCase: SyncAdSettingsUseCase
@@ -47,6 +51,9 @@ class PlayerControlViewModel @Inject constructor(
 
     private val _toastMessage = MutableSharedFlow<ToastType>()
     val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
+
+    val eqBandLevels: StateFlow<Map<Int, Short>> = equalizerRepository.getBandLevelsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
         syncAdSettings()
@@ -109,6 +116,13 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun setEqualizerBand(band: Int, level: Short) {
+        viewModelScope.launch {
+            equalizerRepository.saveBandLevel(band, level)
+            _playCommand.emit(PlayCommand.SetEqBand(band, level))
+        }
+    }
+
     fun updatePlaybackState(state: String) {
         stateRepository.updateState(state)
     }
@@ -148,4 +162,5 @@ sealed class PlayCommand {
     object Next : PlayCommand()
     object Previous : PlayCommand()
     data class SetSleepTimer(val minutes: Int) : PlayCommand()
+    data class SetEqBand(val band: Int, val level: Short) : PlayCommand()
 }
