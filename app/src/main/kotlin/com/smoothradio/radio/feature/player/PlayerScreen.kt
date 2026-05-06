@@ -716,11 +716,14 @@ fun SleepTimerDialog(
             )
         },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
                     "Stop playback after:",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurfaceVariant
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 options.forEach { minutes ->
@@ -733,7 +736,7 @@ fun SleepTimerDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 12.dp),
+                                .padding(horizontal = 4.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
