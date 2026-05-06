@@ -102,10 +102,13 @@ fun RadioStationGridItem(
     )
 
     Card(
-        modifier = modifier.fillMaxWidth().aspectRatio(1f).clickable { onPlayClick() },
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
         shape = RoundedCornerShape(if (isTiny) 8.dp else 12.dp),
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        onClick = onPlayClick
     ) {
         Box(modifier = Modifier.fillMaxSize().background(overlayColor)) {
             Column(
