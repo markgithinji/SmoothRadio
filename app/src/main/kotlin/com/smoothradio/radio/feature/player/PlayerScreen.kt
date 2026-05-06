@@ -521,7 +521,7 @@ fun PlayerLogoSection(
 
             // Logo Surface
             Surface(
-                shape = RoundedCornerShape(logoSize * 0.22f),
+                shape = RoundedCornerShape(logoSize * 0.10f),
                 color = colorScheme.primary.copy(alpha = 0.08f),
                 modifier = Modifier
                     .size(logoSize)

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,16 +108,21 @@ fun RadioStationRow(
             Box(
                 modifier = Modifier
                     .size(if (isSmall) 36.dp else 48.dp)
+                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
                     .then(if (isBuffering) Modifier.graphicsLayer { scaleX = pulseScale; scaleY = pulseScale } else Modifier)
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
                     contentDescription = "${station.stationName} logo",
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
+                    modifier = Modifier.fillMaxSize().padding(1.dp),
+                    contentScale = ContentScale.Fit
                 )
                 if (isBuffering) {
-                    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(colorScheme.primary.copy(alpha = 0.15f)))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(colorScheme.primary.copy(alpha = 0.15f))
+                    )
                 }
             }
 
