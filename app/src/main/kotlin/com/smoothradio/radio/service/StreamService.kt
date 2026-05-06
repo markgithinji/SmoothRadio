@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -35,8 +36,14 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -58,6 +65,11 @@ class StreamService : MediaSessionService() {
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
 
+    @Inject
+    lateinit var equalizerRepository: EqualizerRepository
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     private var castPlayer: CastPlayer? = null
     private var castContext: CastContext? = null
 
@@ -69,6 +81,9 @@ class StreamService : MediaSessionService() {
 
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
+
+    private var equalizer: Equalizer? = null
+    private var audioSessionId: Int = 0
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
@@ -286,6 +301,53 @@ class StreamService : MediaSessionService() {
 
             ACTION_PLAY -> player.play()
             ACTION_PAUSE -> player.pause()
+            ACTION_SET_EQ_BAND -> {
+                val band = intent.getIntExtra(EXTRA_BAND, -1)
+                val level = intent.getShortExtra(EXTRA_LEVEL, 0)
+                if (band != -1) setEqualizerBand(band, level)
+            }
+        }
+    }
+
+    private fun setEqualizerBand(band: Int, level: Short) {
+        try {
+            equalizer?.setBandLevel(band.toShort(), level)
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to set EQ band $band", e)
+        }
+    }
+
+    private fun setupEqualizer(sessionId: Int) {
+        if (sessionId == 0 || sessionId == audioSessionId) return
+        
+        audioSessionId = sessionId
+        try {
+            equalizer?.release()
+            equalizer = Equalizer(0, sessionId).apply {
+                enabled = true
+                // Apply saved settings
+                val bands = numberOfBands
+                val range = bandLevelRange
+                Log.d("StreamService", "Equalizer has $bands bands, range ${range[0]} to ${range[1]}")
+                
+                // We use a Coroutine to load settings from DataStore
+                serviceScope.launch {
+                    for (i in 0 until bands) {
+                        val level = equalizerRepository.getBandLevel(i)
+                        if (level != 0.toShort()) {
+                            try {
+                                setBandLevel(i.toShort(), level)
+                                Log.d("StreamService", "Applied EQ band $i: $level")
+                            } catch (e: Exception) {
+                                Log.e("StreamService", "Failed to apply EQ band $i", e)
+                            }
+                        }
+                    }
+                }
+            }
+            Log.d("StreamService", "Equalizer initialized for session $sessionId")
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to initialize Equalizer", e)
         }
     }
 
@@ -317,11 +379,14 @@ class StreamService : MediaSessionService() {
 
     override fun onDestroy() {
         cleanupResources()
+        serviceScope.cancel()
         Log.d("StreamService", "onDestroy")
         super.onDestroy()
     }
 
     private fun cleanupResources() {
+        equalizer?.release()
+        equalizer = null
         mediaSession?.run {
             wrappedPlayer.removeListener(exoplayerEventListener)
             player.release()
@@ -398,6 +463,10 @@ class StreamService : MediaSessionService() {
     }
 
     inner class EventListener : Player.Listener {
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            setupEqualizer(audioSessionId)
+        }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = extractSongTitle(rawTitle)
@@ -486,6 +555,7 @@ class StreamService : MediaSessionService() {
         const val ACTION_PAUSE = "SmoothService:Pause"
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
+        const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         const val EXTRA_STREAM_STATE = "STREAM_STATE"
         private const val NOTIFICATION_ID = 1
@@ -494,6 +564,8 @@ class StreamService : MediaSessionService() {
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
         const val EXTRA_LINK = "url"
+        const val EXTRA_BAND = "band"
+        const val EXTRA_LEVEL = "level"
         private const val CHANNEL_ID = "media_playback_channel"
     }
 }
