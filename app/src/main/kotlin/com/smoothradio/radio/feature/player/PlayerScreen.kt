@@ -37,6 +37,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -135,6 +137,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.ui.CastButton
 import com.smoothradio.radio.core.ui.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -356,7 +359,7 @@ fun PlayerScreen(
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_player_refresh),
                                         contentDescription = "Refresh",
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(22.dp),
                                         tint = colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -367,7 +370,7 @@ fun PlayerScreen(
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_player_timer),
                                         contentDescription = "Sleep Timer",
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(24.dp),
                                         tint = colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -613,6 +616,8 @@ fun AnimatedPlayPauseButton(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isPlaying = playbackState == "Playing"
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
     // Animate button color transition
     val buttonColor by animateColorAsState(
@@ -628,8 +633,20 @@ fun AnimatedPlayPauseButton(
         label = "buttonElevation"
     )
 
+    // Press scale effect
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
+        label = "buttonScale"
+    )
+
     Box(
-        modifier = modifier.size(80.dp),
+        modifier = modifier
+            .size(80.dp)
+            .graphicsLayer {
+                scaleX = buttonScale
+                scaleY = buttonScale
+            },
         contentAlignment = Alignment.Center
     ) {
         // Main button
@@ -644,7 +661,11 @@ fun AnimatedPlayPauseButton(
                 )
                 .clip(CircleShape)
                 .background(buttonColor)
-                .clickable { onClick() },
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null, // We handle visual feedback via scale and color
+                    onClick = onClick
+                ),
             contentAlignment = Alignment.Center
         ) {
             // Crossfade between play and pause icons
