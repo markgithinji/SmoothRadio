@@ -326,8 +326,8 @@ class MainActivity : FragmentActivity() {
                 // This ensures "Next" and "Previous" work correctly even after an app restart.
                 launch {
                     playerControlViewModel.playingStation.collect { station ->
-                        station?.let { 
-                            currentStation = it 
+                        station?.let {
+                            currentStation = it
                             Log.d("MainActivityLogs", "Synced currentStation from repo: ${it.stationName}")
                         }
                     }
@@ -361,6 +361,7 @@ class MainActivity : FragmentActivity() {
                             is PlayCommand.Next -> playNext()
                             is PlayCommand.Previous -> playPrevious()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
+                            is PlayCommand.SetEqBand -> setEqualizerBand(command.band, command.level)
                         }
                     }
                 }
@@ -374,6 +375,15 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    private fun setEqualizerBand(band: Int, level: Short) {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SET_EQ_BAND
+            putExtra(StreamService.EXTRA_BAND, band)
+            putExtra(StreamService.EXTRA_LEVEL, level)
+        }
+        startService(intent)
     }
 
     private fun setSleepTimer(minutes: Int) {
@@ -393,7 +403,7 @@ class MainActivity : FragmentActivity() {
     private fun playNext() = lifecycleScope.launch {
         radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
             val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
-            
+
             // Calculate next index: increment if valid, or start at 0 if none playing
             val nextIndex = when {
                 currentIndex in 0 until stations.lastIndex -> currentIndex + 1
@@ -402,7 +412,7 @@ class MainActivity : FragmentActivity() {
             }
 
             nextIndex?.let { i ->
-                currentStation = stations[i].also { 
+                currentStation = stations[i].also {
                     Log.d("MainActivityLogs", "playNext -> ${it.stationName}")
                     startNewPlay()
                     playerControlViewModel.savePlayingStationId(it.id)
@@ -427,7 +437,7 @@ class MainActivity : FragmentActivity() {
             }
 
             prevIndex?.let { i ->
-                currentStation = stations[i].also { 
+                currentStation = stations[i].also {
                     Log.d("MainActivityLogs", "playPrevious -> ${it.stationName}")
                     startNewPlay()
                     playerControlViewModel.savePlayingStationId(it.id)
@@ -525,6 +535,7 @@ class MainActivity : FragmentActivity() {
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("MainActivityLogs", "Ad failed to load: ${loadAdError.message} (code: ${loadAdError.code})")
                     interstitialAd = null
                     handleAdLoadFailure(loadAdError)
                 }
@@ -554,6 +565,7 @@ class MainActivity : FragmentActivity() {
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                Log.e("MainActivityLogs", "Ad failed to show: ${adError.message} (code: ${adError.code})")
                 interstitialAd = null
                 isShowingAd = false
                 stopService(serviceIntent)
@@ -565,6 +577,7 @@ class MainActivity : FragmentActivity() {
 
     private fun handleAdLoadFailure(loadAdError: LoadAdError) {
         adFailedCountdown++
+        Log.d("MainActivityLogs", "Handling ad load failure. Attempt: $adFailedCountdown/$MAX_AD_LOAD_ATTEMPTS")
         if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
             loadInterstitialAd()
         } else {
@@ -589,6 +602,7 @@ class MainActivity : FragmentActivity() {
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("MainActivityLogs", "Preload ad failed to load: ${loadAdError.message} (code: ${loadAdError.code})")
                     interstitialAd = null
                     when (loadAdError.code) {
                         AdRequest.ERROR_CODE_NETWORK_ERROR,
