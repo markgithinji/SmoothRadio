@@ -316,9 +316,23 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /**
+     * Observes playback commands and state changes to manage the streaming service and UI.
+     */
     private fun collectPlaybackFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Keep currentStation in sync with the repository's last known playing station.
+                // This ensures "Next" and "Previous" work correctly even after an app restart.
+                launch {
+                    playerControlViewModel.playingStation.collect { station ->
+                        station?.let { 
+                            currentStation = it 
+                            Log.d("MainActivityLogs", "Synced currentStation from repo: ${it.stationName}")
+                        }
+                    }
+                }
+
                 launch {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
@@ -332,17 +346,17 @@ class MainActivity : FragmentActivity() {
                                         "repo=$repoState | " +
                                         "sameStation=${currentStation?.id == station.id}")
 
-                                currentStation = command.station
-                                if (command.station.isPlaying) {
+                                currentStation = station
+                                // Toggle playback if tapping the currently playing station, else start fresh
+                                if (station.isPlaying) {
                                     Log.d("MainActivityLogs" , "  → playOrStop()")
                                     playOrStop()
                                 } else {
                                     Log.d("MainActivityLogs" , "  → startNewPlay()")
                                     startNewPlay()
                                 }
-                                playerControlViewModel.savePlayingStationId(command.station.id)
+                                playerControlViewModel.savePlayingStationId(station.id)
                             }
-
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.Next -> playNext()
                             is PlayCommand.Previous -> playPrevious()
@@ -372,26 +386,52 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-    private fun playNext() {
-        lifecycleScope.launch {
-            val stations = radioViewModel.allStations.first()
-            val index = stations.indexOfFirst { it.id == currentStation?.id }
-            if (index < stations.lastIndex) {
-                currentStation = stations[index + 1]
-                startNewPlay()
-                playerControlViewModel.savePlayingStationId(currentStation!!.id)
+    /**
+     * Advances to the next station in the list.
+     * If no station is currently identified, it starts from the first available station.
+     */
+    private fun playNext() = lifecycleScope.launch {
+        radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
+            val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
+            
+            // Calculate next index: increment if valid, or start at 0 if none playing
+            val nextIndex = when {
+                currentIndex in 0 until stations.lastIndex -> currentIndex + 1
+                currentIndex == -1 -> 0
+                else -> null // Already at the end or invalid state
+            }
+
+            nextIndex?.let { i ->
+                currentStation = stations[i].also { 
+                    Log.d("MainActivityLogs", "playNext -> ${it.stationName}")
+                    startNewPlay()
+                    playerControlViewModel.savePlayingStationId(it.id)
+                }
             }
         }
     }
 
-    private fun playPrevious() {
-        lifecycleScope.launch {
-            val stations = radioViewModel.allStations.first()
-            val index = stations.indexOfFirst { it.id == currentStation?.id }
-            if (index > 0) {
-                currentStation = stations[index - 1]
-                startNewPlay()
-                playerControlViewModel.savePlayingStationId(currentStation!!.id)
+    /**
+     * Jumps to the previous station in the list.
+     * If no station is currently identified, it defaults to the first available station.
+     */
+    private fun playPrevious() = lifecycleScope.launch {
+        radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
+            val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
+
+            // Calculate previous index: decrement if possible, or start at 0 if none playing
+            val prevIndex = when {
+                currentIndex > 0 -> currentIndex - 1
+                currentIndex == -1 -> 0
+                else -> null // Already at the start or invalid state
+            }
+
+            prevIndex?.let { i ->
+                currentStation = stations[i].also { 
+                    Log.d("MainActivityLogs", "playPrevious -> ${it.stationName}")
+                    startNewPlay()
+                    playerControlViewModel.savePlayingStationId(it.id)
+                }
             }
         }
     }
