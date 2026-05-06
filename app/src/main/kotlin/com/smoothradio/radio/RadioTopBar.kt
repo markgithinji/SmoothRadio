@@ -1,5 +1,6 @@
 package com.smoothradio.radio
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -52,6 +53,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -75,6 +77,11 @@ fun RadioTopBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val colorScheme = MaterialTheme.colorScheme
+
+    // Get screen width
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val showInfoIcon = screenWidthDp >= 360  // Only show info icon on 360dp and above
 
     BackHandler(enabled = isSearchActive) {
         keyboardController?.hide()
@@ -213,13 +220,16 @@ fun RadioTopBar(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            IconButton(onClick = onAboutClick) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_toolbar_info),
-                                    contentDescription = "About",
-                                    tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                            // Conditionally show info icon based on screen width
+                            if (showInfoIcon) {
+                                IconButton(onClick = onAboutClick) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_toolbar_info),
+                                        contentDescription = "About",
+                                        tint = colorScheme.onSurface,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
