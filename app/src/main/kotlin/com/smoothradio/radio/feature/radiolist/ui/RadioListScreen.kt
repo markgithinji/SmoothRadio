@@ -189,7 +189,7 @@ fun RadioStationsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 0.dp, vertical = 0.dp)
                 ) {
                     Box(
                         modifier = Modifier

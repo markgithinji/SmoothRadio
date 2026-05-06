@@ -32,8 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,21 +75,15 @@ fun PersistentMiniPlayer(
         label = "overlayColor"
     )
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = colorScheme.surface
-        )
+            .padding(horizontal = 4.dp, vertical = 0.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(colorScheme.surfaceVariant.copy(alpha = 0.95f))
+            .background(overlayColor)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(overlayColor)
-        ) {
+        Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -102,7 +94,7 @@ fun PersistentMiniPlayer(
                 val infiniteTransition = rememberInfiniteTransition()
                 val pulseScale by infiniteTransition.animateFloat(
                     initialValue = 1f,
-                    targetValue = 1.08f,
+                    targetValue = 1.05f,
                     animationSpec = infiniteRepeatable(
                         animation = tween<Float>(800, easing = FastOutSlowInEasing),
                         repeatMode = RepeatMode.Reverse
@@ -125,7 +117,7 @@ fun PersistentMiniPlayer(
                         contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(10.dp)),
+                            .clip(RoundedCornerShape(6.dp)),
                         contentScale = ContentScale.Crop
                     )
 
@@ -141,7 +133,7 @@ fun PersistentMiniPlayer(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(
                                     colorScheme.primary.copy(
                                         alpha = (1f - rippleRadius) * 0.2f
@@ -156,14 +148,12 @@ fun PersistentMiniPlayer(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = station.stationName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
-                    Spacer(modifier = Modifier.height(2.dp))
 
                     val statusColor by animateColorAsState(
                         targetValue = when {
@@ -194,14 +184,26 @@ fun PersistentMiniPlayer(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = statusColor
+                                    color = statusColor,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+
+                            else -> {
+                                Text(
+                                    text = station.location,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
                 }
 
-                // Animated control button
+                // Animated control button with morphing transition
                 AnimatedContent(
                     targetState = when {
                         isBuffering -> "buffering"
@@ -211,7 +213,7 @@ fun PersistentMiniPlayer(
                     transitionSpec = {
                         when {
                             targetState == "buffering" -> {
-                                // Idle/Playing -> Buffering: icon shrinks away, dots pop in
+                                // Transition to buffering: icon shrinks, dots pop in
                                 (scaleIn(
                                     initialScale = 0.3f,
                                     animationSpec = spring(
@@ -226,7 +228,7 @@ fun PersistentMiniPlayer(
                             }
 
                             initialState == "buffering" -> {
-                                // Buffering -> Idle/Playing: dots shrink away, icon pops in
+                                // Transition from buffering: dots shrink, icon pops in
                                 (scaleIn(
                                     initialScale = 1.8f,
                                     animationSpec = spring(
@@ -241,7 +243,7 @@ fun PersistentMiniPlayer(
                             }
 
                             else -> {
-                                // Playing <-> Idle: crossfade with bouncy scale
+                                // Play <-> Pause transitions: bouncy scale crossfade
                                 (scaleIn(
                                     initialScale = 0.3f,
                                     animationSpec = spring(
@@ -262,33 +264,38 @@ fun PersistentMiniPlayer(
                         modifier = Modifier.size(40.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        when (state) {
-                            "buffering" -> {
-                                DotLoadingAnimation(
-                                    dotSize = 5.dp,
-                                    dotSpacing = 3.dp,
-                                    color = colorScheme.tertiary,
-                                    animationDelay = 150,
-                                    animationDuration = 400
+                        if (state == "buffering") {
+                            DotLoadingAnimation(
+                                dotSize = 5.dp,
+                                dotSpacing = 3.dp,
+                                color = colorScheme.tertiary,
+                                animationDelay = 150,
+                                animationDuration = 400
+                            )
+                        } else {
+                            IconButton(
+                                onClick = onPlayPauseClick,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
                                 )
-                            }
-
-                            else -> {
-                                IconButton(
-                                    onClick = onPlayPauseClick,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = if (isPlaying) "Pause" else "Play",
-                                        tint = colorScheme.primary
-                                    )
-                                }
                             }
                         }
                     }
                 }
             }
+
+            // Persistent bottom line to distinguish from navigation bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.5.dp)
+                    .background(colorScheme.outlineVariant.copy(alpha = 0.2f))
+            )
         }
     }
 }
