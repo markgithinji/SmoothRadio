@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.FavoriteIcon
 import com.smoothradio.radio.core.ui.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.MiniWaveformVisualization
 import kotlinx.coroutines.delay
 
 @Composable
@@ -227,41 +228,5 @@ fun RadioStationRow(
             thickness = 0.5.dp,
             color = colorScheme.outline.copy(alpha = 0.1f)
         )
-    }
-}
-
-@Composable
-fun MiniWaveformVisualization(
-    modifier: Modifier = Modifier,
-    height: Dp = 16.dp,
-    color: Color
-) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val barCount = 8
-
-    Row(
-        modifier = modifier.height(height),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(barCount) { index ->
-            val delay = (index * 60)
-            val amplitude by infiniteTransition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 0.8f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween<Float>(400, delayMillis = delay),
-                    repeatMode = RepeatMode.Reverse
-                )
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .fillMaxHeight(amplitude)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(color.copy(alpha = 0.7f))
-            )
-        }
     }
 }

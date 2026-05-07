@@ -17,6 +17,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.MiniWaveformVisualization
 
 @Composable
 fun PersistentMiniPlayer(
@@ -104,6 +106,7 @@ fun PersistentMiniPlayer(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
+                        .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f))
                         .then(
                             if (isBuffering) Modifier.graphicsLayer {
                                 scaleX = pulseScale
@@ -117,28 +120,15 @@ fun PersistentMiniPlayer(
                         contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(6.dp)),
-                        contentScale = ContentScale.Crop
+                            .padding(2.dp),
+                        contentScale = ContentScale.Fit
                     )
 
                     if (isBuffering) {
-                        val rippleRadius by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween<Float>(800, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            )
-                        )
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    colorScheme.primary.copy(
-                                        alpha = (1f - rippleRadius) * 0.2f
-                                    )
-                                )
+                                .background(colorScheme.primary.copy(alpha = 0.15f))
                         )
                     }
                 }
@@ -179,14 +169,26 @@ fun PersistentMiniPlayer(
                             }
 
                             isPlaying -> {
-                                Text(
-                                    text = "PLAYING",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = statusColor,
-                                    letterSpacing = 0.5.sp
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "PLAYING",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = statusColor,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    MiniWaveformVisualization(
+                                        barCount = 6,
+                                        barWidth = 2.dp,
+                                        barSpacing = 1.5.dp,
+                                        height = 10.dp,
+                                        color = statusColor
+                                    )
+                                }
                             }
 
                             else -> {

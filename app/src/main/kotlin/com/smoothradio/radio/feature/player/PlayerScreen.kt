@@ -142,13 +142,17 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.CastButton
 import com.smoothradio.radio.core.ui.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.SimpleTopBar
 import com.smoothradio.radio.service.StreamService
 import kotlinx.coroutines.delay
 import kotlin.collections.emptyList
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 
+@OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     playerControlViewModel: PlayerControlViewModel,
@@ -748,7 +752,6 @@ fun EqualizerDialog(
         shape = RoundedCornerShape(24.dp),
         containerColor = colorScheme.surface,
         tonalElevation = 6.dp,
-        // icon parameter removed
         title = {
             Text(
                 "Equalizer",
@@ -788,7 +791,7 @@ fun EqualizerDialog(
                                 Text(
                                     frequency,
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Medium,
+                                    fontWeight = FontWeight.Normal,
                                     color = colorScheme.onSurface
                                 )
                                 Surface(
