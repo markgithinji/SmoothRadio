@@ -348,7 +348,7 @@ fun PlayerScreen(
                                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    com.smoothradio.radio.core.ui.CastButton(
+                                    CastButton(
                                         modifier = Modifier.size(20.dp),
                                         color = colorScheme.onSurfaceVariant
                                     )
