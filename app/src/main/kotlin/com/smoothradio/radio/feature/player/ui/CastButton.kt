@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.player
+package com.smoothradio.radio.feature.player.ui
 
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.compose.runtime.Composable

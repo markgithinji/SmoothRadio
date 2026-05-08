@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.player
+package com.smoothradio.radio.feature.player.ui
 
 import android.util.Log
 import androidx.compose.animation.AnimatedContent

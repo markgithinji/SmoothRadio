@@ -71,7 +71,7 @@ import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
-import com.smoothradio.radio.feature.player.PlayerScreen
+import com.smoothradio.radio.feature.player.ui.PlayerScreen
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
