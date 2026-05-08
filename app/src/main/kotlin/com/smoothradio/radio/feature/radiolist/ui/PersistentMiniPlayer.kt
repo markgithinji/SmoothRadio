@@ -51,8 +51,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.ui.DotLoadingAnimation
-import com.smoothradio.radio.core.ui.MiniWaveformVisualization
+import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 
 @Composable
 fun PersistentMiniPlayer(

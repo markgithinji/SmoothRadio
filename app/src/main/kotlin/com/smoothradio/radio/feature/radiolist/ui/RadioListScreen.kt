@@ -1,12 +1,5 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
-import android.util.Log
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +22,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Icon
@@ -44,17 +35,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.RadioTopBar
-import com.smoothradio.radio.core.ui.AppToast
-import com.smoothradio.radio.core.ui.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.common.AppToast
+import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.ui.ToastType
+import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.feature.about.ui.AboutDialog
 
 @Composable

@@ -29,7 +29,7 @@ class DefaultEqualizerRepository @Inject constructor(
     override fun getBandLevelsFlow(): Flow<Map<Int, Short>> {
         return dataStore.data.map { preferences ->
             val bands = mutableMapOf<Int, Short>()
-            for (i in 0 until 5) { // Assuming 5 bands for now
+            for (i in 0 until 5) { // 5 bands
                 bands[i] = (preferences[intPreferencesKey("eq_band_$i")] ?: 0).toShort()
             }
             bands

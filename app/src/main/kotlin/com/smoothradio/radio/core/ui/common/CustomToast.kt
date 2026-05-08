@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.ui
+package com.smoothradio.radio.core.ui.common
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring

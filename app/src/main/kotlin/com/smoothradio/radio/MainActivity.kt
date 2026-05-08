@@ -1,24 +1,18 @@
 package com.smoothradio.radio
 
-import android.content.BroadcastReceiver
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.fragment.app.FragmentActivity
-import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -28,15 +22,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -64,7 +53,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
-import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
@@ -76,11 +64,11 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.ui.AppToast
+import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.ui.ToastType
+import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.PlayerScreen
@@ -88,7 +76,6 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
