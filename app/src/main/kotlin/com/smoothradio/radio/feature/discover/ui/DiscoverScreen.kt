@@ -77,10 +77,6 @@ fun DiscoverScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        playerControlViewModel.requestStateUpdate()
-    }
-
     val categories = remember(stations, favorites) {
         CategoryHelper.createCategories(stations)
     }

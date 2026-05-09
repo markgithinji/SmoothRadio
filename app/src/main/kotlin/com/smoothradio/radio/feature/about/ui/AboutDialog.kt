@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.about.ui
 
-
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -241,7 +240,8 @@ private fun sendFeedbackEmail(context: Context, version: String, device: String,
     try {
         context.startActivity(Intent.createChooser(intent, context.getString(R.string.send_mail)))
     } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT)
+            .show()
     }
 }
 
@@ -250,7 +250,10 @@ private fun shareApp(context: Context) {
     val shareIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
-        putExtra(Intent.EXTRA_TEXT, "Check out Smooth Radio - Your favorite radio stations in one place! Download it here: https://play.google.com/store/apps/details?id=$appPackage")
+        putExtra(
+            Intent.EXTRA_TEXT,
+            "Check out Smooth Radio - Your favorite radio stations in one place! Download it here: https://play.google.com/store/apps/details?id=$appPackage"
+        )
     }
     context.startActivity(Intent.createChooser(shareIntent, "Share via"))
 }

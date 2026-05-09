@@ -10,7 +10,6 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
-import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
-    private val stateRepository: PlaybackStateRepository,
+    stateRepository: PlaybackStateRepository,
     private val equalizerRepository: EqualizerRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
@@ -45,16 +44,21 @@ class PlayerControlViewModel @Inject constructor(
     private val _playingStation = MutableStateFlow<RadioStation?>(null)
     val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
 
-    private val _requestState = MutableSharedFlow<Unit>()
-    val requestState: SharedFlow<Unit> = _requestState.asSharedFlow()
-
     private val _toastMessage = MutableSharedFlow<ToastType>()
     val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
 
     val eqBandLevels: StateFlow<Map<Int, Short>> = equalizerRepository.getBandLevelsFlow()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
+        )
 
     init {
+        initialize()
+    }
+
+    private fun initialize() {
         syncAdSettings()
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
@@ -114,14 +118,6 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
-    fun updatePlaybackState(state: String) {
-        stateRepository.updateState(state)
-    }
-
-    fun updateMetadata(metadata: String) {
-        stateRepository.updateMetadata(metadata)
-    }
-
     fun savePlayingStationId(id: Int) {
         viewModelScope.launch {
             radioRepository.setPlayingStation(id)
@@ -137,12 +133,6 @@ class PlayerControlViewModel @Inject constructor(
     private fun syncAdSettings() {
         viewModelScope.launch {
             syncAdSettingsUseCase()
-        }
-    }
-
-    fun requestStateUpdate() {
-        viewModelScope.launch {
-            _requestState.emit(Unit)
         }
     }
 }

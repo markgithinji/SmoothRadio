@@ -130,8 +130,6 @@ fun PlayerScreen(
 
     val currentStation = playingStation!!
 
-    LaunchedEffect(Unit) { playerControlViewModel.requestStateUpdate() }
-
     val animatedColor by animateColorAsState(
         targetValue = when {
             playbackState == "Playing" -> colorScheme.primary.copy(alpha = 0.15f)

@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
@@ -24,27 +23,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RadioViewModel @Inject constructor(
-    application: Application,
     private val radioLinkRepository: RadioLinkRepository,
     private val radioRepository: RadioRepository,
     private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val viewPreferenceRepository: ViewPreferenceRepository
-) : AndroidViewModel(application) {
-
-    val allStations = radioRepository.allStations
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    val favoriteStations = radioRepository.favoriteStations
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
@@ -60,6 +44,20 @@ class RadioViewModel @Inject constructor(
 
     private val _isSearchActive = MutableStateFlow(false)
     val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
+    val allStations = radioRepository.allStations
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val favoriteStations = radioRepository.favoriteStations
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     // Filtered stations based on search query
     val filteredStations = combine(

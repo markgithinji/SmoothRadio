@@ -73,7 +73,6 @@ fun RadioStationsScreen(
             isToastVisible = true
         }
     }
-    LaunchedEffect(Unit) { playerControlViewModel.requestStateUpdate() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val showMiniPlayer = maxHeight > 400.dp
