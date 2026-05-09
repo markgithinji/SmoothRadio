@@ -20,6 +20,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.smoothradio.radio.R
+import com.smoothradio.radio.ui.theme.Favorite
 
 @Composable
 fun FavoriteIcon(
@@ -53,7 +54,7 @@ fun FavoriteIcon(
             Icon(
                 painter = painterResource(id = if (isFav) R.drawable.ic_heart_filled else R.drawable.ic_heart_outline),
                 contentDescription = if (isFav) "Remove from favorites" else "Add to favorites",
-                tint = if (isFav) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                tint = if (isFav) Favorite else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(iconSize)
             )
         }
