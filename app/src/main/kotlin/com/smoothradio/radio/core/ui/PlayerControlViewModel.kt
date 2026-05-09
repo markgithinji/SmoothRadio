@@ -2,7 +2,6 @@ package com.smoothradio.radio.core.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.util.UnstableApi
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
@@ -24,7 +23,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@UnstableApi
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,

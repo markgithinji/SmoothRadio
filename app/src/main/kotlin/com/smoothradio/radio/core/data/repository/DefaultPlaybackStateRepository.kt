@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.data.repository
 
-import androidx.media3.common.util.UnstableApi
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.service.StreamService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@UnstableApi
 @Singleton
 class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateRepository {
     private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)

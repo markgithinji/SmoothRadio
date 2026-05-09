@@ -51,7 +51,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
@@ -80,7 +79,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-@UnstableApi
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 

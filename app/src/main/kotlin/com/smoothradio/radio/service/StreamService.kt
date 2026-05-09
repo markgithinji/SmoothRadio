@@ -1,3 +1,5 @@
+@file:OptIn(UnstableApi::class)
+
 package com.smoothradio.radio.service
 
 import android.app.AlarmManager
@@ -17,7 +19,9 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
@@ -50,7 +54,6 @@ import javax.inject.Inject
  * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
  *
  */
-@UnstableApi
 @AndroidEntryPoint
 class StreamService : MediaSessionService() {
     private var isPlaying = false
@@ -368,13 +371,18 @@ class StreamService : MediaSessionService() {
         stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
         setStopTimerReceiver = SetStopTimerReceiver()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP_FROM_TIMER), RECEIVER_NOT_EXPORTED)
-            registerReceiver(setStopTimerReceiver, IntentFilter(ACTION_SET_TIMER), RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP_FROM_TIMER))
-            registerReceiver(setStopTimerReceiver, IntentFilter(ACTION_SET_TIMER))
-        }
+        ContextCompat.registerReceiver(
+            this,
+            stopPlayFromTimerReceiver,
+            IntentFilter(ACTION_STOP_FROM_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        ContextCompat.registerReceiver(
+            this,
+            setStopTimerReceiver,
+            IntentFilter(ACTION_SET_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onDestroy() {
@@ -437,6 +445,10 @@ class StreamService : MediaSessionService() {
         }
 
         override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean = false
+
+        override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo {
+            return MediaNotification.Provider.NotificationChannelInfo(CHANNEL_ID, getString(R.string.notification_channel_name))
+        }
     }
 
     inner class StopPlayFromTimerReceiver : BroadcastReceiver() {
