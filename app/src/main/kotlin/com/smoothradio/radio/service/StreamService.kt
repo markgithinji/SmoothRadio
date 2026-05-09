@@ -81,6 +81,7 @@ class StreamService : MediaSessionService() {
 
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
+    private var currentSongTitle: String = ""
 
     private var equalizer: Equalizer? = null
     private var audioSessionId: Int = 0
@@ -205,14 +206,13 @@ class StreamService : MediaSessionService() {
             this, 3, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val songTitle = stateRepository.metadata.value
         val title = when {
-            isPlaying && songTitle.isNotEmpty() -> songTitle
+            isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
             isPlaying -> "Playing"
             else -> stateChange.ifEmpty { "Preparing Audio" }
         }
 
-        val stationDisplay = currentStationName ?: stateRepository.stationName.value ?: getString(R.string.app_name)
+        val stationDisplay = currentStationName ?: getString(R.string.app_name)
 
         Log.d("StreamService", "createNotification: title=$title, text=$stationDisplay")
 
@@ -471,7 +471,8 @@ class StreamService : MediaSessionService() {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = extractSongTitle(rawTitle)
 
-            if (stateRepository.metadata.value != cleaned) {
+            if (currentSongTitle != cleaned) {
+                currentSongTitle = cleaned
                 stateRepository.updateMetadata(cleaned)
                 updateNotificationInternal()
             }
