@@ -14,10 +14,6 @@ class DefaultViewPreferenceRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) : ViewPreferenceRepository {
 
-    companion object {
-        private val IS_GRID_VIEW_KEY = booleanPreferencesKey("is_grid_view")
-    }
-
     override suspend fun saveIsGridView(isGridView: Boolean) {
         dataStore.edit { preferences ->
             preferences[IS_GRID_VIEW_KEY] = isGridView
@@ -34,5 +30,9 @@ class DefaultViewPreferenceRepository @Inject constructor(
         return dataStore.data.map { preferences ->
             preferences[IS_GRID_VIEW_KEY] ?: false
         }
+    }
+
+    companion object {
+        private val IS_GRID_VIEW_KEY = booleanPreferencesKey("is_grid_view")
     }
 }

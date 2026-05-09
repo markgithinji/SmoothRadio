@@ -11,11 +11,13 @@ import com.smoothradio.radio.core.data.local.AppDatabase
 import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.DefaultAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.DefaultEqualizerRepository
+import com.smoothradio.radio.core.data.repository.DefaultPlaybackStateRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
 import com.smoothradio.radio.core.data.repository.DefaultViewPreferenceRepository
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
+import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
@@ -90,5 +92,11 @@ class CoreDataModule {
         dataStore: DataStore<Preferences>
     ): EqualizerRepository {
         return DefaultEqualizerRepository(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun providePlaybackStateRepository(): PlaybackStateRepository {
+        return DefaultPlaybackStateRepository()
     }
 }

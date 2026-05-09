@@ -8,27 +8,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@UnstableApi
-@Singleton
-class PlaybackStateRepository @Inject constructor() {
-    private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)
-    val playbackState: StateFlow<String> = _playbackState.asStateFlow()
+interface PlaybackStateRepository {
+    val playbackState: StateFlow<String>
+    val metadata: StateFlow<String>
+    val stationName: StateFlow<String?>
 
-    private val _metadata = MutableStateFlow("")
-    val metadata: StateFlow<String> = _metadata.asStateFlow()
-
-    private val _stationName = MutableStateFlow<String?>(null)
-    val stationName: StateFlow<String?> = _stationName.asStateFlow()
-
-    fun updateState(state: String) {
-        _playbackState.value = state
-    }
-
-    fun updateMetadata(title: String) {
-        _metadata.value = title
-    }
-
-    fun updateStationName(name: String?) {
-        _stationName.value = name
-    }
+    fun updateState(state: String)
+    fun updateMetadata(title: String)
+    fun updateStationName(name: String?)
 }
