@@ -1,10 +1,8 @@
 package com.smoothradio.radio.feature.discover.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -211,7 +209,13 @@ fun DiscoverScreen(
                                                             )
                                                         },
                                                         gridItemWidth = gridItemWidth,
-                                                        modifier = Modifier.width(visualItemWidth)
+                                                        visualItemWidth = visualItemWidth,
+                                                        modifier = Modifier.animateItem(
+                                                            placementSpec = spring(
+                                                                stiffness = Spring.StiffnessMediumLow,
+                                                                dampingRatio = Spring.DampingRatioLowBouncy
+                                                            )
+                                                        )
                                                     )
                                                 } else {
                                                     RadioStationGridItem(
@@ -263,47 +267,50 @@ fun AnimatedFavoriteItem(
     playbackState: String,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    gridItemWidth: Dp = 120.dp
+    gridItemWidth: Dp,
+    visualItemWidth: Dp
 ) {
-    var isVisible by remember { mutableStateOf(true) }
+    var isRemoving by remember { mutableStateOf(false) }
 
-    // Animate removal when favorite is toggled off
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "alpha"
-    )
-
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.8f,
+    // Entrance and Exit scale animation
+    val scale by animateFloatAsState(
+        targetValue = if (isRemoving) 0.7f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "scale"
     )
 
-    val handleFavoriteClick = { isVisible = false }
+    val alpha by animateFloatAsState(
+        targetValue = if (isRemoving) 0f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "alpha"
+    )
 
-    // Trigger actual removal after animation completes
-    LaunchedEffect(isVisible) {
-        if (!isVisible) {
-            delay(300)
+    // Trigger actual removal after a short delay for the scale-out to be visible
+    LaunchedEffect(isRemoving) {
+        if (isRemoving) {
+            delay(150)
             onFavoriteClick()
         }
     }
 
     Box(
-        modifier = modifier.graphicsLayer {
-            alpha = animatedAlpha; scaleX = animatedScale; scaleY = animatedScale
-        }
+        modifier = modifier
+            .width(visualItemWidth)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
     ) {
         RadioStationGridItem(
             station = station,
             isPlaying = isPlaying,
             playbackState = playbackState,
             onPlayClick = onPlayClick,
-            onFavoriteClick = handleFavoriteClick,
+            onFavoriteClick = { isRemoving = true },
             gridItemWidth = gridItemWidth,
             modifier = Modifier.fillMaxSize()
         )
