@@ -45,10 +45,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.ToastType
-import com.smoothradio.radio.core.ui.common.AppToast
-import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.common.AppToast
+import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
@@ -93,11 +93,28 @@ fun DiscoverScreen(
         val screenWidth = maxWidth
         val screenHeight = maxHeight
 
-        val itemWidth = when {
-            screenWidth < 300.dp -> 96.dp
-            screenWidth < 400.dp -> 130.dp
-            else -> 137.dp
+        val gridColumns = when {
+            screenWidth < 500.dp -> 3
+            screenWidth < 700.dp -> 4
+            screenWidth < 900.dp -> 5
+            else -> 7
         }
+
+        val horizontalSpacing = when (gridColumns) {
+            2 -> 16.dp
+            3 -> 12.dp
+            4 -> 10.dp
+            5 -> 8.dp
+            else -> 6.dp
+        }
+
+        // Calculate the actual visual width of a card in the grid.
+        // Formula: (TotalWidth - TotalPadding - TotalGaps) / Columns
+        val totalHorizontalOffset = horizontalSpacing * (gridColumns + 1)
+        val visualItemWidth = (screenWidth - totalHorizontalOffset) / gridColumns
+
+        // This is the "slot" width used for internal logic (show/hide details)
+        val gridItemWidth = screenWidth / gridColumns
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -105,19 +122,38 @@ fun DiscoverScreen(
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 DotLoadingAnimation()
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text(stringResource(R.string.loading_stations), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    stringResource(R.string.loading_stations),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     } else if (categories.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Radio, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(
+                                    Icons.Default.Radio,
+                                    null,
+                                    Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text(stringResource(R.string.no_stations_available), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    stringResource(R.string.no_stations_available),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     } else {
@@ -129,7 +165,8 @@ fun DiscoverScreen(
                         ) {
                             items(items = categories, key = { it.label }) { category ->
                                 if (category.categoryRadioStationList.isNotEmpty()) {
-                                    val rowScrollState = categoryScrollStates[category.label] ?: rememberLazyListState()
+                                    val rowScrollState = categoryScrollStates[category.label]
+                                        ?: rememberLazyListState()
 
                                     Column {
                                         val displayLabel = if (category.label == "Your Favorites") {
@@ -154,26 +191,46 @@ fun DiscoverScreen(
                                             contentPadding = PaddingValues(horizontal = 16.dp),
                                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
-                                            items(items = category.categoryRadioStationList, key = { it.id }) { station ->
+                                            items(
+                                                items = category.categoryRadioStationList,
+                                                key = { it.id }) { station ->
                                                 if (category.label == "Your Favorites") {
                                                     AnimatedFavoriteItem(
                                                         station = station,
                                                         isPlaying = playingStation?.id == station.id,
                                                         playbackState = playbackState,
-                                                        onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                                        onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
-                                                        gridItemWidth = itemWidth,
-                                                        modifier = Modifier.width(itemWidth)
+                                                        onPlayClick = {
+                                                            playerControlViewModel.requestPlayStation(
+                                                                station
+                                                            )
+                                                        },
+                                                        onFavoriteClick = {
+                                                            radioViewModel.toggleFavorite(
+                                                                station.id,
+                                                                !station.isFavorite
+                                                            )
+                                                        },
+                                                        gridItemWidth = gridItemWidth,
+                                                        modifier = Modifier.width(visualItemWidth)
                                                     )
                                                 } else {
                                                     RadioStationGridItem(
                                                         station = station,
                                                         isPlaying = playingStation?.id == station.id,
                                                         playbackState = playbackState,
-                                                        onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                                        onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
-                                                        gridItemWidth = itemWidth,
-                                                        modifier = Modifier.width(itemWidth)
+                                                        onPlayClick = {
+                                                            playerControlViewModel.requestPlayStation(
+                                                                station
+                                                            )
+                                                        },
+                                                        onFavoriteClick = {
+                                                            radioViewModel.toggleFavorite(
+                                                                station.id,
+                                                                !station.isFavorite
+                                                            )
+                                                        },
+                                                        gridItemWidth = gridItemWidth,
+                                                        modifier = Modifier.width(visualItemWidth)
                                                     )
                                                 }
                                             }
@@ -190,7 +247,9 @@ fun DiscoverScreen(
                 toastType = ToastType.Error(toastMessage),
                 isVisible = isToastVisible,
                 onDismiss = { isToastVisible = false },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
             )
         }
     }
@@ -217,7 +276,10 @@ fun AnimatedFavoriteItem(
 
     val animatedScale by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0.8f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "scale"
     )
 
@@ -232,7 +294,9 @@ fun AnimatedFavoriteItem(
     }
 
     Box(
-        modifier = modifier.graphicsLayer { alpha = animatedAlpha; scaleX = animatedScale; scaleY = animatedScale }
+        modifier = modifier.graphicsLayer {
+            alpha = animatedAlpha; scaleX = animatedScale; scaleY = animatedScale
+        }
     ) {
         RadioStationGridItem(
             station = station,
