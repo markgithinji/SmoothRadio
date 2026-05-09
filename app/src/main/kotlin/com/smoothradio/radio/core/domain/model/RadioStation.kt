@@ -15,15 +15,4 @@ data class RadioStation(
     var isPlaying: Boolean,
     var isFavorite: Boolean,
     val orderIndex: Int
-) : ListItem {
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is RadioStation) return false
-        return id == other.id &&
-                isFavorite == other.isFavorite &&
-                isPlaying == other.isPlaying
-    }
-
-    override fun hashCode(): Int = id.hashCode()
-}
+) : ListItem
