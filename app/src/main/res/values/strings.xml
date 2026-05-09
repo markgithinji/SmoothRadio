@@ -42,6 +42,13 @@
     <string name="error_unexpected">Unknown error</string>
     <string name="favorite_limit_reached">Favorite limit reached (20 max)</string>
 
+    <string name="discover_title">DISCOVER</string>
+    <string name="loading_stations">Loading stations...</string>
+    <string name="no_stations_available">No stations available</string>
+    <string name="no_stations_found">No stations found</string>
+    <string name="search_try_different_term">Try a different search term</string>
+    <string name="category_favorites">Your Favorites</string>
+
     <string name="about_description">Your favorite radio stations in one place. Stream live radio from Kenya and beyond.</string>
     <string name="support_community">Support &amp; Community</string>
     <string name="share_app">Share App with Friends</string>

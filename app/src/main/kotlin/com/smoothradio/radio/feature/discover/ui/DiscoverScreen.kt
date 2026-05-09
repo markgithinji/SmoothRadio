@@ -36,11 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.common.AppToast
@@ -70,13 +72,6 @@ fun DiscoverScreen(
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        radioViewModel.favoriteLimitExceeded.collect { message ->
-            toastMessage = message
-            isToastVisible = true
-        }
-    }
-
     val categories = remember(stations, favorites) {
         CategoryHelper.createCategories(stations)
     }
@@ -84,6 +79,13 @@ fun DiscoverScreen(
     categories.forEach { category ->
         if (!categoryScrollStates.containsKey(category.label)) {
             categoryScrollStates[category.label] = LazyListState()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        radioViewModel.favoriteLimitExceeded.collect { message ->
+            toastMessage = message
+            isToastVisible = true
         }
     }
 
@@ -99,7 +101,7 @@ fun DiscoverScreen(
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                SimpleTopBar(title = "DISCOVER")
+                SimpleTopBar(title = stringResource(R.string.discover_title))
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isLoading) {
@@ -107,7 +109,7 @@ fun DiscoverScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 DotLoadingAnimation()
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Loading stations...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.loading_stations), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     } else if (categories.isEmpty()) {
@@ -115,7 +117,7 @@ fun DiscoverScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Radio, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("No stations available", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.no_stations_available), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     } else {
@@ -130,8 +132,14 @@ fun DiscoverScreen(
                                     val rowScrollState = categoryScrollStates[category.label] ?: rememberLazyListState()
 
                                     Column {
+                                        val displayLabel = if (category.label == "Your Favorites") {
+                                            stringResource(R.string.category_favorites)
+                                        } else {
+                                            category.label
+                                        }
+
                                         Text(
-                                            text = category.label,
+                                            text = displayLabel,
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Medium,
                                             fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
