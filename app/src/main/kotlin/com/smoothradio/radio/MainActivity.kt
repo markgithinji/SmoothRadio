@@ -63,6 +63,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.PlayCommand
@@ -88,6 +89,7 @@ class MainActivity : FragmentActivity() {
     private val radioViewModel: RadioViewModel by viewModels()
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     // Playback state
     private lateinit var serviceIntent: Intent
@@ -104,6 +106,7 @@ class MainActivity : FragmentActivity() {
         installSplashScreen()
         setupSystemBars()
 
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         serviceIntent = Intent(this, StreamService::class.java)
 
         showConsentForm()
@@ -122,17 +125,15 @@ class MainActivity : FragmentActivity() {
 
     /**
      * Configures system bars (status bar and navigation bar) to match the app's surface color.
-     * This ensures visual consistency between the top app bar, bottom navigation bar,
-     * and system bars in both light and dark themes.
      */
     private fun setupSystemBars() {
         val isDark = resources.configuration.uiMode and
                 Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
-        val surfaceColor = if (isDark) { // TODO: Move from hardcoded colors
-            android.graphics.Color.parseColor("#1E1E1E")  // SurfaceDark
+        val surfaceColor = if (isDark) {
+            android.graphics.Color.parseColor("#1E1E1E")
         } else {
-            android.graphics.Color.parseColor("#FFFFFF")  // SurfaceLight
+            android.graphics.Color.parseColor("#FFFFFF")
         }
 
         enableEdgeToEdge(
@@ -182,7 +183,6 @@ class MainActivity : FragmentActivity() {
                     }
                 })
 
-                // Initial sync
                 isPlaying = mediaController!!.isPlaying
             } catch (e: Exception) {
                 Log.e("MainActivityLogs", "MediaController connection failed", e)
@@ -303,14 +303,17 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /**
-     * Observes playback commands and state changes to manage the streaming service and UI.
-     */
+    private fun sendFirebaseAnalytics(stationName: String) {
+        val event = stationName.lowercase().replace(" ", "_")
+        val bundle = Bundle().apply {
+            putString("station_name", stationName)
+        }
+        firebaseAnalytics.logEvent(event, bundle)
+    }
+
     private fun collectPlaybackFlows() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Keep currentStation in sync with the repository's last known playing station.
-                // This ensures "Next" and "Previous" work correctly even after an app restart.
                 launch {
                     playerControlViewModel.playingStation.collect { station ->
                         station?.let {
@@ -327,19 +330,18 @@ class MainActivity : FragmentActivity() {
                                 val station = command.station
                                 val repoState = playerControlViewModel.playbackState.value
 
-                                Log.d("MainActivityLogs" , "▶ Tap: ${station.stationName} | " +
+                                Log.d("MainActivityLogs", "▶ Tap: ${station.stationName} | " +
                                         "station.isPlaying=${station.isPlaying} | " +
                                         "local=$isPlaying | " +
                                         "repo=$repoState | " +
                                         "sameStation=${currentStation?.id == station.id}")
 
                                 currentStation = station
-                                // Toggle playback if tapping the currently playing station, else start fresh
                                 if (station.isPlaying) {
-                                    Log.d("MainActivityLogs" , "  → playOrStop()")
+                                    Log.d("MainActivityLogs", "  → playOrStop()")
                                     playOrStop()
                                 } else {
-                                    Log.d("MainActivityLogs" , "  → startNewPlay()")
+                                    Log.d("MainActivityLogs", "  → startNewPlay()")
                                     startNewPlay()
                                 }
                                 playerControlViewModel.savePlayingStationId(station.id)
@@ -383,21 +385,14 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-    /**
-     * Advances to the next station in the list.
-     * If no station is currently identified, it starts from the first available station.
-     */
     private fun playNext() = lifecycleScope.launch {
         radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
             val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
-
-            // Calculate next index: increment if valid, or start at 0 if none playing
             val nextIndex = when {
                 currentIndex in 0 until stations.lastIndex -> currentIndex + 1
                 currentIndex == -1 -> 0
-                else -> null // Already at the end or invalid state
+                else -> null
             }
-
             nextIndex?.let { i ->
                 currentStation = stations[i].also {
                     Log.d("MainActivityLogs", "playNext -> ${it.stationName}")
@@ -408,21 +403,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    /**
-     * Jumps to the previous station in the list.
-     * If no station is currently identified, it defaults to the first available station.
-     */
     private fun playPrevious() = lifecycleScope.launch {
         radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
             val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
-
-            // Calculate previous index: decrement if possible, or start at 0 if none playing
             val prevIndex = when {
                 currentIndex > 0 -> currentIndex - 1
                 currentIndex == -1 -> 0
-                else -> null // Already at the start or invalid state
+                else -> null
             }
-
             prevIndex?.let { i ->
                 currentStation = stations[i].also {
                     Log.d("MainActivityLogs", "playPrevious -> ${it.stationName}")
@@ -434,10 +422,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startNewPlay() {
-        Log.d("MainActivityLogs" , "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
+        Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
         isPlaying = true
         if (isShowingAd) {
-            Log.d("MainActivityLogs" , "  → BLOCKED: ad showing")
+            Log.d("MainActivityLogs", "  → BLOCKED: ad showing")
             return
         }
 
@@ -445,15 +433,16 @@ class MainActivity : FragmentActivity() {
         startStreamService()
         loadInterstitialAd()
         checkInternet()
+        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station")
     }
 
     private fun playOrStop() {
         if (isPlaying) {
-            Log.d("MainActivityLogs", "  → STOP (was loading, stopping service)")
+            Log.d("MainActivityLogs", "  → STOP")
             isPlaying = false
             isShowingAd = false
             serviceIntent.action = StreamService.ACTION_STOP
-            startService(serviceIntent)  // Send stop to service
+            startService(serviceIntent)
             return
         }
 
@@ -462,7 +451,7 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        Log.d("MainActivityLogs", "  → START (not playing, starting fresh)")
+        Log.d("MainActivityLogs", "  → START")
         isPlaying = true
         isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
@@ -470,6 +459,7 @@ class MainActivity : FragmentActivity() {
         loadInterstitialAd()
         checkInternet()
     }
+
     private fun refresh() {
         if (isShowingAd) return
 
