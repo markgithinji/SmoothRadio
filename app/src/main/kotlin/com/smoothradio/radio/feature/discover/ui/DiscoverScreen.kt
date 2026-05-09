@@ -42,12 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
-import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
 import kotlinx.coroutines.delay

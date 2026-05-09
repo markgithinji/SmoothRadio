@@ -4,13 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
-import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -63,8 +63,7 @@ class PlayerControlViewModel @Inject constructor(
         }
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
-                // Only update when we have a real station
-                station?.let { _playingStation.value = it }
+                _playingStation.value = station
             }
         }
     }
@@ -76,10 +75,6 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestPlayStation(station: RadioStation) {
-        val currentState = stateRepository.playbackState.value
-        if (currentState != StreamService.StreamStates.PREPARING) {
-            stateRepository.updateState(StreamService.StreamStates.IDLE)
-        }
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
             _playingStation.value = station
@@ -88,10 +83,6 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestRefresh() {
-        val currentState = stateRepository.playbackState.value
-        if (currentState != StreamService.StreamStates.PREPARING) {
-            stateRepository.updateState(StreamService.StreamStates.IDLE)
-        }
         viewModelScope.launch {
             _playCommand.emit(PlayCommand.Refresh)
         }
@@ -103,6 +94,7 @@ class PlayerControlViewModel @Inject constructor(
             _playCommand.emit(PlayCommand.Next)
         }
     }
+
 
     fun requestPreviousStation() {
         viewModelScope.launch {

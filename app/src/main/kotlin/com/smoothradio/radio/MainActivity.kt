@@ -65,11 +65,11 @@ import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.ui.common.ToastType
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.ui.PlayerScreen

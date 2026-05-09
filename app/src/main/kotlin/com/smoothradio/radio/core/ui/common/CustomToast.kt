@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.smoothradio.radio.core.domain.model.ToastType
 import kotlinx.coroutines.delay
 
 @Composable
@@ -167,11 +168,4 @@ fun AppToast(
             }
         }
     }
-}
-
-sealed class ToastType {
-    data class Error(val message: String) : ToastType()
-    data class Success(val message: String) : ToastType()
-    data class Warning(val message: String) : ToastType()
-    data class Info(val message: String) : ToastType()
 }
