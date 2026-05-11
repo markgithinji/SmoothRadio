@@ -91,28 +91,28 @@ fun DiscoverScreen(
         val screenWidth = maxWidth
         val screenHeight = maxHeight
 
-        val gridColumns = when {
-            screenWidth < 500.dp -> 3
-            screenWidth < 700.dp -> 4
-            screenWidth < 900.dp -> 5
-            else -> 7
+        val (visualItemWidth, gridItemWidth) = remember(screenWidth) {
+            val gridColumns = when {
+                screenWidth < 500.dp -> 3
+                screenWidth < 700.dp -> 4
+                screenWidth < 900.dp -> 5
+                else -> 7
+            }
+
+            val horizontalSpacing = when (gridColumns) {
+                2 -> 16.dp
+                3 -> 12.dp
+                4 -> 10.dp
+                5 -> 8.dp
+                else -> 6.dp
+            }
+
+            val totalHorizontalOffset = horizontalSpacing * (gridColumns + 1)
+            val visualWidth = (screenWidth - totalHorizontalOffset) / gridColumns
+            val slotWidth = screenWidth / gridColumns
+            
+            visualWidth to slotWidth
         }
-
-        val horizontalSpacing = when (gridColumns) {
-            2 -> 16.dp
-            3 -> 12.dp
-            4 -> 10.dp
-            5 -> 8.dp
-            else -> 6.dp
-        }
-
-        // Calculate the actual visual width of a card in the grid.
-        // Formula: (TotalWidth - TotalPadding - TotalGaps) / Columns
-        val totalHorizontalOffset = horizontalSpacing * (gridColumns + 1)
-        val visualItemWidth = (screenWidth - totalHorizontalOffset) / gridColumns
-
-        // This is the "slot" width used for internal logic (show/hide details)
-        val gridItemWidth = screenWidth / gridColumns
 
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
