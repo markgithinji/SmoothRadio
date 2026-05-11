@@ -29,6 +29,12 @@ interface RadioStationDao {
     @Query("SELECT * FROM radio_stations WHERE isPlaying = 1 LIMIT 1")
     fun getPlayingStation(): Flow<RadioStation?>
 
+    @androidx.room.Transaction
+    suspend fun setCurrentPlayingStation(id: Int) {
+        clearPlayingState()
+        updatePlayingStation(id)
+    }
+
     @Query("UPDATE radio_stations SET isFavorite = :isFav WHERE id = :id")
     suspend fun updateFavoriteStatus(id: Int, isFav: Boolean)
 

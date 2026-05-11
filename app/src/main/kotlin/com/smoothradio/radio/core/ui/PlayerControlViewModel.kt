@@ -65,7 +65,10 @@ class PlayerControlViewModel @Inject constructor(
         }
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
-                _playingStation.value = station
+                // Filter out transient nulls during station swaps in the DB
+                if (station != null) {
+                    _playingStation.value = station
+                }
             }
         }
     }
