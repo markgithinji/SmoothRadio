@@ -1,8 +1,13 @@
 package com.smoothradio.radio.feature.discover.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.model.Category
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
@@ -74,9 +80,11 @@ fun DiscoverScreen(
         CategoryHelper.createCategories(stations)
     }
 
-    categories.forEach { category ->
-        if (!categoryScrollStates.containsKey(category.label)) {
-            categoryScrollStates[category.label] = LazyListState()
+    LaunchedEffect(categories) {
+        categories.forEach { category ->
+            if (!categoryScrollStates.containsKey(category.label)) {
+                categoryScrollStates[category.label] = LazyListState()
+            }
         }
     }
 
@@ -119,129 +127,31 @@ fun DiscoverScreen(
                 SimpleTopBar(title = stringResource(R.string.discover_title))
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (isLoading) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                DotLoadingAnimation()
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    stringResource(R.string.loading_stations),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else if (categories.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Radio,
-                                    null,
-                                    Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    stringResource(R.string.no_stations_available),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            state = discoverScrollState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            items(items = categories, key = { it.label }) { category ->
-                                if (category.categoryRadioStationList.isNotEmpty()) {
-                                    val rowScrollState = categoryScrollStates[category.label]
-                                        ?: rememberLazyListState()
-
-                                    Column {
-                                        val displayLabel = if (category.label == "Your Favorites") {
-                                            stringResource(R.string.category_favorites)
-                                        } else {
-                                            category.label
-                                        }
-
-                                        Text(
-                                            text = displayLabel,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
-                                            modifier = Modifier.padding(horizontal = 16.dp)
-                                        )
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        LazyRow(
-                                            state = rowScrollState,
-                                            modifier = Modifier.fillMaxWidth(),
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            items(
-                                                items = category.categoryRadioStationList,
-                                                key = { it.id }) { station ->
-                                                if (category.label == "Your Favorites") {
-                                                    AnimatedFavoriteItem(
-                                                        station = station,
-                                                        isPlaying = playingStation?.id == station.id,
-                                                        playbackState = playbackState,
-                                                        onPlayClick = {
-                                                            playerControlViewModel.requestPlayStation(
-                                                                station
-                                                            )
-                                                        },
-                                                        onFavoriteClick = {
-                                                            radioViewModel.toggleFavorite(
-                                                                station.id,
-                                                                !station.isFavorite
-                                                            )
-                                                        },
-                                                        gridItemWidth = gridItemWidth,
-                                                        visualItemWidth = visualItemWidth,
-                                                        modifier = Modifier.animateItem(
-                                                            placementSpec = spring(
-                                                                stiffness = Spring.StiffnessMediumLow,
-                                                                dampingRatio = Spring.DampingRatioLowBouncy
-                                                            )
-                                                        )
-                                                    )
-                                                } else {
-                                                    RadioStationGridItem(
-                                                        station = station,
-                                                        isPlaying = playingStation?.id == station.id,
-                                                        playbackState = playbackState,
-                                                        onPlayClick = {
-                                                            playerControlViewModel.requestPlayStation(
-                                                                station
-                                                            )
-                                                        },
-                                                        onFavoriteClick = {
-                                                            radioViewModel.toggleFavorite(
-                                                                station.id,
-                                                                !station.isFavorite
-                                                            )
-                                                        },
-                                                        gridItemWidth = gridItemWidth,
-                                                        modifier = Modifier.width(visualItemWidth)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
+                    Crossfade(
+                        targetState = when {
+                            isLoading -> DiscoverState.Loading
+                            categories.isEmpty() -> DiscoverState.Empty
+                            else -> DiscoverState.Content
+                        },
+                        label = "discoverState"
+                    ) { state ->
+                        when (state) {
+                            DiscoverState.Loading -> DiscoverLoadingView()
+                            DiscoverState.Empty -> DiscoverEmptyView()
+                            DiscoverState.Content -> DiscoverContent(
+                                categories = categories,
+                                discoverScrollState = discoverScrollState,
+                                categoryScrollStates = categoryScrollStates,
+                                playingStation = playingStation,
+                                playbackState = playbackState,
+                                screenHeight = screenHeight,
+                                visualItemWidth = visualItemWidth,
+                                gridItemWidth = gridItemWidth,
+                                onPlayClick = { playerControlViewModel.requestPlayStation(it) },
+                                onFavoriteClick = { station, isFavorite ->
+                                    radioViewModel.toggleFavorite(station.id, isFavorite)
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -259,16 +169,174 @@ fun DiscoverScreen(
     }
 }
 
+enum class DiscoverState {
+    Loading, Empty, Content
+}
+
+@Composable
+fun DiscoverLoadingView(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            DotLoadingAnimation()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.loading_stations),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun DiscoverEmptyView(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.Radio,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.no_stations_available),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun DiscoverContent(
+    categories: List<Category>,
+    discoverScrollState: LazyListState,
+    categoryScrollStates: Map<String, LazyListState>,
+    playingStation: RadioStation?,
+    playbackState: String,
+    screenHeight: Dp,
+    visualItemWidth: Dp,
+    gridItemWidth: Dp,
+    onPlayClick: (RadioStation) -> Unit,
+    onFavoriteClick: (RadioStation, Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        state = discoverScrollState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        items(items = categories, key = { it.label }) { category ->
+            if (category.categoryRadioStationList.isNotEmpty()) {
+                val rowScrollState = categoryScrollStates[category.label]
+                    ?: rememberLazyListState()
+
+                CategoryRow(
+                    category = category,
+                    scrollState = rowScrollState,
+                    playingStation = playingStation,
+                    playbackState = playbackState,
+                    screenHeight = screenHeight,
+                    visualItemWidth = visualItemWidth,
+                    gridItemWidth = gridItemWidth,
+                    onPlayClick = onPlayClick,
+                    onFavoriteClick = onFavoriteClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryRow(
+    category: Category,
+    scrollState: LazyListState,
+    playingStation: RadioStation?,
+    playbackState: String,
+    screenHeight: Dp,
+    visualItemWidth: Dp,
+    gridItemWidth: Dp,
+    onPlayClick: (RadioStation) -> Unit,
+    onFavoriteClick: (RadioStation, Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        val displayLabel = if (category.label == "Your Favorites") {
+            stringResource(R.string.category_favorites)
+        } else {
+            category.label
+        }
+
+        Text(
+            text = displayLabel,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            state = scrollState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(
+                items = category.categoryRadioStationList,
+                key = { it.id }) { station ->
+                val isPlaying = playingStation?.id == station.id
+                if (category.label == "Your Favorites") {
+                    AnimatedFavoriteItem(
+                        station = station,
+                        isPlaying = isPlaying,
+                        playbackState = playbackState,
+                        onPlayClick = { onPlayClick(station) },
+                        onFavoriteClick = { onFavoriteClick(station, !station.isFavorite) },
+                        gridItemWidth = gridItemWidth,
+                        visualItemWidth = visualItemWidth,
+                        modifier = Modifier.animateItem(
+                            placementSpec = spring(
+                                stiffness = Spring.StiffnessMediumLow,
+                                dampingRatio = Spring.DampingRatioLowBouncy
+                            )
+                        )
+                    )
+                } else {
+                    RadioStationGridItem(
+                        station = station,
+                        isPlaying = isPlaying,
+                        playbackState = playbackState,
+                        onPlayClick = { onPlayClick(station) },
+                        onFavoriteClick = { onFavoriteClick(station, !station.isFavorite) },
+                        gridItemWidth = gridItemWidth,
+                        modifier = Modifier.width(visualItemWidth)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun AnimatedFavoriteItem(
-    modifier: Modifier = Modifier,
     station: RadioStation,
     isPlaying: Boolean,
     playbackState: String,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     gridItemWidth: Dp,
-    visualItemWidth: Dp
+    visualItemWidth: Dp,
+    modifier: Modifier = Modifier
 ) {
     var isRemoving by remember { mutableStateOf(false) }
 
