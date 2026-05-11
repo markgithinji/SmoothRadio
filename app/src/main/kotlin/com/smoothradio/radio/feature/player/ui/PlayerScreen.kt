@@ -53,6 +53,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +65,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +81,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,27 +114,7 @@ fun PlayerScreen(
     var showEqDialog by remember { mutableStateOf(false) }
 
     if (playingStation == null) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_player_note),
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "No station playing",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Select a station to start listening",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
+        EmptyPlayerContent(modifier = modifier, colorScheme = colorScheme)
         return
     }
 
@@ -143,7 +126,6 @@ fun PlayerScreen(
             playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING -> colorScheme.tertiary.copy(
                 alpha = 0.15f
             )
-
             else -> colorScheme.surfaceVariant
         },
         animationSpec = tween(1000, easing = FastOutSlowInEasing),
@@ -152,37 +134,67 @@ fun PlayerScreen(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val showAd = screenHeight > 670.dp
-        val showSecondRow = screenHeight > 626.dp
-        val showMetadata = screenHeight > 480.dp
-        val isTinyCompact = screenHeight < 200.dp
-        val isCompact = screenHeight in 200.dp..380.dp
-        val isShrinking = screenHeight in 380.dp..425.dp
-        val isMedium = screenHeight in 426.dp..550.dp
 
-        LaunchedEffect(maxHeight) {
+        LaunchedEffect(screenHeight) {
             Log.d("PlayerScreen", "Height: $screenHeight")
         }
 
-        val playButtonScale = when {
-            isTinyCompact -> 0.75f
-            isShrinking -> {
-                val range = 425f - 300f
-                val position = screenHeight.value - 300f
-                0.65f + (position / range) * 0.35f
+        // Responsive Layout Configuration
+        val layoutConfig = remember(screenHeight) {
+            val isTinyCompact = screenHeight < 200.dp
+            val isCompact = screenHeight in 200.dp..380.dp
+            val isShrinking = screenHeight in 380.dp..425.dp
+            val isMedium = screenHeight in 426.dp..550.dp
+
+            val playButtonScale = when {
+                isTinyCompact -> 0.75f
+                isShrinking -> {
+                    val range = 425f - 300f
+                    val position = screenHeight.value - 300f
+                    0.65f + (position / range) * 0.35f
+                }
+                else -> 1f
             }
 
-            else -> 1f
+            object {
+                val showAd = screenHeight > 670.dp
+                val showSecondRow = screenHeight > 626.dp
+                val showMetadata = screenHeight > 565.dp
+                val tinyCompact = isTinyCompact
+                val compact = isCompact
+                val shrinking = isShrinking
+                val btnScale = playButtonScale
+
+                val horizontalPadding = when {
+                    isTinyCompact || isCompact -> 8.dp
+                    isShrinking -> 12.dp
+                    isMedium -> 16.dp
+                    else -> 24.dp
+                }
+
+                val topPadding = when {
+                    isTinyCompact || isCompact -> 4.dp
+                    isShrinking -> 6.dp
+                    isMedium -> 8.dp
+                    else -> 16.dp
+                }
+
+                val logoScale = when {
+                    isShrinking -> 0.4f
+                    isMedium -> 0.55f
+                    else -> 0.7f
+                }
+            }
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
             SimpleTopBar(
-                title = "LIVE",
+                title = stringResource(R.string.player_live_tag),
                 actionIcon = {
                     IconButton(onClick = { showEqDialog = true }) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_toolbar_eq),
-                            contentDescription = "Equalizer",
+                            contentDescription = stringResource(R.string.player_equalizer),
                             tint = colorScheme.onSurface,
                             modifier = Modifier.size(18.dp)
                         )
@@ -196,10 +208,9 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(
-                                animatedColor,
-                                colorScheme.background
-                            ), startY = 0f, endY = Float.POSITIVE_INFINITY
+                            listOf(animatedColor, colorScheme.background),
+                            startY = 0f,
+                            endY = Float.POSITIVE_INFINITY
                         )
                     )
             ) {
@@ -207,117 +218,37 @@ fun PlayerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(
-                            start = when {
-                                isTinyCompact -> 8.dp; isCompact -> 8.dp; isShrinking -> 12.dp; isMedium -> 16.dp; else -> 24.dp
-                            },
-                            end = when {
-                                isTinyCompact -> 8.dp; isCompact -> 8.dp; isShrinking -> 12.dp; isMedium -> 16.dp; else -> 24.dp
-                            },
-                            top = when {
-                                isTinyCompact -> 4.dp; isCompact -> 4.dp; isShrinking -> 6.dp; isMedium -> 8.dp; else -> 16.dp
-                            },
-                            bottom = when {
-                                isTinyCompact -> 4.dp; isCompact -> 8.dp; isShrinking -> 10.dp; isMedium -> 12.dp; else -> 16.dp
-                            }
-                        ),
-                    verticalArrangement = when {
-                        isTinyCompact -> Arrangement.Center
-                        isCompact -> Arrangement.Center
-                        else -> Arrangement.Top
-                    }
+                        .padding(horizontal = layoutConfig.horizontalPadding)
+                        .padding(top = layoutConfig.topPadding, bottom = 16.dp),
+                    verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
                 ) {
                     // Logo
-                    if (!isCompact && !isTinyCompact) {
+                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) {
                         PlayerLogoSection(
                             currentStation = currentStation,
                             playbackState = playbackState,
                             swipeDirection = swipeDirection,
                             modifier = Modifier
-                                .fillMaxWidth(
-                                    when {
-                                        isShrinking -> 0.4f
-                                        isMedium -> 0.55f
-                                        else -> 0.7f
-                                    }
-                                )
+                                .fillMaxWidth(layoutConfig.logoScale)
                                 .aspectRatio(1f)
                         )
-                        Spacer(
-                            modifier = Modifier.height(
-                                when {
-                                    isShrinking -> 8.dp
-                                    isMedium -> 12.dp
-                                    else -> 16.dp
-                                }
-                            )
-                        )
+                        Spacer(modifier = Modifier.height(if (layoutConfig.shrinking) 8.dp else 16.dp))
                     }
 
                     // Station Name
-                    if (!isTinyCompact) {
-                        Text(
-                            text = currentStation.stationName,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = when {
-                                isCompact -> 16.sp
-                                isShrinking -> 18.sp
-                                isMedium -> 20.sp
-                                else -> 24.sp
-                            },
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                    if (!layoutConfig.tinyCompact) {
+                        StationHeader(
+                            stationName = currentStation.stationName,
+                            playbackState = playbackState,
+                            isCompact = layoutConfig.compact,
+                            isShrinking = layoutConfig.shrinking,
+                            colorScheme = colorScheme
                         )
-
-                        // Reserved space for playing state to prevent layout shifts
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier.height(20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                when {
-                                    playbackState == StreamService.StreamStates.PLAYING -> Text(
-                                        "NOW PLAYING",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 11.sp,
-                                        letterSpacing = 1.5.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colorScheme.primary
-                                    )
-
-                                    playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING -> {
-                                        DotLoadingAnimation(
-                                            dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
-                                            dotSpacing = if (isCompact || isShrinking) 4.dp else 6.dp,
-                                            color = colorScheme.tertiary,
-                                            animationDelay = 200,
-                                            animationDuration = 400
-                                        )
-                                        Spacer(modifier = Modifier.width(if (isCompact || isShrinking) 6.dp else 8.dp))
-                                        Text(
-                                            "BUFFERING",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontSize = if (isCompact || isShrinking) 9.sp else 10.sp,
-                                            letterSpacing = 1.5.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = colorScheme.tertiary
-                                        )
-                                    }
-                                    // Idle state: empty but space is reserved
-                                }
-                            }
-                        }
                     }
 
                     // Metadata
-                    if (showMetadata && !isTinyCompact) {
-                        Spacer(modifier = Modifier.height(if (showAd) 16.dp else 10.dp))
+                    if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
+                        Spacer(modifier = Modifier.height(if (layoutConfig.showAd) 16.dp else 10.dp))
                         Box(
                             modifier = Modifier
                                 .height(48.dp)
@@ -331,169 +262,44 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Spacer between content and controls
-                    if (!isTinyCompact) {
-                        Spacer(modifier = Modifier.height(if (isCompact || isShrinking) 12.dp else 16.dp))
+                    if (!layoutConfig.tinyCompact) {
+                        Spacer(modifier = Modifier.height(if (layoutConfig.compact || layoutConfig.shrinking) 12.dp else 16.dp))
                     }
-                    if (!isCompact && !isTinyCompact) Spacer(modifier = Modifier.weight(1f))
+                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(modifier = Modifier.weight(1f))
 
                     // Playback Controls
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer { scaleX = playButtonScale; scaleY = playButtonScale },
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val btnSize = when {
-                            isTinyCompact -> 36.dp; isCompact -> 40.dp; else -> 56.dp
-                        }
-                        val iconSize = when {
-                            isTinyCompact -> 18.dp; isCompact -> 20.dp; else -> 28.dp
-                        }
-
-                        IconButton(onClick = {
-                            swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
-                        }, modifier = Modifier.size(btnSize)) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_player_prev),
-                                contentDescription = "Previous",
-                                modifier = Modifier.size(iconSize),
-                                tint = colorScheme.onSurfaceVariant
-                            )
-                        }
-                        AnimatedPlayPauseButton(
-                            playbackState = playbackState,
-                            onClick = { playerControlViewModel.requestPlayStation(currentStation) },
-                            modifier = if (isTinyCompact) Modifier.size(56.dp) else if (isCompact) Modifier.size(
-                                64.dp
-                            ) else Modifier
-                        )
-                        IconButton(onClick = {
-                            swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                        }, modifier = Modifier.size(btnSize)) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_player_next),
-                                contentDescription = "Next",
-                                modifier = Modifier.size(iconSize),
-                                tint = colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    PlaybackControlRow(
+                        playbackState = playbackState,
+                        playButtonScale = layoutConfig.btnScale,
+                        isTinyCompact = layoutConfig.tinyCompact,
+                        isCompact = layoutConfig.compact,
+                        onPrevious = { swipeDirection = -1f; playerControlViewModel.requestPreviousStation() },
+                        onNext = { swipeDirection = 1f; playerControlViewModel.requestNextStation() },
+                        onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
+                        colorScheme = colorScheme
+                    )
 
                     // Secondary controls
-                    if (showSecondRow) {
+                    if (layoutConfig.showSecondRow) {
                         Spacer(modifier = Modifier.height(24.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                IconButton(
-                                    onClick = { playerControlViewModel.requestRefresh() },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_player_refresh),
-                                        contentDescription = "Refresh",
-                                        modifier = Modifier.size(22.dp),
-                                        tint = colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    "Refresh",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                IconButton(
-                                    onClick = { showSleepDialog = true },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_player_timer),
-                                        contentDescription = "Sleep Timer",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    "Sleep",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CastButton(
-                                        modifier = Modifier.size(20.dp),
-                                        color = colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    "Cast",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        ActionButtonsRow(
+                            onRefresh = { playerControlViewModel.requestRefresh() },
+                            onSleepClick = { showSleepDialog = true },
+                            colorScheme = colorScheme
+                        )
                     }
 
                     // Ad
-                    if (showAd) {
+                    if (layoutConfig.showAd) {
                         Spacer(modifier = Modifier.height(24.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Card(
-                                modifier = Modifier
-                                    .wrapContentWidth()
-                                    .height(70.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                )
-                            ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        AdView(ctx).apply {
-                                            adUnitId =
-                                                "ca-app-pub-9799428944156340/4540584810"; setAdSize(
-                                            AdSize.BANNER
-                                        ); loadAd(
-                                            AdRequest.Builder().build()
-                                        )
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .wrapContentWidth()
-                                        .fillMaxHeight()
-                                )
-                            }
-                        }
+                        AdBanner()
                     }
                 }
             }
         }
     }
 
+    // Dialogs
     if (showEqDialog) {
         val eqLevels by playerControlViewModel.eqBandLevels.collectAsStateWithLifecycle()
         EqualizerDialog(
@@ -509,10 +315,227 @@ fun PlayerScreen(
         SleepTimerDialog(
             onDismiss = { showSleepDialog = false },
             onConfirm = { minutes ->
-                showSleepDialog = false; playerControlViewModel.setSleepTimer(
-                minutes
-            )
+                showSleepDialog = false
+                playerControlViewModel.setSleepTimer(minutes)
             }
+        )
+    }
+}
+
+@Composable
+fun AdBanner() {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .wrapContentWidth()
+                .height(70.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    AdView(ctx).apply {
+                        adUnitId = "ca-app-pub-9799428944156340/4540584810"
+                        setAdSize(AdSize.BANNER)
+                        loadAd(AdRequest.Builder().build())
+                    }
+                },
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .fillMaxHeight()
+            )
+        }
+    }
+}
+
+@Composable
+fun StationHeader(
+    stationName: String,
+    playbackState: String,
+    isCompact: Boolean,
+    isShrinking: Boolean,
+    colorScheme: ColorScheme
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stationName,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            fontSize = when {
+                isCompact -> 16.sp
+                isShrinking -> 18.sp
+                else -> 24.sp
+            },
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier.height(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                when {
+                    playbackState == StreamService.StreamStates.PLAYING -> Text(
+                        text = stringResource(R.string.player_now_playing),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.primary
+                    )
+                    playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING -> {
+                        DotLoadingAnimation(
+                            dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
+                            dotSpacing = if (isCompact || isShrinking) 4.dp else 6.dp,
+                            color = colorScheme.tertiary,
+                            animationDelay = 200,
+                            animationDuration = 400
+                        )
+                        Spacer(modifier = Modifier.width(if (isCompact || isShrinking) 6.dp else 8.dp))
+                        Text(
+                            text = stringResource(R.string.player_buffering),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = if (isCompact || isShrinking) 9.sp else 10.sp,
+                            letterSpacing = 1.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.tertiary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaybackControlRow(
+    playbackState: String,
+    playButtonScale: Float,
+    isTinyCompact: Boolean,
+    isCompact: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onPlayPause: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = playButtonScale; scaleY = playButtonScale },
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val btnSize = if (isTinyCompact) 36.dp else if (isCompact) 40.dp else 56.dp
+        val iconSize = if (isTinyCompact) 18.dp else if (isCompact) 20.dp else 28.dp
+
+        IconButton(onClick = onPrevious, modifier = Modifier.size(btnSize)) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_player_prev),
+                contentDescription = stringResource(R.string.player_previous),
+                modifier = Modifier.size(iconSize),
+                tint = colorScheme.onSurfaceVariant
+            )
+        }
+        AnimatedPlayPauseButton(
+            playbackState = playbackState,
+            onClick = onPlayPause,
+            modifier = if (isTinyCompact) Modifier.size(56.dp) else if (isCompact) Modifier.size(64.dp) else Modifier
+        )
+        IconButton(onClick = onNext, modifier = Modifier.size(btnSize)) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_player_next),
+                contentDescription = stringResource(R.string.player_next),
+                modifier = Modifier.size(iconSize),
+                tint = colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun ActionButtonsRow(
+    onRefresh: () -> Unit,
+    onSleepClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        ActionButton(
+            iconRes = R.drawable.ic_player_refresh,
+            label = stringResource(R.string.player_refresh),
+            onClick = onRefresh,
+            colorScheme = colorScheme
+        )
+        ActionButton(
+            iconRes = R.drawable.ic_player_timer,
+            label = stringResource(R.string.player_sleep),
+            onClick = onSleepClick,
+            colorScheme = colorScheme
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CastButton(
+                    modifier = Modifier.size(20.dp),
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = stringResource(R.string.player_cast),
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.sp,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun ActionButton(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = label,
+                modifier = Modifier.size(if (iconRes == R.drawable.ic_player_timer) 24.dp else 22.dp),
+                tint = colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            color = colorScheme.onSurfaceVariant
         )
     }
 }
@@ -539,50 +562,40 @@ fun PlayerLogoSection(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        // Calculate proportional sizes based on available space
         val containerSize = minOf(maxWidth, maxHeight)
-        val logoSize = containerSize * 0.75f  // Logo is 75% of container
-        val ringBaseSize = containerSize       // Rings fill the container
+        val logoSize = containerSize * 0.75f
 
         Box(
             modifier = Modifier.size(containerSize),
             contentAlignment = Alignment.Center
         ) {
-            // Radar wave rings
             if (playbackState == StreamService.StreamStates.PLAYING) {
                 val waveRadius1 by infiniteTransition.animateFloat(
                     initialValue = 0f, targetValue = 1f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            3000,
-                            easing = LinearEasing
-                        ), repeatMode = RepeatMode.Restart
+                        animation = tween(3000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
                     )
                 )
 
                 val waveRadius2 by infiniteTransition.animateFloat(
                     initialValue = 0f, targetValue = 1f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            3000,
-                            easing = LinearEasing,
-                            delayMillis = 1500
-                        ), repeatMode = RepeatMode.Restart
+                        animation = tween(3000, easing = LinearEasing, delayMillis = 1500),
+                        repeatMode = RepeatMode.Restart
                     )
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(ringBaseSize * waveRadius1)
-                        .align(Alignment.Center)
+                        .size(containerSize * waveRadius1)
                         .clip(CircleShape)
                         .background(colorScheme.primary.copy(alpha = (1f - waveRadius1) * 0.06f))
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(ringBaseSize * waveRadius2)
-                        .align(Alignment.Center)
+                        .size(containerSize * waveRadius2)
                         .clip(CircleShape)
                         .background(colorScheme.primary.copy(alpha = (1f - waveRadius2) * 0.06f))
                 )
@@ -590,23 +603,19 @@ fun PlayerLogoSection(
                 val ringAlpha by infiniteTransition.animateFloat(
                     initialValue = 0.4f, targetValue = 0f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            3000,
-                            easing = LinearEasing
-                        ), repeatMode = RepeatMode.Restart
+                        animation = tween(3000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
                     )
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(ringBaseSize * waveRadius1)
-                        .align(Alignment.Center)
+                        .size(containerSize * waveRadius1)
                         .clip(CircleShape)
                         .border(1.dp, colorScheme.primary.copy(alpha = ringAlpha), CircleShape)
                 )
             }
 
-            // Logo Surface
             Surface(
                 shape = RoundedCornerShape(logoSize * 0.10f),
                 color = colorScheme.primary.copy(alpha = 0.08f),
@@ -619,41 +628,17 @@ fun PlayerLogoSection(
                         targetState = currentStation.id,
                         transitionSpec = {
                             if (swipeDirection < 0f) {
-                                (slideInHorizontally(
-                                    initialOffsetX = { -it },
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                ) + fadeIn(tween(200))) togetherWith
-                                        (slideOutHorizontally(
-                                            targetOffsetX = { it },
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                        ) + fadeOut(tween(200)))
+                                (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()) togetherWith
+                                        (slideOutHorizontally(targetOffsetX = { it }) + fadeOut())
                             } else if (swipeDirection > 0f) {
-                                (slideInHorizontally(
-                                    initialOffsetX = { it },
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                ) + fadeIn(tween(200))) togetherWith
-                                        (slideOutHorizontally(
-                                            targetOffsetX = { -it },
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                        ) + fadeOut(tween(200)))
+                                (slideInHorizontally(initialOffsetX = { it }) + fadeIn()) togetherWith
+                                        (slideOutHorizontally(targetOffsetX = { -it }) + fadeOut())
                             } else {
                                 fadeIn(tween(300)) togetherWith fadeOut(tween(200))
                             }
                         },
                         label = "logoTransition"
-                    ) { _ ->
+                    ) { targetStationId ->
                         Image(
                             painter = painterResource(id = currentStation.logoResource),
                             contentDescription = "${currentStation.stationName} logo",
@@ -677,34 +662,13 @@ fun AnimatedMetadataWithMarquee(
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
-    // Fade and slide animation for metadata appearance
-    val metadataVisible by animateFloatAsState(
-        targetValue = if (isVisible && metadata.isNotEmpty()) 1f else 0f,
-        animationSpec = tween(600, easing = FastOutSlowInEasing),
-        label = "metadataVisibility"
-    )
-
-    val metadataOffset by animateFloatAsState(
-        targetValue = if (isVisible && metadata.isNotEmpty()) 0f else 20f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "metadataOffset"
-    )
-
     AnimatedContent(
         targetState = metadata,
         transitionSpec = {
-            (slideInVertically(
-                initialOffsetY = { it / 2 },
-                animationSpec = tween(500, easing = FastOutSlowInEasing)
-            ) + fadeIn(tween(400))) togetherWith
-                    (slideOutVertically(
-                        targetOffsetY = { -it / 2 },
-                        animationSpec = tween(300, easing = FastOutSlowInEasing)
-                    ) + fadeOut(tween(300)))
+            (slideInVertically(initialOffsetY = { it / 2 }) + fadeIn()) togetherWith
+                    (slideOutVertically(targetOffsetY = { -it / 2 }) + fadeOut())
         },
+        modifier = if (isVisible) modifier else modifier.graphicsLayer { alpha = 0f },
         label = "metadataTransition"
     ) { currentMetadata ->
         Surface(
@@ -747,89 +711,45 @@ fun AnimatedPlayPauseButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate button color transition
     val buttonColor by animateColorAsState(
         targetValue = if (isPlaying) colorScheme.primary else colorScheme.primary.copy(alpha = 0.8f),
-        animationSpec = tween(500, easing = FastOutSlowInEasing),
         label = "buttonColor"
     )
 
-    // Animate button elevation
-    val buttonElevation by animateDpAsState(
-        targetValue = if (isPlaying) 20.dp else 16.dp,
-        animationSpec = tween(500, easing = FastOutSlowInEasing),
-        label = "buttonElevation"
-    )
-
-    // Press scale effect
     val buttonScale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
         label = "buttonScale"
     )
 
     Box(
         modifier = modifier
             .size(80.dp)
-            .graphicsLayer {
-                scaleX = buttonScale
-                scaleY = buttonScale
-            },
+            .graphicsLayer { scaleX = buttonScale; scaleY = buttonScale },
         contentAlignment = Alignment.Center
     ) {
-        // Main button
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .shadow(
-                    elevation = buttonElevation,
-                    shape = CircleShape,
-                    ambientColor = colorScheme.primary.copy(alpha = 0.3f),
-                    spotColor = colorScheme.primary.copy(alpha = 0.3f)
-                )
+                .shadow(elevation = 16.dp, shape = CircleShape)
                 .clip(CircleShape)
                 .background(buttonColor)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = null, // We handle visual feedback via scale and color
+                    indication = null,
                     onClick = onClick
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Crossfade between play and pause icons
             AnimatedContent(
                 targetState = isPlaying,
                 transitionSpec = {
-                    if (targetState) {
-                        // Play -> Pause
-                        (scaleIn(
-                            initialScale = 0.6f,
-                            animationSpec = tween(400, easing = FastOutSlowInEasing)
-                        ) + fadeIn(tween(300))) togetherWith
-                                (scaleOut(
-                                    targetScale = 0.6f,
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                                ) + fadeOut(tween(200)))
-                    } else {
-                        // Pause -> Play
-                        (scaleIn(
-                            initialScale = 0.6f,
-                            animationSpec = tween(400, easing = FastOutSlowInEasing)
-                        ) + fadeIn(tween(300))) togetherWith
-                                (scaleOut(
-                                    targetScale = 0.6f,
-                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                                ) + fadeOut(tween(200)))
-                    }
+                    (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut())
                 },
                 label = "playPauseIcon"
             ) { playing ->
                 Icon(
                     painter = painterResource(id = if (playing) R.drawable.ic_player_pause else R.drawable.ic_player_play),
-                    contentDescription = if (playing) "Pause" else "Play",
+                    contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                     modifier = Modifier.size(40.dp),
                     tint = Color.White
                 )
@@ -851,70 +771,37 @@ fun EqualizerDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         containerColor = colorScheme.surface,
-        tonalElevation = 6.dp,
         title = {
             Text(
-                "Equalizer",
+                text = stringResource(R.string.player_equalizer),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
         },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 bands.forEachIndexed { index, frequency ->
                     var localLevel by remember(currentLevels[index]) {
-                        mutableStateOf((currentLevels[index] ?: 0).toFloat() / 100f)
+                        mutableFloatStateOf((currentLevels[index] ?: 0).toFloat() / 100f)
                     }
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (localLevel != 0f)
-                            colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        else
-                            colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    frequency,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Normal,
-                                    color = colorScheme.onSurface
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (localLevel != 0f)
-                                        colorScheme.primary
-                                    else
-                                        colorScheme.outlineVariant
-                                ) {
-                                    Text(
-                                        "${if (localLevel > 0) "+" else ""}${(localLevel).toInt()} dB",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (localLevel != 0f)
-                                            colorScheme.onPrimary
-                                        else
-                                            colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(
-                                            horizontal = 8.dp,
-                                            vertical = 2.dp
-                                        )
-                                    )
-                                }
+                                Text(frequency, style = MaterialTheme.typography.labelLarge)
+                                Text("${localLevel.toInt()} dB", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
                             Slider(
                                 value = localLevel,
@@ -923,64 +810,21 @@ fun EqualizerDialog(
                                     onBandChange(index, (localLevel * 100).toInt().toShort())
                                 },
                                 valueRange = -15f..15f,
-                                modifier = Modifier.height(20.dp),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = colorScheme.primary,
-                                    activeTrackColor = colorScheme.primary,
-                                    inactiveTrackColor = colorScheme.outlineVariant
-                                )
+                                modifier = Modifier.height(20.dp)
                             )
-                            // dB indicators
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "-15",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = colorScheme.onSurfaceVariant,
-                                    fontSize = 9.sp
-                                )
-                                Text(
-                                    "0",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = colorScheme.onSurfaceVariant,
-                                    fontSize = 9.sp
-                                )
-                                Text(
-                                    "+15",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = colorScheme.onSurfaceVariant,
-                                    fontSize = 9.sp
-                                )
-                            }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
-            ) {
-                Text(
-                    "Done",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+            Button(onClick = onDismiss) {
+                Text(stringResource(R.string.player_done))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = {
-                    for (i in 0 until 5) {
-                        onBandChange(i, 0)
-                    }
-                }
-            ) {
-                Text("Reset", color = colorScheme.error, fontWeight = FontWeight.Medium)
+            TextButton(onClick = { (0..4).forEach { onBandChange(it, 0) } }) {
+                Text(stringResource(R.string.player_reset), color = colorScheme.error)
             }
         }
     )
@@ -997,67 +841,19 @@ fun SleepTimerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = colorScheme.surface,
-        titleContentColor = colorScheme.onSurface,
-        textContentColor = colorScheme.onSurfaceVariant,
-        icon = {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_player_timer),
-                contentDescription = null,
-                tint = colorScheme.primary,
-                modifier = Modifier.size(28.dp)
-            )
-        },
-        title = {
-            Text(
-                "Sleep Timer",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
+        title = { Text(stringResource(R.string.player_sleep_timer)) },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "Stop playback after:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.player_stop_playback_after))
                 Spacer(modifier = Modifier.height(12.dp))
                 options.forEach { minutes ->
-                    Surface(
+                    TextButton(
                         onClick = { onConfirm(minutes) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Transparent
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (minutes < 60) "$minutes minutes" else "1 hour",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_player_chevron_right),
-                                contentDescription = null,
-                                tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    if (minutes != options.last()) {
-                        HorizontalDivider(
-                            color = colorScheme.outline.copy(alpha = 0.2f),
-                            thickness = 0.5.dp
+                        Text(
+                            if (minutes < 60) stringResource(R.string.player_minutes, minutes)
+                            else stringResource(R.string.player_hour)
                         )
                     }
                 }
@@ -1065,12 +861,37 @@ fun SleepTimerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.primary)
-            ) {
-                Text("Cancel", fontWeight = FontWeight.Medium)
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.player_cancel))
             }
         }
     )
+}
+
+@Composable
+fun EmptyPlayerContent(
+    modifier: Modifier = Modifier,
+    colorScheme: ColorScheme
+) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_player_note),
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.player_no_station_playing),
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.player_select_station_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+    }
 }

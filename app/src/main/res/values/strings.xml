@@ -59,4 +59,26 @@
     <string name="share_app_text">Check out %1$s - Your favorite radio stations in one place! Download it here: https://play.google.com/store/apps/details?id=%2$s</string>
     <string name="share_via">Share via</string>
 
+    <!-- Player Screen Strings -->
+    <string name="player_no_station_playing">No station playing</string>
+    <string name="player_select_station_hint">Select a station to start listening</string>
+    <string name="player_live_tag">LIVE</string>
+    <string name="player_now_playing">NOW PLAYING</string>
+    <string name="player_buffering">BUFFERING</string>
+    <string name="player_refresh">Refresh</string>
+    <string name="player_sleep">Sleep</string>
+    <string name="player_cast">Cast</string>
+    <string name="player_equalizer">Equalizer</string>
+    <string name="player_done">Done</string>
+    <string name="player_reset">Reset</string>
+    <string name="player_sleep_timer">Sleep Timer</string>
+    <string name="player_stop_playback_after">Stop playback after:</string>
+    <string name="player_minutes">%1$d minutes</string>
+    <string name="player_hour">1 hour</string>
+    <string name="player_cancel">Cancel</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_next">Next</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_play">Play</string>
+
 </resources>
