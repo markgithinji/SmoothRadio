@@ -267,7 +267,6 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .windowInsetsPadding(WindowInsets.statusBars)
                 ) {
                     when (selectedTab) {
                         0 -> RadioStationsScreen(
