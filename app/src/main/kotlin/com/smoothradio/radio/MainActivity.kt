@@ -76,6 +76,7 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -384,39 +385,43 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun playNext() = lifecycleScope.launch {
-        radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
-            val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
-            val nextIndex = when {
-                currentIndex in 0 until stations.lastIndex -> currentIndex + 1
-                currentIndex == -1 -> 0
-                else -> null
-            }
-            nextIndex?.let { i ->
-                currentStation = stations[i].also {
-                    Log.d("MainActivityLogs", "playNext -> ${it.stationName}")
-                    startNewPlay()
-                    playerControlViewModel.savePlayingStationId(it.id)
-                }
-            }
+        val stations = radioViewModel.allStations.first()
+        if (stations.isEmpty()) return@launch
+
+        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
+        val nextIndex = when {
+            currentIndex == -1 -> 0  // No station playing, start from beginning
+            currentIndex < stations.lastIndex -> currentIndex + 1
+            else -> 0  // Wrap around to first
         }
+
+        val nextStation = stations[nextIndex]
+        if (nextStation.id == currentStation?.id) return@launch
+
+        currentStation = nextStation
+        Log.d("MainActivityLogs", "playNext -> ${nextStation.stationName}")
+        startNewPlay()
+        playerControlViewModel.savePlayingStationId(nextStation.id)
     }
 
     private fun playPrevious() = lifecycleScope.launch {
-        radioViewModel.allStations.value.takeIf { it.isNotEmpty() }?.let { stations ->
-            val currentIndex = currentStation?.let { current -> stations.indexOfFirst { it.id == current.id } } ?: -1
-            val prevIndex = when {
-                currentIndex > 0 -> currentIndex - 1
-                currentIndex == -1 -> 0
-                else -> null
-            }
-            prevIndex?.let { i ->
-                currentStation = stations[i].also {
-                    Log.d("MainActivityLogs", "playPrevious -> ${it.stationName}")
-                    startNewPlay()
-                    playerControlViewModel.savePlayingStationId(it.id)
-                }
-            }
+        val stations = radioViewModel.allStations.first()
+        if (stations.isEmpty()) return@launch
+
+        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
+        val prevIndex = when {
+            currentIndex == -1 -> stations.lastIndex  // No station playing, start from end
+            currentIndex > 0 -> currentIndex - 1
+            else -> stations.lastIndex  // Wrap around to last
         }
+
+        val prevStation = stations[prevIndex]
+        if (prevStation.id == currentStation?.id) return@launch
+
+        currentStation = prevStation
+        Log.d("MainActivityLogs", "playPrevious -> ${prevStation.stationName}")
+        startNewPlay()
+        playerControlViewModel.savePlayingStationId(prevStation.id)
     }
 
     private fun startNewPlay() {
