@@ -60,11 +60,11 @@ fun RadioStationGridItem(
     val isLivePlaying = isPlaying && playbackState == "Playing"
     val colorScheme = MaterialTheme.colorScheme
 
-    // Under 110dp: logo + name only (no fav, no status)
-    // 110-135dp: logo + name + fav (no status)
-    // Over 135dp: everything
-    val isTiny = gridItemWidth < 110.dp
-    val isSmall = gridItemWidth < 135.dp
+    // Under 95dp: logo + name only (no fav, no status)
+    // 95-115dp: logo + name + fav (no status)
+    // Over 115dp: everything
+    val isTiny = gridItemWidth < 95.dp
+    val isSmall = gridItemWidth < 115.dp
 
     val overlayColor by animateColorAsState(
         targetValue = when {
