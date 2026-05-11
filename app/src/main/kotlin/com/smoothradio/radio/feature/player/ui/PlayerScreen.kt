@@ -23,6 +23,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
@@ -78,6 +79,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -147,11 +149,11 @@ fun PlayerScreen(
             val isMedium = screenHeight in 426.dp..550.dp
 
             val logoVisibility = when {
-                screenHeight >= 516.dp -> 1f
+                screenHeight >= 640.dp -> 1f
                 screenHeight <= 340.dp -> 0f
                 else -> {
-                    // Interpolate between 516dp (100% size) and 340dp (0% size)
-                    val range = 516f - 340f
+                    // Interpolate between 640dp (100% size) and 340dp (0% size)
+                    val range = 640f - 340f
                     val progress = (screenHeight.value - 340f) / range
                     progress.coerceIn(0f, 1f)
                 }
@@ -169,8 +171,8 @@ fun PlayerScreen(
 
             object {
                 val showAd = screenHeight > 670.dp
-                val showSecondRow = screenHeight > 626.dp
-                val showMetadata = screenHeight > 516.dp
+                val showSecondRow = screenHeight > 730.dp
+                val showMetadata = screenHeight > 640.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
@@ -582,89 +584,90 @@ fun PlayerLogoSection(
         val containerSize = minOf(maxWidth, maxHeight)
         val logoSize = containerSize * 0.75f
 
-        Box(
-            modifier = Modifier.size(containerSize),
-            contentAlignment = Alignment.Center
-        ) {
-            if (playbackState == StreamService.StreamStates.PLAYING) {
-                val waveRadius1 by infiniteTransition.animateFloat(
-                    initialValue = 0f, targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(3000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    )
+        if (playbackState == StreamService.StreamStates.PLAYING) {
+            val waveRadius1 by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(3000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+
+            val waveRadius2 by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(3000, easing = LinearEasing, delayMillis = 1500),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+
+            val ringAlpha by infiniteTransition.animateFloat(
+                initialValue = 0.4f, targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(3000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+
+            Canvas(modifier = Modifier.size(containerSize)) {
+                val radiusBase = size.minDimension / 2
+
+                // Wave 1 Fill
+                drawCircle(
+                    color = colorScheme.primary,
+                    radius = radiusBase * waveRadius1,
+                    alpha = (1f - waveRadius1) * 0.06f
                 )
 
-                val waveRadius2 by infiniteTransition.animateFloat(
-                    initialValue = 0f, targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(3000, easing = LinearEasing, delayMillis = 1500),
-                        repeatMode = RepeatMode.Restart
-                    )
+                // Wave 2 Fill
+                drawCircle(
+                    color = colorScheme.primary,
+                    radius = radiusBase * waveRadius2,
+                    alpha = (1f - waveRadius2) * 0.06f
                 )
 
-                Box(
-                    modifier = Modifier
-                        .size(containerSize * waveRadius1)
-                        .clip(CircleShape)
-                        .background(colorScheme.primary.copy(alpha = (1f - waveRadius1) * 0.06f))
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(containerSize * waveRadius2)
-                        .clip(CircleShape)
-                        .background(colorScheme.primary.copy(alpha = (1f - waveRadius2) * 0.06f))
-                )
-
-                val ringAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.4f, targetValue = 0f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(3000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    )
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(containerSize * waveRadius1)
-                        .clip(CircleShape)
-                        .border(1.dp, colorScheme.primary.copy(alpha = ringAlpha), CircleShape)
+                // Outer Ring
+                drawCircle(
+                    color = colorScheme.primary,
+                    radius = radiusBase * waveRadius1,
+                    alpha = ringAlpha,
+                    style = Stroke(width = 1.dp.toPx())
                 )
             }
+        }
 
-            Surface(
-                shape = RoundedCornerShape(logoSize * 0.10f),
-                color = colorScheme.primary.copy(alpha = 0.08f),
-                modifier = Modifier
-                    .size(logoSize)
-                    .scale(if (playbackState == StreamService.StreamStates.PLAYING) scale else 1f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    AnimatedContent(
-                        targetState = currentStation.id,
-                        transitionSpec = {
-                            if (swipeDirection < 0f) {
-                                (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()) togetherWith
-                                        (slideOutHorizontally(targetOffsetX = { it }) + fadeOut())
-                            } else if (swipeDirection > 0f) {
-                                (slideInHorizontally(initialOffsetX = { it }) + fadeIn()) togetherWith
-                                        (slideOutHorizontally(targetOffsetX = { -it }) + fadeOut())
-                            } else {
-                                fadeIn(tween(300)) togetherWith fadeOut(tween(200))
-                            }
-                        },
-                        label = "logoTransition"
-                    ) { targetStationId ->
-                        Image(
-                            painter = painterResource(id = currentStation.logoResource),
-                            contentDescription = "${currentStation.stationName} logo",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(logoSize * 0.2f),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
+        // Logo Surface
+        Surface(
+            shape = RoundedCornerShape(logoSize * 0.10f),
+            color = colorScheme.primary.copy(alpha = 0.08f),
+            modifier = Modifier
+                .size(logoSize)
+                .scale(if (playbackState == StreamService.StreamStates.PLAYING) scale else 1f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                AnimatedContent(
+                    targetState = currentStation.id,
+                    transitionSpec = {
+                        if (swipeDirection < 0f) {
+                            (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()) togetherWith
+                                    (slideOutHorizontally(targetOffsetX = { it }) + fadeOut())
+                        } else if (swipeDirection > 0f) {
+                            (slideInHorizontally(initialOffsetX = { it }) + fadeIn()) togetherWith
+                                    (slideOutHorizontally(targetOffsetX = { -it }) + fadeOut())
+                        } else {
+                            fadeIn(tween(300)) togetherWith fadeOut(tween(200))
+                        }
+                    },
+                    label = "logoTransition"
+                ) {
+                    Image(
+                        painter = painterResource(id = currentStation.logoResource),
+                        contentDescription = "${currentStation.stationName} logo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(logoSize * 0.2f),
+                        contentScale = ContentScale.Fit
+                    )
                 }
             }
         }
