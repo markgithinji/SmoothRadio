@@ -316,16 +316,18 @@ fun PlayerScreen(
                     }
 
                     // Metadata
-                    if (playbackState == StreamService.StreamStates.PLAYING && showMetadata && !isTinyCompact) {
+                    if (showMetadata && !isTinyCompact) {
                         Spacer(modifier = Modifier.height(if (showAd) 16.dp else 10.dp))
-                        if (showAd) {
-                            AnimatedMetadataWithMarquee(metadata = metadata, isVisible = true)
-                        } else {
-                            AnimatedMetadataWithMarquee(
-                                metadata = metadata,
-                                isVisible = true,
-                                modifier = Modifier.height(36.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (playbackState == StreamService.StreamStates.PLAYING && metadata.isNotEmpty()) {
+                                AnimatedMetadataWithMarquee(metadata = metadata, isVisible = true)
+                            }
                         }
                     }
 
@@ -705,42 +707,30 @@ fun AnimatedMetadataWithMarquee(
         },
         label = "metadataTransition"
     ) { currentMetadata ->
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 16.dp)
-                .graphicsLayer {
-                    alpha = metadataVisible
-                    translationY = metadataOffset
-                },
-            contentAlignment = Alignment.Center
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxSize()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = currentMetadata,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            animationMode = MarqueeAnimationMode.Immediately,
-                            initialDelayMillis = 1000,
-                            velocity = 30.dp
-                        )
+                Text(
+                    text = currentMetadata,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.basicMarquee(
+                        iterations = Int.MAX_VALUE,
+                        animationMode = MarqueeAnimationMode.Immediately,
+                        initialDelayMillis = 1000,
+                        velocity = 30.dp
                     )
-                }
+                )
             }
         }
     }
