@@ -82,8 +82,8 @@ fun DiscoverScreen(
 
     LaunchedEffect(categories) {
         categories.forEach { category ->
-            if (!categoryScrollStates.containsKey(category.label)) {
-                categoryScrollStates[category.label] = LazyListState()
+            if (!categoryScrollStates.containsKey(category.id)) {
+                categoryScrollStates[category.id] = LazyListState()
             }
         }
     }
@@ -234,9 +234,9 @@ fun DiscoverContent(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        items(items = categories, key = { it.label }) { category ->
+        items(items = categories, key = { it.id }) { category ->
             if (category.categoryRadioStationList.isNotEmpty()) {
-                val rowScrollState = categoryScrollStates[category.label]
+                val rowScrollState = categoryScrollStates[category.id]
                     ?: rememberLazyListState()
 
                 CategoryRow(
@@ -269,7 +269,8 @@ fun CategoryRow(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        val displayLabel = if (category.label == "Your Favorites") {
+        val isFavorites = category.id == CategoryHelper.ID_FAVORITES
+        val displayLabel = if (isFavorites) {
             stringResource(R.string.category_favorites)
         } else {
             category.label
@@ -295,7 +296,7 @@ fun CategoryRow(
                 items = category.categoryRadioStationList,
                 key = { it.id }) { station ->
                 val isPlaying = playingStation?.id == station.id
-                if (category.label == "Your Favorites") {
+                if (isFavorites) {
                     AnimatedFavoriteItem(
                         station = station,
                         isPlaying = isPlaying,
