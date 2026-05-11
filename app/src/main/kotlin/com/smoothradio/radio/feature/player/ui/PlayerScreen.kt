@@ -146,6 +146,17 @@ fun PlayerScreen(
             val isShrinking = screenHeight in 380.dp..425.dp
             val isMedium = screenHeight in 426.dp..550.dp
 
+            val logoVisibility = when {
+                screenHeight >= 516.dp -> 1f
+                screenHeight <= 340.dp -> 0f
+                else -> {
+                    // Interpolate between 516dp (100% size) and 340dp (0% size)
+                    val range = 516f - 340f
+                    val progress = (screenHeight.value - 340f) / range
+                    progress.coerceIn(0f, 1f)
+                }
+            }
+
             val playButtonScale = when {
                 isTinyCompact -> 0.75f
                 isShrinking -> {
@@ -159,7 +170,8 @@ fun PlayerScreen(
             object {
                 val showAd = screenHeight > 670.dp
                 val showSecondRow = screenHeight > 626.dp
-                val showMetadata = screenHeight > 565.dp
+                val showMetadata = screenHeight > 516.dp
+                val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
                 val shrinking = isShrinking
@@ -183,7 +195,7 @@ fun PlayerScreen(
                     isShrinking -> 0.4f
                     isMedium -> 0.55f
                     else -> 0.7f
-                }
+                } * logoVisibility
             }
         }
 
@@ -222,8 +234,8 @@ fun PlayerScreen(
                         .padding(top = layoutConfig.topPadding, bottom = 16.dp),
                     verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
                 ) {
-                    // Logo
-                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) {
+                    // Logo Section
+                    if (layoutConfig.logoAlpha > 0f) {
                         PlayerLogoSection(
                             currentStation = currentStation,
                             playbackState = playbackState,
@@ -231,8 +243,13 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth(layoutConfig.logoScale)
                                 .aspectRatio(1f)
+                                .graphicsLayer { alpha = layoutConfig.logoAlpha }
                         )
-                        Spacer(modifier = Modifier.height(if (layoutConfig.shrinking) 8.dp else 16.dp))
+                        Spacer(
+                            modifier = Modifier.height(
+                                (if (layoutConfig.shrinking) 8.dp else 16.dp) * layoutConfig.logoAlpha
+                            )
+                        )
                     }
 
                     // Station Name
