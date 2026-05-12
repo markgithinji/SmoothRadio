@@ -1,5 +1,10 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -109,38 +114,42 @@ fun RadioStationsScreen(
                     onAboutClick = { showAboutDialog = true }
                 )
 
-                when {
-                    uiState.allStations.isEmpty() -> {
-                        LoadingStationsContent()
-                    }
-                    uiState.filteredStations.isEmpty() && uiState.searchQuery.isNotEmpty() -> {
-                        EmptySearchContent()
-                    }
-                    else -> {
-                        if (uiState.isGridView) {
-                            RadioStationGridContent(
-                                stations = uiState.filteredStations,
-                                playingStation = playingStation,
-                                playbackState = playbackState,
-                                gridScrollState = gridScrollState,
-                                gridColumns = gridColumns,
-                                horizontalSpacing = horizontalSpacing,
-                                gridItemWidth = gridItemWidth,
-                                showMiniPlayer = showMiniPlayer,
-                                onStationClick = { playerControlViewModel.requestPlayStation(it) },
-                                onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
-                            )
-                        } else {
-                            RadioStationListContent(
-                                stations = uiState.filteredStations,
-                                playingStation = playingStation,
-                                playbackState = playbackState,
-                                listScrollState = listScrollState,
-                                showMiniPlayer = showMiniPlayer,
-                                onStationClick = { playerControlViewModel.requestPlayStation(it) },
-                                onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
-                            )
-                        }
+                AnimatedContent(
+                    targetState = when {
+                        uiState.allStations.isEmpty() -> ScreenState.Loading
+                        uiState.filteredStations.isEmpty() && uiState.searchQuery.isNotEmpty() -> ScreenState.Empty
+                        uiState.isGridView -> ScreenState.Grid
+                        else -> ScreenState.List
+                    },
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "screenState"
+                ) { state ->
+                    when (state) {
+                        ScreenState.Loading -> LoadingStationsContent()
+                        ScreenState.Empty -> EmptySearchContent()
+                        ScreenState.Grid -> RadioStationGridContent(
+                            stations = uiState.filteredStations,
+                            playingStation = playingStation,
+                            playbackState = playbackState,
+                            gridScrollState = gridScrollState,
+                            gridColumns = gridColumns,
+                            horizontalSpacing = horizontalSpacing,
+                            gridItemWidth = gridItemWidth,
+                            showMiniPlayer = showMiniPlayer,
+                            onStationClick = { playerControlViewModel.requestPlayStation(it) },
+                            onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
+                        )
+                        ScreenState.List -> RadioStationListContent(
+                            stations = uiState.filteredStations,
+                            playingStation = playingStation,
+                            playbackState = playbackState,
+                            listScrollState = listScrollState,
+                            showMiniPlayer = showMiniPlayer,
+                            onStationClick = { playerControlViewModel.requestPlayStation(it) },
+                            onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
+                        )
                     }
                 }
             }
@@ -297,4 +306,8 @@ private fun RadioStationListContent(
             )
         }
     }
+}
+
+private enum class ScreenState {
+    Loading, Empty, Grid, List
 }
