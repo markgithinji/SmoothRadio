@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
+import com.smoothradio.radio.service.StreamService
 
 @Composable
 fun PersistentMiniPlayer(
@@ -63,8 +64,8 @@ fun PersistentMiniPlayer(
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = playbackState == "Buffering" || playbackState == "Preparing Audio"
-    val isPlaying = playbackState == "Playing"
+    val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
+    val isPlaying = playbackState == StreamService.StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
     val overlayColor by animateColorAsState(
