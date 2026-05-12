@@ -103,77 +103,76 @@ fun RadioStationGridItem(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
             .background(colorScheme.surface)
+            .background(overlayColor)
             .border(0.8.dp, colorScheme.outline.copy(alpha = 1f), RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
             .clickable { onPlayClick() }
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(overlayColor)) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(if (isTiny) 4.dp else 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+        Column(
+            modifier = Modifier.fillMaxSize().padding(if (isTiny) 4.dp else 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Logo
+            Box(
+                modifier = Modifier
+                    .size(when { isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp })
+                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                    .pulseAnimation(enabled = isBuffering),
+                contentAlignment = Alignment.Center
             ) {
-                // Logo
-                Box(
-                    modifier = Modifier
-                        .size(when { isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp })
-                        .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
-                        .pulseAnimation(enabled = isBuffering),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = station.logoResource),
-                        contentDescription = "${station.stationName} logo",
-                        modifier = Modifier.fillMaxSize().padding(2.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                    if (isBuffering) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(colorScheme.primary.copy(alpha = 0.15f))
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(if (isTiny) 2.dp else 4.dp))
-
-                // Station Name
-                Text(
-                    text = station.stationName,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = when { isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    color = nameColor,
-                    modifier = Modifier.fillMaxWidth()
+                Image(
+                    painter = painterResource(id = station.logoResource),
+                    contentDescription = "${station.stationName} logo",
+                    modifier = Modifier.fillMaxSize().padding(2.dp),
+                    contentScale = ContentScale.Fit
                 )
-
-                // Status + Fav
-                if (!isTiny) {
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Status indicator
-                    if (!isSmall) {
-                        when {
-                            isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
-                            isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
-                                Text("LIVE", style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
-                            }
-                            else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    // Favorite Button
-                    FavoriteIcon(
-                        isFavorite = station.isFavorite,
-                        onFavoriteClick = onFavoriteClick,
-                        buttonSize = if (isSmall) 24.dp else 28.dp,
-                        iconSize = if (isSmall) 12.dp else 14.dp
+                if (isBuffering) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(colorScheme.primary.copy(alpha = 0.15f))
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(if (isTiny) 2.dp else 4.dp))
+
+            // Station Name
+            Text(
+                text = station.stationName,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
+                fontSize = when { isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                color = nameColor,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Status + Fav
+            if (!isTiny) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Status indicator
+                if (!isSmall) {
+                    when {
+                        isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
+                        isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
+                            Text("LIVE", style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
+                        }
+                        else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                // Favorite Button
+                FavoriteIcon(
+                    isFavorite = station.isFavorite,
+                    onFavoriteClick = onFavoriteClick,
+                    buttonSize = if (isSmall) 24.dp else 28.dp,
+                    iconSize = if (isSmall) 12.dp else 14.dp
+                )
             }
         }
     }
