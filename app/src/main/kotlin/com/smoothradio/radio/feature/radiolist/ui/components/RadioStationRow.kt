@@ -34,10 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
@@ -102,7 +104,7 @@ fun RadioStationRow(
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
-                    contentDescription = "${station.stationName} logo",
+                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
                     modifier = Modifier.fillMaxSize().padding(1.dp),
                     contentScale = ContentScale.Fit
                 )
@@ -160,7 +162,7 @@ fun RadioStationRow(
                                 animationDuration = 600
                             )
                             Text(
-                                "LOADING",
+                                stringResource(R.string.station_loading),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Medium,

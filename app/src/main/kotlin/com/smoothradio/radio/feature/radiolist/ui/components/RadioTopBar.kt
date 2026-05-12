@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -147,7 +148,7 @@ fun RadioTopBar(
                         }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_toolbar_back),
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.top_bar_back),
                                 tint = colorScheme.onSurface,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -161,7 +162,7 @@ fun RadioTopBar(
                             decorationBox = { innerTextField ->
                                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                                     if (searchQuery.isEmpty()) {
-                                        Text("Search stations...", color = colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                                        Text(stringResource(R.string.top_bar_search_hint), color = colorScheme.onSurfaceVariant, fontSize = 16.sp)
                                     }
                                     innerTextField()
                                 }
@@ -179,7 +180,7 @@ fun RadioTopBar(
                             IconButton(onClick = { onSearchQueryChange("") }) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_toolbar_close),
-                                    contentDescription = "Clear",
+                                    contentDescription = stringResource(R.string.top_bar_clear),
                                     tint = colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -193,7 +194,7 @@ fun RadioTopBar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "SMOOTH RADIO",
+                            stringResource(R.string.app_name_caps),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             letterSpacing = 2.sp,
@@ -204,7 +205,7 @@ fun RadioTopBar(
                             IconButton(onClick = onViewToggleClick) {
                                 Icon(
                                     painter = painterResource(id = if (isGridView) R.drawable.ic_toolbar_list else R.drawable.ic_toolbar_grid),
-                                    contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
+                                    contentDescription = if (isGridView) stringResource(R.string.top_bar_switch_to_list) else stringResource(R.string.top_bar_switch_to_grid),
                                     tint = colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp).graphicsLayer { rotationY = viewRotation }
                                 )
@@ -212,7 +213,7 @@ fun RadioTopBar(
                             IconButton(onClick = { onSearchActiveChange(true) }) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_toolbar_search),
-                                    contentDescription = "Search",
+                                    contentDescription = stringResource(R.string.top_bar_search),
                                     tint = colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -222,7 +223,7 @@ fun RadioTopBar(
                                 IconButton(onClick = onAboutClick) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_toolbar_info),
-                                        contentDescription = "About",
+                                        contentDescription = stringResource(R.string.top_bar_about),
                                         tint = colorScheme.onSurface,
                                         modifier = Modifier.size(18.dp)
                                     )

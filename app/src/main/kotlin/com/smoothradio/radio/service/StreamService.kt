@@ -23,19 +23,18 @@ import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.media3.cast.CastPlayer
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import androidx.media3.cast.CastPlayer
-import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
@@ -91,7 +90,8 @@ class StreamService : MediaSessionService() {
     private var equalizer: Equalizer? = null
     private var audioSessionId: Int = 0
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        mediaSession
 
     override fun onCreate() {
         super.onCreate()
@@ -109,19 +109,20 @@ class StreamService : MediaSessionService() {
         wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
-                    .remove(Player.COMMAND_SEEK_TO_NEXT)
-                    .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                    .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
-                    .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .remove(COMMAND_SEEK_TO_NEXT)
+                    .remove(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .remove(COMMAND_SEEK_TO_PREVIOUS)
+                    .remove(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .build()
             }
 
             override fun isCommandAvailable(command: Int): Boolean {
                 return when (command) {
-                    Player.COMMAND_SEEK_TO_NEXT,
-                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                    Player.COMMAND_SEEK_TO_PREVIOUS,
-                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> false
+                    COMMAND_SEEK_TO_NEXT,
+                    COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    COMMAND_SEEK_TO_PREVIOUS,
+                    COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> false
+
                     else -> super.isCommandAvailable(command)
                 }
             }
@@ -179,7 +180,10 @@ class StreamService : MediaSessionService() {
             action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
         }
         val playPausePendingIntent = PendingIntent.getService(
-            this, 2, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this,
+            2,
+            playPauseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val stopIntent = Intent(this, StreamService::class.java).apply {
@@ -191,8 +195,8 @@ class StreamService : MediaSessionService() {
 
         val title = when {
             isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
-            isPlaying -> "Playing"
-            else -> stateChange.label.ifEmpty { "Preparing Audio" }
+            isPlaying -> getString(R.string.player_playing)
+            else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
         }
 
         val stationDisplay = currentStationName ?: getString(R.string.app_name)
@@ -210,11 +214,11 @@ class StreamService : MediaSessionService() {
             .setOngoing(wrappedPlayer.isPlaying)
             .addAction(
                 if (wrappedPlayer.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
-                if (wrappedPlayer.isPlaying) "Pause" else "Play",
+                if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
                 playPausePendingIntent
             )
             .addAction(
-                R.drawable.ic_stop, "Stop",
+                R.drawable.ic_stop, getString(R.string.player_stop),
                 stopPendingIntent
             )
             .setStyle(
@@ -266,14 +270,14 @@ class StreamService : MediaSessionService() {
             }
 
             ACTION_SHOW_AD -> {
-                Log.d("StreamService", "📢 ACTION_SHOW_AD → ${currentStationName}")
+                Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 setState(StreamStates.PREPARING)
                 prepareShowAd()
             }
 
             ACTION_STOP -> {
-                Log.d("StreamService", "🛑 ACTION_STOP")
+                Log.d("StreamService", " ACTION_STOP")
                 isPreparingForAd = false
                 wrappedPlayer.pause()
                 wrappedPlayer.stop()
@@ -302,7 +306,7 @@ class StreamService : MediaSessionService() {
 
     private fun setupEqualizer(sessionId: Int) {
         if (sessionId == 0 || sessionId == audioSessionId) return
-        
+
         audioSessionId = sessionId
         try {
             equalizer?.release()
@@ -311,7 +315,10 @@ class StreamService : MediaSessionService() {
                 // Apply saved settings
                 val bands = numberOfBands
                 val range = bandLevelRange
-                Log.d("StreamService", "Equalizer has $bands bands, range ${range[0]} to ${range[1]}")
+                Log.d(
+                    "StreamService",
+                    "Equalizer has $bands bands, range ${range[0]} to ${range[1]}"
+                )
 
                 serviceScope.launch {
                     for (i in 0 until bands) {
@@ -343,7 +350,12 @@ class StreamService : MediaSessionService() {
     }
 
     private fun updateNotificationInternal() {
-        notificationCallback?.onNotificationChanged(MediaNotification(NOTIFICATION_ID, createMediaStyleNotification()))
+        notificationCallback?.onNotificationChanged(
+            MediaNotification(
+                NOTIFICATION_ID,
+                createMediaStyleNotification()
+            )
+        )
     }
 
     private fun registerTimerReceivers() {
@@ -388,7 +400,8 @@ class StreamService : MediaSessionService() {
         try {
             unregisterReceiver(stopPlayFromTimerReceiver)
             unregisterReceiver(setStopTimerReceiver)
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+        }
     }
 
     private fun play(link: String) {
@@ -420,10 +433,17 @@ class StreamService : MediaSessionService() {
             return MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
         }
 
-        override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean = false
+        override fun handleCustomCommand(
+            session: MediaSession,
+            action: String,
+            extras: Bundle
+        ): Boolean = false
 
         override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo {
-            return MediaNotification.Provider.NotificationChannelInfo(CHANNEL_ID, getString(R.string.notification_channel_name))
+            return MediaNotification.Provider.NotificationChannelInfo(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_name)
+            )
         }
     }
 
@@ -484,6 +504,7 @@ class StreamService : MediaSessionService() {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> getString(R.string.toast_station_unreachable)
+
                 else -> getString(R.string.toast_unexpected_error)
             }
             Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
@@ -519,13 +540,17 @@ class StreamService : MediaSessionService() {
                     val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
                     if (title.isNotEmpty()) "$title - $artist" else ""
                 } else {
-                    val fallbackPattern = Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
+                    val fallbackPattern =
+                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
                     val fallbackMatch = fallbackPattern.find(trimmed)
                     fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
                 }
-            } catch (e: Exception) { "" }
+            } catch (e: Exception) {
+                ""
+            }
         }
-        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "").replace("\\s+".toRegex(), " ").trim()
+        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "")
+            .replace("\\s+".toRegex(), " ").trim()
         return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
@@ -538,7 +563,6 @@ class StreamService : MediaSessionService() {
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
-        const val EXTRA_STREAM_STATE = "STREAM_STATE"
         private const val NOTIFICATION_ID = 1
         const val EXTRA_STATE = "state"
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"

@@ -80,5 +80,22 @@
     <string name="player_next">Next</string>
     <string name="player_pause">Pause</string>
     <string name="player_play">Play</string>
+    <string name="player_stop">Stop</string>
+    <string name="player_playing">Playing</string>
+    <string name="player_preparing_audio">Preparing Audio</string>
+
+    <!-- Top Bar Strings -->
+    <string name="app_name_caps">SMOOTH RADIO</string>
+    <string name="top_bar_back">Back</string>
+    <string name="top_bar_search_hint">Search stations…</string>
+    <string name="top_bar_clear">Clear</string>
+    <string name="top_bar_switch_to_list">Switch to list view</string>
+    <string name="top_bar_switch_to_grid">Switch to grid view</string>
+    <string name="top_bar_search">Search</string>
+    <string name="top_bar_about">About</string>
+
+    <!-- Station Item Strings -->
+    <string name="station_logo_content_description">%1$s logo</string>
+    <string name="station_loading">LOADING</string>
 
 </resources>

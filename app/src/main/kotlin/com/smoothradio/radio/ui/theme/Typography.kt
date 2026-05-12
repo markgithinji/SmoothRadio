@@ -6,15 +6,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Google Sans Font Family
-//val GoogleSansFontFamily = FontFamily(
-//    Font(R.font.google_sans_flex_24pt_regular, FontWeight.Normal),
-//    Font(R.font.google_sans_flex_24pt_medium, FontWeight.Medium),
-//    Font(R.font.google_sans_flex_24pt_semibold, FontWeight.SemiBold),
-//    Font(R.font.google_sans_flex_36pt_semibold, FontWeight.SemiBold),
-//    Font(R.font.google_sans_flex_72pt_regular, FontWeight.Normal),
-//    Font(R.font.google_sans_flex_9pt_regular, FontWeight.Normal)
-//)
 val GoogleSansFontFamily = FontFamily.Default
 
 val SmoothRadioTypography = Typography(

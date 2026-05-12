@@ -44,10 +44,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
@@ -112,7 +114,7 @@ fun PersistentMiniPlayer(
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
-                    contentDescription = "${station.stationName} logo",
+                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
@@ -154,7 +156,7 @@ fun PersistentMiniPlayer(
                     when {
                         isBuffering -> {
                             Text(
-                                text = "BUFFERING",
+                                text = stringResource(R.string.player_buffering),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
@@ -169,7 +171,7 @@ fun PersistentMiniPlayer(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "PLAYING",
+                                    text = stringResource(R.string.player_playing).uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
@@ -290,7 +292,7 @@ fun MiniPlayerControl(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                         tint = colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
