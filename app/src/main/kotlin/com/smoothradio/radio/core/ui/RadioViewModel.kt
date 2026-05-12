@@ -37,13 +37,8 @@ class RadioViewModel @Inject constructor(
     val favoriteLimitExceeded: SharedFlow<String> = _favoriteLimitExceeded
 
     private val _isGridView = MutableStateFlow(false)
-    val isGridView: StateFlow<Boolean> = _isGridView.asStateFlow()
-
     private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
     private val _isSearchActive = MutableStateFlow(false)
-    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
 
     val allStations = radioRepository.allStations
         .stateIn(
@@ -59,24 +54,32 @@ class RadioViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Filtered stations based on search query
-    val filteredStations = combine(
+    val uiState: StateFlow<RadioListUiState> = combine(
         allStations,
-        _searchQuery
-    ) { stations, query ->
-        if (query.trim().isEmpty()) {
+        _isGridView,
+        _searchQuery,
+        _isSearchActive
+    ) { stations, isGridView, searchQuery, isSearchActive ->
+        val filtered = if (searchQuery.trim().isEmpty()) {
             stations
         } else {
             stations.filter { station ->
-                station.stationName.contains(query, ignoreCase = true) ||
-                        station.frequency.contains(query, ignoreCase = true) ||
-                        station.location.contains(query, ignoreCase = true)
+                station.stationName.contains(searchQuery, ignoreCase = true) ||
+                        station.frequency.contains(searchQuery, ignoreCase = true) ||
+                        station.location.contains(searchQuery, ignoreCase = true)
             }
         }
+        RadioListUiState(
+            allStations = stations,
+            filteredStations = filtered,
+            isGridView = isGridView,
+            searchQuery = searchQuery,
+            isSearchActive = isSearchActive
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
+        initialValue = RadioListUiState()
     )
 
     init {

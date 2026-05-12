@@ -55,13 +55,9 @@ fun RadioStationsScreen(
     gridScrollState: LazyGridState,
     modifier: Modifier = Modifier
 ) {
-    val filteredStations by radioViewModel.filteredStations.collectAsStateWithLifecycle()
-    val allStations by radioViewModel.allStations.collectAsStateWithLifecycle()
+    val uiState by radioViewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
-    val isGridView by radioViewModel.isGridView.collectAsStateWithLifecycle()
-    val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
-    val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
 
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
@@ -104,15 +100,15 @@ fun RadioStationsScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 RadioTopBar(
                     onViewToggleClick = { radioViewModel.toggleViewPreference() },
-                    isGridView = isGridView,
-                    searchQuery = searchQuery,
+                    isGridView = uiState.isGridView,
+                    searchQuery = uiState.searchQuery,
                     onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
-                    isSearchActive = isSearchActive,
+                    isSearchActive = uiState.isSearchActive,
                     onSearchActiveChange = { radioViewModel.setSearchActive(it) },
                     onAboutClick = { showAboutDialog = true }
                 )
 
-                if (allStations.isEmpty()) {
+                if (uiState.allStations.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             DotLoadingAnimation()
@@ -120,7 +116,7 @@ fun RadioStationsScreen(
                             Text(stringResource(R.string.loading_stations), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
+                } else if (uiState.filteredStations.isEmpty() && uiState.searchQuery.isNotEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.SearchOff, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -130,7 +126,7 @@ fun RadioStationsScreen(
                         }
                     }
                 } else {
-                    if (isGridView) {
+                    if (uiState.isGridView) {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(gridColumns),
                             state = gridScrollState,
@@ -144,7 +140,7 @@ fun RadioStationsScreen(
                             horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(items = filteredStations, key = { it.id }) { station ->
+                            items(items = uiState.filteredStations, key = { it.id }) { station ->
                                 RadioStationGridItem(
                                     station = station,
                                     isPlaying = playingStation?.id == station.id,
@@ -161,7 +157,7 @@ fun RadioStationsScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(start = 0.dp, top = 8.dp, end = 0.dp, bottom = if (showMiniPlayer) 100.dp else 12.dp)
                         ) {
-                            items(items = filteredStations, key = { it.id }) { station ->
+                            items(items = uiState.filteredStations, key = { it.id }) { station ->
                                 RadioStationRow(
                                     station = station,
                                     isPlaying = playingStation?.id == station.id,
