@@ -3,11 +3,7 @@ package com.smoothradio.radio.feature.radiolist.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -55,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
+import com.smoothradio.radio.core.ui.common.pulseAnimation
 import com.smoothradio.radio.service.StreamService
 
 @Composable
@@ -106,26 +103,11 @@ fun PersistentMiniPlayer(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val infiniteTransition = rememberInfiniteTransition()
-            val pulseScale by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 1.05f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween<Float>(800, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                )
-            )
-
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f))
-                    .then(
-                        if (isBuffering) Modifier.graphicsLayer {
-                            scaleX = pulseScale
-                            scaleY = pulseScale
-                        } else Modifier
-                    ),
+                    .pulseAnimation(enabled = isBuffering, targetValue = 1.05f),
                 contentAlignment = Alignment.Center
             ) {
                 Image(

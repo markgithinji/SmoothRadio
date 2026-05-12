@@ -2,10 +2,6 @@ package com.smoothradio.radio.feature.radiolist.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,6 +43,7 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
+import com.smoothradio.radio.core.ui.common.pulseAnimation
 import kotlinx.coroutines.delay
 
 @Composable
@@ -97,17 +94,11 @@ fun RadioStationRow(
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val infiniteTransition = rememberInfiniteTransition()
-            val pulseScale by infiniteTransition.animateFloat(
-                initialValue = 1f, targetValue = 1.08f,
-                animationSpec = infiniteRepeatable(animation = tween<Float>(800, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
-            )
-
             Box(
                 modifier = Modifier
                     .size(if (isSmall) 36.dp else 48.dp)
                     .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
-                    .then(if (isBuffering) Modifier.graphicsLayer { scaleX = pulseScale; scaleY = pulseScale } else Modifier)
+                    .pulseAnimation(enabled = isBuffering)
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),

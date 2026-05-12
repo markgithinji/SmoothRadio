@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
+import com.smoothradio.radio.core.ui.common.pulseAnimation
 
 @Composable
 fun RadioStationGridItem(
@@ -77,10 +78,6 @@ fun RadioStationGridItem(
     )
 
     val infiniteTransition = rememberInfiniteTransition()
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f, targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(animation = tween<Float>(800, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
-    )
     val liveDotScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
         animationSpec = infiniteRepeatable(animation = tween(600, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
@@ -119,7 +116,7 @@ fun RadioStationGridItem(
                     modifier = Modifier
                         .size(when { isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp })
                         .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
-                        .then(if (isBuffering) Modifier.graphicsLayer { scaleX = pulseScale; scaleY = pulseScale } else Modifier),
+                        .pulseAnimation(enabled = isBuffering),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
