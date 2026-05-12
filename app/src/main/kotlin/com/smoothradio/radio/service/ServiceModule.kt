@@ -31,7 +31,6 @@ object ServiceModule {
     }
 
     @Provides
-    @Singleton
     fun provideCastPlayer(
         @ApplicationContext context: Context,
         castContext: CastContext?,
@@ -52,7 +51,6 @@ object ServiceModule {
         .build()
 
     @Provides
-    @Singleton
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes
