@@ -123,9 +123,9 @@ fun PlayerScreen(
     val currentStation = playingStation!!
 
     val animatedColor by animateColorAsState(
-        targetValue = when {
-            playbackState == StreamService.StreamStates.PLAYING -> colorScheme.primary.copy(alpha = 0.15f)
-            playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING -> colorScheme.tertiary.copy(
+        targetValue = when (playbackState) {
+            StreamService.StreamStates.PLAYING -> colorScheme.primary.copy(alpha = 0.15f)
+            StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> colorScheme.tertiary.copy(
                 alpha = 0.15f
             )
             else -> colorScheme.surfaceVariant
@@ -149,12 +149,12 @@ fun PlayerScreen(
             val isMedium = screenHeight in 426.dp..550.dp
 
             val logoVisibility = when {
-                screenHeight >= 640.dp -> 1f
-                screenHeight <= 440.dp -> 0f
+                screenHeight >= 595.dp -> 1f
+                screenHeight <= 370.dp -> 0f
                 else -> {
-                    // Interpolate between 640dp (100% size) and 440dp (0% size)
-                    val range = 640f - 440f
-                    val progress = (screenHeight.value - 440f) / range
+                    // Interpolate between 595dp (100% size) and 370dp (0% size)
+                    val range = 595f - 370f
+                    val progress = (screenHeight.value - 370f) / range
                     progress.coerceIn(0f, 1f)
                 }
             }
@@ -171,7 +171,7 @@ fun PlayerScreen(
 
             object {
                 val showAd = screenHeight > 670.dp
-                val showSecondRow = screenHeight > 730.dp
+                val showSecondRow = screenHeight > 740.dp
                 val showMetadata = screenHeight > 640.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
@@ -404,8 +404,8 @@ fun StationHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                when {
-                    playbackState == StreamService.StreamStates.PLAYING -> Text(
+                when (playbackState) {
+                    StreamService.StreamStates.PLAYING -> Text(
                         text = stringResource(R.string.player_now_playing),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 11.sp,
@@ -413,7 +413,7 @@ fun StationHeader(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.primary
                     )
-                    playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING -> {
+                    StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> {
                         DotLoadingAnimation(
                             dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
                             dotSpacing = if (isCompact || isShrinking) 4.dp else 6.dp,
