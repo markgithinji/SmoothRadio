@@ -84,6 +84,7 @@ class RadioViewModel @Inject constructor(
 
     init {
         loadViewPreference()
+        observeAndProcessRemoteLinks()
     }
 
     private fun loadViewPreference() {

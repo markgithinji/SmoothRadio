@@ -71,7 +71,6 @@ fun RadioStationsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) { radioViewModel.observeAndProcessRemoteLinks() }
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->
             toastMessage = message
