@@ -150,19 +150,24 @@ fun RadioStationGridItem(
 
             // Status + Fav
             if (!isTiny) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 // Status indicator
                 if (!isSmall) {
-                    when {
-                        isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
-                        isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
-                            Text("LIVE", style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
+                    Box(
+                        modifier = Modifier.height(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when {
+                            isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
+                            isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
+                                Text("LIVE", style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
+                            }
+                            else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                 }
 
                 // Favorite Button
