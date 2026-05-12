@@ -42,6 +42,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -67,6 +69,7 @@ fun PersistentMiniPlayer(
     val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
     val isPlaying = playbackState == StreamService.StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
+    val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -85,220 +88,232 @@ fun PersistentMiniPlayer(
             .clip(RoundedCornerShape(4.dp))
             .background(colorScheme.surfaceVariant.copy(alpha = 0.95f))
             .background(overlayColor)
+            .drawBehind {
+                val strokeWidth = 1.5.dp.toPx()
+                val y = size.height - strokeWidth / 2
+                drawLine(
+                    color = outlineVariantColor,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = strokeWidth
+                )
+            }
     ) {
-        Column {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val infiniteTransition = rememberInfiniteTransition()
+            val pulseScale by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.05f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween<Float>(800, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .size(40.dp)
+                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f))
+                    .then(
+                        if (isBuffering) Modifier.graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                val infiniteTransition = rememberInfiniteTransition()
-                val pulseScale by infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.05f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween<Float>(800, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    )
+                Image(
+                    painter = painterResource(id = station.logoResource),
+                    contentDescription = "${station.stationName} logo",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(2.dp),
+                    contentScale = ContentScale.Fit
                 )
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f))
-                        .then(
-                            if (isBuffering) Modifier.graphicsLayer {
-                                scaleX = pulseScale
-                                scaleY = pulseScale
-                            } else Modifier
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = station.logoResource),
-                        contentDescription = "${station.stationName} logo",
+                if (isBuffering) {
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(2.dp),
-                        contentScale = ContentScale.Fit
+                            .background(colorScheme.primary.copy(alpha = 0.15f))
                     )
-
-                    if (isBuffering) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(colorScheme.primary.copy(alpha = 0.15f))
-                        )
-                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = station.stationName,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = station.stationName,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                    val statusColor by animateColorAsState(
-                        targetValue = when {
-                            isPlaying -> colorScheme.primary
-                            isBuffering -> colorScheme.tertiary
-                            else -> colorScheme.onSurfaceVariant
-                        },
-                        animationSpec = tween(500, easing = FastOutSlowInEasing),
-                        label = "statusColor"
-                    )
+                val statusColor by animateColorAsState(
+                    targetValue = when {
+                        isPlaying -> colorScheme.primary
+                        isBuffering -> colorScheme.tertiary
+                        else -> colorScheme.onSurfaceVariant
+                    },
+                    animationSpec = tween(500, easing = FastOutSlowInEasing),
+                    label = "statusColor"
+                )
 
-                    Box(modifier = Modifier.height(14.dp)) {
-                        when {
-                            isBuffering -> {
+                Box(modifier = Modifier.height(14.dp)) {
+                    when {
+                        isBuffering -> {
+                            Text(
+                                text = "BUFFERING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = statusColor,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        isPlaying -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Text(
-                                    text = "BUFFERING",
+                                    text = "PLAYING",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = statusColor,
                                     letterSpacing = 0.5.sp
                                 )
-                            }
-
-                            isPlaying -> {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = "PLAYING",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = statusColor,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    MiniWaveformVisualization(
-                                        barCount = 6,
-                                        barWidth = 2.dp,
-                                        barSpacing = 1.5.dp,
-                                        height = 10.dp,
-                                        color = statusColor
-                                    )
-                                }
-                            }
-
-                            else -> {
-                                Text(
-                                    text = station.location,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 11.sp,
-                                    color = colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                MiniWaveformVisualization(
+                                    barCount = 6,
+                                    barWidth = 2.dp,
+                                    barSpacing = 1.5.dp,
+                                    height = 10.dp,
+                                    color = statusColor
                                 )
                             }
                         }
-                    }
-                }
 
-                // Animated control button with morphing transition
-                AnimatedContent(
-                    targetState = when {
-                        isBuffering -> "buffering"
-                        isPlaying -> "playing"
-                        else -> "idle"
-                    },
-                    transitionSpec = {
-                        when {
-                            targetState == "buffering" -> {
-                                // Transition to buffering: icon shrinks, dots pop in
-                                (scaleIn(
-                                    initialScale = 0.3f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    )
-                                ) + fadeIn(tween(200))) togetherWith
-                                        (scaleOut(
-                                            targetScale = 1.8f,
-                                            animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                        ) + fadeOut(tween(200)))
-                            }
-
-                            initialState == "buffering" -> {
-                                // Transition from buffering: dots shrink, icon pops in
-                                (scaleIn(
-                                    initialScale = 1.8f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    )
-                                ) + fadeIn(tween(200))) togetherWith
-                                        (scaleOut(
-                                            targetScale = 0.3f,
-                                            animationSpec = tween(250, easing = FastOutSlowInEasing)
-                                        ) + fadeOut(tween(200)))
-                            }
-
-                            else -> {
-                                // Play <-> Pause transitions: bouncy scale crossfade
-                                (scaleIn(
-                                    initialScale = 0.3f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    )
-                                ) + fadeIn(tween(300))) togetherWith
-                                        (scaleOut(
-                                            targetScale = 0.3f,
-                                            animationSpec = tween(200)
-                                        ) + fadeOut(tween(200)))
-                            }
-                        }
-                    },
-                    label = "controlButton"
-                ) { state ->
-                    Box(
-                        modifier = Modifier.size(40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (state == "buffering") {
-                            DotLoadingAnimation(
-                                dotSize = 5.dp,
-                                dotSpacing = 3.dp,
-                                color = colorScheme.tertiary,
-                                animationDelay = 150,
-                                animationDuration = 400
+                        else -> {
+                            Text(
+                                text = station.location,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                color = colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        } else {
-                            IconButton(
-                                onClick = onPlayPauseClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = colorScheme.primary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
                         }
                     }
                 }
             }
 
-            // Persistent bottom line to distinguish from navigation bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.5.dp)
-                    .background(colorScheme.outlineVariant.copy(alpha = 0.2f))
+            MiniPlayerControl(
+                playbackState = playbackState,
+                onPlayPauseClick = onPlayPauseClick,
+                colorScheme = colorScheme
             )
+        }
+    }
+}
+
+@Composable
+fun MiniPlayerControl(
+    playbackState: String,
+    onPlayPauseClick: () -> Unit,
+    colorScheme: androidx.compose.material3.ColorScheme
+) {
+    val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
+    val isPlaying = playbackState == StreamService.StreamStates.PLAYING
+
+    AnimatedContent(
+        targetState = when {
+            isBuffering -> "buffering"
+            isPlaying -> "playing"
+            else -> "idle"
+        },
+        transitionSpec = {
+            when {
+                targetState == "buffering" -> {
+                    (scaleIn(
+                        initialScale = 0.3f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + fadeIn(tween(200))) togetherWith
+                            (scaleOut(
+                                targetScale = 1.8f,
+                                animationSpec = tween(250, easing = FastOutSlowInEasing)
+                            ) + fadeOut(tween(200)))
+                }
+
+                initialState == "buffering" -> {
+                    (scaleIn(
+                        initialScale = 1.8f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + fadeIn(tween(200))) togetherWith
+                            (scaleOut(
+                                targetScale = 0.3f,
+                                animationSpec = tween(250, easing = FastOutSlowInEasing)
+                            ) + fadeOut(tween(200)))
+                }
+
+                else -> {
+                    (scaleIn(
+                        initialScale = 0.3f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + fadeIn(tween(300))) togetherWith
+                            (scaleOut(
+                                targetScale = 0.3f,
+                                animationSpec = tween(200)
+                            ) + fadeOut(tween(200)))
+                }
+            }
+        },
+        label = "controlButton"
+    ) { state ->
+        Box(
+            modifier = Modifier.size(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (state == "buffering") {
+                DotLoadingAnimation(
+                    dotSize = 5.dp,
+                    dotSpacing = 3.dp,
+                    color = colorScheme.tertiary,
+                    animationDelay = 150,
+                    animationDuration = 400
+                )
+            } else {
+                IconButton(
+                    onClick = onPlayPauseClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
         }
     }
 }
