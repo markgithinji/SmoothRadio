@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
@@ -248,7 +249,7 @@ private fun EmptySearchContent() {
 private fun RadioStationGridContent(
     stations: List<RadioStation>,
     playingStation: RadioStation?,
-    playbackState: String,
+    playbackState: StreamStates,
     gridScrollState: LazyGridState,
     gridColumns: Int,
     horizontalSpacing: Dp,
@@ -287,7 +288,7 @@ private fun RadioStationGridContent(
 private fun RadioStationListContent(
     stations: List<RadioStation>,
     playingStation: RadioStation?,
-    playbackState: String,
+    playbackState: StreamStates,
     listScrollState: LazyListState,
     showMiniPlayer: Boolean,
     onStationClick: (RadioStation) -> Unit,

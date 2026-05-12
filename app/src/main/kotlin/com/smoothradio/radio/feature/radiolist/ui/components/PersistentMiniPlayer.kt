@@ -49,22 +49,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
-import com.smoothradio.radio.service.StreamService
 
 @Composable
 fun PersistentMiniPlayer(
     station: RadioStation?,
-    playbackState: String,
+    playbackState: StreamStates,
     onPlayPauseClick: () -> Unit
 ) {
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
-    val isPlaying = playbackState == StreamService.StreamStates.PLAYING
+    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
 
@@ -211,12 +211,12 @@ fun PersistentMiniPlayer(
 
 @Composable
 fun MiniPlayerControl(
-    playbackState: String,
+    playbackState: StreamStates,
     onPlayPauseClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
-    val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
-    val isPlaying = playbackState == StreamService.StreamStates.PLAYING
+    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isPlaying = playbackState is StreamStates.PLAYING
 
     AnimatedContent(
         targetState = when {

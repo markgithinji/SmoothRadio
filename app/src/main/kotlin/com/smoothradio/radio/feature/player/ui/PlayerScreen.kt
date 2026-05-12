@@ -28,7 +28,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -60,13 +59,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -96,10 +93,10 @@ import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
-import com.smoothradio.radio.service.StreamService
 
 @Composable
 fun PlayerScreen(
@@ -124,8 +121,8 @@ fun PlayerScreen(
 
     val animatedColor by animateColorAsState(
         targetValue = when (playbackState) {
-            StreamService.StreamStates.PLAYING -> colorScheme.primary.copy(alpha = 0.15f)
-            StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> colorScheme.tertiary.copy(
+            is StreamStates.PLAYING -> colorScheme.primary.copy(alpha = 0.15f)
+            is StreamStates.BUFFERING, is StreamStates.PREPARING -> colorScheme.tertiary.copy(
                 alpha = 0.15f
             )
             else -> colorScheme.surfaceVariant
@@ -276,7 +273,7 @@ fun PlayerScreen(
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (playbackState == StreamService.StreamStates.PLAYING && metadata.isNotEmpty()) {
+                            if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
                                 AnimatedMetadataWithMarquee(metadata = metadata, isVisible = true)
                             }
                         }
@@ -377,7 +374,7 @@ fun AdBanner() {
 @Composable
 fun StationHeader(
     stationName: String,
-    playbackState: String,
+    playbackState: StreamStates,
     isCompact: Boolean,
     isShrinking: Boolean,
     colorScheme: ColorScheme
@@ -407,7 +404,7 @@ fun StationHeader(
                 horizontalArrangement = Arrangement.Center
             ) {
                 when (playbackState) {
-                    StreamService.StreamStates.PLAYING -> Text(
+                    is StreamStates.PLAYING -> Text(
                         text = stringResource(R.string.player_now_playing),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 11.sp,
@@ -415,7 +412,7 @@ fun StationHeader(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.primary
                     )
-                    StreamService.StreamStates.BUFFERING, StreamService.StreamStates.PREPARING -> {
+                    is StreamStates.BUFFERING, is StreamStates.PREPARING -> {
                         DotLoadingAnimation(
                             dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
                             dotSpacing = if (isCompact || isShrinking) 4.dp else 6.dp,
@@ -433,6 +430,7 @@ fun StationHeader(
                             color = colorScheme.tertiary
                         )
                     }
+                    else -> {}
                 }
             }
         }
@@ -441,7 +439,7 @@ fun StationHeader(
 
 @Composable
 fun PlaybackControlRow(
-    playbackState: String,
+    playbackState: StreamStates,
     playButtonScale: Float,
     isTinyCompact: Boolean,
     isCompact: Boolean,
@@ -563,7 +561,7 @@ fun ActionButton(
 @Composable
 fun PlayerLogoSection(
     currentStation: RadioStation,
-    playbackState: String,
+    playbackState: StreamStates,
     swipeDirection: Float,
     modifier: Modifier = Modifier
 ) {
@@ -585,7 +583,7 @@ fun PlayerLogoSection(
         val containerSize = minOf(maxWidth, maxHeight)
         val logoSize = containerSize * 0.75f
 
-        if (playbackState == StreamService.StreamStates.PLAYING) {
+        if (playbackState is StreamStates.PLAYING) {
             val waveRadius1 by infiniteTransition.animateFloat(
                 initialValue = 0f, targetValue = 1f,
                 animationSpec = infiniteRepeatable(
@@ -644,14 +642,14 @@ fun PlayerLogoSection(
             modifier = Modifier
                 .size(logoSize)
                 .graphicsLayer {
-                    val s = if (playbackState == StreamService.StreamStates.PLAYING) scale else 1f
+                    val s = if (playbackState is StreamStates.PLAYING) scale else 1f
                     scaleX = s
                     scaleY = s
                 }
         ) {
             Box(contentAlignment = Alignment.Center) {
                 AnimatedContent(
-                    targetState = currentStation.id,
+                    targetState = currentStation,
                     transitionSpec = {
                         if (swipeDirection < 0f) {
                             (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()) togetherWith
@@ -664,10 +662,10 @@ fun PlayerLogoSection(
                         }
                     },
                     label = "logoTransition"
-                ) {
+                ) { station ->
                     Image(
-                        painter = painterResource(id = currentStation.logoResource),
-                        contentDescription = "${currentStation.stationName} logo",
+                        painter = painterResource(id = station.logoResource),
+                        contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
@@ -727,12 +725,12 @@ fun AnimatedMetadataWithMarquee(
 
 @Composable
 fun AnimatedPlayPauseButton(
-    playbackState: String,
+    playbackState: StreamStates,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isPlaying = playbackState == StreamService.StreamStates.PLAYING
+    val isPlaying = playbackState is StreamStates.PLAYING
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 

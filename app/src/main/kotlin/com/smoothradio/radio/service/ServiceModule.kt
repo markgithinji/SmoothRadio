@@ -23,11 +23,13 @@ object ServiceModule {
         .build()
 
     @Provides
+    @Singleton
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes
     ): ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(audioAttributes, true)
         .setHandleAudioBecomingNoisy(true)
+        .setWakeMode(C.WAKE_MODE_NETWORK)
         .build()
 }

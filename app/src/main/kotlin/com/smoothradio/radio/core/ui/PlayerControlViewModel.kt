@@ -3,6 +3,7 @@ package com.smoothradio.radio.core.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
@@ -35,7 +36,7 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = MutableSharedFlow<PlayCommand>()
     val playCommand: SharedFlow<PlayCommand> = _playCommand.asSharedFlow()
 
-    val playbackState: StateFlow<String> = stateRepository.playbackState
+    val playbackState: StateFlow<StreamStates> = stateRepository.playbackState
     val metadata: StateFlow<String> = stateRepository.metadata
 
     private val _canShowAd = MutableStateFlow(false)

@@ -1,7 +1,7 @@
 package com.smoothradio.radio.core.data.repository
 
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.service.StreamService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,8 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateRepository {
-    private val _playbackState = MutableStateFlow(StreamService.StreamStates.IDLE)
-    override val playbackState: StateFlow<String> = _playbackState.asStateFlow()
+    private val _playbackState = MutableStateFlow<StreamStates>(StreamStates.IDLE)
+    override val playbackState: StateFlow<StreamStates> = _playbackState.asStateFlow()
 
     private val _metadata = MutableStateFlow("")
     override val metadata: StateFlow<String> = _metadata.asStateFlow()
@@ -19,7 +19,7 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
     private val _stationName = MutableStateFlow<String?>(null)
     override val stationName: StateFlow<String?> = _stationName.asStateFlow()
 
-    override fun updateState(state: String) {
+    override fun updateState(state: StreamStates) {
         _playbackState.value = state
     }
 

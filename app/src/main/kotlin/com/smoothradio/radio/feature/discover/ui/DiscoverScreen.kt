@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.Category
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -216,7 +217,7 @@ fun DiscoverContent(
     discoverScrollState: LazyListState,
     categoryScrollStates: Map<String, LazyListState>,
     playingStation: RadioStation?,
-    playbackState: String,
+    playbackState: StreamStates,
     screenHeight: Dp,
     visualItemWidth: Dp,
     gridItemWidth: Dp,
@@ -256,7 +257,7 @@ fun CategoryRow(
     category: Category,
     scrollState: LazyListState,
     playingStation: RadioStation?,
-    playbackState: String,
+    playbackState: StreamStates,
     screenHeight: Dp,
     visualItemWidth: Dp,
     gridItemWidth: Dp,
@@ -328,7 +329,7 @@ fun CategoryRow(
 fun AnimatedFavoriteItem(
     station: RadioStation,
     isPlaying: Boolean,
-    playbackState: String,
+    playbackState: StreamStates,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     gridItemWidth: Dp,

@@ -40,6 +40,7 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,20 +57,21 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class StreamService : MediaSessionService() {
+
     private var isPlaying = false
-    private var stateChange = ""
+    private var stateChange: StreamStates = StreamStates.IDLE
     private var isPreparingForAd = false
 
     @Inject
     lateinit var player: ExoPlayer
-
-    private lateinit var wrappedPlayer: Player
 
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
 
     @Inject
     lateinit var equalizerRepository: EqualizerRepository
+
+    private lateinit var wrappedPlayer: Player
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -212,7 +214,7 @@ class StreamService : MediaSessionService() {
         val title = when {
             isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
             isPlaying -> "Playing"
-            else -> stateChange.ifEmpty { "Preparing Audio" }
+            else -> stateChange.label.ifEmpty { "Preparing Audio" }
         }
 
         val stationDisplay = currentStationName ?: getString(R.string.app_name)
@@ -332,8 +334,7 @@ class StreamService : MediaSessionService() {
                 val bands = numberOfBands
                 val range = bandLevelRange
                 Log.d("StreamService", "Equalizer has $bands bands, range ${range[0]} to ${range[1]}")
-                
-                // We use a Coroutine to load settings from DataStore
+
                 serviceScope.launch {
                     for (i in 0 until bands) {
                         val level = equalizerRepository.getBandLevel(i)
@@ -354,10 +355,10 @@ class StreamService : MediaSessionService() {
         }
     }
 
-    private fun setState(newState: String) {
+    private fun setState(newState: StreamStates) {
         if (stateChange == newState) return
 
-        Log.d("StreamService", "  → state: $newState")
+        Log.d("StreamService", "  → state: ${newState.label}")
         stateChange = newState
         stateRepository.updateState(newState)
         updateNotificationInternal()
@@ -403,7 +404,7 @@ class StreamService : MediaSessionService() {
             mediaSession = null
         }
         isPlaying = false
-        stateChange = ""
+        stateChange = StreamStates.IDLE
         isPreparingForAd = false
         unregisterTimerReceivers()
     }
@@ -499,7 +500,7 @@ class StreamService : MediaSessionService() {
             else if (player.playbackState == Player.STATE_READY) StreamStates.IDLE
             else return
 
-            Log.d("StreamService", "  → onIsPlayingChanged: $newState")
+            Log.d("StreamService", "  → onIsPlayingChanged: ${newState.label}")
             setState(newState)
         }
 
@@ -518,13 +519,13 @@ class StreamService : MediaSessionService() {
 
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
-                Player.STATE_IDLE -> { isPlaying = false; StreamStates.IDLE }
+                Player.STATE_IDLE -> StreamStates.IDLE
                 Player.STATE_READY -> if (player.isPlaying) StreamStates.PLAYING else return
-                Player.STATE_ENDED -> { isPlaying = false; StreamStates.ENDED }
+                Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
 
-            Log.d("StreamService", "  → playbackState: $newState")
+            Log.d("StreamService", "  → playbackState: ${newState.label}")
             setState(newState)
         }
     }
@@ -551,14 +552,6 @@ class StreamService : MediaSessionService() {
         }
         val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "").replace("\\s+".toRegex(), " ").trim()
         return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
-    }
-
-    object StreamStates {
-        const val PREPARING = "Preparing Audio"
-        const val PLAYING = "Playing"
-        const val BUFFERING = "Buffering"
-        const val IDLE = "Idle"
-        const val ENDED = "Ended"
     }
 
     companion object {
