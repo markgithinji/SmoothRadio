@@ -150,11 +150,11 @@ fun PlayerScreen(
 
             val logoVisibility = when {
                 screenHeight >= 640.dp -> 1f
-                screenHeight <= 340.dp -> 0f
+                screenHeight <= 440.dp -> 0f
                 else -> {
-                    // Interpolate between 640dp (100% size) and 340dp (0% size)
-                    val range = 640f - 340f
-                    val progress = (screenHeight.value - 340f) / range
+                    // Interpolate between 640dp (100% size) and 440dp (0% size)
+                    val range = 640f - 440f
+                    val progress = (screenHeight.value - 440f) / range
                     progress.coerceIn(0f, 1f)
                 }
             }
@@ -245,7 +245,6 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth(layoutConfig.logoScale)
                                 .aspectRatio(1f)
-                                .graphicsLayer { alpha = layoutConfig.logoAlpha }
                         )
                         Spacer(
                             modifier = Modifier.height(
@@ -731,39 +730,83 @@ fun AnimatedPlayPauseButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    // Animate button color transition
     val buttonColor by animateColorAsState(
         targetValue = if (isPlaying) colorScheme.primary else colorScheme.primary.copy(alpha = 0.8f),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
         label = "buttonColor"
     )
 
+    // Animate button elevation
+    val buttonElevation by animateDpAsState(
+        targetValue = if (isPlaying) 20.dp else 16.dp,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "buttonElevation"
+    )
+
+    // Press scale effect
     val buttonScale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "buttonScale"
     )
 
     Box(
         modifier = modifier
             .size(80.dp)
-            .graphicsLayer { scaleX = buttonScale; scaleY = buttonScale },
+            .graphicsLayer {
+                scaleX = buttonScale
+                scaleY = buttonScale
+            },
         contentAlignment = Alignment.Center
     ) {
+        // Main button
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .shadow(elevation = 16.dp, shape = CircleShape)
+                .shadow(
+                    elevation = buttonElevation,
+                    shape = CircleShape,
+                    ambientColor = colorScheme.primary.copy(alpha = 0.3f),
+                    spotColor = colorScheme.primary.copy(alpha = 0.3f)
+                )
                 .clip(CircleShape)
                 .background(buttonColor)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = null, // We handle visual feedback via scale and color
                     onClick = onClick
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // Crossfade between play and pause icons
             AnimatedContent(
                 targetState = isPlaying,
                 transitionSpec = {
-                    (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut())
+                    if (targetState) {
+                        // Play -> Pause
+                        (scaleIn(
+                            initialScale = 0.6f,
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(tween(300))) togetherWith
+                                (scaleOut(
+                                    targetScale = 0.6f,
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    } else {
+                        // Pause -> Play
+                        (scaleIn(
+                            initialScale = 0.6f,
+                            animationSpec = tween(400, easing = FastOutSlowInEasing)
+                        ) + fadeIn(tween(300))) togetherWith
+                                (scaleOut(
+                                    targetScale = 0.6f,
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeOut(tween(200)))
+                    }
                 },
                 label = "playPauseIcon"
             ) { playing ->
