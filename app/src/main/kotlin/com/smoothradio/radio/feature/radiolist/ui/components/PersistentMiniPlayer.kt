@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radiolist.ui
+package com.smoothradio.radio.feature.radiolist.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +42,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -213,7 +213,7 @@ fun PersistentMiniPlayer(
 fun MiniPlayerControl(
     playbackState: String,
     onPlayPauseClick: () -> Unit,
-    colorScheme: androidx.compose.material3.ColorScheme
+    colorScheme: ColorScheme
 ) {
     val isBuffering = playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING
     val isPlaying = playbackState == StreamService.StreamStates.PLAYING

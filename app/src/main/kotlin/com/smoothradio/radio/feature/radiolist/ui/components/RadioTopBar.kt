@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radiolist.ui
+package com.smoothradio.radio.feature.radiolist.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent

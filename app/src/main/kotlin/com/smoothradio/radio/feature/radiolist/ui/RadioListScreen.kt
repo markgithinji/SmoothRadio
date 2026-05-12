@@ -53,6 +53,10 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.feature.about.ui.AboutDialog
+import com.smoothradio.radio.feature.radiolist.ui.components.PersistentMiniPlayer
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationRow
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
 
 @Composable
 fun RadioStationsScreen(
@@ -174,7 +178,11 @@ fun RadioStationsScreen(
                                 station = playingStation,
                                 playbackState = playbackState,
                                 onPlayPauseClick = {
-                                    playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                                    playingStation?.let {
+                                        playerControlViewModel.requestPlayStation(
+                                            it
+                                        )
+                                    }
                                 }
                             )
                         }

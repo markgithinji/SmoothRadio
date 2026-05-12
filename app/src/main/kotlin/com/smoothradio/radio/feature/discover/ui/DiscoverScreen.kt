@@ -1,13 +1,9 @@
 package com.smoothradio.radio.feature.discover.ui
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,7 +51,7 @@ import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.feature.discover.util.CategoryHelper
-import com.smoothradio.radio.feature.radiolist.ui.RadioStationGridItem
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
 import kotlinx.coroutines.delay
 
 @Composable
