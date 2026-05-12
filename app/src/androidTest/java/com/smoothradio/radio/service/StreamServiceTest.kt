@@ -57,7 +57,7 @@ class StreamServiceTest {
                 val state = intent?.getStringExtra(StreamService.EXTRA_STATE)
                 if (state != null) {
                     receivedStates.add(state)
-                    if (state == StreamService.StreamStates.PLAYING) {
+                    if (state == StreamService.StreamStates.PLAYING.label) {
                         playbackCompleted = true
                     }
                 }
@@ -76,7 +76,7 @@ class StreamServiceTest {
         startService()
         startPlay()
         onIdle()
-        assertThat(receivedStates).contains(StreamService.StreamStates.PREPARING)
+        assertThat(receivedStates).contains(StreamService.StreamStates.PREPARING.label)
         stopService()
     }
 
@@ -91,7 +91,7 @@ class StreamServiceTest {
         val getStateIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(context.packageName)
         context.sendBroadcast(getStateIntent)
 
-        assertThat(receivedStates).containsExactly(StreamService.StreamStates.PLAYING)
+        assertThat(receivedStates).containsExactly(StreamService.StreamStates.PLAYING.label)
         stopService()
     }
 

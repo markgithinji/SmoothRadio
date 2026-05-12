@@ -127,7 +127,7 @@ class RadioListFragmentTest {
         ).check(matches(not(isDisplayed())))
 
         val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
-            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING)
+            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING.label)
         }
         ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
 

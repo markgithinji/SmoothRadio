@@ -91,12 +91,12 @@ class MainActivityTest {
     fun onReceive_eventIntent_shouldShowPlayingInMiniPlayer() {
         // Simulate service broadcast with PLAYING state
         val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
-            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING)
+            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING.label)
         }
         onIdle()
         ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
 
-        onView(withId(R.id.tvStatusMiniPlayerLayout)).check(matches(withText(StreamService.StreamStates.PLAYING)))
+        onView(withId(R.id.tvStatusMiniPlayerLayout)).check(matches(withText(StreamService.StreamStates.PLAYING.label)))
     }
 
     @Test
@@ -104,7 +104,7 @@ class MainActivityTest {
 
         // Simulate service broadcast with BUFFERING state
         val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
-            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.BUFFERING)
+            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.BUFFERING.label)
         }
         ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
 
@@ -162,8 +162,8 @@ class MainActivityTest {
             .check(
                 matches(
                     anyOf(
-                        withText(StreamService.StreamStates.PREPARING),
-                        withText(StreamService.StreamStates.PLAYING)
+                        withText(StreamService.StreamStates.PREPARING.label),
+                        withText(StreamService.StreamStates.PLAYING.label)
                     )
                 )
             )

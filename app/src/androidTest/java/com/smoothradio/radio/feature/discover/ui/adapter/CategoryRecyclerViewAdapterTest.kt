@@ -91,7 +91,7 @@ class CategoryRecyclerViewAdapterTest {
     fun shouldUpdatePlayingStateWhenStationSelected() {
         assertThat(testStation.isPlaying).isFalse()
 
-        adapter.setSelectedStationWithState(testStation, StreamService.StreamStates.PLAYING)
+        adapter.setSelectedStationWithState(testStation, StreamService.StreamStates.PLAYING.label)
 
         assertThat(testStation.isPlaying).isTrue()
     }
