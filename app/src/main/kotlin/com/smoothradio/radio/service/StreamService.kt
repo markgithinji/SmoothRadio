@@ -35,7 +35,6 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.cast.CastPlayer
-import androidx.media3.cast.SessionAvailabilityListener
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
@@ -71,12 +70,13 @@ class StreamService : MediaSessionService() {
     @Inject
     lateinit var equalizerRepository: EqualizerRepository
 
+    @Inject
+    @JvmField
+    var castPlayer: CastPlayer? = null
+
     private lateinit var wrappedPlayer: Player
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-    private var castPlayer: CastPlayer? = null
-    private var castContext: CastContext? = null
 
     private lateinit var exoplayerEventListener: EventListener
     private var mediaSession: MediaSession? = null
@@ -96,7 +96,6 @@ class StreamService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         setupWrappedPlayer()
-        setupCastPlayer()
         exoplayerEventListener = EventListener()
         wrappedPlayer.addListener(exoplayerEventListener)
         setupMediaSession()
@@ -105,30 +104,9 @@ class StreamService : MediaSessionService() {
         setMediaNotificationProvider(CustomNotificationProvider())
     }
 
-    private fun setupCastPlayer() {
-        try {
-            castContext = CastContext.getSharedInstance(this)
-            castPlayer = CastPlayer(castContext!!)
-            castPlayer?.setSessionAvailabilityListener(object : SessionAvailabilityListener {
-                override fun onCastSessionAvailable() {
-                    Log.d("StreamService", "Cast session available - switching player")
-                    castPlayer?.addListener(exoplayerEventListener)
-                    mediaSession?.player = castPlayer!!
-                }
-
-                override fun onCastSessionUnavailable() {
-                    Log.d("StreamService", "Cast session unavailable - switching back to local player")
-                    castPlayer?.removeListener(exoplayerEventListener)
-                    mediaSession?.player = wrappedPlayer
-                }
-            })
-        } catch (e: Exception) {
-            Log.e("StreamService", "CastPlayer initialization failed", e)
-        }
-    }
-
     private fun setupWrappedPlayer() {
-        wrappedPlayer = object : ForwardingPlayer(player) {
+        val basePlayer = castPlayer ?: player
+        wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
                     .remove(Player.COMMAND_SEEK_TO_NEXT)
@@ -198,7 +176,7 @@ class StreamService : MediaSessionService() {
         )
 
         val playPauseIntent = Intent(this, StreamService::class.java).apply {
-            action = if (player.isPlaying) ACTION_PAUSE else ACTION_PLAY
+            action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
         }
         val playPausePendingIntent = PendingIntent.getService(
             this, 2, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -229,10 +207,10 @@ class StreamService : MediaSessionService() {
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(player.isPlaying)
+            .setOngoing(wrappedPlayer.isPlaying)
             .addAction(
-                if (player.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
-                if (player.isPlaying) "Pause" else "Play",
+                if (wrappedPlayer.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (wrappedPlayer.isPlaying) "Pause" else "Play",
                 playPausePendingIntent
             )
             .addAction(
@@ -297,15 +275,15 @@ class StreamService : MediaSessionService() {
             ACTION_STOP -> {
                 Log.d("StreamService", "🛑 ACTION_STOP")
                 isPreparingForAd = false
-                player.pause()
-                player.stop()
-                player.clearMediaItems()
+                wrappedPlayer.pause()
+                wrappedPlayer.stop()
+                wrappedPlayer.clearMediaItems()
                 setState(StreamStates.IDLE)
                 stopSelf()
             }
 
-            ACTION_PLAY -> player.play()
-            ACTION_PAUSE -> player.pause()
+            ACTION_PLAY -> wrappedPlayer.play()
+            ACTION_PAUSE -> wrappedPlayer.pause()
             ACTION_SET_EQ_BAND -> {
                 val band = intent.getIntExtra(EXTRA_BAND, -1)
                 val level = intent.getShortExtra(EXTRA_LEVEL, 0)
@@ -396,13 +374,10 @@ class StreamService : MediaSessionService() {
     private fun cleanupResources() {
         equalizer?.release()
         equalizer = null
-        mediaSession?.run {
-            wrappedPlayer.removeListener(exoplayerEventListener)
-            player.release()
-            castPlayer?.release()
-            release()
-            mediaSession = null
-        }
+        wrappedPlayer.removeListener(exoplayerEventListener)
+        wrappedPlayer.release()
+        mediaSession?.release()
+        mediaSession = null
         isPlaying = false
         stateChange = StreamStates.IDLE
         isPreparingForAd = false
@@ -419,18 +394,18 @@ class StreamService : MediaSessionService() {
     private fun play(link: String) {
         isPreparingForAd = false
         preparePlayer(link.toUri())
-        player.play()
+        wrappedPlayer.play()
     }
 
     private fun preparePlayer(uri: Uri) {
-        player.stop()
+        wrappedPlayer.stop()
         val mediaItem = MediaItem.fromUri(uri)
-        player.setMediaItem(mediaItem)
-        player.prepare()
+        wrappedPlayer.setMediaItem(mediaItem)
+        wrappedPlayer.prepare()
     }
 
     private fun prepareShowAd() {
-        player.stop()
+        wrappedPlayer.stop()
         isPlaying = false
     }
 
@@ -497,7 +472,7 @@ class StreamService : MediaSessionService() {
             if (isPreparingForAd) return
 
             val newState = if (isPlaying) StreamStates.PLAYING
-            else if (player.playbackState == Player.STATE_READY) StreamStates.IDLE
+            else if (wrappedPlayer.playbackState == Player.STATE_READY) StreamStates.IDLE
             else return
 
             Log.d("StreamService", "  → onIsPlayingChanged: ${newState.label}")
@@ -520,7 +495,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (player.isPlaying) StreamStates.PLAYING else return
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else return
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
