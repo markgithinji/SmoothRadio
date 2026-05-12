@@ -44,6 +44,7 @@ import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.service.StreamService
 import kotlinx.coroutines.delay
 
 @Composable
@@ -55,8 +56,8 @@ fun RadioStationRow(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isBuffering = isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
-    val isLivePlaying = isPlaying && playbackState == "Playing"
+    val isBuffering = isPlaying && (playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING)
+    val isLivePlaying = isPlaying && playbackState == StreamService.StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
     val rowBackgroundColor by animateColorAsState(

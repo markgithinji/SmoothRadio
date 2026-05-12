@@ -46,6 +46,7 @@ import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.service.StreamService
 
 @Composable
 fun RadioStationGridItem(
@@ -57,8 +58,8 @@ fun RadioStationGridItem(
     modifier: Modifier = Modifier,
     gridItemWidth: Dp = 120.dp
 ) {
-    val isBuffering = isPlaying && (playbackState == "Buffering" || playbackState == "Preparing Audio")
-    val isLivePlaying = isPlaying && playbackState == "Playing"
+    val isBuffering = isPlaying && (playbackState == StreamService.StreamStates.BUFFERING || playbackState == StreamService.StreamStates.PREPARING)
+    val isLivePlaying = isPlaying && playbackState == StreamService.StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
     // Under 95dp: logo + name only (no fav, no status)
