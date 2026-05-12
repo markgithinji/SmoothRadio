@@ -37,8 +37,10 @@ class FakeRadioStationDao : RadioStationDao {
     }
 
     override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
-        val station = stations.find { it.id == id }
-        station?.let { it.isFavorite = isFav }
+        val index = stations.indexOfFirst { it.id == id }
+        if (index != -1) {
+            stations[index] = stations[index].copy(isFavorite = isFav)
+        }
     }
 
     override suspend fun clearAll() {

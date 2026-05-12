@@ -12,7 +12,7 @@ data class RadioStation(
     val frequency: String,
     val location: String,
     val streamLink: String,
-    var isPlaying: Boolean,
-    var isFavorite: Boolean,
+    val isPlaying: Boolean,
+    val isFavorite: Boolean,
     val orderIndex: Int
 ) : ListItem
