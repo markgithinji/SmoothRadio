@@ -75,7 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -220,13 +220,15 @@ fun PlayerScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(animatedColor, colorScheme.background),
-                            startY = 0f,
-                            endY = Float.POSITIVE_INFINITY
+                    .drawBehind {
+                        drawRect(
+                            Brush.verticalGradient(
+                                listOf(animatedColor, colorScheme.background),
+                                startY = 0f,
+                                endY = size.height
+                            )
                         )
-                    )
+                    }
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -641,7 +643,11 @@ fun PlayerLogoSection(
             color = colorScheme.primary.copy(alpha = 0.08f),
             modifier = Modifier
                 .size(logoSize)
-                .scale(if (playbackState == StreamService.StreamStates.PLAYING) scale else 1f)
+                .graphicsLayer {
+                    val s = if (playbackState == StreamService.StreamStates.PLAYING) scale else 1f
+                    scaleX = s
+                    scaleY = s
+                }
         ) {
             Box(contentAlignment = Alignment.Center) {
                 AnimatedContent(
@@ -904,19 +910,68 @@ fun SleepTimerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        title = { Text(stringResource(R.string.player_sleep_timer)) },
+        containerColor = colorScheme.surface,
+        titleContentColor = colorScheme.onSurface,
+        textContentColor = colorScheme.onSurfaceVariant,
+        icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_player_timer),
+                contentDescription = null,
+                tint = colorScheme.primary,
+                modifier = Modifier.size(28.dp)
+            )
+        },
+        title = {
+            Text(
+                stringResource(R.string.player_sleep_timer),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.player_stop_playback_after))
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    stringResource(R.string.player_stop_playback_after),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 options.forEach { minutes ->
-                    TextButton(
+                    Surface(
                         onClick = { onConfirm(minutes) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent
                     ) {
-                        Text(
-                            if (minutes < 60) stringResource(R.string.player_minutes, minutes)
-                            else stringResource(R.string.player_hour)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (minutes < 60) stringResource(R.string.player_minutes, minutes)
+                                else stringResource(R.string.player_hour),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_player_chevron_right),
+                                contentDescription = null,
+                                tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    if (minutes != options.last()) {
+                        HorizontalDivider(
+                            color = colorScheme.outline.copy(alpha = 0.2f),
+                            thickness = 0.5.dp
                         )
                     }
                 }
@@ -924,8 +979,11 @@ fun SleepTimerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.player_cancel))
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.primary)
+            ) {
+                Text(stringResource(R.string.player_cancel), fontWeight = FontWeight.Medium)
             }
         }
     )
