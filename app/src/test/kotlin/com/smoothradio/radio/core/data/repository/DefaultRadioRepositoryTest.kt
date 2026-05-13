@@ -103,4 +103,31 @@ class DefaultRadioRepositoryTest {
         val favorites = repository.favoriteStations.first()
         assertThat(favorites).containsExactly(station.copy(isFavorite = true))
     }
+
+    @Test
+    fun clearAllStations_shouldCallDaoClearAll() = runTest {
+        val stations = listOf(
+            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false, 0)
+        )
+        dao.insertStations(stations)
+
+        repository.clearAllStations()
+
+        val stored = repository.allStations.first()
+        assertThat(stored).isEmpty()
+    }
+
+    @Test
+    fun deleteStations_shouldCallDaoDelete() = runTest {
+        val stations = listOf(
+            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false, 0),
+            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, false, 1)
+        )
+        dao.insertStations(stations)
+
+        repository.deleteStations(listOf(stations[0]))
+
+        val stored = repository.allStations.first()
+        assertThat(stored).containsExactly(stations[1])
+    }
 }
