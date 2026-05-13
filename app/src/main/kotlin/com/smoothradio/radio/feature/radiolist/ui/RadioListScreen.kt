@@ -54,7 +54,7 @@ import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.feature.about.ui.AboutDialog
+import com.smoothradio.radio.feature.radiolist.ui.components.AboutDialog
 import com.smoothradio.radio.feature.radiolist.ui.components.PersistentMiniPlayer
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationRow
