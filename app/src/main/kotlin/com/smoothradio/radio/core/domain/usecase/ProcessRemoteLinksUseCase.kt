@@ -3,6 +3,7 @@ package com.smoothradio.radio.core.domain.usecase
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.util.Resource
 import com.smoothradio.radio.feature.radiolist.util.RadioStationsHelper
 import kotlinx.coroutines.flow.first
@@ -35,13 +36,17 @@ class ProcessRemoteLinksUseCase @Inject constructor(
         radioLinkRepository.getRemoteStreamLinksFlow().collect { resource ->
             when (resource) {
                 is Resource.Success -> {
+                    LoggingHelper.d("Received ${resource.data.size} links from Firestore", "ProcessRemoteLinks")
+
                     val localStations = radioRepository.allStations.first()
                     val newStations = RadioStationsHelper.createRadioStations(resource.data)
+
                     // Delete removed stations
-                    val newIds = newStations.map { it.id }.toSet() // Gat newly added stations
+                    val newIds = newStations.map { it.id }.toSet() // Get newly added stations
                     val toDelete =
                         localStations.filterNot { it.id in newIds } // Get stations in old list that are not in new list
                     if (toDelete.isNotEmpty()) {
+                        LoggingHelper.d("Deleting ${toDelete.size} stations", "ProcessRemoteLinks")
                         radioRepository.deleteStations(toDelete)
                     }
 
@@ -57,15 +62,17 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                         )
                     }
 
+                    LoggingHelper.d("Inserting ${mergedStations.size} merged stations", "ProcessRemoteLinks")
                     radioRepository.insertStations(mergedStations)
+                    LoggingHelper.d("Insert complete", "ProcessRemoteLinks")
                 }
 
                 is Resource.Error -> {
-                    // TODO: Handle error state e.g. log or notify
+                    LoggingHelper.e("Error loading links: ${resource.message}", "ProcessRemoteLinks")
                 }
 
                 Resource.Loading -> {
-                    // TODO: Handle loading state e.g. show loading UI
+                    LoggingHelper.d("Loading links from Firestore...", "ProcessRemoteLinks")
                 }
             }
         }

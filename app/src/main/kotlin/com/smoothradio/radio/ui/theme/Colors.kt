@@ -40,6 +40,7 @@ val InverseOnSurfaceLight = Color(0xFFF4EFF4)
 
 // ============ OTHER ============
 val OutlineLight = Color(0xFFE0E0E0)
+val Favorite = Color(0xFFE91E63)
 
 // ============ DARK THEME COLORS ============
 val PrimaryDark = Color(0xFF90A4AE)       // Light Blue Grey
@@ -68,8 +69,8 @@ val OnBackgroundDark = Color(0xFFE0E0E0)
 val SurfaceDark = Color(0xFF1E1E1E)
 val OnSurfaceDark = Color(0xFFE0E0E0)
 
-val SurfaceVariantDark = Color(0xFF2D2D2D)
-val OnSurfaceVariantDark = Color(0xFFB0B0B0)
+val SurfaceVariantDark = Color(0xFF3A3A3A)
+val OnSurfaceVariantDark = Color(0xFFCAC4D0)
 
 val InverseSurfaceDark = Color(0xFFE6E1E5)
 val InverseOnSurfaceDark = Color(0xFF1C1B1F)

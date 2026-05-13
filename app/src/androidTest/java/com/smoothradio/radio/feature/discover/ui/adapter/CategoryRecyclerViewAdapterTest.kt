@@ -7,7 +7,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.feature.discover.util.RadioStationActionHandler
 import com.smoothradio.radio.service.StreamService
 import org.junit.Before
 import org.junit.Test
@@ -92,7 +91,7 @@ class CategoryRecyclerViewAdapterTest {
     fun shouldUpdatePlayingStateWhenStationSelected() {
         assertThat(testStation.isPlaying).isFalse()
 
-        adapter.setSelectedStationWithState(testStation, StreamService.StreamStates.PLAYING)
+        adapter.setSelectedStationWithState(testStation, StreamService.StreamStates.PLAYING.label)
 
         assertThat(testStation.isPlaying).isTrue()
     }

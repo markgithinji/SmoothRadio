@@ -17,8 +17,7 @@ class DefaultRadioRepository @Inject constructor(
     override val playingStation: Flow<RadioStation?> = dao.getPlayingStation()
 
     override suspend fun setPlayingStation(id: Int) {
-        dao.clearPlayingState()
-        dao.updatePlayingStation(id)
+        dao.setCurrentPlayingStation(id)
     }
 
     override suspend fun insertStations(stations: List<RadioStation>) = dao.insertStations(stations)

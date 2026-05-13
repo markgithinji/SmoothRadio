@@ -120,11 +120,16 @@ dependencies {
     // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.media3.cast)
+    implementation(libs.play.services.cast.framework)
+    implementation(libs.androidx.mediarouter)
     implementation(libs.lottie)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.profileinstaller)
     "baselineProfile"(project(":baselineprofile"))
     // Ads

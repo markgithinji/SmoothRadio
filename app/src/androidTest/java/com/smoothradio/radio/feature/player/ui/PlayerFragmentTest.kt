@@ -52,7 +52,7 @@ class PlayerFragmentTest {
     fun shouldShowPauseIcon_whenPlaying() {
         launchFragmentInHiltContainer<PlayerFragment> {}
 
-        sendStreamState(StreamService.StreamStates.PLAYING)
+        sendStreamState(StreamService.StreamStates.PLAYING.label)
 
         onView(withId(R.id.ivPlayButton))
             .check(matches(isDisplayed()))
@@ -62,7 +62,7 @@ class PlayerFragmentTest {
     fun shouldShowLoadingAnimation_whenBuffering() {
         launchFragmentInHiltContainer<PlayerFragment> {}
 
-        sendStreamState(StreamService.StreamStates.BUFFERING)
+        sendStreamState(StreamService.StreamStates.BUFFERING.label)
 
         onView(withId(R.id.lottie_loading_animation))
             .check(matches(isDisplayed()))
@@ -73,7 +73,7 @@ class PlayerFragmentTest {
     fun shouldShowEqualizerAnimation_whenStateIsPlaying() {
         launchFragmentInHiltContainer<PlayerFragment> {}
 
-        sendStreamState(StreamService.StreamStates.PLAYING)
+        sendStreamState(StreamService.StreamStates.PLAYING.label)
 
         onView(withId(R.id.equalizerAnimation))
             .check(matches(isDisplayed()))

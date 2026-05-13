@@ -3,7 +3,6 @@ package com.smoothradio.radio.feature.radiolist.adapter
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.feature.radiolist.ui.adapter.RadioListRecyclerViewAdapter
-import com.smoothradio.radio.feature.radiolist.util.RadioStationActionHandler
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner

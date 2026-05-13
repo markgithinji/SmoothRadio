@@ -1,18 +1,17 @@
 package com.smoothradio.radio.feature.radiolist.ui
 
-import android.util.Log
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +27,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Icon
@@ -42,48 +40,49 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.smoothradio.radio.RadioTopBar
-import com.smoothradio.radio.core.ui.AppToast
-import com.smoothradio.radio.core.ui.DotLoadingAnimation
+import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.domain.model.ToastType
+import com.smoothradio.radio.core.ui.common.AppToast
+import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
-import com.smoothradio.radio.core.ui.ToastType
 import com.smoothradio.radio.feature.about.ui.AboutDialog
+import com.smoothradio.radio.feature.radiolist.ui.components.PersistentMiniPlayer
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationRow
+import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
 
 @Composable
 fun RadioStationsScreen(
-    radioViewModel: RadioViewModel,
-    playerControlViewModel: PlayerControlViewModel,
     listScrollState: LazyListState,
     gridScrollState: LazyGridState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    radioViewModel: RadioViewModel = hiltViewModel(),
+    playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
-    val filteredStations by radioViewModel.filteredStations.collectAsStateWithLifecycle()
-    val allStations by radioViewModel.allStations.collectAsStateWithLifecycle()
+    val uiState by radioViewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
-    val isGridView by radioViewModel.isGridView.collectAsStateWithLifecycle()
-    val searchQuery by radioViewModel.searchQuery.collectAsStateWithLifecycle()
-    val isSearchActive by radioViewModel.isSearchActive.collectAsStateWithLifecycle()
 
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) { radioViewModel.observeAndProcessRemoteLinks() }
     LaunchedEffect(Unit) {
         radioViewModel.favoriteLimitExceeded.collect { message ->
             toastMessage = message
             isToastVisible = true
         }
     }
-    LaunchedEffect(Unit) { playerControlViewModel.requestStateUpdate() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val showMiniPlayer = maxHeight > 400.dp
@@ -93,7 +92,6 @@ fun RadioStationsScreen(
         }
 
         val gridColumns = when {
-//            maxWidth < 360.dp -> 2   // Small phone/split screen
             maxWidth < 500.dp -> 3   // Normal phone
             maxWidth < 700.dp -> 4   // Large phone/small tablet
             maxWidth < 900.dp -> 5   // Tablet
@@ -113,83 +111,64 @@ fun RadioStationsScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 RadioTopBar(
                     onViewToggleClick = { radioViewModel.toggleViewPreference() },
-                    isGridView = isGridView,
-                    searchQuery = searchQuery,
+                    isGridView = uiState.isGridView,
+                    searchQuery = uiState.searchQuery,
                     onSearchQueryChange = { radioViewModel.updateSearchQuery(it) },
-                    isSearchActive = isSearchActive,
+                    isSearchActive = uiState.isSearchActive,
                     onSearchActiveChange = { radioViewModel.setSearchActive(it) },
                     onAboutClick = { showAboutDialog = true }
                 )
 
-                if (allStations.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            DotLoadingAnimation()
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("Loading stations...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                } else if (filteredStations.isEmpty() && searchQuery.isNotEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.SearchOff, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("No stations found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Try a different search term", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                } else {
-                    if (isGridView) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(gridColumns),
-                            state = gridScrollState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = horizontalSpacing,
-                                top = 12.dp,
-                                end = horizontalSpacing,
-                                bottom = if (showMiniPlayer) 100.dp else 12.dp
-                            ),
-                            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(items = filteredStations, key = { it.id }) { station ->
-                                RadioStationGridItem(
-                                    station = station,
-                                    isPlaying = playingStation?.id == station.id,
-                                    playbackState = playbackState,
-                                    onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) },
-                                    gridItemWidth = gridItemWidth
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            state = listScrollState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 0.dp, top = 8.dp, end = 0.dp, bottom = if (showMiniPlayer) 100.dp else 12.dp)
-                        ) {
-                            items(items = filteredStations, key = { it.id }) { station ->
-                                RadioStationRow(
-                                    station = station,
-                                    isPlaying = playingStation?.id == station.id,
-                                    playbackState = playbackState,
-                                    onPlayClick = { playerControlViewModel.requestPlayStation(station) },
-                                    onFavoriteClick = { radioViewModel.toggleFavorite(station.id, !station.isFavorite) }
-                                )
-                            }
-                        }
+                AnimatedContent(
+                    targetState = when {
+                        uiState.allStations.isEmpty() -> ScreenState.Loading
+                        uiState.filteredStations.isEmpty() && uiState.searchQuery.isNotEmpty() -> ScreenState.Empty
+                        uiState.isGridView -> ScreenState.Grid
+                        else -> ScreenState.List
+                    },
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "screenState"
+                ) { state ->
+                    when (state) {
+                        ScreenState.Loading -> LoadingStationsContent()
+                        ScreenState.Empty -> EmptySearchContent()
+                        ScreenState.Grid -> RadioStationGridContent(
+                            stations = uiState.filteredStations,
+                            playingStation = playingStation,
+                            playbackState = playbackState,
+                            gridScrollState = gridScrollState,
+                            gridColumns = gridColumns,
+                            horizontalSpacing = horizontalSpacing,
+                            gridItemWidth = gridItemWidth,
+                            showMiniPlayer = showMiniPlayer,
+                            onStationClick = { playerControlViewModel.requestPlayStation(it) },
+                            onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
+                        )
+                        ScreenState.List -> RadioStationListContent(
+                            stations = uiState.filteredStations,
+                            playingStation = playingStation,
+                            playbackState = playbackState,
+                            listScrollState = listScrollState,
+                            showMiniPlayer = showMiniPlayer,
+                            onStationClick = { playerControlViewModel.requestPlayStation(it) },
+                            onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
+                        )
                     }
                 }
             }
 
             if (showMiniPlayer) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { /* Consume clicks */ }
+                        )
                 ) {
                     Box(
                         modifier = Modifier
@@ -201,7 +180,11 @@ fun RadioStationsScreen(
                                 station = playingStation,
                                 playbackState = playbackState,
                                 onPlayPauseClick = {
-                                    playingStation?.let { playerControlViewModel.requestPlayStation(it) }
+                                    playingStation?.let {
+                                        playerControlViewModel.requestPlayStation(
+                                            it
+                                        )
+                                    }
                                 }
                             )
                         }
@@ -221,4 +204,119 @@ fun RadioStationsScreen(
     if (showAboutDialog) {
         AboutDialog(onDismiss = { showAboutDialog = false }, context = context)
     }
+}
+
+@Composable
+private fun LoadingStationsContent() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            DotLoadingAnimation()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.loading_stations),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySearchContent() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.SearchOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.no_stations_found),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.search_try_different_term),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun RadioStationGridContent(
+    stations: List<RadioStation>,
+    playingStation: RadioStation?,
+    playbackState: StreamStates,
+    gridScrollState: LazyGridState,
+    gridColumns: Int,
+    horizontalSpacing: Dp,
+    gridItemWidth: Dp,
+    showMiniPlayer: Boolean,
+    onStationClick: (RadioStation) -> Unit,
+    onFavoriteClick: (Int, Boolean) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(gridColumns),
+        state = gridScrollState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = horizontalSpacing,
+            top = 12.dp,
+            end = horizontalSpacing,
+            bottom = if (showMiniPlayer) 100.dp else 12.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(items = stations, key = { it.id }) { station ->
+            RadioStationGridItem(
+                station = station,
+                isPlaying = playingStation?.id == station.id,
+                playbackState = playbackState,
+                onPlayClick = { onStationClick(station) },
+                onFavoriteClick = { onFavoriteClick(station.id, !station.isFavorite) },
+                gridItemWidth = gridItemWidth
+            )
+        }
+    }
+}
+
+@Composable
+private fun RadioStationListContent(
+    stations: List<RadioStation>,
+    playingStation: RadioStation?,
+    playbackState: StreamStates,
+    listScrollState: LazyListState,
+    showMiniPlayer: Boolean,
+    onStationClick: (RadioStation) -> Unit,
+    onFavoriteClick: (Int, Boolean) -> Unit
+) {
+    LazyColumn(
+        state = listScrollState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 0.dp,
+            top = 8.dp,
+            end = 0.dp,
+            bottom = if (showMiniPlayer) 100.dp else 12.dp
+        )
+    ) {
+        items(items = stations, key = { it.id }) { station ->
+            RadioStationRow(
+                station = station,
+                isPlaying = playingStation?.id == station.id,
+                playbackState = playbackState,
+                onPlayClick = { onStationClick(station) },
+                onFavoriteClick = { onFavoriteClick(station.id, !station.isFavorite) }
+            )
+        }
+    }
+}
+
+private enum class ScreenState {
+    Loading, Empty, Grid, List
 }

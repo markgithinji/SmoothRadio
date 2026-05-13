@@ -11,6 +11,8 @@ import com.smoothradio.radio.core.domain.model.RadioStation
  */
 object CategoryHelper {
 
+    const val ID_FAVORITES = "favorites"
+
     private val categories: Map<String, List<Int>> = linkedMapOf(
         "HOT & TRENDING" to listOf(
             1,
@@ -156,7 +158,7 @@ object CategoryHelper {
         // Add "Your Favorites" category if there are any favorites
         val favoriteStations = radioStations.filter { it.isFavorite }
         if (favoriteStations.isNotEmpty()) {
-            categoriesList.add(Category("Your Favorites", favoriteStations))
+            categoriesList.add(Category(id = ID_FAVORITES, label = "Your Favorites", categoryRadioStationList = favoriteStations))
         }
 
         // Then add all the predefined categories
@@ -165,7 +167,7 @@ object CategoryHelper {
                 categoryIds.contains(station.id)
             }
             if (categorizedStations.isNotEmpty()) {
-                categoriesList.add(Category(categoryName, categorizedStations))
+                categoriesList.add(Category(id = categoryName, label = categoryName, categoryRadioStationList = categorizedStations))
             }
         }
 

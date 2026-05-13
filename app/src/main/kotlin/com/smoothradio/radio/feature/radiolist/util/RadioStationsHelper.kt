@@ -207,7 +207,7 @@ class RadioStationsHelper {
                 add(RadioStation(161, R.drawable.doctorsexplainlogo, "DOCTORS EXPLAIN", "--.--", "NAIROBI", linksList.getOrNull(161) ?: "", false, false, index++))
                 add(RadioStation(162, R.drawable.edenmediaradiologo, "EDEN MEDIA", "--.--", "NAIROBI", linksList.getOrNull(162) ?: "", false, false, index++))
 //                add(RadioStation(163, R.drawable.xpressradiologo, "XPRESS RADIO", "102.9", "NAIROBI", linksList.getOrNull(163) ?: "", false, false, index++))
-                add(RadioStation(164, R.drawable.rasstyleradiologo, "RASSTYLE RADIO", "--.--", "NAIROBI", linksList.getOrNull(164) ?: "", false, false, index++))
+                add(RadioStation(164, R.drawable.rasstyleradiologo, "RASTYLE RADIO", "--.--", "NAIROBI", linksList.getOrNull(164) ?: "", false, false, index++))
                 add(RadioStation(165, R.drawable.optimumradiologo, "OPTIMUM RADIO", "--.--", "NAIROBI", linksList.getOrNull(165) ?: "", false, false, index++))
                 add(RadioStation(166, R.drawable.radiobarazalogo, "RADIO BARAZA", "--.--", "NAIROBI", linksList.getOrNull(166) ?: "", false, false, index++))
 //                add(RadioStation(167, R.drawable.radiopunchline, "RADIO PUNCHLINE", "--.--", "NAIROBI", linksList.getOrNull(167) ?: "", false, false, index++))

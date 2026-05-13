@@ -1,3 +1,5 @@
+@file:OptIn(UnstableApi::class)
+
 package com.smoothradio.radio.service
 
 import android.app.AlarmManager
@@ -5,116 +7,141 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioManager
+import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
-import android.os.IBinder
-import android.support.v4.media.session.MediaSessionCompat
+import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.media3.cast.CastPlayer
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
+import androidx.media3.session.MediaNotification
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
+import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.domain.repository.EqualizerRepository
+import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
- * A background service that manages audio streaming using ExoPlayer.
+ * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
  *
- * This service handles playback, pause/resume, stop, audio focus management,
- * notifications, and broadcast communication with the UI. It supports playing
- * audio streams from URLs and responds to various actions triggered by the UI or system events.
  */
-class StreamService : Service() {
-    // Playback State
+@AndroidEntryPoint
+class StreamService : MediaSessionService() {
+
     private var isPlaying = false
-    private var stateChange = ""
+    private var stateChange: StreamStates = StreamStates.IDLE
+    private var isPreparingForAd = false
 
-    // Playback Components
-    private var player: ExoPlayer? = null
-    private var mediaMetadataOR: MediaMetadata? = null
-    private lateinit var exoplayerEventListener: EventListener
-
-    // System Services
-    private lateinit var audioManager: AudioManager
-    private lateinit var onAudioFocusChangeListener: AudioManager.OnAudioFocusChangeListener
-
-    // Broadcast Intents
-    private lateinit var eventIntent: Intent
-    private lateinit var metadataIntent: Intent
-    private lateinit var playPauseIntent: Intent
-
-    // Media Session
-    private lateinit var mediaSession: MediaSessionCompat
-
-    // Notification Components
-    private lateinit var stopPI: PendingIntent
-    private lateinit var playPausePI: PendingIntent
-
-    // Broadcast Receivers
-    private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
-    private lateinit var setStopTimerReceiver: SetStopTimerReceiver
-    private lateinit var restoreUIReceiver: RestoreUIReceiver
-    private lateinit var pLayPauseReceiver: PLayPauseReceiver
-    private lateinit var requestFocusReceiver: RequestFocusReceiver
-
-    private var isForegroundStarted = false
     private var currentStationName: String? = null
     private var currentStationLogo: Int = 0
+    private var currentSongTitle: String = ""
 
-    // === Lifecycle Methods ===
+    @Inject
+    lateinit var player: ExoPlayer
+    @Inject
+    lateinit var stateRepository: PlaybackStateRepository
+    @Inject
+    lateinit var equalizerRepository: EqualizerRepository
+    @Inject
+    @JvmField
+    var castPlayer: CastPlayer? = null
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    private lateinit var wrappedPlayer: Player
+    private lateinit var exoplayerEventListener: EventListener
+    private var mediaSession: MediaSession? = null
+    private var notificationCallback: MediaNotification.Provider.Callback? = null
+
+    private var equalizer: Equalizer? = null
+    private var audioSessionId: Int = 0
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
+    private lateinit var setStopTimerReceiver: SetStopTimerReceiver
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        mediaSession
 
     override fun onCreate() {
         super.onCreate()
-        setupAudioFocus()
-        setupIntents()
+        setupWrappedPlayer()
+        exoplayerEventListener = EventListener()
+        wrappedPlayer.addListener(exoplayerEventListener)
         setupMediaSession()
         setupNotificationChannel()
-        registerReceivers()
-        exoplayerEventListener = EventListener()
+        registerTimerReceivers()
+        setMediaNotificationProvider(CustomNotificationProvider())
+    }
 
-        startForeground(NOTIFICATION_ID, createMediaStyleNotification())
-        isForegroundStarted = true
+    private fun setupWrappedPlayer() {
+        val basePlayer = castPlayer ?: player
+        wrappedPlayer = object : ForwardingPlayer(basePlayer) {
+            override fun getAvailableCommands(): Player.Commands {
+                return super.getAvailableCommands().buildUpon()
+                    .remove(COMMAND_SEEK_TO_NEXT)
+                    .remove(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .remove(COMMAND_SEEK_TO_PREVIOUS)
+                    .remove(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .build()
+            }
+
+            override fun isCommandAvailable(command: Int): Boolean {
+                return when (command) {
+                    COMMAND_SEEK_TO_NEXT,
+                    COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    COMMAND_SEEK_TO_PREVIOUS,
+                    COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> false
+
+                    else -> super.isCommandAvailable(command)
+                }
+            }
+
+            override fun getMediaMetadata(): MediaMetadata {
+                val metadata = super.getMediaMetadata()
+                val rawTitle = metadata.title?.toString() ?: ""
+                val cleanedTitle = extractSongTitle(rawTitle)
+                return metadata.buildUpon().setTitle(cleanedTitle).build()
+            }
+        }
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "StreamService")
-        mediaSession.setFlags(
-            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-        )
-
-        mediaSession.setCallback(object : MediaSessionCompat.Callback() {
-            override fun onPlay() {
-                if (!isPlaying) {
-                    resumePlayer()
-                }
-            }
-
-            override fun onPause() {
-                if (isPlaying) {
-                    pausePlayer(null)
-                }
-            }
-
-            override fun onStop() {
-                stopSelf()
-            }
-        })
-
-        mediaSession.isActive = true
+        mediaSession = MediaSession.Builder(this, wrappedPlayer)
+            .setSessionActivity(
+                PendingIntent.getActivity(
+                    this, 0,
+                    Intent(this, MainActivity::class.java),
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .build()
     }
 
     private fun setupNotificationChannel() {
@@ -133,270 +160,235 @@ class StreamService : Service() {
         }
     }
 
+    private fun registerTimerReceivers() {
+        stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
+        setStopTimerReceiver = SetStopTimerReceiver()
+        ContextCompat.registerReceiver(
+            this,
+            stopPlayFromTimerReceiver,
+            IntentFilter(ACTION_STOP_FROM_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        ContextCompat.registerReceiver(
+            this,
+            setStopTimerReceiver,
+            IntentFilter(ACTION_SET_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
     private fun createMediaStyleNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
+            this, 0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        playPausePI = getPlayPausePendingIntent()
-        stopPI = getStopPendingIntent()
+        val playPauseIntent = Intent(this, StreamService::class.java).apply {
+            action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
+        }
+        val playPausePendingIntent = PendingIntent.getService(
+            this, 2, playPauseIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopIntent = Intent(this, StreamService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this, 3, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = when {
+            isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
+            isPlaying -> getString(R.string.player_playing)
+            else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
+        }
+
+        val stationDisplay = currentStationName ?: getString(R.string.app_name)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
-            .setContentTitle(currentStationName ?: getString(R.string.app_name))
-            .setContentText(stateChange.ifEmpty { getString(R.string.preparing) })
+            .setContentTitle(title)
+            .setContentText(stationDisplay)
             .setLargeIcon(getStationLogo())
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(isPlaying)
+            .setOngoing(wrappedPlayer.isPlaying)
             .addAction(
-                if (isPlaying) R.drawable.pause_notification_icon else R.drawable.play_notification_icon,
-                if (isPlaying) TITLE_PAUSE else TITLE_PLAY,
-                playPausePI
+                if (wrappedPlayer.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
+                playPausePendingIntent
             )
-            .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
+            .addAction(R.drawable.ic_stop, getString(R.string.player_stop), stopPendingIntent)
             .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setMediaSession(mediaSession.sessionToken)
-                    .setShowActionsInCompactView(0)
+                mediaSession?.let {
+                    androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                        .setShowActionsInCompactView(0, 1)
+                }
             )
             .build()
-    }
-
-    private fun getPlayPausePendingIntent(): PendingIntent {
-        val intent = Intent(ACTION_PLAY_PAUSE).setPackage(packageName)
-        return PendingIntent.getBroadcast(
-            this, 1, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun getStopPendingIntent(): PendingIntent {
-        val intent = Intent(ACTION_STOP).setPackage(packageName)
-        return PendingIntent.getBroadcast(
-            this, 2, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
     }
 
     private fun getStationLogo(): Bitmap? {
         return if (currentStationLogo != 0) {
             BitmapFactory.decodeResource(resources, currentStationLogo)
-        } else {
-            null
-        }
+        } else null
     }
 
-    private fun updateMediaStyleNotification() {
-        if (!isForegroundStarted) return
-
-        playPausePI = getPlayPausePendingIntent()
-        stopPI = getStopPendingIntent()
-
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.notificationicon)
-            .setContentTitle(currentStationName ?: getString(R.string.app_name))
-            .setContentText(stateChange)
-            .setLargeIcon(getStationLogo())
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(isPlaying)
-            .addAction(
-                if (isPlaying) R.drawable.pause_notification_icon else R.drawable.play_notification_icon,
-                if (isPlaying) TITLE_PAUSE else TITLE_PLAY,
-                playPausePI
-            )
-            .addAction(R.drawable.stop_notification_icon, TITLE_STOP, stopPI)
-            .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setMediaSession(mediaSession.sessionToken)
-                    .setShowActionsInCompactView(0)
-            )
-            .build()
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+    private fun updateNotificationInternal() {
+        notificationCallback?.onNotificationChanged(
+            MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let { handleIntent(it) }
-        return START_NOT_STICKY
+        return super.onStartCommand(intent, flags, startId)
     }
 
     private fun handleIntent(intent: Intent) {
-        // Store station info for later updates
-        currentStationName = intent.getStringExtra(EXTRA_STATION_NAME)
-        currentStationLogo = intent.getIntExtra(EXTRA_LOGO, 0)
+        val action = intent.action ?: return
+
+        val name = intent.getStringExtra(EXTRA_STATION_NAME)
+        if (name != null) {
+            currentStationName = name
+            stateRepository.updateStationName(name)
+        }
+
+        val logo = intent.getIntExtra(EXTRA_LOGO, 0)
+        if (logo != 0) currentStationLogo = logo
 
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
-        when (intent.action) {
+        updateNotificationInternal()
+
+        when (action) {
             ACTION_START -> {
-                updateMediaStyleNotification()
+                Log.d("StreamService", " ACTION_START → ${currentStationName}")
+                isPreparingForAd = false
+                setState(StreamStates.PREPARING)
                 play(link)
             }
 
             ACTION_SHOW_AD -> {
-                updateMediaStyleNotification()
+                Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
+                isPreparingForAd = true
+                setState(StreamStates.PREPARING)
                 prepareShowAd()
             }
 
-            else -> throw IllegalArgumentException("Unexpected action received: ${intent.action}")
-        }
-    }
+            ACTION_STOP -> {
+                Log.d("StreamService", " ACTION_STOP")
+                isPreparingForAd = false
+                wrappedPlayer.pause()
+                wrappedPlayer.stop()
+                wrappedPlayer.clearMediaItems()
+                setState(StreamStates.IDLE)
+                stopSelf()
+            }
 
-    private fun setupAudioFocus() {
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        playPauseIntent = Intent()
-        onAudioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-            when (focusChange) {
-                AudioManager.AUDIOFOCUS_GAIN -> player?.play()
-                AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    playPauseIntent.putExtra(EXTRA_SOURCE, "audioFocus")
-                    sendBroadcast(playPauseIntent)
-                }
+            ACTION_PLAY -> wrappedPlayer.play()
+            ACTION_PAUSE -> wrappedPlayer.pause()
+            ACTION_SET_EQ_BAND -> {
+                val band = intent.getIntExtra(EXTRA_BAND, -1)
+                val level = intent.getShortExtra(EXTRA_LEVEL, 0)
+                if (band != -1) setEqualizerBand(band, level)
             }
         }
     }
 
-    private fun setupIntents() {
-        eventIntent = Intent(ACTION_EVENT_CHANGE).setPackage(packageName)
-        metadataIntent = Intent(ACTION_METADATA_CHANGE).setPackage(packageName)
+    private fun setState(newState: StreamStates) {
+        if (stateChange == newState) return
+        Log.d("StreamService", "  → state: ${newState.label}")
+        stateChange = newState
+        stateRepository.updateState(newState)
+        updateNotificationInternal()
     }
 
-    private fun registerReceivers() {
-        stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
-        setStopTimerReceiver = SetStopTimerReceiver()
-        restoreUIReceiver = RestoreUIReceiver()
-        pLayPauseReceiver = PLayPauseReceiver()
-        requestFocusReceiver = RequestFocusReceiver()
+    private fun play(link: String) {
+        isPreparingForAd = false
+        preparePlayer(link.toUri())
+        wrappedPlayer.play()
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                stopPlayFromTimerReceiver,
-                IntentFilter(ACTION_STOP),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                restoreUIReceiver,
-                IntentFilter(ACTION_GET_STATE),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                setStopTimerReceiver,
-                IntentFilter(ACTION_SET_TIMER),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                pLayPauseReceiver,
-                IntentFilter(ACTION_PLAY_PAUSE),
-                RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                requestFocusReceiver,
-                IntentFilter(ACTION_REQUEST_AUDIO_FOCUS),
-                RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            registerReceiver(stopPlayFromTimerReceiver, IntentFilter(ACTION_STOP))
-            registerReceiver(restoreUIReceiver, IntentFilter(ACTION_GET_STATE))
-            registerReceiver(setStopTimerReceiver, IntentFilter(ACTION_SET_TIMER))
-            registerReceiver(pLayPauseReceiver, IntentFilter(ACTION_PLAY_PAUSE))
-            registerReceiver(requestFocusReceiver, IntentFilter(ACTION_REQUEST_AUDIO_FOCUS))
+    private fun preparePlayer(uri: Uri) {
+        wrappedPlayer.stop()
+        val mediaItem = MediaItem.fromUri(uri)
+        wrappedPlayer.setMediaItem(mediaItem)
+        wrappedPlayer.prepare()
+    }
+
+    private fun prepareShowAd() {
+        wrappedPlayer.stop()
+        isPlaying = false
+    }
+
+    private fun setupEqualizer(sessionId: Int) {
+        if (sessionId == 0 || sessionId == audioSessionId) return
+        audioSessionId = sessionId
+        try {
+            equalizer?.release()
+            equalizer = Equalizer(0, sessionId).apply {
+                enabled = true
+                val bands = numberOfBands
+                serviceScope.launch {
+                    for (i in 0 until bands) {
+                        val level = equalizerRepository.getBandLevel(i)
+                        if (level != 0.toShort()) {
+                            try {
+                                setBandLevel(i.toShort(), level)
+                            } catch (e: Exception) {
+                                Log.e("StreamService", "Failed to apply EQ band $i", e)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to initialize Equalizer", e)
+        }
+    }
+
+    private fun setEqualizerBand(band: Int, level: Short) {
+        try {
+            equalizer?.setBandLevel(band.toShort(), level)
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to set EQ band $band", e)
+        }
+    }
+
+    private fun unregisterTimerReceivers() {
+        try {
+            unregisterReceiver(stopPlayFromTimerReceiver)
+            unregisterReceiver(setStopTimerReceiver)
+        } catch (e: Exception) {
         }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         cleanupResources()
+        serviceScope.cancel()
+        super.onDestroy()
     }
 
     private fun cleanupResources() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
-        player?.let {
-            it.stop()
-            it.removeListener(exoplayerEventListener)
-            it.release()
-        }
+        equalizer?.release()
+        equalizer = null
+        wrappedPlayer.removeListener(exoplayerEventListener)
+        wrappedPlayer.release()
+        mediaSession?.release()
+        mediaSession = null
         isPlaying = false
-        stateChange = ""
-        broadcastState(stateChange)
-        mediaSession.isActive = false
-        mediaSession.release()
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
-        unregisterAllReceivers()
-    }
-
-    private fun unregisterAllReceivers() {
-        unregisterReceiver(stopPlayFromTimerReceiver)
-        unregisterReceiver(setStopTimerReceiver)
-        unregisterReceiver(restoreUIReceiver)
-        unregisterReceiver(pLayPauseReceiver)
-        unregisterReceiver(requestFocusReceiver)
-    }
-
-    private fun play(link: String) {
-        stateChange = StreamStates.PREPARING
-        preparePlayer(link.toUri())
-        requestFocus()
-        player?.play()
-        updateMediaStyleNotification()
-    }
-
-    private fun preparePlayer(uri: Uri) {
-        player?.release()
-        val mediaItem = MediaItem.fromUri(uri)
-        player = ExoPlayer.Builder(this).build().apply {
-            setMediaItem(mediaItem)
-            prepare()
-            addListener(exoplayerEventListener)
-        }
-    }
-
-    private fun prepareShowAd() {
-        abandonFocus()
-        player?.let {
-            it.stop()
-            it.release()
-        }
-        isPlaying = false
-        stateChange = StreamStates.PREPARING
-        broadcastState(stateChange)
-        updateMediaStyleNotification()
-    }
-
-    private fun broadcastState(state: String) {
-        eventIntent.putExtra(EXTRA_STATE, state)
-        sendBroadcast(eventIntent)
-    }
-
-    private fun requestFocus() {
-        audioManager.requestAudioFocus(
-            onAudioFocusChangeListener,
-            AudioManager.STREAM_MUSIC,
-            AudioManager.AUDIOFOCUS_GAIN
-        )
-    }
-
-    private fun abandonFocus() {
-        audioManager.abandonAudioFocus(onAudioFocusChangeListener)
-    }
-
-    private fun sendMetadataBroadcast(metadata: MediaMetadata) {
-        val rawTitle = metadata.title?.toString() ?: ""
-        val cleanTitle = extractSongTitle(rawTitle)
-
-        metadataIntent.putExtra(EXTRA_TITLE, cleanTitle)
-        sendBroadcast(metadataIntent)
+        stateChange = StreamStates.IDLE
+        isPreparingForAd = false
+        unregisterTimerReceivers()
     }
 
     private fun extractSongTitle(rawTitle: String): String {
         val trimmed = rawTitle.trim()
-
         if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
             return try {
                 val songPattern = Regex(
@@ -404,10 +396,9 @@ class StreamService : Service() {
                     RegexOption.DOT_MATCHES_ALL
                 )
                 val match = songPattern.find(trimmed)
-
                 if (match != null) {
                     val title = match.groupValues[1].replace("&amp;", "&").trim()
-                    val artist = match.groupValues[2].replace("&amp;", "&").trim()
+                    val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
                     if (title.isNotEmpty()) "$title - $artist" else ""
                 } else {
                     val fallbackPattern =
@@ -419,45 +410,33 @@ class StreamService : Service() {
                 ""
             }
         }
-
-        val cleanTitle = trimmed
-            .replace(Regex("<[^>]*>"), "")
-            .replace("\n", " ")
-            .replace("\r", "")
-            .replace("\\s+".toRegex(), " ")
-            .trim()
-
+        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "")
+            .replace("\\s+".toRegex(), " ").trim()
         return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
-    private fun pausePlayer(source: String?) {
-        player?.pause()
-        if (source == null) abandonFocus()
-        isPlaying = false
-        stateChange = StreamStates.IDLE
-        broadcastState(stateChange)
-        updateMediaStyleNotification()
-    }
+    private inner class CustomNotificationProvider : MediaNotification.Provider {
+        override fun createNotification(
+            session: MediaSession,
+            customLayout: ImmutableList<CommandButton>,
+            actionFactory: MediaNotification.ActionFactory,
+            onNotificationChangedCallback: MediaNotification.Provider.Callback
+        ): MediaNotification {
+            notificationCallback = onNotificationChangedCallback
+            return MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
+        }
 
-    private fun resumePlayer() {
-        requestFocus()
-        player?.play()
-        isPlaying = true
-        stateChange = StreamStates.PLAYING
-        broadcastState(stateChange)
-        updateMediaStyleNotification()
-        mediaMetadataOR = player?.mediaMetadata
-        mediaMetadataOR?.let { sendMetadataBroadcast(it) }
-    }
+        override fun handleCustomCommand(
+            session: MediaSession,
+            action: String,
+            extras: Bundle
+        ): Boolean = false
 
-    inner class PLayPauseReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val source = intent.getStringExtra(EXTRA_SOURCE)
-            if (isPlaying) {
-                pausePlayer(source)
-            } else {
-                resumePlayer()
-            }
+        override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo {
+            return MediaNotification.Provider.NotificationChannelInfo(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_name)
+            )
         }
     }
 
@@ -469,8 +448,7 @@ class StreamService : Service() {
     }
 
     inner class SetStopTimerReceiver : BroadcastReceiver() {
-        private val stopPlayFromTimerIntent = Intent(ACTION_STOP).setPackage(packageName)
-
+        private val stopPlayFromTimerIntent = Intent(ACTION_STOP_FROM_TIMER).setPackage(packageName)
         override fun onReceive(context: Context, intent: Intent) {
             val timeInMillis = intent.getLongExtra(EXTRA_TIME_IN_MILLIS, 0)
             val alarmPendingIntent = PendingIntent.getBroadcast(
@@ -484,38 +462,29 @@ class StreamService : Service() {
         }
     }
 
-    inner class RequestFocusReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            player?.play()
-            requestFocus()
-        }
-    }
-
-    inner class RestoreUIReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            player?.let {
-                eventIntent.putExtra(EXTRA_STATE, stateChange)
-                sendBroadcast(eventIntent)
-                mediaMetadataOR = it.mediaMetadata
-                mediaMetadataOR?.let { metadata -> sendMetadataBroadcast(metadata) }
-            }
-        }
-    }
-
     inner class EventListener : Player.Listener {
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            setupEqualizer(audioSessionId)
+        }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            mediaMetadataOR = mediaMetadata
-            sendMetadataBroadcast(mediaMetadata)
+            val rawTitle = mediaMetadata.title?.toString() ?: ""
+            val cleaned = extractSongTitle(rawTitle)
+            if (currentSongTitle != cleaned) {
+                currentSongTitle = cleaned
+                stateRepository.updateMetadata(cleaned)
+                updateNotificationInternal()
+            }
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (isPlaying) {
-                requestFocus()
-                stateChange = StreamStates.PLAYING
-                this@StreamService.isPlaying = true
-                broadcastState(stateChange)
-                updateMediaStyleNotification()
-            }
+            this@StreamService.isPlaying = isPlaying
+            updateNotificationInternal()
+            if (isPreparingForAd) return
+            val newState = if (isPlaying) StreamStates.PLAYING
+            else if (wrappedPlayer.playbackState == Player.STATE_READY) StreamStates.IDLE
+            else return
+            setState(newState)
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -530,80 +499,35 @@ class StreamService : Service() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            when (state) {
-                Player.STATE_BUFFERING -> handleBufferingState()
-                Player.STATE_IDLE -> handleIdleState()
-                Player.STATE_READY -> handleReadyState()
-                Player.STATE_ENDED -> handleEndedState()
+            if (isPreparingForAd) return
+            val newState = when (state) {
+                Player.STATE_BUFFERING -> StreamStates.BUFFERING
+                Player.STATE_IDLE -> StreamStates.IDLE
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else return
+                Player.STATE_ENDED -> StreamStates.ENDED
+                else -> return
             }
+            setState(newState)
         }
-
-        private fun handleBufferingState() {
-            abandonFocus()
-            stateChange = StreamStates.BUFFERING
-            broadcastState(stateChange)
-            updateMediaStyleNotification()
-        }
-
-        private fun handleIdleState() {
-            abandonFocus()
-            stateChange = StreamStates.IDLE
-            isPlaying = false
-            broadcastState(stateChange)
-            updateMediaStyleNotification()
-        }
-
-        private fun handleReadyState() {
-            requestFocus()
-            stateChange = StreamStates.PLAYING
-            isPlaying = true
-            broadcastState(stateChange)
-            updateMediaStyleNotification()
-        }
-
-        private fun handleEndedState() {
-            abandonFocus()
-            stateChange = StreamStates.ENDED
-            isPlaying = false
-            broadcastState(stateChange)
-            updateMediaStyleNotification()
-        }
-    }
-
-    object StreamStates {
-        const val PREPARING = "Preparing Audio"
-        const val PLAYING = "Playing"
-        const val BUFFERING = "Buffering"
-        const val IDLE = "Idle"
-        const val ENDED = "Ended"
     }
 
     companion object {
-        // Broadcast Actions
         const val ACTION_START = "SmoothService:Start"
         const val ACTION_STOP = "SmoothService:Stop"
+        const val ACTION_PLAY = "SmoothService:Play"
+        const val ACTION_PAUSE = "SmoothService:Pause"
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
-        const val ACTION_EVENT_CHANGE = "SmoothService:EventChangeListener"
-        const val ACTION_METADATA_CHANGE = "SmoothService:MetadataChangeListener"
-        const val ACTION_GET_STATE = "SmoothService:GetState"
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
-        private const val ACTION_PLAY_PAUSE = "SmoothService:PlayPause"
-        private const val ACTION_REQUEST_AUDIO_FOCUS = "SmoothService:RequestAudioFocus"
+        const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
+        private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         private const val NOTIFICATION_ID = 1
-
-        // Broadcast Extras
         const val EXTRA_STATE = "state"
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
         const val EXTRA_LINK = "url"
-        const val EXTRA_TITLE = "title"
-        const val EXTRA_SOURCE = "source"
-
-        // Notification Info
+        const val EXTRA_BAND = "band"
+        const val EXTRA_LEVEL = "level"
         private const val CHANNEL_ID = "media_playback_channel"
-        private const val TITLE_PLAY = "Play"
-        private const val TITLE_PAUSE = "Pause"
-        private const val TITLE_STOP = "Stop"
     }
 }

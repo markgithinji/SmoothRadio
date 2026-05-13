@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.about.ui
 
-
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -14,9 +13,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
@@ -33,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -48,7 +51,7 @@ fun AboutDialog(
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
     val deviceInfo = remember { "${Build.MANUFACTURER} ${Build.MODEL}" }
-    val androidVersion = remember { "Android ${Build.VERSION.RELEASE}" }
+    val androidVersion = remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -61,14 +64,14 @@ fun AboutDialog(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.smoothradioapplogored),
-                    contentDescription = "App Logo",
+                    contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
                 )
                 Column {
                     Text(
-                        "Smooth Radio",
+                        stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface
@@ -82,9 +85,14 @@ fun AboutDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 450.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
-                    "Your favorite radio stations in one place. Stream live radio from Kenya and beyond.",
+                    stringResource(R.string.about_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant
                 )
@@ -92,11 +100,38 @@ fun AboutDialog(
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
 
                 Text(
-                    "Get in Touch",
+                    stringResource(R.string.support_community),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = colorScheme.onSurface
                 )
+
+                // Share App
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable {
+                            shareApp(context)
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        stringResource(R.string.share_app),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
 
                 // Report a Problem
                 Row(
@@ -119,7 +154,7 @@ fun AboutDialog(
                     )
                     Column {
                         Text(
-                            "Report a Problem",
+                            stringResource(R.string.report_problem),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = colorScheme.onSurface
@@ -150,14 +185,13 @@ fun AboutDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Share,
+                    Image(
+                        painter = painterResource(id = R.drawable.facebooklogo),
                         contentDescription = null,
-                        tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        "Follow us on Facebook",
+                        stringResource(R.string.follow_facebook),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -167,7 +201,7 @@ fun AboutDialog(
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
 
                 Text(
-                    "Made with ❤️ in Kenya",
+                    stringResource(R.string.made_in_kenya),
                     style = MaterialTheme.typography.labelSmall,
                     color = colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -181,7 +215,7 @@ fun AboutDialog(
                 onClick = onDismiss,
                 colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.primary)
             ) {
-                Text("Close", fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.close), fontWeight = FontWeight.Medium)
             }
         }
     )
@@ -194,7 +228,7 @@ private fun getAppVersion(context: Context): String {
         val version = pm.getPackageInfo(context.packageName, 0).versionName
         "$appName v$version"
     } catch (e: PackageManager.NameNotFoundException) {
-        "Smooth Radio"
+        context.getString(R.string.app_name)
     }
 }
 
@@ -210,4 +244,17 @@ private fun sendFeedbackEmail(context: Context, version: String, device: String,
         Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT)
             .show()
     }
+}
+
+private fun shareApp(context: Context) {
+    val appPackage = context.getString(R.string.tv_app_package)
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
+        putExtra(
+            Intent.EXTRA_TEXT,
+            context.getString(R.string.share_app_text, context.getString(R.string.app_name), appPackage)
+        )
+    }
+    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_via)))
 }
