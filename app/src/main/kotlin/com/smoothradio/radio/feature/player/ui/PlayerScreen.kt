@@ -84,6 +84,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -652,12 +653,16 @@ fun PlayerLogoSection(
                 AnimatedContent(
                     targetState = currentStation,
                     transitionSpec = {
+                        val springSpec = spring<IntOffset>(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
                         if (swipeDirection < 0f) {
-                            (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()) togetherWith
-                                    (slideOutHorizontally(targetOffsetX = { it }) + fadeOut())
+                            (slideInHorizontally(springSpec) { -it } + fadeIn()) togetherWith
+                                    (slideOutHorizontally(springSpec) { it } + fadeOut())
                         } else if (swipeDirection > 0f) {
-                            (slideInHorizontally(initialOffsetX = { it }) + fadeIn()) togetherWith
-                                    (slideOutHorizontally(targetOffsetX = { -it }) + fadeOut())
+                            (slideInHorizontally(springSpec) { it } + fadeIn()) togetherWith
+                                    (slideOutHorizontally(springSpec) { -it } + fadeOut())
                         } else {
                             fadeIn(tween(300)) togetherWith fadeOut(tween(200))
                         }
