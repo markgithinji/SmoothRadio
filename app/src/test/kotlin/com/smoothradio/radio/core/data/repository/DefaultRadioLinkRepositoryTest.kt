@@ -3,6 +3,7 @@ package com.smoothradio.radio.core.data.repository
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.EventListener
 import com.google.firebase.firestore.FirebaseFirestore
@@ -97,6 +98,18 @@ class DefaultRadioLinkRepositoryTest {
     }
 
     @Test
+    fun getRemoteAdSettingsFlow_shouldEmitSettingsFromFirestore() = runTest {
+        simulateAdSettingsSuccess()
+
+        val result = repository.getRemoteAdSettingsFlow().first()
+
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        val data = (result as Resource.Success).data
+        assertThat(data.adShowIntervalMinutes).isEqualTo(10)
+        assertThat(data.maxAdsPerHour).isEqualTo(5)
+    }
+
+    @Test
     fun clear_shouldRemoveListener() = runTest {
         simulateFirestoreSuccess()
 
@@ -111,6 +124,25 @@ class DefaultRadioLinkRepositoryTest {
         verify(listenerRegistration).remove()
 
         job.cancel()
+    }
+
+    private fun simulateAdSettingsSuccess() {
+        val collectionReference: CollectionReference = mock()
+        val documentReference: DocumentReference = mock()
+        val snapshot: DocumentSnapshot = mock()
+
+        whenever(snapshot.exists()).thenReturn(true)
+        whenever(snapshot.getLong("adShowIntervalMinutes")).thenReturn(10L)
+        whenever(snapshot.getLong("maxAdsPerHour")).thenReturn(5L)
+
+        whenever(firestore.collection("config")).thenReturn(collectionReference)
+        whenever(collectionReference.document("ad_settings")).thenReturn(documentReference)
+
+        whenever(documentReference.addSnapshotListener(any())).thenAnswer { invocation ->
+            val listener: EventListener<DocumentSnapshot> = invocation.getArgument(0)
+            listener.onEvent(snapshot, null)
+            listenerRegistration
+        }
     }
 
     private fun simulateFirestoreSuccess() {
