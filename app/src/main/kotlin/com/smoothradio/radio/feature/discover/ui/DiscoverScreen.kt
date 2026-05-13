@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.Category
@@ -57,11 +58,11 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun DiscoverScreen(
-    radioViewModel: RadioViewModel,
-    playerControlViewModel: PlayerControlViewModel,
     discoverScrollState: LazyListState,
     categoryScrollStates: MutableMap<String, LazyListState>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    radioViewModel: RadioViewModel = hiltViewModel(),
+    playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
     val stations by radioViewModel.allStations.collectAsStateWithLifecycle()
     val favorites by radioViewModel.favoriteStations.collectAsStateWithLifecycle()

@@ -87,6 +87,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
@@ -100,8 +101,8 @@ import com.smoothradio.radio.core.ui.common.SimpleTopBar
 
 @Composable
 fun PlayerScreen(
-    playerControlViewModel: PlayerControlViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()

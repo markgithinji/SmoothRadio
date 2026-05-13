@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -61,11 +62,11 @@ import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
 
 @Composable
 fun RadioStationsScreen(
-    radioViewModel: RadioViewModel,
-    playerControlViewModel: PlayerControlViewModel,
     listScrollState: LazyListState,
     gridScrollState: LazyGridState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    radioViewModel: RadioViewModel = hiltViewModel(),
+    playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
     val uiState by radioViewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()

@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -40,8 +41,8 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 
 @Composable
 fun RadioApp(
-    playerControlViewModel: PlayerControlViewModel,
-    radioViewModel: RadioViewModel
+    playerControlViewModel: PlayerControlViewModel = hiltViewModel(),
+    radioViewModel: RadioViewModel = hiltViewModel()
 ) {
     val selectedTab by radioViewModel.selectedTab.collectAsState()
 
@@ -112,19 +113,13 @@ fun RadioApp(
             ) {
                 when (selectedTab) {
                     0 -> RadioStationsScreen(
-                        radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel,
                         listScrollState = listScrollState,
                         gridScrollState = gridScrollState
                     )
 
-                    1 -> PlayerScreen(
-                        playerControlViewModel = playerControlViewModel
-                    )
+                    1 -> PlayerScreen()
 
                     2 -> DiscoverScreen(
-                        radioViewModel = radioViewModel,
-                        playerControlViewModel = playerControlViewModel,
                         discoverScrollState = discoverScrollState,
                         categoryScrollStates = discoverCategoryScrollStates
                     )
