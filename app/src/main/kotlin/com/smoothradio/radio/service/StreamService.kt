@@ -60,35 +60,31 @@ class StreamService : MediaSessionService() {
     private var stateChange: StreamStates = StreamStates.IDLE
     private var isPreparingForAd = false
 
+    private var currentStationName: String? = null
+    private var currentStationLogo: Int = 0
+    private var currentSongTitle: String = ""
+
     @Inject
     lateinit var player: ExoPlayer
-
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
-
     @Inject
     lateinit var equalizerRepository: EqualizerRepository
-
     @Inject
     @JvmField
     var castPlayer: CastPlayer? = null
 
     private lateinit var wrappedPlayer: Player
-
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
     private lateinit var exoplayerEventListener: EventListener
     private var mediaSession: MediaSession? = null
-    private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
-    private lateinit var setStopTimerReceiver: SetStopTimerReceiver
     private var notificationCallback: MediaNotification.Provider.Callback? = null
-
-    private var currentStationName: String? = null
-    private var currentStationLogo: Int = 0
-    private var currentSongTitle: String = ""
 
     private var equalizer: Equalizer? = null
     private var audioSessionId: Int = 0
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
+    private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
@@ -131,10 +127,7 @@ class StreamService : MediaSessionService() {
                 val metadata = super.getMediaMetadata()
                 val rawTitle = metadata.title?.toString() ?: ""
                 val cleanedTitle = extractSongTitle(rawTitle)
-
-                return metadata.buildUpon()
-                    .setTitle(cleanedTitle)
-                    .build()
+                return metadata.buildUpon().setTitle(cleanedTitle).build()
             }
         }
     }
@@ -143,8 +136,7 @@ class StreamService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, wrappedPlayer)
             .setSessionActivity(
                 PendingIntent.getActivity(
-                    this,
-                    0,
+                    this, 0,
                     Intent(this, MainActivity::class.java),
                     PendingIntent.FLAG_IMMUTABLE
                 )
@@ -168,10 +160,26 @@ class StreamService : MediaSessionService() {
         }
     }
 
+    private fun registerTimerReceivers() {
+        stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
+        setStopTimerReceiver = SetStopTimerReceiver()
+        ContextCompat.registerReceiver(
+            this,
+            stopPlayFromTimerReceiver,
+            IntentFilter(ACTION_STOP_FROM_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        ContextCompat.registerReceiver(
+            this,
+            setStopTimerReceiver,
+            IntentFilter(ACTION_SET_TIMER),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
     private fun createMediaStyleNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
+            this, 0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -180,9 +188,7 @@ class StreamService : MediaSessionService() {
             action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
         }
         val playPausePendingIntent = PendingIntent.getService(
-            this,
-            2,
-            playPauseIntent,
+            this, 2, playPauseIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -190,7 +196,8 @@ class StreamService : MediaSessionService() {
             action = ACTION_STOP
         }
         val stopPendingIntent = PendingIntent.getService(
-            this, 3, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this, 3, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val title = when {
@@ -200,8 +207,6 @@ class StreamService : MediaSessionService() {
         }
 
         val stationDisplay = currentStationName ?: getString(R.string.app_name)
-
-        Log.d("StreamService", "createNotification: title=$title, text=$stationDisplay")
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
@@ -217,10 +222,7 @@ class StreamService : MediaSessionService() {
                 if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
                 playPausePendingIntent
             )
-            .addAction(
-                R.drawable.ic_stop, getString(R.string.player_stop),
-                stopPendingIntent
-            )
+            .addAction(R.drawable.ic_stop, getString(R.string.player_stop), stopPendingIntent)
             .setStyle(
                 mediaSession?.let {
                     androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
@@ -233,9 +235,13 @@ class StreamService : MediaSessionService() {
     private fun getStationLogo(): Bitmap? {
         return if (currentStationLogo != 0) {
             BitmapFactory.decodeResource(resources, currentStationLogo)
-        } else {
-            null
-        }
+        } else null
+    }
+
+    private fun updateNotificationInternal() {
+        notificationCallback?.onNotificationChanged(
+            MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -244,7 +250,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun handleIntent(intent: Intent) {
-        val action = intent.action ?: return // Ignore null action (fixes log flood)
+        val action = intent.action ?: return
 
         val name = intent.getStringExtra(EXTRA_STATION_NAME)
         if (name != null) {
@@ -253,9 +259,7 @@ class StreamService : MediaSessionService() {
         }
 
         val logo = intent.getIntExtra(EXTRA_LOGO, 0)
-        if (logo != 0) {
-            currentStationLogo = logo
-        }
+        if (logo != 0) currentStationLogo = logo
 
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
@@ -263,7 +267,7 @@ class StreamService : MediaSessionService() {
 
         when (action) {
             ACTION_START -> {
-                Log.d("StreamService", "🎵 ACTION_START → ${currentStationName}")
+                Log.d("StreamService", " ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
                 setState(StreamStates.PREPARING)
                 play(link)
@@ -296,112 +300,12 @@ class StreamService : MediaSessionService() {
         }
     }
 
-    private fun setEqualizerBand(band: Int, level: Short) {
-        try {
-            equalizer?.setBandLevel(band.toShort(), level)
-        } catch (e: Exception) {
-            Log.e("StreamService", "Failed to set EQ band $band", e)
-        }
-    }
-
-    private fun setupEqualizer(sessionId: Int) {
-        if (sessionId == 0 || sessionId == audioSessionId) return
-
-        audioSessionId = sessionId
-        try {
-            equalizer?.release()
-            equalizer = Equalizer(0, sessionId).apply {
-                enabled = true
-                // Apply saved settings
-                val bands = numberOfBands
-                val range = bandLevelRange
-                Log.d(
-                    "StreamService",
-                    "Equalizer has $bands bands, range ${range[0]} to ${range[1]}"
-                )
-
-                serviceScope.launch {
-                    for (i in 0 until bands) {
-                        val level = equalizerRepository.getBandLevel(i)
-                        if (level != 0.toShort()) {
-                            try {
-                                setBandLevel(i.toShort(), level)
-                                Log.d("StreamService", "Applied EQ band $i: $level")
-                            } catch (e: Exception) {
-                                Log.e("StreamService", "Failed to apply EQ band $i", e)
-                            }
-                        }
-                    }
-                }
-            }
-            Log.d("StreamService", "Equalizer initialized for session $sessionId")
-        } catch (e: Exception) {
-            Log.e("StreamService", "Failed to initialize Equalizer", e)
-        }
-    }
-
     private fun setState(newState: StreamStates) {
         if (stateChange == newState) return
-
         Log.d("StreamService", "  → state: ${newState.label}")
         stateChange = newState
         stateRepository.updateState(newState)
         updateNotificationInternal()
-    }
-
-    private fun updateNotificationInternal() {
-        notificationCallback?.onNotificationChanged(
-            MediaNotification(
-                NOTIFICATION_ID,
-                createMediaStyleNotification()
-            )
-        )
-    }
-
-    private fun registerTimerReceivers() {
-        stopPlayFromTimerReceiver = StopPlayFromTimerReceiver()
-        setStopTimerReceiver = SetStopTimerReceiver()
-
-        ContextCompat.registerReceiver(
-            this,
-            stopPlayFromTimerReceiver,
-            IntentFilter(ACTION_STOP_FROM_TIMER),
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-        ContextCompat.registerReceiver(
-            this,
-            setStopTimerReceiver,
-            IntentFilter(ACTION_SET_TIMER),
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-    }
-
-    override fun onDestroy() {
-        cleanupResources()
-        serviceScope.cancel()
-        Log.d("StreamService", "onDestroy")
-        super.onDestroy()
-    }
-
-    private fun cleanupResources() {
-        equalizer?.release()
-        equalizer = null
-        wrappedPlayer.removeListener(exoplayerEventListener)
-        wrappedPlayer.release()
-        mediaSession?.release()
-        mediaSession = null
-        isPlaying = false
-        stateChange = StreamStates.IDLE
-        isPreparingForAd = false
-        unregisterTimerReceivers()
-    }
-
-    private fun unregisterTimerReceivers() {
-        try {
-            unregisterReceiver(stopPlayFromTimerReceiver)
-            unregisterReceiver(setStopTimerReceiver)
-        } catch (e: Exception) {
-        }
     }
 
     private fun play(link: String) {
@@ -420,6 +324,95 @@ class StreamService : MediaSessionService() {
     private fun prepareShowAd() {
         wrappedPlayer.stop()
         isPlaying = false
+    }
+
+    private fun setupEqualizer(sessionId: Int) {
+        if (sessionId == 0 || sessionId == audioSessionId) return
+        audioSessionId = sessionId
+        try {
+            equalizer?.release()
+            equalizer = Equalizer(0, sessionId).apply {
+                enabled = true
+                val bands = numberOfBands
+                serviceScope.launch {
+                    for (i in 0 until bands) {
+                        val level = equalizerRepository.getBandLevel(i)
+                        if (level != 0.toShort()) {
+                            try {
+                                setBandLevel(i.toShort(), level)
+                            } catch (e: Exception) {
+                                Log.e("StreamService", "Failed to apply EQ band $i", e)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to initialize Equalizer", e)
+        }
+    }
+
+    private fun setEqualizerBand(band: Int, level: Short) {
+        try {
+            equalizer?.setBandLevel(band.toShort(), level)
+        } catch (e: Exception) {
+            Log.e("StreamService", "Failed to set EQ band $band", e)
+        }
+    }
+
+    private fun unregisterTimerReceivers() {
+        try {
+            unregisterReceiver(stopPlayFromTimerReceiver)
+            unregisterReceiver(setStopTimerReceiver)
+        } catch (e: Exception) {
+        }
+    }
+
+    override fun onDestroy() {
+        cleanupResources()
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
+    private fun cleanupResources() {
+        equalizer?.release()
+        equalizer = null
+        wrappedPlayer.removeListener(exoplayerEventListener)
+        wrappedPlayer.release()
+        mediaSession?.release()
+        mediaSession = null
+        isPlaying = false
+        stateChange = StreamStates.IDLE
+        isPreparingForAd = false
+        unregisterTimerReceivers()
+    }
+
+    private fun extractSongTitle(rawTitle: String): String {
+        val trimmed = rawTitle.trim()
+        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
+            return try {
+                val songPattern = Regex(
+                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
+                    RegexOption.DOT_MATCHES_ALL
+                )
+                val match = songPattern.find(trimmed)
+                if (match != null) {
+                    val title = match.groupValues[1].replace("&amp;", "&").trim()
+                    val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
+                    if (title.isNotEmpty()) "$title - $artist" else ""
+                } else {
+                    val fallbackPattern =
+                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
+                    val fallbackMatch = fallbackPattern.find(trimmed)
+                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                }
+            } catch (e: Exception) {
+                ""
+            }
+        }
+        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "")
+            .replace("\\s+".toRegex(), " ").trim()
+        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     private inner class CustomNotificationProvider : MediaNotification.Provider {
@@ -456,7 +449,6 @@ class StreamService : MediaSessionService() {
 
     inner class SetStopTimerReceiver : BroadcastReceiver() {
         private val stopPlayFromTimerIntent = Intent(ACTION_STOP_FROM_TIMER).setPackage(packageName)
-
         override fun onReceive(context: Context, intent: Intent) {
             val timeInMillis = intent.getLongExtra(EXTRA_TIME_IN_MILLIS, 0)
             val alarmPendingIntent = PendingIntent.getBroadcast(
@@ -478,7 +470,6 @@ class StreamService : MediaSessionService() {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = extractSongTitle(rawTitle)
-
             if (currentSongTitle != cleaned) {
                 currentSongTitle = cleaned
                 stateRepository.updateMetadata(cleaned)
@@ -490,12 +481,9 @@ class StreamService : MediaSessionService() {
             this@StreamService.isPlaying = isPlaying
             updateNotificationInternal()
             if (isPreparingForAd) return
-
             val newState = if (isPlaying) StreamStates.PLAYING
             else if (wrappedPlayer.playbackState == Player.STATE_READY) StreamStates.IDLE
             else return
-
-            Log.d("StreamService", "  → onIsPlayingChanged: ${newState.label}")
             setState(newState)
         }
 
@@ -512,7 +500,6 @@ class StreamService : MediaSessionService() {
 
         override fun onPlaybackStateChanged(state: Int) {
             if (isPreparingForAd) return
-
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
@@ -520,38 +507,8 @@ class StreamService : MediaSessionService() {
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
-
-            Log.d("StreamService", "  → playbackState: ${newState.label}")
             setState(newState)
         }
-    }
-
-    private fun extractSongTitle(rawTitle: String): String {
-        val trimmed = rawTitle.trim()
-        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
-            return try {
-                val songPattern = Regex(
-                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
-                    RegexOption.DOT_MATCHES_ALL
-                )
-                val match = songPattern.find(trimmed)
-                if (match != null) {
-                    val title = match.groupValues[1].replace("&amp;", "&").trim()
-                    val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
-                    if (title.isNotEmpty()) "$title - $artist" else ""
-                } else {
-                    val fallbackPattern =
-                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
-                    val fallbackMatch = fallbackPattern.find(trimmed)
-                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
-                }
-            } catch (e: Exception) {
-                ""
-            }
-        }
-        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "")
-            .replace("\\s+".toRegex(), " ").trim()
-        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
     }
 
     companion object {
