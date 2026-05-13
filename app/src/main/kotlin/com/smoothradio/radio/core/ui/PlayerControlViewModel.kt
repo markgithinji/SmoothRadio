@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -96,16 +97,41 @@ class PlayerControlViewModel @Inject constructor(
 
     fun requestNextStation() {
         viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.emit(PlayCommand.Next)
+            val stations = radioRepository.allStations.first()
+            if (stations.isEmpty()) return@launch
+
+            val current = _playingStation.value
+            val currentIndex = stations.indexOfFirst { it.id == current?.id }
+            val nextIndex = when {
+                currentIndex == -1 -> 0
+                currentIndex < stations.lastIndex -> currentIndex + 1
+                else -> 0
+            }
+
+            val nextStation = stations[nextIndex]
+            if (nextStation.id == current?.id) return@launch
+
+            requestPlayStation(nextStation)
         }
     }
 
-
     fun requestPreviousStation() {
         viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.emit(PlayCommand.Previous)
+            val stations = radioRepository.allStations.first()
+            if (stations.isEmpty()) return@launch
+
+            val current = _playingStation.value
+            val currentIndex = stations.indexOfFirst { it.id == current?.id }
+            val prevIndex = when {
+                currentIndex == -1 -> stations.lastIndex
+                currentIndex > 0 -> currentIndex - 1
+                else -> stations.lastIndex
+            }
+
+            val prevStation = stations[prevIndex]
+            if (prevStation.id == current?.id) return@launch
+
+            requestPlayStation(prevStation)
         }
     }
 
@@ -144,8 +170,6 @@ class PlayerControlViewModel @Inject constructor(
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()
     object Refresh : PlayCommand()
-    object Next : PlayCommand()
-    object Previous : PlayCommand()
     data class SetSleepTimer(val minutes: Int) : PlayCommand()
     data class SetEqBand(val band: Int, val level: Short) : PlayCommand()
 }

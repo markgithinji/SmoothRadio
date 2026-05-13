@@ -68,7 +68,6 @@ import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.common.AppToast
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
-import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.ui.PlayerScreen
@@ -76,7 +75,6 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -85,7 +83,6 @@ class MainActivity : FragmentActivity() {
 
     private var mediaController: MediaController? = null
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
-    private val radioViewModel: RadioViewModel by viewModels()
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
     private lateinit var firebaseAnalytics: FirebaseAnalytics
@@ -237,8 +234,6 @@ class MainActivity : FragmentActivity() {
                                 playerControlViewModel.savePlayingStationId(station.id)
                             }
                             is PlayCommand.Refresh -> refresh()
-                            is PlayCommand.Next -> playNext()
-                            is PlayCommand.Previous -> playPrevious()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(command.band, command.level)
                         }
@@ -275,46 +270,6 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-    private fun playNext() = lifecycleScope.launch {
-        val stations = radioViewModel.allStations.first()
-        if (stations.isEmpty()) return@launch
-
-        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
-        val nextIndex = when {
-            currentIndex == -1 -> 0  // No station playing, start from beginning
-            currentIndex < stations.lastIndex -> currentIndex + 1
-            else -> 0  // Wrap around to first
-        }
-
-        val nextStation = stations[nextIndex]
-        if (nextStation.id == currentStation?.id) return@launch
-
-        currentStation = nextStation
-        Log.d("MainActivityLogs", "playNext -> ${nextStation.stationName}")
-        startNewPlay()
-        playerControlViewModel.savePlayingStationId(nextStation.id)
-    }
-
-    private fun playPrevious() = lifecycleScope.launch {
-        val stations = radioViewModel.allStations.first()
-        if (stations.isEmpty()) return@launch
-
-        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
-        val prevIndex = when {
-            currentIndex == -1 -> stations.lastIndex  // No station playing, start from end
-            currentIndex > 0 -> currentIndex - 1
-            else -> stations.lastIndex  // Wrap around to last
-        }
-
-        val prevStation = stations[prevIndex]
-        if (prevStation.id == currentStation?.id) return@launch
-
-        currentStation = prevStation
-        Log.d("MainActivityLogs", "playPrevious -> ${prevStation.stationName}")
-        startNewPlay()
-        playerControlViewModel.savePlayingStationId(prevStation.id)
-    }
-
     private fun startNewPlay() {
         Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
         isPlaying = true
@@ -327,7 +282,7 @@ class MainActivity : FragmentActivity() {
         startStreamService()
         loadInterstitialAd()
         checkInternet()
-        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station")
+//        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station") ////////////////////////////////////////////////////////////////////////////////////////////
     }
 
     private fun playOrStop() {
