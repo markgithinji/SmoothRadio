@@ -52,38 +52,48 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
     override val favoriteStations: Flow<List<RadioStation>> = _favoriteStations
     override val playingStation: Flow<RadioStation?> = _playingStation
 
+    private fun updateFlows(updatedList: List<RadioStation>) {
+        val sortedList = updatedList.sortedBy { it.orderIndex }
+        _allStations.value = sortedList
+        _favoriteStations.value = sortedList.filter { it.isFavorite }
+        _playingStation.value = sortedList.find { it.isPlaying }
+    }
+
     override suspend fun setPlayingStation(id: Int) {
         val updated = _allStations.value.map {
             it.copy(isPlaying = it.id == id)
         }
-        _allStations.value = updated
-        _playingStation.value = updated.find { it.id == id }
+        updateFlows(updated)
     }
 
-
     override suspend fun insertStations(stations: List<RadioStation>) {
-        _allStations.value = stations
-        _favoriteStations.value = stations.filter { it.isFavorite }
+        val current = _allStations.value.toMutableList()
+        stations.forEach { newStation ->
+            val index = current.indexOfFirst { it.id == newStation.id }
+            if (index != -1) {
+                current[index] = newStation
+            } else {
+                current.add(newStation)
+            }
+        }
+        updateFlows(current)
     }
 
     override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
         val updated = _allStations.value.map {
             if (it.id == id) it.copy(isFavorite = isFav) else it
         }
-        _allStations.value = updated
-        _favoriteStations.value = updated.filter { it.isFavorite }
+        updateFlows(updated)
     }
 
     override suspend fun deleteStations(stations: List<RadioStation>) {
-        _allStations.value = _allStations.value.filterNot { station ->
+        val updated = _allStations.value.filterNot { station ->
             stations.any { it.id == station.id }
         }
-        _favoriteStations.value = _allStations.value.filter { it.isFavorite }
+        updateFlows(updated)
     }
 
     override suspend fun clearAllStations() {
-        _allStations.value = emptyList()
-        _favoriteStations.value = emptyList()
-        _playingStation.value = null
+        updateFlows(emptyList())
     }
 }
