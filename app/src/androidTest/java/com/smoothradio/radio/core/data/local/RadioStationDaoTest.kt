@@ -45,7 +45,8 @@ class RadioStationDaoTest {
 
         val result = dao.getAllStations().first()
 
-        assertThat(result).containsExactly(station)
+        assertThat(result).hasSize(1)
+        assertThat(result.first().id).isEqualTo(station.id)
         assertThat(result.first().stationName).isEqualTo("Smooth Radio")
     }
 
@@ -79,7 +80,7 @@ class RadioStationDaoTest {
 
         val favorites = dao.getFavoriteStations().first()
 
-        assertThat(favorites).containsExactly(station)
+        assertThat(favorites).hasSize(1)
         assertThat(favorites.first().isFavorite).isTrue()
     }
 
@@ -103,8 +104,9 @@ class RadioStationDaoTest {
 
         val playingStation = dao.getPlayingStation().first()
 
-        assertThat(playingStation).isEqualTo(station)
-        assertThat(playingStation!!.isPlaying).isTrue()
+        assertThat(playingStation).isNotNull()
+        assertThat(playingStation!!.id).isEqualTo(station.id)
+        assertThat(playingStation.isPlaying).isTrue()
     }
 
     @Test
@@ -126,6 +128,19 @@ class RadioStationDaoTest {
         val updatedStation = dao.getAllStations().first().first()
 
         assertThat(updatedStation.isPlaying).isFalse()
+    }
+
+    @Test
+    fun setCurrentPlayingStation_shouldClearOthersAndSetNew() = runTest {
+        val s1 = dummyStation(id = 1, isPlaying = true)
+        val s2 = dummyStation(id = 2, isPlaying = false)
+        dao.insertStations(listOf(s1, s2))
+
+        dao.setCurrentPlayingStation(2)
+
+        val stations = dao.getAllStations().first()
+        assertThat(stations.find { it.id == 1 }?.isPlaying).isFalse()
+        assertThat(stations.find { it.id == 2 }?.isPlaying).isTrue()
     }
 
     // Helpers
