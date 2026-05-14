@@ -151,6 +151,7 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     // Instrumentation tests
     androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     ksp(libs.hilt.compiler)
     androidTestImplementation(libs.jetbrains.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockito.android)
@@ -159,6 +160,8 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.contrib)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.uiautomator)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.espresso.intents) // set to debug impl due to known bugs
     debugImplementation(libs.androidx.fragment.testing) // set to debug impl due to known bugs
 }
