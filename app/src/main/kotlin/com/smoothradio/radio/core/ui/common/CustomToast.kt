@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.smoothradio.radio.core.domain.model.ToastType
@@ -50,6 +51,7 @@ fun AppToast(
     val containerColor: Color
     val contentColor: Color
     val icon: ImageVector
+    val iconContentDescription: String
 
     when (toastType) {
         is ToastType.Error -> {
@@ -57,6 +59,7 @@ fun AppToast(
             containerColor = colorScheme.errorContainer
             contentColor = colorScheme.onErrorContainer
             icon = Icons.Default.Warning
+            iconContentDescription = "Error"
         }
 
         is ToastType.Success -> {
@@ -64,6 +67,7 @@ fun AppToast(
             containerColor = colorScheme.primaryContainer
             contentColor = colorScheme.onPrimaryContainer
             icon = Icons.Default.CheckCircle
+            iconContentDescription = "Success"
         }
 
         is ToastType.Warning -> {
@@ -71,6 +75,7 @@ fun AppToast(
             containerColor = colorScheme.tertiaryContainer
             contentColor = colorScheme.onTertiaryContainer
             icon = Icons.Default.Info
+            iconContentDescription = "Warning"
         }
 
         is ToastType.Info -> {
@@ -78,6 +83,7 @@ fun AppToast(
             containerColor = colorScheme.secondaryContainer
             contentColor = colorScheme.onSecondaryContainer
             icon = Icons.Default.Notifications
+            iconContentDescription = "Info"
         }
     }
 
@@ -121,7 +127,9 @@ fun AppToast(
                 }
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("app_toast"),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = containerColor
@@ -138,7 +146,7 @@ fun AppToast(
                     // Icon based on toast type
                     Icon(
                         imageVector = icon,
-                        contentDescription = null,
+                        contentDescription = iconContentDescription,
                         modifier = Modifier.size(24.dp),
                         tint = contentColor
                     )

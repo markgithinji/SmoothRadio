@@ -576,4 +576,59 @@ class RadioStationsScreenTest {
         // Verify stations visible again
         composeTestRule.onNodeWithTag("radio_station_228").assertExists()
     }
+
+    @Test
+    fun favoriteLimitExceeded_showsErrorToast() {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+            }
+        }
+
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Set up 20 favorites to hit the limit
+        runBlocking {
+            val dummyStations = (1000..1020).map { id ->
+                com.smoothradio.radio.core.domain.model.RadioStation(
+                    id = id,
+                    logoResource = 0,
+                    stationName = "Station $id",
+                    frequency = "0.0",
+                    location = "Test",
+                    streamLink = "",
+                    isPlaying = false,
+                    isFavorite = true,
+                    orderIndex = id
+                )
+            }
+            radioRepository.insertStations(dummyStations)
+        }
+        composeTestRule.waitForIdle()
+
+        // Ensure station 228 is NOT a favorite
+        runBlocking {
+            radioRepository.updateFavoriteStatus(228, false)
+        }
+        composeTestRule.waitForIdle()
+
+        // Click favorite on station 228 to trigger the limit error
+        val favButtonMatcher = hasContentDescription("Add to favorites") and
+                hasAnyAncestor(hasTestTag("radio_station_228"))
+
+        composeTestRule.onNode(favButtonMatcher).performClick()
+
+        // Toast appears quickly, check immediately before auto-dismiss
+        composeTestRule.waitForIdle()
+
+        // Check for error container color toast - look for the "Error" icon content description
+        composeTestRule.waitUntil(3000) {
+            composeTestRule.onAllNodes(hasContentDescription("Error")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithContentDescription("Error").assertIsDisplayed()
+    }
 }
