@@ -12,7 +12,7 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         RadioStation(
             id = 1,
             logoResource = R.drawable.hopefm,
-            stationName = "Hope FM",
+            stationName = "HOPE FM",
             frequency = "101.1",
             location = "Nairobi",
             streamLink = "https://example.com/hopefm",
@@ -23,7 +23,7 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         RadioStation(
             id = 2,
             logoResource = R.drawable.soundcityradiologo,
-            stationName = "Sound City",
+            stationName = "SOUNDCITY RADIO",
             frequency = "102.2",
             location = "Mombasa",
             streamLink = "https://example.com/soundcity",
@@ -34,7 +34,7 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         RadioStation( // KIKUYU
             id = 38,
             logoResource = R.drawable.inooro,
-            stationName = "Inooro FM",
+            stationName = "INOORO FM",
             frequency = "104.4",
             location = "Nyeri",
             streamLink = "https://example.com/inooro",

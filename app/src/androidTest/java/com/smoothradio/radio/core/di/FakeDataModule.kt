@@ -24,7 +24,7 @@ import javax.inject.Singleton
     components = [SingletonComponent::class],
     replaces = [CoreDataModule::class]
 )
-object FakeAppModule {
+object FakeDataModule {
     @Provides
     @Singleton
     fun provideRadioRepository(): RadioRepository = FakeRadioRepositoryAndroidTest()
