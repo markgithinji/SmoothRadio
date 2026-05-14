@@ -6,9 +6,11 @@ import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
-class FakeRadioLinkRepository : RadioLinkRepository {
+class FakeRadioLinkRepository(
+    initialLinks: List<String>? = null
+) : RadioLinkRepository {
 
-    private val safeLinks = List(232) { i -> "https://stream$i.com" } // 232 links required
+    private val safeLinks = initialLinks ?: List(232) { i -> "https://stream$i.com" } // 232 links required
     var clearCalled: Boolean = false
 
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = flow {
