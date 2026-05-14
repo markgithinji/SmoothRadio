@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +101,7 @@ fun RadioStationGridItem(
 
     Box(
         modifier = modifier
+            .testTag("radio_station_${station.id}")
             .fillMaxWidth()
             .aspectRatio(1f)
             .clip(RoundedCornerShape(if (isTiny) 6.dp else 10.dp))

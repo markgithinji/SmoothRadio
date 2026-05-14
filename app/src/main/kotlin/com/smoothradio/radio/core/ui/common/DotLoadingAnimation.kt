@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -35,7 +36,7 @@ fun DotLoadingAnimation(
     val infiniteTransition = rememberInfiniteTransition()
 
     Row(
-        modifier = modifier,
+        modifier = modifier.testTag("dot_loading_animation"),
         horizontalArrangement = Arrangement.spacedBy(dotSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
