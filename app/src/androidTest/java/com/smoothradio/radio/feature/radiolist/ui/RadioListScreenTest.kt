@@ -627,4 +627,103 @@ class RadioListScreenTest {
         }
         composeTestRule.onNodeWithContentDescription("Error").assertIsDisplayed()
     }
+
+    @Test
+    fun clickingPauseInMiniPlayer_updatesStateInBothMiniPlayerAndListRow() {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+            }
+        }
+
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 1. Click station to trigger mini player
+        composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        composeTestRule.waitForIdle()
+
+        // 2. Set state to PLAYING
+        playbackStateRepository.updateState(StreamStates.PLAYING)
+        runBlocking { radioRepository.setPlayingStation(228) }
+        composeTestRule.waitForIdle()
+
+        // Verify waveform is in row AND mini player
+        composeTestRule.waitUntil(5000) {
+            composeTestRule
+                .onAllNodes(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("radio_station_228")), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeTestRule.waitUntil(5000) {
+            composeTestRule
+                .onAllNodes(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("persistent_mini_player")), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        // 3. Click Pause button in Mini Player
+        composeTestRule.onNodeWithContentDescription("Pause").performClick()
+        composeTestRule.waitForIdle()
+
+        // 4. Update state to IDLE to simulate pause effect
+        playbackStateRepository.updateState(StreamStates.IDLE)
+        composeTestRule.waitForIdle()
+
+        // 5. Verify waveforms are gone from both row and mini player
+        composeTestRule.onNode(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("radio_station_228")), useUnmergedTree = true).assertDoesNotExist()
+        composeTestRule.onNode(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("persistent_mini_player")), useUnmergedTree = true).assertDoesNotExist()
+
+        // 6. Verify Mini Player still shows "Play" button now
+        composeTestRule.onNodeWithContentDescription("Play").assertIsDisplayed()
+    }
+
+    @Test
+    fun clickingPlayInMiniPlayer_startsPlaybackAndUpdatesUI() {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+            }
+        }
+
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 1. Click station to trigger mini player
+        composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        composeTestRule.waitForIdle()
+
+        // 2. Ensure it's in IDLE state (paused)
+        playbackStateRepository.updateState(StreamStates.IDLE)
+        runBlocking { radioRepository.setPlayingStation(228) }
+        composeTestRule.waitForIdle()
+
+        // 3. Click Play button in Mini Player
+        composeTestRule.onNodeWithContentDescription("Play").performClick()
+        composeTestRule.waitForIdle()
+
+        // 4. Update state to PLAYING
+        playbackStateRepository.updateState(StreamStates.PLAYING)
+        composeTestRule.waitForIdle()
+
+        // 5. Verify waveforms are showing in both row and mini player
+        composeTestRule.waitUntil(5000) {
+            composeTestRule
+                .onAllNodes(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("radio_station_228")), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeTestRule.waitUntil(5000) {
+            composeTestRule
+                .onAllNodes(hasTestTag("mini_waveform") and hasAnyAncestor(hasTestTag("persistent_mini_player")), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+    }
 }
