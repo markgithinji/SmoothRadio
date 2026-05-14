@@ -12,6 +12,8 @@ import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,8 +37,8 @@ class PlayerControlViewModel @Inject constructor(
     private val syncAdSettingsUseCase: SyncAdSettingsUseCase
 ) : ViewModel() {
 
-    private val _playCommand = MutableSharedFlow<PlayCommand>()
-    val playCommand: SharedFlow<PlayCommand> = _playCommand.asSharedFlow()
+    private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
+    val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
     val playbackState: StateFlow<StreamStates> = stateRepository.playbackState
     val metadata: StateFlow<String> = stateRepository.metadata
@@ -85,13 +88,14 @@ class PlayerControlViewModel @Inject constructor(
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
             _playingStation.value = station
-            _playCommand.emit(PlayCommand.PlayStation(station))
+            _playCommand.send(PlayCommand.PlayStation(station))
+            savePlayingStationId(station.id)
         }
     }
 
     fun requestRefresh() {
         viewModelScope.launch {
-            _playCommand.emit(PlayCommand.Refresh)
+            _playCommand.send(PlayCommand.Refresh)
         }
     }
 
@@ -137,14 +141,14 @@ class PlayerControlViewModel @Inject constructor(
 
     fun setSleepTimer(minutes: Int) {
         viewModelScope.launch {
-            _playCommand.emit(PlayCommand.SetSleepTimer(minutes))
+            _playCommand.send(PlayCommand.SetSleepTimer(minutes))
         }
     }
 
     fun setEqualizerBand(band: Int, level: Short) {
         viewModelScope.launch {
             equalizerRepository.saveBandLevel(band, level)
-            _playCommand.emit(PlayCommand.SetEqBand(band, level))
+            _playCommand.send(PlayCommand.SetEqBand(band, level))
         }
     }
 
