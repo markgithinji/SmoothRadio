@@ -6,7 +6,6 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
@@ -25,8 +24,6 @@ import org.junit.runner.RunWith
 class StreamServiceNotificationTest {
     private lateinit var device: UiDevice
     private lateinit var context: Context
-    private val packageName: String =
-        ApplicationProvider.getApplicationContext<Context>().packageName
 
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
@@ -43,46 +40,55 @@ class StreamServiceNotificationTest {
 
     @Test
     fun clickingHopeFmPlay_shouldTriggerNotificationWithStationName() {
-        // Dismiss notification dialog
+        // Dismiss notification dialog if it appears (Android 13+)
         val allowPopup = device.wait(Until.findObject(By.text("Allow")), 3000)
         allowPopup?.click()
-        // Step 1: Scroll to "Hope FM"
-        val scrollable = UiScrollable(UiSelector().scrollable(true))
-        scrollable.scrollTextIntoView("HOPE FM")
 
-        // Step 2: Click ivPlay inside Hope FM item
-        val ivPlay = device.findObject(
-            By.res(packageName, "ivPlay")
-                .hasAncestor(
-                    By.res(packageName, "rv_radio_list")
-                        .hasDescendant(By.text("HOPE FM"))
-                )
-        )
-        assertThat(ivPlay).isNotNull()
-        ivPlay.click()
+        // Step 1: Scroll to "HOPE FM"
+        val scrollable = UiScrollable(UiSelector().scrollable(true))
+        if (scrollable.exists()) {
+            scrollable.scrollTextIntoView("HOPE FM")
+        }
+
+        // Step 2: Click the HOPE FM item to start playback
+        val hopeFm = device.wait(Until.findObject(By.text("HOPE FM")), 5000)
+        assertThat(hopeFm).isNotNull()
+        hopeFm.click()
 
         // Step 3: Open the notification shade
         device.openNotification()
-        device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
-
+        
         // Step 4: Assert notification title is present
-        val notification = device.wait(
-            Until.findObject(By.textContains("HOPE FM")),
-            5000
+        val notificationTitle = device.wait(
+            Until.findObject(By.text("HOPE FM")),
+            15000
         )
-        assertThat(notification).isNotNull()
-        // Step 5: Assert notification playing state is present
-        val notificationState = device.wait(
-            Until.findObject(By.textContains("Preparing Audio")),
-            5000
+        assertThat(notificationTitle).isNotNull()
+
+        // Step 5: Assert notification state sequence
+        // It should transition to BUFFERING
+        val bufferingState = device.wait(
+            Until.findObject(By.text("BUFFERING")),
+            10000
         )
-        assertThat(notificationState).isNotNull()
-        // Step 6: Notification click should reopen the app
+        assertThat(bufferingState).isNotNull()
+
+        // Finally, it should show PLAYING
+        val playingState = device.wait(
+            Until.findObject(By.text("PLAYING")),
+            10000
+        )
+        assertThat(playingState).isNotNull()
+
+        // Step 6: Verify notification click reopens the app
         device.pressHome()
         device.openNotification()
-        device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
-        notificationState.click()
-        device.wait(Until.hasObject(By.text("HOPE FM")), 5_000)
-
+        
+        val notificationToClick = device.wait(Until.findObject(By.text("HOPE FM")), 5000)
+        notificationToClick.click()
+        
+        // Wait for app to be in foreground and show station name
+        val appVisible = device.wait(Until.hasObject(By.text("HOPE FM")), 5000)
+        assertThat(appVisible).isTrue()
     }
 }
