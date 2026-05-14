@@ -41,6 +41,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import com.smoothradio.radio.service.MetadataUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +127,7 @@ class StreamService : MediaSessionService() {
             override fun getMediaMetadata(): MediaMetadata {
                 val metadata = super.getMediaMetadata()
                 val rawTitle = metadata.title?.toString() ?: ""
-                val cleanedTitle = extractSongTitle(rawTitle)
+                val cleanedTitle = MetadataUtils.extractSongTitle(rawTitle)
                 return metadata.buildUpon().setTitle(cleanedTitle).build()
             }
         }
@@ -387,33 +388,6 @@ class StreamService : MediaSessionService() {
         unregisterTimerReceivers()
     }
 
-    private fun extractSongTitle(rawTitle: String): String {
-        val trimmed = rawTitle.trim()
-        if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
-            return try {
-                val songPattern = Regex(
-                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
-                    RegexOption.DOT_MATCHES_ALL
-                )
-                val match = songPattern.find(trimmed)
-                if (match != null) {
-                    val title = match.groupValues[1].replace("&amp;", "&").trim()
-                    val artist = match.groupValues[2].replace("&amp;(?!#?\\w+;)", "&").trim()
-                    if (title.isNotEmpty()) "$title - $artist" else ""
-                } else {
-                    val fallbackPattern =
-                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""")
-                    val fallbackMatch = fallbackPattern.find(trimmed)
-                    fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
-                }
-            } catch (e: Exception) {
-                ""
-            }
-        }
-        val cleanTitle = trimmed.replace(Regex("<[^>]*>"), "").replace("\n", " ").replace("\r", "")
-            .replace("\\s+".toRegex(), " ").trim()
-        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
-    }
 
     private inner class CustomNotificationProvider : MediaNotification.Provider {
         override fun createNotification(
@@ -469,7 +443,7 @@ class StreamService : MediaSessionService() {
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
-            val cleaned = extractSongTitle(rawTitle)
+            val cleaned = MetadataUtils.extractSongTitle(rawTitle)
             if (currentSongTitle != cleaned) {
                 currentSongTitle = cleaned
                 stateRepository.updateMetadata(cleaned)
