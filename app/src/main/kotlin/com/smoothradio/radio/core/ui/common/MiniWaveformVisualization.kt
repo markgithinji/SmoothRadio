@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -34,7 +35,7 @@ fun MiniWaveformVisualization(
     val infiniteTransition = rememberInfiniteTransition(label = "miniWaveform")
 
     Row(
-        modifier = modifier.height(height),
+        modifier = modifier.height(height).testTag("mini_waveform"),
         horizontalArrangement = Arrangement.spacedBy(barSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {

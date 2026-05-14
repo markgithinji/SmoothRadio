@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +83,7 @@ fun PersistentMiniPlayer(
 
     Box(
         modifier = Modifier
+            .testTag("persistent_mini_player")
             .fillMaxWidth()
             .padding(horizontal = 4.dp, vertical = 0.dp)
             .clip(RoundedCornerShape(4.dp))
