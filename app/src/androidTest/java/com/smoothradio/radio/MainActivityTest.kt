@@ -2,6 +2,12 @@ package com.smoothradio.radio
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onIdle
 import androidx.test.espresso.Espresso.onView
@@ -17,6 +23,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.smoothradio.radio.core.data.di.CoreDataModule
 import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -29,16 +36,17 @@ import org.hamcrest.Matchers.startsWith
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 
 @HiltAndroidTest
-@UninstallModules(CoreDataModule::class)
+@RunWith(AndroidJUnit4::class)
 class MainActivityTest {
 
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
 
     @get:Rule(order = 1)
-    val scenarioRule = ActivityScenarioRule(MainActivity::class.java)
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Before
     fun setup() {
@@ -46,143 +54,41 @@ class MainActivityTest {
     }
 
     @Test
-    fun searchFieldVisibility_toggleAndClear() {
-        onView(withId(R.id.ivSearch)).perform(click())
-        onView(withId(R.id.etSearch)).check(matches(isDisplayed()))
-
-        onView(withId(R.id.etSearch)).perform(typeText("kiss"), closeSoftKeyboard())
-        onView(withId(R.id.ivClearSearch)).check(matches(isDisplayed()))
-
-        onView(withId(R.id.ivClearSearch)).perform(click())
-        onView(withId(R.id.etSearch)).check(matches(withText("")))
-    }
-
-//    @Test
-//    fun clickingPlayInMiniPlayer_startsPlayingStation() {
-//        onView(withId(R.id.ivPlayMiniPlayerLayout)).perform(click())
-//        onView(withText("Preparing Audio")).check(matches(isDisplayed()))
-//        onView(withId(R.id.loadingAnimationMiniPlayerLayout)).check(matches(isDisplayed()))
-//    }
-
-    @Test
-    fun sortAZ_shouldShowChristianBeforeMixxRadio_skippingAd() {
-
-        openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext())
-        onView(withText("sort")).perform(click())
-        onView(withText("A-Z")).perform(click())
-        // Assert that "560 CHRISTIAN RADIO" and "560 MIXX RADIO" appears
-        onView(withText("560 MIXX RADIO")).check(matches(isDisplayed()))
-        onView(withText("560 CHRISTIAN RADIO")).check(matches(isDisplayed()))
-    }
-
-
-    @Test
-    fun sortZA_shouldShowXpressRadioBeforeXaticFm() {
-
-        openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext())
-        onView(withText("sort")).perform(click())
-        onView(withText("Z-A")).perform(click())
-        // Assert that "XPRESS RADIO" and "XATIC FM" appears
-        onView(withText("VYBES RADIO")).check(matches(isDisplayed()))
-        onView(withText("VUUKA FM")).check(matches(isDisplayed()))
-    }
-
-    @Test
-    fun onReceive_eventIntent_shouldShowPlayingInMiniPlayer() {
-        // Simulate service broadcast with PLAYING state
-        val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
-            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.PLAYING.label)
+    fun bottomNavigation_hasThreeTabs() {
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("Stations").fetchSemanticsNodes().isNotEmpty()
         }
-        onIdle()
-        ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
 
-        onView(withId(R.id.tvStatusMiniPlayerLayout)).check(matches(withText(StreamService.StreamStates.PLAYING.label)))
+        composeTestRule.onNodeWithText("Stations").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Live").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Discover").assertIsDisplayed()
     }
 
     @Test
-    fun bufferingState_shouldShowLoadingInMiniPlayer() {
-
-        // Simulate service broadcast with BUFFERING state
-        val intent = Intent(StreamService.ACTION_EVENT_CHANGE).apply {
-            putExtra(StreamService.EXTRA_STATE, StreamService.StreamStates.BUFFERING.label)
+    fun clickingLiveTab_showsPlayerScreen_withDefaultStation() {
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("Live").fetchSemanticsNodes().isNotEmpty()
         }
-        ApplicationProvider.getApplicationContext<Context>().sendBroadcast(intent)
 
-        // Mini-player should show "Buffering"
-        onView(withId(R.id.tvStatusMiniPlayerLayout))
-            .check(matches(withText("Buffering")))
+        composeTestRule.onNodeWithText("Live").performClick()
+        composeTestRule.waitForIdle()
 
-        // Loading animation visible, play icon hidden
-        onView(withId(R.id.loadingAnimationMiniPlayerLayout))
-            .check(matches(isDisplayed()))
+        // Player screen shows HOPE FM (the default station)
+        composeTestRule.onNodeWithText("HOPE FM").assertIsDisplayed()
+
+        // Play button should be visible
+        composeTestRule.onNodeWithContentDescription("Play").assertIsDisplayed()
     }
 
     @Test
-    fun onCreate_shouldSetupTabsCorrectly() {
+    fun clickingDiscoverTab_showsDiscoverScreen() {
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("Discover").fetchSemanticsNodes().isNotEmpty()
+        }
 
-        onView(allOf(withText("STATIONS"), isDescendantOfA(withId(R.id.tabLayout))))
-            .check(matches(isDisplayed()))
+        composeTestRule.onNodeWithText("Discover").performClick()
+        composeTestRule.waitForIdle()
 
-        onView(allOf(withText("LIVE"), isDescendantOfA(withId(R.id.tabLayout))))
-            .check(matches(isDisplayed()))
-
-        onView(allOf(withText("DISCOVER"), isDescendantOfA(withId(R.id.tabLayout))))
-            .check(matches(isDisplayed()))
-    }
-
-    @Test
-    fun search_shouldFilterAndShowMatchingStation() {
-        // Click the search icon
-        onView(withId(R.id.ivSearch)).perform(click())
-
-        onView(withId(R.id.etSearch)).perform(typeText("Hope"), closeSoftKeyboard())
-
-        // Check that a station named "Hope FM" appears
-        onView(withId(R.id.rv_radio_list))
-            .check(matches(hasDescendant(withText(containsString("HOPE FM")))))
-    }
-
-
-    @Test
-    fun clickIvPlayInsideHopeFmItem_shouldTriggerPlayback() {
-        onIdle()
-
-        onView(
-            allOf(
-                withId(R.id.ivPlay),
-                hasSibling(withText("HOPE FM"))
-            )
-        ).perform(click())
-
-        onView(withId(R.id.tvStationNameMiniPlayerLayout))
-            .check(matches(withText("HOPE FM")))
-
-        // Mini player should show current playing station and state
-        onView(withId(R.id.tvStatusMiniPlayerLayout))
-            .check(
-                matches(
-                    anyOf(
-                        withText(StreamService.StreamStates.PREPARING.label),
-                        withText(StreamService.StreamStates.PLAYING.label)
-                    )
-                )
-            )
-    }
-
-    @Test
-    fun search_noMatch_shouldShowEmptyState() {
-
-        onView(withId(R.id.ivSearch)).perform(click())
-        onView(withId(R.id.etSearch)).perform(typeText("Zzz"), closeSoftKeyboard())
-
-        onView(withText(containsString("No Stations Found!")))
-            .check(matches(isDisplayed()))
-    }
-
-    @Test
-    fun clickingInfoMenu_opensAboutDialog() {
-        openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext())
-        onView(withText("info")).perform(click())
-        onView(withText(startsWith("Enjoying SmoothRadio?"))).check(matches(isDisplayed()))
+        composeTestRule.onNodeWithText("DISCOVER", substring = true).assertIsDisplayed()
     }
 }
