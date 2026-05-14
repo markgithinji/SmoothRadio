@@ -2,10 +2,12 @@ package com.smoothradio.radio.core.ui
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
-import com.smoothradio.radio.core.data.repository.DefaultPlaybackStateRepository
+import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
+import com.smoothradio.radio.core.data.repository.FakeEqualizerRepository
+import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepository
+import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
@@ -14,44 +16,44 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @ExperimentalCoroutinesApi
 class PlayerControlViewModelTest {
 
     @get:Rule
-    val dispatcherRule = MainDispatcherRule()
+    val dispatcherRule = MainDispatcherRule(UnconfinedTestDispatcher())
 
     private lateinit var viewModel: PlayerControlViewModel
     private lateinit var fakeRadioRepository: FakeRadioRepository
-    private lateinit var playbackStateRepository: DefaultPlaybackStateRepository
-    private lateinit var equalizerRepository: EqualizerRepository
-    private lateinit var canShowAdUseCase: CanShowAdUseCase
-    private lateinit var recordAdShownUseCase: RecordAdShownUseCase
-    private lateinit var syncAdSettingsUseCase: SyncAdSettingsUseCase
+    private lateinit var fakePlaybackStateRepository: FakePlaybackStateRepository
+    private lateinit var fakeEqualizerRepository: FakeEqualizerRepository
+    private lateinit var fakeAdSettingsRepository: FakeAdSettingsRepository
+    private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
 
     @Before
     fun setup() {
         fakeRadioRepository = FakeRadioRepository(FakeRadioStationDao())
-        playbackStateRepository = DefaultPlaybackStateRepository()
-        equalizerRepository = mock()
-        canShowAdUseCase = mock()
-        recordAdShownUseCase = mock()
-        syncAdSettingsUseCase = mock()
+        fakePlaybackStateRepository = FakePlaybackStateRepository()
+        fakeEqualizerRepository = FakeEqualizerRepository()
+        fakeAdSettingsRepository = FakeAdSettingsRepository()
+        fakeRadioLinkRepository = FakeRadioLinkRepository()
 
-        // Default behavior for mocks
-        whenever(equalizerRepository.getBandLevelsFlow()).thenReturn(kotlinx.coroutines.flow.flowOf(emptyMap()))
+        val canShowAdUseCase = CanShowAdUseCase(fakeAdSettingsRepository)
+        val recordAdShownUseCase = RecordAdShownUseCase(fakeAdSettingsRepository)
+        val syncAdSettingsUseCase =
+            SyncAdSettingsUseCase(fakeAdSettingsRepository, fakeRadioLinkRepository)
 
         viewModel = PlayerControlViewModel(
             fakeRadioRepository,
-            playbackStateRepository,
-            equalizerRepository,
+            fakePlaybackStateRepository,
+            fakeEqualizerRepository,
             canShowAdUseCase,
             recordAdShownUseCase,
             syncAdSettingsUseCase
@@ -72,17 +74,18 @@ class PlayerControlViewModelTest {
             orderIndex = 0
         )
         fakeRadioRepository.insertStations(listOf(station))
-        
+
         val commands = mutableListOf<PlayCommand>()
-        val job = launch { viewModel.playCommand.toList(commands) }
+        backgroundScope.launch { viewModel.playCommand.toList(commands) }
 
         viewModel.requestPlayStation(station)
-        advanceUntilIdle()
+        advanceUntilIdle()  // Process all pending coroutines
 
         assertThat(commands).containsExactly(PlayCommand.PlayStation(station))
-        assertThat(fakeRadioRepository.playingStation.first()?.id).isEqualTo(1)
-        
-        job.cancel()
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(1)
+
+        val repoStation = fakeRadioRepository.playingStation.first { it != null }
+        assertThat(repoStation?.id).isEqualTo(1)
     }
 
     @Test
@@ -93,21 +96,19 @@ class PlayerControlViewModelTest {
             RadioStation(3, 0, "S3", "", "", "u3", false, false, 2)
         )
         fakeRadioRepository.insertStations(stations)
+
         fakeRadioRepository.setPlayingStation(1)
         advanceUntilIdle()
 
-        val commands = mutableListOf<PlayCommand>()
-        val job = launch { viewModel.playCommand.toList(commands) }
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(1)
 
         viewModel.requestNextStation()
+        
+        val command = viewModel.playCommand.first()
+        assertThat((command as PlayCommand.PlayStation).station.id).isEqualTo(2)
+
         advanceUntilIdle()
-
-        // Should play S2
-        assertThat(fakeRadioRepository.playingStation.first()?.id).isEqualTo(2)
-        assertThat(commands.last()).isInstanceOf(PlayCommand.PlayStation::class.java)
-        assertThat((commands.last() as PlayCommand.PlayStation).station.id).isEqualTo(2)
-
-        job.cancel()
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(2)
     }
 
     @Test
@@ -118,12 +119,13 @@ class PlayerControlViewModelTest {
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(2)
-        advanceUntilIdle()
+        
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(2)
 
         viewModel.requestNextStation()
         advanceUntilIdle()
 
-        assertThat(fakeRadioRepository.playingStation.first()?.id).isEqualTo(1)
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(1)
     }
 
     @Test
@@ -134,12 +136,13 @@ class PlayerControlViewModelTest {
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(2)
-        advanceUntilIdle()
+        
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(2)
 
         viewModel.requestPreviousStation()
         advanceUntilIdle()
 
-        assertThat(fakeRadioRepository.playingStation.first()?.id).isEqualTo(1)
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(1)
     }
 
     @Test
@@ -150,27 +153,26 @@ class PlayerControlViewModelTest {
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(1)
-        advanceUntilIdle()
+        
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(1)
 
         viewModel.requestPreviousStation()
         advanceUntilIdle()
 
-        assertThat(fakeRadioRepository.playingStation.first()?.id).isEqualTo(2)
+        assertThat(viewModel.playingStation.value?.id).isEqualTo(2)
     }
 
     @Test
     fun setEqualizerBand_shouldCallRepositoryAndEmitCommand() = runTest {
         val commands = mutableListOf<PlayCommand>()
-        val job = launch { viewModel.playCommand.toList(commands) }
+        backgroundScope.launch { viewModel.playCommand.toList(commands) }
 
         val band = 0
         val level = 500.toShort()
         viewModel.setEqualizerBand(band, level)
-        advanceUntilIdle()
+        advanceUntilIdle()  // Process all pending coroutines
 
-        org.mockito.kotlin.verify(equalizerRepository).saveBandLevel(band, level)
+        assertThat(fakeEqualizerRepository.getBandLevel(band)).isEqualTo(level)
         assertThat(commands).containsExactly(PlayCommand.SetEqBand(band, level))
-
-        job.cancel()
     }
 }
