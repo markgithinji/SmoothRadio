@@ -111,10 +111,11 @@ fun RadioApp(
                                     ),
                                     contentDescription = title,
                                     modifier = Modifier
-                                        .size(22.dp)
+                                        .size(26.dp)
                                         .graphicsLayer {
-                                            scaleX = scale
-                                            scaleY = scale
+                                            val baseScale = if (index == 1) 0.95f else 0.85f
+                                            scaleX = scale * baseScale
+                                            scaleY = scale * baseScale
                                         }
                                 )
                             },
