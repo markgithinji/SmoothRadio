@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,10 +116,14 @@ fun RadioStationGridItem(
             .clip(RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
             .background(colorScheme.surface)
             .background(overlayColor)
-            .border(
-                0.8.dp,
-                colorScheme.outline.copy(alpha = 1f),
-                RoundedCornerShape(if (isTiny) 6.dp else 10.dp)
+            .then(
+                if (!isSystemInDarkTheme()) {
+                    Modifier.border(
+                        0.8.dp,
+                        colorScheme.outline,
+                        RoundedCornerShape(if (isTiny) 6.dp else 10.dp)
+                    )
+                } else Modifier
             )
             .clickable { onPlayClick() }
     ) {
@@ -137,10 +142,14 @@ fun RadioStationGridItem(
                             isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp
                         }
                     )
-                    .border(
-                        0.5.dp,
-                        colorScheme.outline.copy(alpha = 0.6f),
-                        RoundedCornerShape(0.dp)
+                    .then(
+                        if (!isSystemInDarkTheme()) {
+                            Modifier.border(
+                                0.5.dp,
+                                colorScheme.outline.copy(alpha = 0.6f),
+                                RoundedCornerShape(0.dp)
+                            )
+                        } else Modifier
                     )
                     .pulseAnimation(enabled = isBuffering),
                 contentAlignment = Alignment.Center
