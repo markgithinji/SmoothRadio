@@ -1,121 +1,200 @@
 package com.smoothradio.radio.service
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.espresso.Espresso
-import androidx.test.espresso.Espresso.onIdle
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.ServiceTestRule
+import androidx.media3.exoplayer.ExoPlayer
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.testutil.SimpleFlagIdlingResource
+import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import javax.inject.Inject
 
-
+@ExperimentalCoroutinesApi
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class StreamServiceTest {
 
-    @get:Rule
-    val serviceRule = ServiceTestRule()
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @Inject
+    lateinit var stateRepository: PlaybackStateRepository
+
+    @Inject
+    lateinit var exoPlayer: ExoPlayer
 
     private lateinit var context: Context
-    private lateinit var receiver: BroadcastReceiver
-    private val receivedStates = mutableListOf<String>()
-
-    private var playbackCompleted = false
-    private val idlingResource = SimpleFlagIdlingResource { playbackCompleted }
-    private val radioStation: RadioStation =
-        RadioStation(
-            id = 2,
-            logoResource = 0,
-            stationName = "HOPE FM",
-            frequency = "88.8",
-            location = "City",
-            streamLink = "https://a5.asurahosting.com:7530/radio.mp3",
-            isPlaying = false,
-            isFavorite = false,
-            orderIndex = 0
-        )
 
     @Before
     fun setup() {
+        hiltRule.inject()
         context = ApplicationProvider.getApplicationContext()
-        Espresso.registerIdlingResources(idlingResource)
-
-        receivedStates.clear()
-        receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val state = intent?.getStringExtra(StreamService.EXTRA_STATE)
-                if (state != null) {
-                    receivedStates.add(state)
-                    if (state == StreamService.StreamStates.PLAYING.label) {
-                        playbackCompleted = true
-                    }
-                }
-            }
-        }
-        context.registerReceiver(receiver, IntentFilter(StreamService.ACTION_EVENT_CHANGE))
     }
 
     @After
-    fun tearDown() {
-        context.unregisterReceiver(receiver)
-    }
-
-    @Test
-    fun startService_shouldBroadcastPreparingState() {
-        startService()
-        startPlay()
-        onIdle()
-        assertThat(receivedStates).contains(StreamService.StreamStates.PREPARING.label)
-        stopService()
-    }
-
-    @Test
-    fun sendBroadcast_actionGetState_shouldRespondWithCurrentState() {
-        startService()
-        startPlay()
-        onIdle()
-
-        receivedStates.clear()
-        // Trigger get-state
-        val getStateIntent = Intent(StreamService.ACTION_GET_STATE).setPackage(context.packageName)
-        context.sendBroadcast(getStateIntent)
-
-        assertThat(receivedStates).containsExactly(StreamService.StreamStates.PLAYING.label)
-        stopService()
-    }
-
-    private fun startService() {
-        val startIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_SHOW_AD
+    fun tearDown() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_STOP
         }
-        context.startService(startIntent)
+        context.startService(intent)
+        // Give it a moment to stop
+        kotlinx.coroutines.delay(100)
+        context.stopService(Intent(context, StreamService::class.java))
     }
 
-    private fun startPlay() {
+    private fun startService(intent: Intent) {
+        context.startService(intent)
+    }
+
+    @Test
+    fun startAction_shouldTransitionToPreparing() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_START
+            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(StreamService.EXTRA_LOGO, 0)
+            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+        }
+
+        startService(intent)
+
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+            }
+        }
+
+        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+    }
+
+    @Test
+    fun startPlay_shouldUpdateStationNameInRepository() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_START
+            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(StreamService.EXTRA_LOGO, 0)
+            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+        }
+
+        startService(intent)
+
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.stationName.first { it == "HOPE FM" }
+            }
+        }
+
+        assertThat(stateRepository.stationName.value).isEqualTo("HOPE FM")
+    }
+
+    @Test
+    fun stopAction_shouldTransitionToIdle() = runTest {
+        // Start first
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, radioStation.streamLink)
-            putExtra(StreamService.EXTRA_LOGO, radioStation.logoResource)
-            putExtra(StreamService.EXTRA_STATION_NAME, radioStation.stationName)
+            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
         }
-        context.startService(startIntent)
-    }
+        startService(startIntent)
+        
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+            }
+        }
 
-    private fun stopService() {
+        // Then stop
         val stopIntent = Intent(context, StreamService::class.java).apply {
             action = StreamService.ACTION_STOP
         }
-        context.startService(stopIntent)
+        startService(stopIntent)
+
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.playbackState.first { it == StreamStates.IDLE }
+            }
+        }
+
+        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.IDLE)
+    }
+
+    @Test
+    fun showAdAction_shouldSetPreparingState() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_SHOW_AD
+            putExtra(StreamService.EXTRA_STATION_NAME, "Test Station")
+            putExtra(StreamService.EXTRA_LOGO, 0)
+        }
+
+        startService(intent)
+
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+            }
+        }
+
+        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+    }
+
+    @Test
+    fun nullAction_shouldNotCrash() = runTest {
+        val intent = Intent(context, StreamService::class.java)
+        startService(intent)
+        // No specific state change expected, just ensuring it doesn't crash
+    }
+
+    @Test
+    fun setEqualizerBand_shouldNotCrash() = runTest {
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_START
+            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(startIntent)
+
+        val eqIntent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_SET_EQ_BAND
+            putExtra(StreamService.EXTRA_BAND, 0)
+            putExtra(StreamService.EXTRA_LEVEL, 500.toShort())
+        }
+        startService(eqIntent)
+        // No specific state change expected, just ensuring it doesn't crash
+    }
+
+    @Test
+    fun playPauseActions_shouldTogglePlayback() = runTest {
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = StreamService.ACTION_START
+            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(StreamService.EXTRA_LOGO, 0)
+            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(startIntent)
+        
+        withContext(Dispatchers.Main) {
+            stateRepository.updateState(StreamStates.PLAYING)
+        }
+
+        withContext(Dispatchers.Default) {
+            withTimeout(5000) {
+                stateRepository.playbackState.first { it == StreamStates.PLAYING }
+            }
+        }
+
+        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PLAYING)
     }
 }

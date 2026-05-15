@@ -2,54 +2,66 @@ package com.smoothradio.radio.core.data.local
 
 import com.smoothradio.radio.core.domain.model.RadioStation
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 class FakeRadioStationDao : RadioStationDao {
 
     private val stations = mutableListOf<RadioStation>()
-    private var playingId: Int? = null
+    private val _stationsFlow = MutableStateFlow<List<RadioStation>>(emptyList())
 
-    override fun getAllStations(): Flow<List<RadioStation>> = flow {
-        emit(stations.toList())
+    private fun refreshFlows() {
+        _stationsFlow.value = stations.toList()
     }
 
-    override fun getFavoriteStations(): Flow<List<RadioStation>> = flow {
-        emit(stations.filter { it.isFavorite })
+    override fun getAllStations(): Flow<List<RadioStation>> = _stationsFlow
+
+    override fun getFavoriteStations(): Flow<List<RadioStation>> = _stationsFlow.map { list ->
+        list.filter { it.isFavorite }
     }
 
-    override fun getPlayingStation(): Flow<RadioStation?> = flow {
-        emit(stations.find { it.isPlaying })
+    override fun getPlayingStation(): Flow<RadioStation?> = _stationsFlow.map { list ->
+        list.find { it.isPlaying }
     }
 
     override suspend fun clearPlayingState() {
-        playingId = null
         stations.replaceAll { it.copy(isPlaying = false) }
+        refreshFlows()
     }
 
     override suspend fun updatePlayingStation(id: Int) {
-        playingId = id
         stations.replaceAll { it.copy(isPlaying = it.id == id) }
+        refreshFlows()
     }
 
     override suspend fun insertStations(stations: List<RadioStation>) {
-        this.stations.clear()
-        this.stations.addAll(stations)
+        stations.forEach { newStation ->
+            val index = this.stations.indexOfFirst { it.id == newStation.id }
+            if (index != -1) {
+                this.stations[index] = newStation
+            } else {
+                this.stations.add(newStation)
+            }
+        }
+        refreshFlows()
     }
 
     override suspend fun updateFavoriteStatus(id: Int, isFav: Boolean) {
         val index = stations.indexOfFirst { it.id == id }
         if (index != -1) {
             stations[index] = stations[index].copy(isFavorite = isFav)
+            refreshFlows()
         }
     }
 
     override suspend fun clearAll() {
         stations.clear()
-        playingId = null
+        refreshFlows()
     }
 
     override suspend fun deleteStations(stations: List<RadioStation>) {
         val idsToDelete = stations.map { it.id }.toSet()
         this.stations.removeAll { it.id in idsToDelete }
+        refreshFlows()
     }
 }

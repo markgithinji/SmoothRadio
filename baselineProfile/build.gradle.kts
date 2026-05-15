@@ -28,12 +28,9 @@ android {
     testOptions {
         managedDevices {
             localDevices {
-                create("pixel2api30") {
-                    // Use device profiles you typically see in Android Studio.
-                    device = "Pixel 2"
-                    // ATDs currently support only API level 30.
-                    apiLevel = 30
-                    // You can also specify "google-atd" if you require Google Play Services.
+                create("pixel6api33") {
+                    device = "Pixel 6"
+                    apiLevel = 33
                     systemImageSource = "aosp-atd"
                 }
             }
@@ -44,7 +41,7 @@ android {
 // This is the configuration block for the Baseline Profile plugin.
 // You can specify to run the generators on a managed devices or connected devices.
 baselineProfile {
-    managedDevices += "pixel2api30"
+    managedDevices += "pixel6api33"
     useConnectedDevices = false
 }
 
