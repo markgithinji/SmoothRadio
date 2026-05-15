@@ -1,11 +1,16 @@
 package com.smoothradio.radio
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
@@ -28,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -72,36 +78,54 @@ fun RadioApp(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
-                            NavigationBarItem(
-                                selected = selectedTab == index,
-                                onClick = { radioViewModel.setSelectedTab(index) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = when (index) {
-                                                0 -> R.drawable.ic_nav_stations
-                                                1 -> R.drawable.ic_nav_live
-                                                else -> R.drawable.ic_nav_discover
-                                            }
-                                        ),
-                                        contentDescription = title,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                },
-                                label = { Text(title) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
+                        val isSelected = selectedTab == index
+                        
+                        val scale by animateFloatAsState(
+                            targetValue = when {
+                                isPressed -> 0.88f
+                                isSelected -> 1.12f
+                                else -> 1f
+                            },
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "nav_icon_scale"
+                        )
+
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = { radioViewModel.setSelectedTab(index) },
+                            interactionSource = interactionSource,
+                            icon = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = when (index) {
+                                            0 -> R.drawable.ic_nav_stations
+                                            1 -> R.drawable.ic_nav_live
+                                            else -> R.drawable.ic_nav_discover
+                                        }
+                                    ),
+                                    contentDescription = title,
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer {
+                                            scaleX = scale
+                                            scaleY = scale
+                                        }
                                 )
+                            },
+                            label = { Text(title) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
+                        )
                     }
                 }
             }
