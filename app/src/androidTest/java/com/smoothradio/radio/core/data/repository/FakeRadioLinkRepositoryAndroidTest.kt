@@ -11,7 +11,7 @@ class FakeRadioLinkRepositoryAndroidTest : RadioLinkRepository {
 
     private val _linksFlow = MutableStateFlow(
         Resource.Success(
-            RadioStationLinksHelper.RADIO_STATIONS.toList() // Emits static link list
+            RadioStationLinksHelper.RADIO_STATIONS.toList()
         )
     )
 
@@ -24,14 +24,6 @@ class FakeRadioLinkRepositoryAndroidTest : RadioLinkRepository {
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = _linksFlow
 
     override fun getRemoteAdSettingsFlow(): Flow<Resource<RemoteAdSettings>> = _adSettingsFlow
-
-    fun emitLinks(links: List<String>) {
-        _linksFlow.value = Resource.Success(links)
-    }
-
-    fun emitAdSettings(settings: RemoteAdSettings) {
-        _adSettingsFlow.value = Resource.Success(settings)
-    }
 
     override fun clear() {
         clearCalled = true
