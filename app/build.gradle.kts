@@ -13,12 +13,12 @@ plugins {
 android {
     namespace = "com.smoothradio.radio"
 
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.smoothradio.radio"
         minSdk = 25
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 29
         versionName = "3.7.6"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
