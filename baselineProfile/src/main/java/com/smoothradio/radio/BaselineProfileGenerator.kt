@@ -44,31 +44,29 @@ class BaselineProfileGenerator {
     @Test
     fun generate() {
         // The application id for the running build variant is read from the instrumentation arguments.
-        rule.collect(
-            packageName = InstrumentationRegistry.getArguments().getString("targetAppId")
-                ?: throw Exception("targetAppId not passed as instrumentation runner arg"),
+        val targetAppId = InstrumentationRegistry.getArguments().getString("targetAppId")
+            ?: throw Exception("targetAppId not passed as instrumentation runner arg")
 
+        rule.collect(
+            packageName = targetAppId,
             includeInStartupProfile = true
         ) {
             pressHome()
             startActivityAndWait()
 
-            // Wait until "Hope FM" is visible
+            // Wait until "HOPE FM" is visible
             val recycler = UiScrollable(UiSelector().scrollable(true))
-            recycler.scrollTextIntoView("HOPE FM")
+            if (recycler.exists()) {
+                recycler.scrollTextIntoView("HOPE FM")
+            }
 
-            // Find parent of "Hope FM" item and click ivPlay inside it
-            val ivPlayButton = device.findObject(
-                By.res(PACKAGE_NAME, "ivPlay")  // Replace with actual resource ID of ivPlay
-                    .hasAncestor(By.text("HOPE FM"))
-            )
+            // Find "HOPE FM" item and click it to start playback
+            val hopeFm = device.findObject(By.text("HOPE FM"))
+            checkNotNull(hopeFm) { "HOPE FM not found" }
+            hopeFm.click()
 
-            checkNotNull(ivPlayButton) { "ivPlay for Hope FM not found" }
-
-            ivPlayButton.click()
-
-            UiScrollable(UiSelector().scrollable(true))
-                .scrollTextIntoView("HOPE FM")
+            // Wait a bit to ensure playback starts and code is exercised
+            device.waitForIdle()
         }
     }
 }
