@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -30,7 +31,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
-    stateRepository: PlaybackStateRepository,
+    private val stateRepository: PlaybackStateRepository,
     private val equalizerRepository: EqualizerRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
@@ -40,7 +41,25 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
     val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
-    val playbackState: StateFlow<StreamStates> = stateRepository.playbackState
+    // Flag to mask the "PLAYING" state during station transitions
+    private val _isStationChanging = MutableStateFlow(false)
+
+    val playbackState: StateFlow<StreamStates> = combine(
+        stateRepository.playbackState,
+        _isStationChanging
+    ) { state, changing ->
+        // If we are changing stations, force a loading state until the old stream actually stops
+        if (changing && state is StreamStates.PLAYING) {
+            StreamStates.IDLE
+        } else {
+            state
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = StreamStates.IDLE
+    )
+
     val metadata: StateFlow<String> = stateRepository.metadata
 
     private val _canShowAd = MutableStateFlow(false)
@@ -76,6 +95,14 @@ class PlayerControlViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            stateRepository.playbackState.collect { state ->
+                // Reset the changing flag once the underlying state is no longer PLAYING
+                if (state !is StreamStates.PLAYING) {
+                    _isStationChanging.value = false
+                }
+            }
+        }
     }
 
     fun showToast(toastType: ToastType) {
@@ -86,6 +113,12 @@ class PlayerControlViewModel @Inject constructor(
 
     fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
+            // Mask the "playing" state for the new station until the old one stops
+            val isNewStation = _playingStation.value?.id != station.id
+            if (isNewStation && stateRepository.playbackState.value is StreamStates.PLAYING) {
+                _isStationChanging.value = true
+            }
+
             _canShowAd.value = canShowAdUseCase()
             _playingStation.value = station
             _playCommand.send(PlayCommand.PlayStation(station))
