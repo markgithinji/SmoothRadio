@@ -106,6 +106,9 @@ fun RadioApp(
                 }
             }
         ) { paddingValues ->
+            val playingStation by playerControlViewModel.playingStation.collectAsState()
+            val isMiniPlayerVisible = selectedTab == 0 && playingStation != null
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -124,16 +127,16 @@ fun RadioApp(
                         categoryScrollStates = discoverCategoryScrollStates
                     )
                 }
+
+                AppToast(
+                    toastType = toastType,
+                    isVisible = isToastVisible,
+                    onDismiss = { isToastVisible = false },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = if (isMiniPlayerVisible) 70.dp else 16.dp)
+                )
             }
         }
-
-        AppToast(
-            toastType = toastType,
-            isVisible = isToastVisible,
-            onDismiss = { isToastVisible = false },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 100.dp)
-        )
     }
 }

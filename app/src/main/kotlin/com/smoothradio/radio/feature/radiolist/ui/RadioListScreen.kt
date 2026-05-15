@@ -196,7 +196,9 @@ fun RadioStationsScreen(
                 toastType = ToastType.Error(toastMessage),
                 isVisible = isToastVisible,
                 onDismiss = { isToastVisible = false },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (showMiniPlayer) 100.dp else 16.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = if (showMiniPlayer) 70.dp else 16.dp)
             )
         }
     }
