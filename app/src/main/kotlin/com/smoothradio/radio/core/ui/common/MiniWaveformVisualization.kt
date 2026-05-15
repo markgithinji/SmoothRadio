@@ -45,7 +45,7 @@ fun MiniWaveformVisualization(
                 initialValue = 0.3f,
                 targetValue = 0.8f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween<Float>(400, delayMillis = delay),
+                    animation = tween(400, delayMillis = delay),
                     repeatMode = RepeatMode.Reverse
                 ),
                 label = "bar_$index"

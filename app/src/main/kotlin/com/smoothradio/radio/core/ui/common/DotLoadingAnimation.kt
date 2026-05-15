@@ -46,7 +46,7 @@ fun DotLoadingAnimation(
                 initialValue = 0.5f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween<Float>(animationDuration, delayMillis = delay),
+                    animation = tween(animationDuration, delayMillis = delay),
                     repeatMode = RepeatMode.Reverse
                 )
             )

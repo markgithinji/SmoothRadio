@@ -136,10 +136,6 @@ fun PlayerScreen(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenHeight = maxHeight
 
-        LaunchedEffect(screenHeight) {
-            Log.d("PlayerScreen", "Height: $screenHeight")
-        }
-
         // Responsive Layout Configuration
         val layoutConfig = remember(screenHeight) {
             val isTinyCompact = screenHeight < 200.dp
