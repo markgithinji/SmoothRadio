@@ -41,7 +41,6 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.service.MetadataUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,10 +66,13 @@ class StreamService : MediaSessionService() {
 
     @Inject
     lateinit var player: ExoPlayer
+
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
+
     @Inject
     lateinit var equalizerRepository: EqualizerRepository
+
     @Inject
     @JvmField
     var castPlayer: CastPlayer? = null
@@ -188,6 +190,7 @@ class StreamService : MediaSessionService() {
         val playPauseIntent = Intent(this, StreamService::class.java).apply {
             action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
         }
+
         val playPausePendingIntent = PendingIntent.getService(
             this, 2, playPauseIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -196,6 +199,7 @@ class StreamService : MediaSessionService() {
         val stopIntent = Intent(this, StreamService::class.java).apply {
             action = ACTION_STOP
         }
+
         val stopPendingIntent = PendingIntent.getService(
             this, 3, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

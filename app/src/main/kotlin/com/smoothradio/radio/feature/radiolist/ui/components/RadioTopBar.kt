@@ -19,18 +19,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -116,7 +116,10 @@ fun RadioTopBar(
                     if (targetState) {
                         (slideInHorizontally(
                             initialOffsetX = { it },
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
                         ) + fadeIn(tween(300))) togetherWith
                                 (slideOutHorizontally(
                                     targetOffsetX = { -it / 3 },
@@ -125,7 +128,10 @@ fun RadioTopBar(
                     } else {
                         (slideInHorizontally(
                             initialOffsetX = { -it / 3 },
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
                         ) + fadeIn(tween(300))) togetherWith
                                 (slideOutHorizontally(
                                     targetOffsetX = { it },
@@ -137,7 +143,10 @@ fun RadioTopBar(
             ) { searchMode ->
                 if (searchMode) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -157,12 +166,21 @@ fun RadioTopBar(
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
-                            modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
                             textStyle = TextStyle(fontSize = 16.sp, color = colorScheme.onSurface),
                             decorationBox = { innerTextField ->
-                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
                                     if (searchQuery.isEmpty()) {
-                                        Text(stringResource(R.string.top_bar_search_hint), color = colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                                        Text(
+                                            stringResource(R.string.top_bar_search_hint),
+                                            color = colorScheme.onSurfaceVariant,
+                                            fontSize = 16.sp
+                                        )
                                     }
                                     innerTextField()
                                 }
@@ -174,8 +192,17 @@ fun RadioTopBar(
 
                         AnimatedVisibility(
                             visible = searchQuery.isNotEmpty(),
-                            enter = scaleIn(initialScale = 0.5f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(200)),
-                            exit = scaleOut(targetScale = 0.5f, animationSpec = tween(200)) + fadeOut(tween(200))
+                            enter = scaleIn(
+                                initialScale = 0.5f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            ) + fadeIn(tween(200)),
+                            exit = scaleOut(
+                                targetScale = 0.5f,
+                                animationSpec = tween(200)
+                            ) + fadeOut(tween(200))
                         ) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
                                 Icon(
@@ -189,7 +216,10 @@ fun RadioTopBar(
                     }
                 } else {
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -205,9 +235,13 @@ fun RadioTopBar(
                             IconButton(onClick = onViewToggleClick) {
                                 Icon(
                                     painter = painterResource(id = if (isGridView) R.drawable.ic_toolbar_list else R.drawable.ic_toolbar_grid),
-                                    contentDescription = if (isGridView) stringResource(R.string.top_bar_switch_to_list) else stringResource(R.string.top_bar_switch_to_grid),
+                                    contentDescription = if (isGridView) stringResource(R.string.top_bar_switch_to_list) else stringResource(
+                                        R.string.top_bar_switch_to_grid
+                                    ),
                                     tint = colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp).graphicsLayer { rotationY = viewRotation }
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .graphicsLayer { rotationY = viewRotation }
                                 )
                             }
                             IconButton(onClick = { onSearchActiveChange(true) }) {

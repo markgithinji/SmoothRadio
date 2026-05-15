@@ -116,7 +116,7 @@ fun DiscoverScreen(
             val totalHorizontalOffset = horizontalSpacing * (gridColumns + 1)
             val visualWidth = (screenWidth - totalHorizontalOffset) / gridColumns
             val slotWidth = screenWidth / gridColumns
-            
+
             visualWidth to slotWidth
         }
 

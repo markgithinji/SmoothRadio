@@ -158,7 +158,13 @@ object CategoryHelper {
         // Add "Your Favorites" category if there are any favorites
         val favoriteStations = radioStations.filter { it.isFavorite }
         if (favoriteStations.isNotEmpty()) {
-            categoriesList.add(Category(id = ID_FAVORITES, label = "Your Favorites", categoryRadioStationList = favoriteStations))
+            categoriesList.add(
+                Category(
+                    id = ID_FAVORITES,
+                    label = "Your Favorites",
+                    categoryRadioStationList = favoriteStations
+                )
+            )
         }
 
         // Then add all the predefined categories
@@ -167,7 +173,13 @@ object CategoryHelper {
                 categoryIds.contains(station.id)
             }
             if (categorizedStations.isNotEmpty()) {
-                categoriesList.add(Category(id = categoryName, label = categoryName, categoryRadioStationList = categorizedStations))
+                categoriesList.add(
+                    Category(
+                        id = categoryName,
+                        label = categoryName,
+                        categoryRadioStationList = categorizedStations
+                    )
+                )
             }
         }
 

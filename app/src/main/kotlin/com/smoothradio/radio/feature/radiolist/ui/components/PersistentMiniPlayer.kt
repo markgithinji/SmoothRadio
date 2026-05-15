@@ -66,7 +66,8 @@ fun PersistentMiniPlayer(
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isBuffering =
+        playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
@@ -116,7 +117,10 @@ fun PersistentMiniPlayer(
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
@@ -219,7 +223,8 @@ fun MiniPlayerControl(
     onPlayPauseClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
-    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isBuffering =
+        playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
     val isPlaying = playbackState is StreamStates.PLAYING
 
     AnimatedContent(
@@ -294,7 +299,9 @@ fun MiniPlayerControl(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
+                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(
+                            R.string.player_play
+                        ),
                         tint = colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )

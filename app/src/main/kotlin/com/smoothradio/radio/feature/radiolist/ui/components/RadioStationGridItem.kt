@@ -60,7 +60,8 @@ fun RadioStationGridItem(
     modifier: Modifier = Modifier,
     gridItemWidth: Dp = 120.dp
 ) {
-    val isBuffering = isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+    val isBuffering =
+        isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
@@ -81,13 +82,20 @@ fun RadioStationGridItem(
     )
 
     val infiniteTransition = rememberInfiniteTransition()
+
     val liveDotScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(animation = tween(600, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
     )
     val liveDotAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(600, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
     )
     val nameColor by animateColorAsState(
         targetValue = when {
@@ -107,26 +115,45 @@ fun RadioStationGridItem(
             .clip(RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
             .background(colorScheme.surface)
             .background(overlayColor)
-            .border(0.8.dp, colorScheme.outline.copy(alpha = 1f), RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
+            .border(
+                0.8.dp,
+                colorScheme.outline.copy(alpha = 1f),
+                RoundedCornerShape(if (isTiny) 6.dp else 10.dp)
+            )
             .clickable { onPlayClick() }
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(if (isTiny) 4.dp else 8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isTiny) 4.dp else 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             // Logo
             Box(
                 modifier = Modifier
-                    .size(when { isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp })
-                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                    .size(
+                        when {
+                            isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp
+                        }
+                    )
+                    .border(
+                        0.5.dp,
+                        colorScheme.outline.copy(alpha = 0.6f),
+                        RoundedCornerShape(0.dp)
+                    )
                     .pulseAnimation(enabled = isBuffering),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
-                    modifier = Modifier.fillMaxSize().padding(2.dp),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(2.dp),
                     contentScale = ContentScale.Fit
                 )
                 if (isBuffering) {
@@ -137,6 +164,7 @@ fun RadioStationGridItem(
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(if (isTiny) 2.dp else 4.dp))
 
             // Station Name
@@ -144,7 +172,9 @@ fun RadioStationGridItem(
                 text = station.stationName,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                fontSize = when { isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp },
+                fontSize = when {
+                    isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -163,12 +193,43 @@ fun RadioStationGridItem(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
-                            isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
-                                Text(stringResource(R.string.player_live_tag), style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
+                            isBuffering -> DotLoadingAnimation(
+                                dotSize = 6.dp,
+                                dotSpacing = 4.dp,
+                                color = colorScheme.tertiary,
+                                animationDelay = 150,
+                                animationDuration = 400
+                            )
+
+                            isLivePlaying -> Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(6.dp)
+                                        .scale(liveDotScale)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.primary.copy(alpha = liveDotAlpha))
+                                )
+                                Text(
+                                    stringResource(R.string.player_live_tag),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorScheme.primary,
+                                    maxLines = 1
+                                )
                             }
-                            else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                            else -> Text(
+                                station.frequency,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 9.sp,
+                                color = colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(2.dp))

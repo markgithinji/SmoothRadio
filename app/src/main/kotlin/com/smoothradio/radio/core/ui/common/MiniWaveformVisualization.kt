@@ -35,7 +35,9 @@ fun MiniWaveformVisualization(
     val infiniteTransition = rememberInfiniteTransition(label = "miniWaveform")
 
     Row(
-        modifier = modifier.height(height).testTag("mini_waveform"),
+        modifier = modifier
+            .height(height)
+            .testTag("mini_waveform"),
         horizontalArrangement = Arrangement.spacedBy(barSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {

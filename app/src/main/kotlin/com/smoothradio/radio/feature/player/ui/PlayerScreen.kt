@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.player.ui
 
-import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -63,7 +62,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -127,6 +125,7 @@ fun PlayerScreen(
             is StreamStates.BUFFERING, is StreamStates.PREPARING -> colorScheme.tertiary.copy(
                 alpha = 0.15f
             )
+
             else -> colorScheme.surfaceVariant
         },
         animationSpec = tween(1000, easing = FastOutSlowInEasing),
@@ -161,6 +160,7 @@ fun PlayerScreen(
                     val position = screenHeight.value - 300f
                     0.65f + (position / range) * 0.35f
                 }
+
                 else -> 1f
             }
 
@@ -280,7 +280,11 @@ fun PlayerScreen(
                     if (!layoutConfig.tinyCompact) {
                         Spacer(modifier = Modifier.height(if (layoutConfig.compact || layoutConfig.shrinking) 12.dp else 16.dp))
                     }
-                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(modifier = Modifier.weight(1f))
+                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(
+                        modifier = Modifier.weight(
+                            1f
+                        )
+                    )
 
                     // Playback Controls
                     PlaybackControlRow(
@@ -288,8 +292,12 @@ fun PlayerScreen(
                         playButtonScale = layoutConfig.btnScale,
                         isTinyCompact = layoutConfig.tinyCompact,
                         isCompact = layoutConfig.compact,
-                        onPrevious = { swipeDirection = -1f; playerControlViewModel.requestPreviousStation() },
-                        onNext = { swipeDirection = 1f; playerControlViewModel.requestNextStation() },
+                        onPrevious = {
+                            swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                        },
+                        onNext = {
+                            swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                        },
                         onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
                         colorScheme = colorScheme
                     )
@@ -410,6 +418,7 @@ fun StationHeader(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.primary
                     )
+
                     is StreamStates.BUFFERING, is StreamStates.PREPARING -> {
                         DotLoadingAnimation(
                             dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
@@ -428,6 +437,7 @@ fun StationHeader(
                             color = colorScheme.tertiary
                         )
                     }
+
                     else -> {}
                 }
             }
@@ -818,7 +828,9 @@ fun AnimatedPlayPauseButton(
             ) { playing ->
                 Icon(
                     painter = painterResource(id = if (playing) R.drawable.ic_player_pause else R.drawable.ic_player_play),
-                    contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
+                    contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(
+                        R.string.player_play
+                    ),
                     modifier = Modifier.size(40.dp),
                     tint = Color.White
                 )
@@ -870,7 +882,11 @@ fun EqualizerDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(frequency, style = MaterialTheme.typography.labelLarge)
-                                Text("${localLevel.toInt()} dB", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${localLevel.toInt()} dB",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             Slider(
                                 value = localLevel,
@@ -954,7 +970,10 @@ fun SleepTimerDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (minutes < 60) stringResource(R.string.player_minutes, minutes)
+                                text = if (minutes < 60) stringResource(
+                                    R.string.player_minutes,
+                                    minutes
+                                )
                                 else stringResource(R.string.player_hour),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = colorScheme.onSurface,

@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.sp
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
-import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
 import kotlinx.coroutines.delay
@@ -58,7 +58,8 @@ fun RadioStationRow(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isBuffering = isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+    val isBuffering =
+        isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
@@ -101,13 +102,22 @@ fun RadioStationRow(
             Box(
                 modifier = Modifier
                     .size(if (isSmall) 36.dp else 48.dp)
-                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                    .border(
+                        0.5.dp,
+                        colorScheme.outline.copy(alpha = 0.6f),
+                        RoundedCornerShape(0.dp)
+                    )
                     .pulseAnimation(enabled = isBuffering)
             ) {
                 Image(
                     painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
-                    modifier = Modifier.fillMaxSize().padding(1.dp),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(1.dp),
                     contentScale = ContentScale.Fit
                 )
                 if (isBuffering) {
@@ -192,9 +202,26 @@ fun RadioStationRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = freqColor)
-                        Text("•", style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant)
-                        Text(station.location, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            station.frequency,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = freqColor
+                        )
+                        Text(
+                            "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            station.location,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -204,7 +231,11 @@ fun RadioStationRow(
                 horizontalArrangement = Arrangement.spacedBy(if (isSmall) 2.dp else 8.dp),
             ) {
                 if (isLivePlaying && !isSmall) {
-                    MiniWaveformVisualization(modifier = Modifier.width(60.dp), height = 16.dp, color = colorScheme.primary)
+                    MiniWaveformVisualization(
+                        modifier = Modifier.width(60.dp),
+                        height = 16.dp,
+                        color = colorScheme.primary
+                    )
                 }
                 FavoriteIcon(
                     isFavorite = station.isFavorite,

@@ -51,7 +51,8 @@ fun AboutDialog(
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
     val deviceInfo = remember { "${Build.MANUFACTURER} ${Build.MODEL}" }
-    val androidVersion = remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
+    val androidVersion =
+        remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -253,7 +254,11 @@ private fun shareApp(context: Context) {
         putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
         putExtra(
             Intent.EXTRA_TEXT,
-            context.getString(R.string.share_app_text, context.getString(R.string.app_name), appPackage)
+            context.getString(
+                R.string.share_app_text,
+                context.getString(R.string.app_name),
+                appPackage
+            )
         )
     }
     context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_via)))

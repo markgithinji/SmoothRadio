@@ -16,7 +16,10 @@ object MetadataUtils {
                     if (title.isNotEmpty()) "$title - $artist" else ""
                 } else {
                     val fallbackPattern =
-                        Regex("""<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""", RegexOption.DOT_MATCHES_ALL)
+                        Regex(
+                            """<LogEvent[^>]*Type="SONG"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*/>""",
+                            RegexOption.DOT_MATCHES_ALL
+                        )
                     val fallbackMatch = fallbackPattern.find(trimmed)
                     fallbackMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
                 }
