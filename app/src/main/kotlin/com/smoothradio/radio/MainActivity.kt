@@ -155,8 +155,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun disconnectMediaController() {
-        mediaController?.let {
-            it.release()
+        try {
+            mediaController?.release()
+        } catch (e: Exception) {
+            Log.e("MainActivityLogs", "Error releasing MediaController", e)
+        } finally {
             mediaController = null
         }
     }
@@ -305,11 +308,7 @@ class MainActivity : FragmentActivity() {
         serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
         serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
         serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        startService(serviceIntent)
     }
 
     private fun playOnly() {
