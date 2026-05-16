@@ -56,6 +56,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var serviceIntent: Intent
     private var interstitialAd: InterstitialAd? = null
     private var isShowingAd = false
+    private var currentAdRequestId = 0
     private var adFailedCountdown = 0
     private var canShowAd: Boolean = true
     private var isPlaying = false
@@ -206,7 +207,6 @@ class MainActivity : FragmentActivity() {
                                     Log.d("MainActivityLogs", "  → startNewPlay()")
                                     startNewPlay()
                                 }
-                                playerControlViewModel.savePlayingStationId(station.id)
                             }
 
                             is PlayCommand.Refresh -> refresh()
@@ -253,10 +253,11 @@ class MainActivity : FragmentActivity() {
         Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
         isPlaying = true
         if (isShowingAd) {
-            Log.d("MainActivityLogs", "  → BLOCKED: ad showing")
+            Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
             return
         }
 
+        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -269,6 +270,7 @@ class MainActivity : FragmentActivity() {
             Log.d("MainActivityLogs", "  → STOP")
             isPlaying = false
             isShowingAd = false
+            currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
             startService(serviceIntent)
             return
@@ -292,6 +294,7 @@ class MainActivity : FragmentActivity() {
         if (isShowingAd) return
 
         isPlaying = true
+        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -321,9 +324,12 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun loadInterstitialAd() {
+        val requestId = ++currentAdRequestId
+        Log.d("MainActivityLogsAd", "loadInterstitialAd() called (reqId=$requestId) | canShowAd=$canShowAd")
         isShowingAd = true
 
         if (interstitialAd != null) {
+            Log.d("MainActivityLogsAd", "  → Ad already exists, showing now")
             if (isPlaying) showAd()
             return
         }
@@ -335,14 +341,20 @@ class MainActivity : FragmentActivity() {
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
+                    if (requestId != currentAdRequestId) {
+                        Log.d("MainActivityLogsAd", "  → Stale ad load ignored (reqId=$requestId)")
+                        return
+                    }
+                    Log.d("MainActivityLogsAd", "Ad successfully loaded (reqId=$requestId)")
                     interstitialAd = ad
                     if (isPlaying) showAd()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    if (requestId != currentAdRequestId) return
                     Log.e(
-                        "MainActivityLogs",
-                        "Ad failed to load: ${loadAdError.message} (code: ${loadAdError.code})"
+                        "MainActivityLogsAd",
+                        "Ad failed to load (reqId=$requestId): ${loadAdError.message}"
                     )
                     interstitialAd = null
                     handleAdLoadFailure(loadAdError)
@@ -352,19 +364,23 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showAd() {
+        Log.d("MainActivityLogsAd", "showAd() called")
         if (!canShowAd) {
+            Log.d("MainActivityLogsAd", "  → BLOCKED: canShowAd is false")
             isShowingAd = false
             playOnly()
             return
         }
 
         val ad = interstitialAd ?: run {
+            Log.d("MainActivityLogsAd", "  → BLOCKED: No ad ready, loading one")
             loadInterstitialAd()
             return
         }
 
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
+                Log.d("MainActivityLogsAd", "Ad dismissed by user")
                 interstitialAd = null
                 playOnly()
                 isShowingAd = false
@@ -374,12 +390,17 @@ class MainActivity : FragmentActivity() {
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 Log.e(
-                    "MainActivityLogs",
-                    "Ad failed to show: ${adError.message} (code: ${adError.code})"
+                    "MainActivityLogsAd",
+                    "Ad failed to show: ${adError.message}"
                 )
                 interstitialAd = null
                 isShowingAd = false
                 stopService(serviceIntent)
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                Log.d("MainActivityLogsAd", "Ad is now showing full screen")
+                isShowingAd = true
             }
         }
 
@@ -389,7 +410,7 @@ class MainActivity : FragmentActivity() {
     private fun handleAdLoadFailure(loadAdError: LoadAdError) {
         adFailedCountdown++
         Log.d(
-            "MainActivityLogs",
+            "MainActivityLogsAd",
             "Handling ad load failure. Attempt: $adFailedCountdown/$MAX_AD_LOAD_ATTEMPTS"
         )
         if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
@@ -402,7 +423,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun preloadInterstitialAd() {
-        if (interstitialAd != null) return
+        Log.d("MainActivityLogsAd", "preloadInterstitialAd() called")
+        if (interstitialAd != null) {
+            Log.d("MainActivityLogsAd", "  → Skipping: Ad already preloaded")
+            return
+        }
 
         val adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
@@ -411,14 +436,15 @@ class MainActivity : FragmentActivity() {
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d("MainActivityLogsAd", "Preload ad loaded successfully")
                     interstitialAd = ad
                     adFailedCountdown = 0
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     Log.e(
-                        "MainActivityLogs",
-                        "Preload ad failed to load: ${loadAdError.message} (code: ${loadAdError.code})"
+                        "MainActivityLogsAd",
+                        "Preload ad failed to load: ${loadAdError.message}"
                     )
                     interstitialAd = null
                     when (loadAdError.code) {
@@ -471,6 +497,7 @@ class MainActivity : FragmentActivity() {
 
     private fun initializeMobileAdsSdk() {
         if (isMobileAdsInitializeCalled.getAndSet(true)) return
+        Log.d("MainActivityLogsAd", "Initializing Mobile Ads SDK")
         MobileAds.initialize(this)
     }
 
