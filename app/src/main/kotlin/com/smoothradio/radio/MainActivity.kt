@@ -1,6 +1,5 @@
 package com.smoothradio.radio
 
-import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.ConnectivityManager
@@ -12,16 +11,12 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.common.Player
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -33,6 +28,7 @@ import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
@@ -46,7 +42,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
-    private var mediaController: MediaController? = null
     private val playerControlViewModel: PlayerControlViewModel by viewModels()
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
@@ -55,7 +50,6 @@ class MainActivity : FragmentActivity() {
     // Playback state
     private lateinit var serviceIntent: Intent
     private var interstitialAd: InterstitialAd? = null
-    private var isShowingAd = false
     private var currentAdRequestId = 0
     private var adFailedCountdown = 0
     private var canShowAd: Boolean = true
@@ -108,62 +102,6 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        connectToMediaController()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        disconnectMediaController()
-    }
-
-    private fun connectToMediaController() {
-        val sessionToken = SessionToken(this, ComponentName(this, StreamService::class.java))
-        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture.addListener({
-            try {
-                mediaController = controllerFuture.get()
-                mediaController?.addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(state: Int) {
-                        isPlaying = when (state) {
-                            Player.STATE_BUFFERING,
-                            Player.STATE_READY -> true
-
-                            Player.STATE_IDLE,
-                            Player.STATE_ENDED -> false
-
-                            else -> isPlaying
-                        }
-                        Log.d(
-                            "MainActivityLogs",
-                            "MediaController state: $state → isPlaying=$isPlaying"
-                        )
-                    }
-
-//                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-//                        this@MainActivity.isPlaying = isPlaying
-//                        Log.d("MainActivityLogs", "MediaController isPlaying changed: $isPlaying")
-//                    }
-                })
-
-//                isPlaying = mediaController!!.isPlaying
-            } catch (e: Exception) {
-                Log.e("MainActivityLogs", "MediaController connection failed", e)
-            }
-        }, ContextCompat.getMainExecutor(this))
-    }
-
-    private fun disconnectMediaController() {
-        try {
-            mediaController?.release()
-        } catch (e: Exception) {
-            Log.e("MainActivityLogs", "Error releasing MediaController", e)
-        } finally {
-            mediaController = null
-        }
-    }
-
     private fun sendFirebaseAnalytics(stationName: String) {
         val event = stationName.lowercase().replace(" ", "_")
         val bundle = Bundle().apply {
@@ -176,14 +114,15 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    playerControlViewModel.playingStation.collect { station ->
-                        station?.let {
-                            currentStation = it
-                            Log.d(
-                                "MainActivityLogs",
-                                "Synced currentStation from repo: ${it.stationName}"
-                            )
+                    playerControlViewModel.playbackState.collect { state ->
+                        isPlaying = when (state) {
+                            StreamStates.PLAYING,
+                            StreamStates.BUFFERING,
+                            StreamStates.PREPARING -> true
+
+                            else -> false
                         }
+                        Log.d("MainActivityLogs", "StreamState: ${state.label} → isPlaying=$isPlaying")
                     }
                 }
 
@@ -253,14 +192,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startNewPlay() {
-        Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying | isShowingAd=$isShowingAd")
-        isPlaying = true
-        if (isShowingAd) {
+        Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying")
+
+        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
             Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
             return
         }
 
-        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -271,22 +209,13 @@ class MainActivity : FragmentActivity() {
     private fun playOrStop() {
         if (isPlaying) {
             Log.d("MainActivityLogs", "  → STOP")
-            isPlaying = false
-            isShowingAd = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
             startService(serviceIntent)
             return
         }
 
-        if (isShowingAd) {
-            Log.d("MainActivityLogs", "  → BLOCKED: ad showing")
-            return
-        }
-
         Log.d("MainActivityLogs", "  → START")
-        isPlaying = true
-        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -294,10 +223,8 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun refresh() {
-        if (isShowingAd) return
+        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) return
 
-        isPlaying = true
-        isShowingAd = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -312,24 +239,17 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun playOnly() {
-        if (!isPlaying) {
-            Log.d("MainActivityLogs", "playOnly: user stopped - skipping")
-            return
-        }
-
         serviceIntent.action = StreamService.ACTION_START
         startStreamService()
-        isPlaying = true
     }
 
     private fun loadInterstitialAd() {
         val requestId = ++currentAdRequestId
         Log.d("MainActivityLogsAd", "loadInterstitialAd() called (reqId=$requestId) | canShowAd=$canShowAd")
-        isShowingAd = true
 
         if (interstitialAd != null) {
             Log.d("MainActivityLogsAd", "  → Ad already exists, showing now")
-            if (isPlaying) showAd()
+            if (serviceIntent.action == StreamService.ACTION_SHOW_AD) showAd()
             return
         }
 
@@ -346,7 +266,7 @@ class MainActivity : FragmentActivity() {
                     }
                     Log.d("MainActivityLogsAd", "Ad successfully loaded (reqId=$requestId)")
                     interstitialAd = ad
-                    if (isPlaying) showAd()
+                    if (serviceIntent.action == StreamService.ACTION_SHOW_AD) showAd()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
@@ -356,7 +276,7 @@ class MainActivity : FragmentActivity() {
                         "Ad failed to load (reqId=$requestId): ${loadAdError.message}"
                     )
                     interstitialAd = null
-                    handleAdLoadFailure(loadAdError)
+                    handleAdLoadFailure()
                 }
             }
         )
@@ -366,7 +286,6 @@ class MainActivity : FragmentActivity() {
         Log.d("MainActivityLogsAd", "showAd() called")
         if (!canShowAd) {
             Log.d("MainActivityLogsAd", "  → BLOCKED: canShowAd is false")
-            isShowingAd = false
             playOnly()
             return
         }
@@ -382,7 +301,6 @@ class MainActivity : FragmentActivity() {
                 Log.d("MainActivityLogsAd", "Ad dismissed by user")
                 interstitialAd = null
                 playOnly()
-                isShowingAd = false
                 preloadInterstitialAd()
                 playerControlViewModel.recordAdShown()
             }
@@ -393,20 +311,14 @@ class MainActivity : FragmentActivity() {
                     "Ad failed to show: ${adError.message}"
                 )
                 interstitialAd = null
-                isShowingAd = false
                 stopService(serviceIntent)
-            }
-
-            override fun onAdShowedFullScreenContent() {
-                Log.d("MainActivityLogsAd", "Ad is now showing full screen")
-                isShowingAd = true
             }
         }
 
         ad.show(this)
     }
 
-    private fun handleAdLoadFailure(loadAdError: LoadAdError) {
+    private fun handleAdLoadFailure() {
         adFailedCountdown++
         Log.d(
             "MainActivityLogsAd",
@@ -416,7 +328,6 @@ class MainActivity : FragmentActivity() {
             loadInterstitialAd()
         } else {
             adFailedCountdown = 0
-            isShowingAd = false
             playOnly()
         }
     }
@@ -448,7 +359,7 @@ class MainActivity : FragmentActivity() {
                     interstitialAd = null
                     when (loadAdError.code) {
                         AdRequest.ERROR_CODE_NETWORK_ERROR,
-                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> {
+                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> { // Avoid preloading during no ad fill errors
                             adFailedCountdown++
                             if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
                                 preloadInterstitialAd()
@@ -498,11 +409,6 @@ class MainActivity : FragmentActivity() {
         if (isMobileAdsInitializeCalled.getAndSet(true)) return
         Log.d("MainActivityLogsAd", "Initializing Mobile Ads SDK")
         MobileAds.initialize(this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        disconnectMediaController()
     }
 
     companion object {
