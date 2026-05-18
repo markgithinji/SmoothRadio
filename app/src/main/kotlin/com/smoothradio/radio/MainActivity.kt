@@ -11,6 +11,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
@@ -122,7 +123,10 @@ class MainActivity : FragmentActivity() {
 
                             else -> false
                         }
-                        Log.d("MainActivityLogs", "StreamState: ${state.label} → isPlaying=$isPlaying")
+                        Log.d(
+                            "MainActivityLogs",
+                            "StreamState: ${state.label} → isPlaying=$isPlaying"
+                        )
                     }
                 }
 
@@ -212,6 +216,7 @@ class MainActivity : FragmentActivity() {
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
             startService(serviceIntent)
+//            stopService(serviceIntent)
             return
         }
 
@@ -235,7 +240,7 @@ class MainActivity : FragmentActivity() {
         serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
         serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
         serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
-        startService(serviceIntent)
+        ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun playOnly() {
@@ -245,7 +250,10 @@ class MainActivity : FragmentActivity() {
 
     private fun loadInterstitialAd() {
         val requestId = ++currentAdRequestId
-        Log.d("MainActivityLogsAd", "loadInterstitialAd() called (reqId=$requestId) | canShowAd=$canShowAd")
+        Log.d(
+            "MainActivityLogsAd",
+            "loadInterstitialAd() called (reqId=$requestId) | canShowAd=$canShowAd"
+        )
 
         if (interstitialAd != null) {
             Log.d("MainActivityLogsAd", "  → Ad already exists, showing now")
