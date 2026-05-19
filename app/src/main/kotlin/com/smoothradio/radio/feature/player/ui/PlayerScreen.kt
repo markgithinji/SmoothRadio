@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -64,6 +65,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +78,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -99,6 +102,8 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
+import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
+import timber.log.Timber
 
 @Composable
 fun PlayerScreen(
@@ -136,15 +141,25 @@ fun PlayerScreen(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenHeight = maxHeight
+        val screenWidth = maxWidth
+        // Switch to landscape earlier (at 90% width) for a better desktop/foldable experience
+        val isLandscape = screenWidth > (screenHeight * 0.9f)
+
+        LaunchedEffect(screenWidth, screenHeight) {
+            Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
+            Timber.d("Current Screen Height: $screenHeight")
+        }
 
         // Responsive Layout Configuration
-        val layoutConfig = remember(screenHeight) {
-            val isTinyCompact = screenHeight < 200.dp
+        val layoutConfig = remember(screenHeight, screenWidth) {
+            val isTinyCompact = if (isLandscape) screenHeight < 240.dp else screenHeight < 200.dp
             val isCompact = screenHeight in 200.dp..380.dp
             val isShrinking = screenHeight in 380.dp..425.dp
             val isMedium = screenHeight in 426.dp..550.dp
+            val isWidePortrait = !isLandscape && screenWidth > 500.dp
 
             val logoVisibility = when {
+                isLandscape -> if (screenHeight > 280.dp) 1f else 0f
                 screenHeight >= 595.dp -> 1f
                 screenHeight <= 370.dp -> 0f
                 else -> {
@@ -167,14 +182,15 @@ fun PlayerScreen(
             }
 
             object {
-                val showAd = screenHeight > 670.dp
-                val showSecondRow = screenHeight > 740.dp
-                val showMetadata = screenHeight > 640.dp
+                val showAd = if (isLandscape) screenHeight > 500.dp else screenHeight > 670.dp
+                val showSecondRow = if (isLandscape) screenHeight > 400.dp else screenHeight > 740.dp
+                val showMetadata = if (isLandscape) screenHeight > 320.dp else screenHeight > 640.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
                 val shrinking = isShrinking
                 val btnScale = playButtonScale
+                val landscape = isLandscape
 
                 val horizontalPadding = when {
                     isTinyCompact || isCompact -> 8.dp
@@ -191,6 +207,8 @@ fun PlayerScreen(
                 }
 
                 val logoScale = when {
+                    isLandscape -> 0.45f
+                    isWidePortrait -> 0.5f // Smaller scale for wide portrait to prevent crowding
                     isShrinking -> 0.4f
                     isMedium -> 0.55f
                     else -> 0.7f
@@ -227,97 +245,210 @@ fun PlayerScreen(
                         )
                     }
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = layoutConfig.horizontalPadding)
-                        .padding(top = layoutConfig.topPadding, bottom = 16.dp),
-                    verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
-                ) {
-                    // Logo Section
-                    if (layoutConfig.logoAlpha > 0f) {
-                        PlayerLogoSection(
-                            currentStation = currentStation,
-                            playbackState = playbackState,
-                            swipeDirection = swipeDirection,
-                            modifier = Modifier
-                                .fillMaxWidth(layoutConfig.logoScale)
-                                .aspectRatio(1f)
-                        )
-                        Spacer(
-                            modifier = Modifier.height(
-                                (if (layoutConfig.shrinking) 8.dp else 16.dp) * layoutConfig.logoAlpha
-                            )
-                        )
-                    }
+                if (layoutConfig.landscape) {
+                    // Landscape layout for tablets/phones
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = layoutConfig.horizontalPadding)
+                            .padding(top = layoutConfig.topPadding, bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (layoutConfig.logoAlpha > 0f) {
+                            // Left side: Logo Section
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PlayerLogoSection(
+                                    currentStation = currentStation,
+                                    playbackState = playbackState,
+                                    swipeDirection = swipeDirection,
+                                    modifier = Modifier
+                                        .fillMaxHeight(0.9f)
+                                        .aspectRatio(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(24.dp))
+                        }
 
-                    // Station Name
-                    if (!layoutConfig.tinyCompact) {
-                        StationHeader(
-                            stationName = currentStation.stationName,
-                            playbackState = playbackState,
-                            isCompact = layoutConfig.compact,
-                            isShrinking = layoutConfig.shrinking,
-                            colorScheme = colorScheme
-                        )
-                    }
-
-                    // Metadata
-                    if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
-                        Spacer(modifier = Modifier.height(if (layoutConfig.showAd) 16.dp else 10.dp))
-                        Box(
-                            modifier = Modifier
-                                .height(48.dp)
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
+                        // Info and Controls
+                        Column(
+                            modifier = if (layoutConfig.logoAlpha > 0f) Modifier.weight(1.2f) else Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
-                                AnimatedMetadataWithMarquee(metadata = metadata, isVisible = true)
+                            if (!layoutConfig.tinyCompact) {
+                                StationHeader(
+                                    stationName = currentStation.stationName,
+                                    playbackState = playbackState,
+                                    isCompact = layoutConfig.compact,
+                                    isShrinking = layoutConfig.shrinking,
+                                    colorScheme = colorScheme
+                                )
+
+                                if (layoutConfig.showMetadata) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .height(48.dp)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
+                                            AnimatedMetadataWithMarquee(
+                                                metadata = metadata,
+                                                isVisible = true
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+
+                            PlaybackControlRow(
+                                playbackState = playbackState,
+                                playButtonScale = layoutConfig.btnScale,
+                                isTinyCompact = layoutConfig.tinyCompact,
+                                isCompact = layoutConfig.compact,
+                                onPrevious = {
+                                    swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                                },
+                                onNext = {
+                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                                },
+                                onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
+                                colorScheme = colorScheme
+                            )
+
+                            if (layoutConfig.showSecondRow) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                ActionButtonsRow(
+                                    onRefresh = { playerControlViewModel.requestRefresh() },
+                                    onSleepClick = { showSleepDialog = true },
+                                    colorScheme = colorScheme
+                                )
+                            }
+
+                            if (layoutConfig.showAd) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                AdBanner()
                             }
                         }
                     }
+                } else {
+                    // Portrait layout
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = layoutConfig.horizontalPadding)
+                            .padding(top = layoutConfig.topPadding, bottom = 16.dp),
+                        verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
+                    ) {
+                        // Logo Section
+                        if (layoutConfig.logoAlpha > 0f) {
+                            PlayerLogoSection(
+                                currentStation = currentStation,
+                                playbackState = playbackState,
+                                swipeDirection = swipeDirection,
+                                modifier = Modifier
+                                    .fillMaxWidth(layoutConfig.logoScale)
+                                    .fillMaxHeight(0.45f)
+                                    .sizeIn(maxWidth = 400.dp, maxHeight = 400.dp)
+                                    .aspectRatio(1f)
+                            )
+                            Spacer(
+                                modifier = Modifier.height(
+                                    (if (layoutConfig.shrinking) 8.dp else 16.dp) * layoutConfig.logoAlpha
+                                )
+                            )
+                        }
 
-                    if (!layoutConfig.tinyCompact) {
-                        Spacer(modifier = Modifier.height(if (layoutConfig.compact || layoutConfig.shrinking) 12.dp else 16.dp))
-                    }
-                    if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(
-                        modifier = Modifier.weight(
-                            1f
+                        // Station Name
+                        if (!layoutConfig.tinyCompact) {
+                            StationHeader(
+                                stationName = currentStation.stationName,
+                                playbackState = playbackState,
+                                isCompact = layoutConfig.compact,
+                                isShrinking = layoutConfig.shrinking,
+                                colorScheme = colorScheme
+                            )
+                        }
+
+                        // Metadata
+                        if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
+                            Spacer(
+                                modifier = Modifier.height(
+                                    if (layoutConfig.showAd) 16.dp else 10.dp
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
+                                    AnimatedMetadataWithMarquee(
+                                        metadata = metadata,
+                                        isVisible = true
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!layoutConfig.tinyCompact) {
+                            Spacer(
+                                modifier = Modifier.height(
+                                    if (layoutConfig.compact || layoutConfig.shrinking) 12.dp else 16.dp
+                                )
+                            )
+                        }
+                        if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(
+                            modifier = Modifier.weight(
+                                1f
+                            )
                         )
-                    )
 
-                    // Playback Controls
-                    PlaybackControlRow(
-                        playbackState = playbackState,
-                        playButtonScale = layoutConfig.btnScale,
-                        isTinyCompact = layoutConfig.tinyCompact,
-                        isCompact = layoutConfig.compact,
-                        onPrevious = {
-                            swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
-                        },
-                        onNext = {
-                            swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                        },
-                        onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
-                        colorScheme = colorScheme
-                    )
-
-                    // Secondary controls
-                    if (layoutConfig.showSecondRow) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        ActionButtonsRow(
-                            onRefresh = { playerControlViewModel.requestRefresh() },
-                            onSleepClick = { showSleepDialog = true },
+                        // Playback Controls
+                        PlaybackControlRow(
+                            playbackState = playbackState,
+                            playButtonScale = layoutConfig.btnScale,
+                            isTinyCompact = layoutConfig.tinyCompact,
+                            isCompact = layoutConfig.compact,
+                            onPrevious = {
+                                swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                            },
+                            onNext = {
+                                swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                            },
+                            onPlayPause = {
+                                playerControlViewModel.requestPlayStation(
+                                    currentStation
+                                )
+                            },
                             colorScheme = colorScheme
                         )
-                    }
 
-                    // Ad
-                    if (layoutConfig.showAd) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        AdBanner()
+                        // Secondary controls
+                        if (layoutConfig.showSecondRow) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            ActionButtonsRow(
+                                onRefresh = { playerControlViewModel.requestRefresh() },
+                                onSleepClick = { showSleepDialog = true },
+                                colorScheme = colorScheme
+                            )
+                        }
+
+                        // Ad
+                        if (layoutConfig.showAd) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            AdBanner()
+                        }
                     }
                 }
             }
@@ -677,13 +808,17 @@ fun PlayerLogoSection(
                     },
                     label = "logoTransition"
                 ) { station ->
+                    val safeLogoId = rememberSafeLogoId(station.logoResource)
                     Image(
-                        painter = painterResource(id = station.logoResource),
+                        painter = painterResource(id = safeLogoId),
                         contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.Fit,
+                        colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                            ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                        } else null
                     )
                 }
             }
