@@ -100,6 +100,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
+import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
@@ -476,36 +477,6 @@ fun PlayerScreen(
                 playerControlViewModel.setSleepTimer(minutes)
             }
         )
-    }
-}
-
-@Composable
-fun AdBanner() {
-    val colorScheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Card(
-            modifier = Modifier
-                .wrapContentWidth()
-                .height(50.dp), // Standard AdSize.BANNER height is 50dp
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    AdView(ctx).apply {
-                        adUnitId = AdConfig.bannerAdId
-                        setAdSize(AdSize.BANNER)
-                        loadAd(AdRequest.Builder().build())
-                    }
-                },
-                modifier = Modifier.wrapContentWidth()
-            )
-        }
     }
 }
 
