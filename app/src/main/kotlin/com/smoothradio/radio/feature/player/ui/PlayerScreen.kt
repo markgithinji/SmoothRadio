@@ -795,8 +795,10 @@ fun PlayerLogoSection(
                 }
         ) {
             Box(contentAlignment = Alignment.Center) {
+                // Use a Pair of ID and logo as targetState to ensure the transition captures the specific logo
+                // and doesn't update the outgoing content's logo when currentStation changes.
                 AnimatedContent(
-                    targetState = currentStation,
+                    targetState = currentStation.id to currentStation.logoResource,
                     transitionSpec = {
                         val springSpec = spring<IntOffset>(
                             dampingRatio = Spring.DampingRatioLowBouncy,
@@ -813,11 +815,11 @@ fun PlayerLogoSection(
                         }
                     },
                     label = "logoTransition"
-                ) { station ->
-                    val safeLogoId = rememberSafeLogoId(station.logoResource)
+                ) { (stationId, logoRes) ->
+                    val safeLogoId = rememberSafeLogoId(logoRes)
                     Image(
                         painter = painterResource(id = safeLogoId),
-                        contentDescription = "${station.stationName} logo",
+                        contentDescription = "Station logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
