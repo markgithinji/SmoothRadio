@@ -152,7 +152,7 @@ fun PlayerScreen(
 
         // Responsive Layout Configuration
         val layoutConfig = remember(screenHeight, screenWidth) {
-            val isTinyCompact = if (isLandscape) screenHeight < 240.dp else screenHeight < 200.dp
+            val isTinyCompact = if (isLandscape) screenHeight < 260.dp else screenHeight < 200.dp
             val isCompact = screenHeight in 200.dp..380.dp
             val isShrinking = screenHeight in 380.dp..425.dp
             val isMedium = screenHeight in 426.dp..550.dp
@@ -183,7 +183,7 @@ fun PlayerScreen(
 
             object {
                 val showAd = if (isLandscape) screenHeight > 500.dp else screenHeight > 670.dp
-                val showSecondRow = if (isLandscape) screenHeight > 400.dp else screenHeight > 740.dp
+                val showSecondRow = if (isLandscape) screenHeight >= 440.dp else screenHeight > 740.dp
                 val showMetadata = if (isLandscape) screenHeight > 320.dp else screenHeight > 640.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
@@ -631,7 +631,8 @@ fun ActionButtonsRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         ActionButton(
             iconRes = R.drawable.ic_player_refresh,
@@ -678,17 +679,22 @@ fun ActionButton(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            modifier = Modifier.size(48.dp)
         ) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = label,
-                modifier = Modifier.size(if (iconRes == R.drawable.ic_player_timer) 24.dp else 22.dp),
-                tint = colorScheme.onSurfaceVariant
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = label,
+                    tint = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         Text(
             text = label,
@@ -1085,7 +1091,9 @@ fun SleepTimerDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
                 Text(
                     stringResource(R.string.player_stop_playback_after),
