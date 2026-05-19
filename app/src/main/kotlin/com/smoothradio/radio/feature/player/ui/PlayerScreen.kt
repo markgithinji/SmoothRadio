@@ -103,6 +103,7 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
+import com.smoothradio.radio.core.util.AdConfig
 import timber.log.Timber
 
 @Composable
@@ -345,7 +346,7 @@ fun PlayerScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = layoutConfig.horizontalPadding)
-                            .padding(top = layoutConfig.topPadding, bottom = 16.dp),
+                            .padding(top = layoutConfig.topPadding, bottom = 8.dp), // Reduced bottom padding
                         verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
                     ) {
                         // Logo Section
@@ -356,13 +357,13 @@ fun PlayerScreen(
                                 swipeDirection = swipeDirection,
                                 modifier = Modifier
                                     .fillMaxWidth(layoutConfig.logoScale)
-                                    .fillMaxHeight(0.45f)
+                                    .fillMaxHeight(0.40f) // Slightly reduced max height
                                     .sizeIn(maxWidth = 400.dp, maxHeight = 400.dp)
                                     .aspectRatio(1f)
                             )
                             Spacer(
                                 modifier = Modifier.height(
-                                    (if (layoutConfig.shrinking) 8.dp else 16.dp) * layoutConfig.logoAlpha
+                                    (if (layoutConfig.shrinking) 4.dp else 12.dp) * layoutConfig.logoAlpha
                                 )
                             )
                         }
@@ -382,7 +383,7 @@ fun PlayerScreen(
                         if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
                             Spacer(
                                 modifier = Modifier.height(
-                                    if (layoutConfig.showAd) 16.dp else 10.dp
+                                    if (layoutConfig.showAd) 12.dp else 8.dp
                                 )
                             )
                             Box(
@@ -404,7 +405,7 @@ fun PlayerScreen(
                         if (!layoutConfig.tinyCompact) {
                             Spacer(
                                 modifier = Modifier.height(
-                                    if (layoutConfig.compact || layoutConfig.shrinking) 12.dp else 16.dp
+                                    if (layoutConfig.compact || layoutConfig.shrinking) 8.dp else 12.dp
                                 )
                             )
                         }
@@ -436,7 +437,7 @@ fun PlayerScreen(
 
                         // Secondary controls
                         if (layoutConfig.showSecondRow) {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(if (layoutConfig.showAd) 16.dp else 24.dp))
                             ActionButtonsRow(
                                 onRefresh = { playerControlViewModel.requestRefresh() },
                                 onSleepClick = { showSleepDialog = true },
@@ -446,7 +447,7 @@ fun PlayerScreen(
 
                         // Ad
                         if (layoutConfig.showAd) {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(if (layoutConfig.compact) 8.dp else 16.dp))
                             AdBanner()
                         }
                     }
@@ -488,8 +489,8 @@ fun AdBanner() {
         Card(
             modifier = Modifier
                 .wrapContentWidth()
-                .height(70.dp),
-            shape = RoundedCornerShape(16.dp),
+                .height(50.dp), // Standard AdSize.BANNER height is 50dp
+            shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(
                 containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
@@ -497,14 +498,12 @@ fun AdBanner() {
             AndroidView(
                 factory = { ctx ->
                     AdView(ctx).apply {
-                        adUnitId = "ca-app-pub-9799428944156340/4540584810"
+                        adUnitId = AdConfig.bannerAdId
                         setAdSize(AdSize.BANNER)
                         loadAd(AdRequest.Builder().build())
                     }
                 },
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .fillMaxHeight()
+                modifier = Modifier.wrapContentWidth()
             )
         }
     }
