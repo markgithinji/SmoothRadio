@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -56,6 +57,7 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 
 @Composable
 fun PersistentMiniPlayer(
@@ -71,6 +73,7 @@ fun PersistentMiniPlayer(
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
+    val safeLogoId = rememberSafeLogoId(station.logoResource)
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -116,7 +119,7 @@ fun PersistentMiniPlayer(
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = station.logoResource),
+                    painter = painterResource(id = safeLogoId),
                     contentDescription = stringResource(
                         R.string.station_logo_content_description,
                         station.stationName
@@ -124,7 +127,10 @@ fun PersistentMiniPlayer(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
 
                 if (isBuffering) {

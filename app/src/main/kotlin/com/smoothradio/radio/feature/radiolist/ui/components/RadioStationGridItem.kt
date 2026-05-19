@@ -29,12 +29,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,6 +53,7 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 
 @Composable
 fun RadioStationGridItem(
@@ -65,6 +69,8 @@ fun RadioStationGridItem(
         isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
+
+    val safeLogoId = rememberSafeLogoId(station.logoResource)
 
     // Under 95dp: logo + name only (no fav, no status)
     // 95-115dp: logo + name + fav (no status)
@@ -155,7 +161,7 @@ fun RadioStationGridItem(
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = station.logoResource),
+                    painter = painterResource(id = safeLogoId),
                     contentDescription = stringResource(
                         R.string.station_logo_content_description,
                         station.stationName
@@ -163,7 +169,10 @@ fun RadioStationGridItem(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
                 if (isBuffering) {
                     Box(

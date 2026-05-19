@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -47,6 +48,7 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 import kotlinx.coroutines.delay
 
 @Composable
@@ -62,6 +64,8 @@ fun RadioStationRow(
         isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
+
+    val safeLogoId = rememberSafeLogoId(station.logoResource)
 
     val rowBackgroundColor by animateColorAsState(
         targetValue = when {
@@ -110,7 +114,7 @@ fun RadioStationRow(
                     .pulseAnimation(enabled = isBuffering)
             ) {
                 Image(
-                    painter = painterResource(id = station.logoResource),
+                    painter = painterResource(id = safeLogoId),
                     contentDescription = stringResource(
                         R.string.station_logo_content_description,
                         station.stationName
@@ -118,7 +122,10 @@ fun RadioStationRow(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(1.dp),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
                 if (isBuffering) {
                     Box(
