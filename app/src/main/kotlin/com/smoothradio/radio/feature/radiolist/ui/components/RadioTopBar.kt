@@ -219,7 +219,7 @@ fun RadioTopBar(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
-                            .padding(horizontal = 16.dp),
+                            .padding(start = 16.dp, end = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -231,7 +231,7 @@ fun RadioTopBar(
                             color = colorScheme.onSurface
                         )
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                             IconButton(onClick = onViewToggleClick) {
                                 Icon(
                                     painter = painterResource(id = if (isGridView) R.drawable.ic_toolbar_list else R.drawable.ic_toolbar_grid),
