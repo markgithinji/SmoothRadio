@@ -29,7 +29,6 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"  // Enables simultaneous installation
             isMinifyEnabled = false
-            isShrinkResources = false
         }
         release {
             isDebuggable = false
