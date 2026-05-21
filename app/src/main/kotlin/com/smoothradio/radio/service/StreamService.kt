@@ -413,6 +413,7 @@ class StreamService : MediaSessionService() {
         mediaSession = null
         isPlaying = false
         stateChange = StreamStates.IDLE
+        stateRepository.updateState(StreamStates.IDLE) // Reset repo state on destroy
         isPreparingForAd = false
         unregisterTimerReceivers()
     }
@@ -506,7 +507,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else return
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.IDLE
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
