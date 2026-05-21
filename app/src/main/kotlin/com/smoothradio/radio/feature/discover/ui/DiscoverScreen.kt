@@ -279,7 +279,7 @@ fun CategoryRow(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 12 .dp)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -287,7 +287,7 @@ fun CategoryRow(
         LazyRow(
             state = scrollState,
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(

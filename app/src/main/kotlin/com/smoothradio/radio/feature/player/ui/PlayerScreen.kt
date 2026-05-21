@@ -117,6 +117,12 @@ fun PlayerScreen(
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
+    LaunchedEffect(metadata) {
+        if (metadata.isNotEmpty()) {
+            android.util.Log.d("PlayerScreenMetadata", "Received metadata: $metadata")
+        }
+    }
+
     var swipeDirection by remember { mutableFloatStateOf(0f) }
     var showSleepDialog by remember { mutableStateOf(false) }
     var showEqDialog by remember { mutableStateOf(false) }
@@ -149,14 +155,16 @@ fun PlayerScreen(
 
         LaunchedEffect(screenWidth, screenHeight) {
             Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
-            Timber.d("Current Screen Height: $screenHeight")
         }
 
         // Responsive Layout Configuration
-        val layoutConfig = remember(screenHeight, screenWidth) {
+        val layoutConfig = remember(screenHeight, screenWidth, isLandscape) {
             val isTinyCompact = if (isLandscape) screenHeight < 260.dp else screenHeight < 200.dp
-            val isCompact = screenHeight in 200.dp..380.dp
-            val isShrinking = screenHeight in 380.dp..425.dp
+            
+            // In landscape, we keep buttons compact
+            val isCompact = isLandscape || screenHeight in 200.dp..380.dp
+            val isShrinking = !isLandscape && screenHeight in 380.dp..425.dp
+
             val isMedium = screenHeight in 426.dp..550.dp
             val isWidePortrait = !isLandscape && screenWidth > 500.dp
 
@@ -186,7 +194,7 @@ fun PlayerScreen(
             object {
                 val showAd = if (isLandscape) screenHeight > 500.dp else screenHeight > 670.dp
                 val showSecondRow = if (isLandscape) screenHeight >= 440.dp else screenHeight > 740.dp
-                val showMetadata = if (isLandscape) screenHeight > 320.dp else screenHeight > 640.dp
+                val showMetadata = if (isLandscape) screenHeight > 320.dp else true
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
