@@ -33,9 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -226,9 +226,13 @@ fun RadioStationGridItem(
                                 Box(
                                     Modifier
                                         .size(6.dp)
-                                        .scale(liveDotScale)
+                                        .graphicsLayer {
+                                            scaleX = liveDotScale
+                                            scaleY = liveDotScale
+                                            alpha = liveDotAlpha
+                                        }
                                         .clip(CircleShape)
-                                        .background(colorScheme.primary.copy(alpha = liveDotAlpha))
+                                        .background(colorScheme.primary)
                                 )
                                 Text(
                                     stringResource(R.string.player_live_tag),

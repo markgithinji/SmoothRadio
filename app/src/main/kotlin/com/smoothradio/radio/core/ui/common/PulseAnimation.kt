@@ -6,7 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
@@ -20,7 +20,7 @@ fun Modifier.pulseAnimation(
     if (!enabled) return@composed this
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val scale by infiniteTransition.animateFloat(
+    val scaleState = infiniteTransition.animateFloat(
         initialValue = initialValue,
         targetValue = targetValue,
         animationSpec = infiniteRepeatable(
@@ -31,7 +31,7 @@ fun Modifier.pulseAnimation(
     )
 
     this.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+        scaleX = scaleState.value
+        scaleY = scaleState.value
     }
 }
