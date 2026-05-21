@@ -115,6 +115,7 @@ dependencies {
     implementation(libs.androidx.media3.cast)
     implementation(libs.play.services.cast.framework)
     implementation(libs.androidx.mediarouter)
+    implementation(libs.androidx.compose.runtime.tracing)
     implementation(libs.androidx.profileinstaller)
     "baselineProfile"(project(":baselineprofile"))
     // Third party libraries
