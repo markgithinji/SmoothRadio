@@ -49,6 +49,7 @@ class PlayerControlViewModel @Inject constructor(
         _isStationChanging
     ) { state, changing ->
         // If we are changing stations, force a loading state until the old stream actually stops
+        // This ensures a consistent ui state when changing stations
         if (changing && state is StreamStates.PLAYING) {
             StreamStates.IDLE
         } else {
@@ -89,7 +90,7 @@ class PlayerControlViewModel @Inject constructor(
         }
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
-                // Filter out transient nulls during station swaps in the DB
+                // Filter out transient nulls during station swaps in the DB - ensure no null stations
                 if (station != null) {
                     _playingStation.value = station
                 }

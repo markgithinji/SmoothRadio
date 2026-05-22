@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +94,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
@@ -103,7 +106,6 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
-import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 import com.smoothradio.radio.core.util.AdConfig
 import timber.log.Timber
 
@@ -366,7 +368,7 @@ fun PlayerScreen(
                                 swipeDirection = swipeDirection,
                                 modifier = Modifier
                                     .fillMaxWidth(layoutConfig.logoScale)
-                                    .fillMaxHeight(0.40f) // Slightly reduced max height
+                                    .fillMaxHeight(0.40f)
                                     .sizeIn(maxWidth = 400.dp, maxHeight = 400.dp)
                                     .aspectRatio(1f)
                             )
@@ -794,15 +796,18 @@ fun PlayerLogoSection(
                     },
                     label = "logoTransition"
                 ) { (stationId, logoRes) ->
-                    val safeLogoId = rememberSafeLogoId(logoRes)
-                    Image(
-                        painter = painterResource(id = safeLogoId),
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(logoRes)
+                            .error(R.drawable.ic_radio_default)
+                            .fallback(R.drawable.ic_radio_default)
+                            .build(),
                         contentDescription = "Station logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
                         contentScale = ContentScale.Fit,
-                        colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                        colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
                             ColorFilter.tint(MaterialTheme.colorScheme.primary)
                         } else null
                     )

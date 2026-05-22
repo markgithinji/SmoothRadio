@@ -47,13 +47,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
-import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 
 @Composable
 fun RadioStationGridItem(
@@ -69,8 +70,6 @@ fun RadioStationGridItem(
         isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
-
-    val safeLogoId = rememberSafeLogoId(station.logoResource)
 
     // Under 95dp: logo + name only (no fav, no status)
     // 95-115dp: logo + name + fav (no status)
@@ -88,21 +87,23 @@ fun RadioStationGridItem(
         label = "overlayColor"
     )
 
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "grid_item")
 
     val liveDotScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
             animation = tween(600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "live_dot_scale"
     )
     val liveDotAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f, targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "live_dot_alpha"
     )
     val nameColor by animateColorAsState(
         targetValue = when {
@@ -160,8 +161,12 @@ fun RadioStationGridItem(
                     .pulseAnimation(enabled = isBuffering),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = safeLogoId),
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(station.logoResource)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
                     contentDescription = stringResource(
                         R.string.station_logo_content_description,
                         station.stationName
@@ -170,7 +175,7 @@ fun RadioStationGridItem(
                         .fillMaxSize()
                         .padding(2.dp),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                    colorFilter = if (station.logoResource == 0 || station.logoResource == R.drawable.ic_radio_default) {
                         ColorFilter.tint(colorScheme.primary)
                     } else null
                 )

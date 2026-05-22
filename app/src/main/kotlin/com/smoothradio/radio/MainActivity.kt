@@ -216,7 +216,6 @@ class MainActivity : FragmentActivity() {
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
             startService(serviceIntent)
-//            stopService(serviceIntent)
             return
         }
 

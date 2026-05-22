@@ -44,20 +44,21 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
-import com.smoothradio.radio.core.ui.common.rememberSafeLogoId
 
 @Composable
 fun PersistentMiniPlayer(
@@ -73,7 +74,6 @@ fun PersistentMiniPlayer(
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
-    val safeLogoId = rememberSafeLogoId(station.logoResource)
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -118,8 +118,12 @@ fun PersistentMiniPlayer(
                     .pulseAnimation(enabled = isBuffering, targetValue = 1.05f),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = safeLogoId),
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(station.logoResource)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
                     contentDescription = stringResource(
                         R.string.station_logo_content_description,
                         station.stationName
@@ -128,7 +132,7 @@ fun PersistentMiniPlayer(
                         .fillMaxSize()
                         .padding(2.dp),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (safeLogoId == R.drawable.ic_radio_default) {
+                    colorFilter = if (station.logoResource == 0 || station.logoResource == R.drawable.ic_radio_default) {
                         ColorFilter.tint(colorScheme.primary)
                     } else null
                 )

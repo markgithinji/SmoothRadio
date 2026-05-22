@@ -252,7 +252,6 @@ fun RadioTopBar(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            // Conditionally show info icon based on screen width
                             if (showInfoIcon) {
                                 IconButton(onClick = onAboutClick) {
                                     Icon(
