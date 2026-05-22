@@ -93,6 +93,14 @@ class StreamService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Only stop the service if we are not playing anything.
+        // This allows the radio to keep playing even if the app is swiped away from Recents.
+        if (!wrappedPlayer.isPlaying && !wrappedPlayer.playWhenReady) {
+            stopSelf()
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         setupWrappedPlayer()
