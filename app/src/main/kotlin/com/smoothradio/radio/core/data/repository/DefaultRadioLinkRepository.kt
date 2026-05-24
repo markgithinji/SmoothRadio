@@ -4,6 +4,8 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.smoothradio.radio.R
+import com.smoothradio.radio.core.data.mapper.toDomain
+import com.smoothradio.radio.core.data.model.AdSettingsDto
 import com.smoothradio.radio.core.domain.model.RemoteAdSettings
 import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
 import com.smoothradio.radio.core.util.RadioStationLinksHelper
@@ -92,7 +94,7 @@ class DefaultRadioLinkRepository @Inject constructor(
      * The listener is automatically removed when the collecting coroutine is cancelled.
      *
      * @return A [Flow] that emits [Resource] objects.
-     *         - [Resource.Success] contains an [AdConfig] object.
+     *         - [Resource.Success] contains an [RemoteAdSettings] object.
      *         - [Resource.Error] contains an error message string.
      */
     override fun getRemoteAdSettingsFlow(): Flow<Resource<RemoteAdSettings>> = callbackFlow {
@@ -121,10 +123,13 @@ class DefaultRadioLinkRepository @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val adConfig = RemoteAdSettings(
-                    adShowIntervalMinutes = document.getLong("adShowIntervalMinutes")?.toInt()
-                        ?: AD_SHOW_INTERVAL_MINUTES,
-                    maxAdsPerHour = document.getLong("maxAdsPerHour")?.toInt() ?: MAX_ADS_PER_HOUR
+                val adSettingsDto = document.toObject(AdSettingsDto::class.java)
+                val adConfig = adSettingsDto?.toDomain(
+                    defaultInterval = AD_SHOW_INTERVAL_MINUTES,
+                    defaultMaxAds = MAX_ADS_PER_HOUR
+                ) ?: RemoteAdSettings(
+                    adShowIntervalMinutes = AD_SHOW_INTERVAL_MINUTES,
+                    maxAdsPerHour = MAX_ADS_PER_HOUR
                 )
 
                 trySend(Resource.Success(adConfig))
