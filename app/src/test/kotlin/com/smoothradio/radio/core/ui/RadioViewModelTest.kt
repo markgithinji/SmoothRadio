@@ -3,7 +3,7 @@ package com.smoothradio.radio.core.ui
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.local.RadioStationDao
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.data.repository.FakeViewPreferenceRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -30,7 +30,7 @@ class RadioViewModelTest {
 
     private lateinit var viewModel: RadioViewModel
     private lateinit var fakeRadioRepository: RadioRepository
-    private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
+    private lateinit var fakeRadioLinkRepository: FakeFirebaseRepository
     private lateinit var fakeViewPreferenceRepository: FakeViewPreferenceRepository
     private lateinit var remoteLinksUseCase: ProcessRemoteLinksUseCase
     private lateinit var fakeRadioStationDao: RadioStationDao
@@ -40,7 +40,7 @@ class RadioViewModelTest {
     fun setup() {
         fakeRadioStationDao = FakeRadioStationDao()
         fakeRadioRepository = FakeRadioRepository(fakeRadioStationDao)
-        fakeRadioLinkRepository = FakeRadioLinkRepository()
+        fakeRadioLinkRepository = FakeFirebaseRepository()
         fakeViewPreferenceRepository = FakeViewPreferenceRepository()
         remoteLinksUseCase =
             ProcessRemoteLinksUseCase(fakeRadioRepository, fakeRadioLinkRepository)

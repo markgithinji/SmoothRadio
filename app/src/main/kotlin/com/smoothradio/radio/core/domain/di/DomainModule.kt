@@ -1,7 +1,7 @@
 package com.smoothradio.radio.core.domain.di
 
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
@@ -21,9 +21,9 @@ class DomainModule {
     @Singleton
     fun provideProcessRemoteLinksUseCase(
         radioRepository: RadioRepository,
-        radioLinkRepository: RadioLinkRepository
+        firebaseRepository: FirebaseRepository
     ): ProcessRemoteLinksUseCase {
-        return ProcessRemoteLinksUseCase(radioRepository, radioLinkRepository)
+        return ProcessRemoteLinksUseCase(radioRepository, firebaseRepository)
     }
 
     @Provides
@@ -46,8 +46,8 @@ class DomainModule {
     @Singleton
     fun provideSyncAdSettingsUseCase(
         adSettingsRepository: AdSettingsRepository,
-        radioLinkRepository: RadioLinkRepository
+        firebaseRepository: FirebaseRepository
     ): SyncAdSettingsUseCase {
-        return SyncAdSettingsUseCase(adSettingsRepository, radioLinkRepository)
+        return SyncAdSettingsUseCase(adSettingsRepository, firebaseRepository)
     }
 }

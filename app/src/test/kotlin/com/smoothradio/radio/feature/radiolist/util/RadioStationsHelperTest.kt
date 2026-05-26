@@ -1,14 +1,14 @@
 package com.smoothradio.radio.feature.radiolist.util
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class RadioStationsHelperTest {
-    private val fakeLinkRepository = FakeRadioLinkRepository()
+    private val fakeLinkRepository = FakeFirebaseRepository()
 
     @Test
     fun createRadioStations_generatesCorrectStationsFromLinks() = runTest {

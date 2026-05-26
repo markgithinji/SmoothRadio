@@ -2,10 +2,10 @@ package com.smoothradio.radio.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -17,7 +17,7 @@ import org.junit.Test
 class ProcessRemoteLinksUseCaseTest {
 
     private lateinit var repository: RadioRepository
-    private lateinit var radioLinkRepository: RadioLinkRepository
+    private lateinit var firebaseRepository: FirebaseRepository
     private lateinit var useCase: ProcessRemoteLinksUseCase
     private lateinit var fakeRadioStationDao: FakeRadioStationDao
 
@@ -25,8 +25,8 @@ class ProcessRemoteLinksUseCaseTest {
     fun setup() {
         fakeRadioStationDao = FakeRadioStationDao()
         repository = FakeRadioRepository(fakeRadioStationDao)
-        radioLinkRepository = FakeRadioLinkRepository()
-        useCase = ProcessRemoteLinksUseCase(repository, radioLinkRepository)
+        firebaseRepository = FakeFirebaseRepository()
+        useCase = ProcessRemoteLinksUseCase(repository, firebaseRepository)
     }
 
     @Test

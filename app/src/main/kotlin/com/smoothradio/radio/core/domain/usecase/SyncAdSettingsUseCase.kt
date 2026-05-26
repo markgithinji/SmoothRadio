@@ -1,18 +1,18 @@
 package com.smoothradio.radio.core.domain.usecase
 
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.util.Resource
 import javax.inject.Inject
 
 class SyncAdSettingsUseCase @Inject constructor(
     private val adSettingsRepository: AdSettingsRepository,
-    private val radioLinkRepository: RadioLinkRepository
+    private val firebaseRepository: FirebaseRepository
 ) {
 
     suspend operator fun invoke() {
-        radioLinkRepository.getRemoteAdSettingsFlow().collect { resource ->
+        firebaseRepository.getRemoteAdSettingsFlow().collect { resource ->
             when (resource) {
                 is Resource.Success -> {
                     LoggingHelper.d(

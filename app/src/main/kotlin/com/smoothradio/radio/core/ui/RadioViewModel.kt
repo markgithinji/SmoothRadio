@@ -3,7 +3,7 @@ package com.smoothradio.radio.core.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
@@ -23,7 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RadioViewModel @Inject constructor(
-    private val radioLinkRepository: RadioLinkRepository,
+    private val firebaseRepository: FirebaseRepository,
     private val radioRepository: RadioRepository,
     private val processRemoteLinksUseCase: ProcessRemoteLinksUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
@@ -151,6 +151,6 @@ class RadioViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        radioLinkRepository.clear()
+        firebaseRepository.clear()
     }
 }

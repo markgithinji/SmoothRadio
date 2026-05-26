@@ -12,13 +12,13 @@ import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.DefaultAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.DefaultEqualizerRepository
 import com.smoothradio.radio.core.data.repository.DefaultPlaybackStateRepository
-import com.smoothradio.radio.core.data.repository.DefaultRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.DefaultFirebaseRepository
 import com.smoothradio.radio.core.data.repository.DefaultRadioRepository
 import com.smoothradio.radio.core.data.repository.DefaultViewPreferenceRepository
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import dagger.Module
@@ -53,11 +53,11 @@ class CoreDataModule {
 
     @Provides
     @Singleton
-    fun provideRadioLinkRepository(
+    fun provideFirebaseRepository(
         @ApplicationContext context: Context,
         firestore: FirebaseFirestore
-    ): RadioLinkRepository {
-        return DefaultRadioLinkRepository(context, firestore)
+    ): FirebaseRepository {
+        return DefaultFirebaseRepository(context, firestore)
     }
 
     @Provides

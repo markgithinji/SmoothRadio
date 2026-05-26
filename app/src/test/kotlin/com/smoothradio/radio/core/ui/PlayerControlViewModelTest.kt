@@ -5,7 +5,7 @@ import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.FakeEqualizerRepository
 import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepository
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
@@ -35,7 +35,7 @@ class PlayerControlViewModelTest {
     private lateinit var fakePlaybackStateRepository: FakePlaybackStateRepository
     private lateinit var fakeEqualizerRepository: FakeEqualizerRepository
     private lateinit var fakeAdSettingsRepository: FakeAdSettingsRepository
-    private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
+    private lateinit var fakeFirebaseRepository: FakeFirebaseRepository
 
     @Before
     fun setup() {
@@ -43,12 +43,12 @@ class PlayerControlViewModelTest {
         fakePlaybackStateRepository = FakePlaybackStateRepository()
         fakeEqualizerRepository = FakeEqualizerRepository()
         fakeAdSettingsRepository = FakeAdSettingsRepository()
-        fakeRadioLinkRepository = FakeRadioLinkRepository()
+        fakeFirebaseRepository = FakeFirebaseRepository()
 
         val canShowAdUseCase = CanShowAdUseCase(fakeAdSettingsRepository)
         val recordAdShownUseCase = RecordAdShownUseCase(fakeAdSettingsRepository)
         val syncAdSettingsUseCase =
-            SyncAdSettingsUseCase(fakeAdSettingsRepository, fakeRadioLinkRepository)
+            SyncAdSettingsUseCase(fakeAdSettingsRepository, fakeFirebaseRepository)
 
         viewModel = PlayerControlViewModel(
             fakeRadioRepository,
