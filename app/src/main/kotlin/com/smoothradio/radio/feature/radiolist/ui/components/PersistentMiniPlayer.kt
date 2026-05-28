@@ -55,6 +55,7 @@ import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.util.LogoMapper
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
@@ -117,9 +118,10 @@ fun PersistentMiniPlayer(
                     .pulseAnimation(enabled = isBuffering, targetValue = 1.05f),
                 contentAlignment = Alignment.Center
             ) {
+                val logoRes = LogoMapper.getLogoById(station.id)
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(station.logoResource)
+                        .data(logoRes)
                         .error(R.drawable.ic_radio_default)
                         .fallback(R.drawable.ic_radio_default)
                         .build(),
@@ -131,7 +133,7 @@ fun PersistentMiniPlayer(
                         .fillMaxSize()
                         .padding(2.dp),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (station.logoResource == 0 || station.logoResource == R.drawable.ic_radio_default) {
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
                         ColorFilter.tint(colorScheme.primary)
                     } else null
                 )

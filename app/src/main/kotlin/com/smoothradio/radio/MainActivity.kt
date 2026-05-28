@@ -34,6 +34,7 @@ import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.util.AdConfig
+import com.smoothradio.radio.core.util.LogoMapper
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -236,7 +237,7 @@ class MainActivity : FragmentActivity() {
 
     private fun startStreamService() {
         serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, currentStation?.logoResource)
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(currentStation?.id ?: -1))
         serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
         ContextCompat.startForegroundService(this, serviceIntent)
     }

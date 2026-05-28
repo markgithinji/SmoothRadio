@@ -49,6 +49,7 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.util.LogoMapper
 import kotlinx.coroutines.delay
 
 @Composable
@@ -58,11 +59,11 @@ fun RadioStationRow(
     playbackState: StreamStates,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val isBuffering =
-        isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
-    val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
+        isPlaying && ((playbackState is StreamStates.BUFFERING) || (playbackState is StreamStates.PREPARING))
+    val isLivePlaying = isPlaying && (playbackState is StreamStates.PLAYING)
     val colorScheme = MaterialTheme.colorScheme
 
     val rowBackgroundColor by animateColorAsState(
@@ -75,7 +76,7 @@ fun RadioStationRow(
         label = "rowBackgroundColor"
     )
 
-    var isAnimating by remember { mutableStateOf(false) }
+    var isAnimating by remember { mutableStateOf(value = false) }
     LaunchedEffect(isAnimating) {
         if (isAnimating) {
             delay(200)
@@ -111,9 +112,10 @@ fun RadioStationRow(
                     )
                     .pulseAnimation(enabled = isBuffering)
             ) {
+                val logoRes = LogoMapper.getLogoById(station.id)
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(station.logoResource)
+                        .data(logoRes)
                         .error(R.drawable.ic_radio_default)
                         .fallback(R.drawable.ic_radio_default)
                         .build(),
@@ -125,7 +127,7 @@ fun RadioStationRow(
                         .fillMaxSize()
                         .padding(1.dp),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (station.logoResource == 0 || station.logoResource == R.drawable.ic_radio_default) {
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
                         ColorFilter.tint(colorScheme.primary)
                     } else null
                 )
@@ -215,7 +217,7 @@ fun RadioStationRow(
                             station.frequency,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 12.sp,
-                            color = freqColor
+                            color = freqColor,
                         )
                         Text(
                             "•",

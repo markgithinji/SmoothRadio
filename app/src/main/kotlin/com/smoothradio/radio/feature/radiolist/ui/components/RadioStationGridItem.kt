@@ -28,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +52,7 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.util.LogoMapper
 
 @Composable
 fun RadioStationGridItem(
@@ -62,10 +62,10 @@ fun RadioStationGridItem(
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
-    gridItemWidth: Dp = 120.dp
+    gridItemWidth: Dp = 120.dp,
 ) {
     val isBuffering =
-        isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+        isPlaying && ((playbackState is StreamStates.BUFFERING) || (playbackState is StreamStates.PREPARING))
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
@@ -82,7 +82,7 @@ fun RadioStationGridItem(
             else -> Color.Transparent
         },
         animationSpec = tween(500, easing = FastOutSlowInEasing),
-        label = "overlayColor"
+        label = "overlayColor",
     )
 
     val infiniteTransition = rememberInfiniteTransition(label = "grid_item")
@@ -159,9 +159,10 @@ fun RadioStationGridItem(
                     .pulseAnimation(enabled = isBuffering),
                 contentAlignment = Alignment.Center
             ) {
+                val logoRes = LogoMapper.getLogoById(station.id)
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(station.logoResource)
+                        .data(logoRes)
                         .error(R.drawable.ic_radio_default)
                         .fallback(R.drawable.ic_radio_default)
                         .build(),
@@ -173,7 +174,7 @@ fun RadioStationGridItem(
                         .fillMaxSize()
                         .padding(2.dp),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (station.logoResource == 0 || station.logoResource == R.drawable.ic_radio_default) {
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
                         ColorFilter.tint(colorScheme.primary)
                     } else null
                 )

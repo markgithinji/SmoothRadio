@@ -44,7 +44,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -106,6 +105,7 @@ import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.core.util.AdConfig
+import com.smoothradio.radio.core.util.LogoMapper
 import timber.log.Timber
 
 @Composable
@@ -120,7 +120,7 @@ fun PlayerScreen(
 
     LaunchedEffect(metadata) {
         if (metadata.isNotEmpty()) {
-            android.util.Log.d("PlayerScreenMetadata", "Received metadata: $metadata")
+            Timber.d("Received metadata: $metadata")
         }
     }
 
@@ -777,7 +777,7 @@ fun PlayerLogoSection(
                 // Use a Pair of ID and logo as targetState to ensure the transition captures the specific logo
                 // and doesn't update the outgoing content's logo when currentStation changes.
                 AnimatedContent(
-                    targetState = currentStation.id to currentStation.logoResource,
+                    targetState = currentStation.id to LogoMapper.getLogoById(currentStation.id),
                     transitionSpec = {
                         val springSpec = spring<IntOffset>(
                             dampingRatio = Spring.DampingRatioLowBouncy,
@@ -794,7 +794,7 @@ fun PlayerLogoSection(
                         }
                     },
                     label = "logoTransition"
-                ) { (stationId, logoRes) ->
+                ) { (_, logoRes) ->
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(logoRes)
