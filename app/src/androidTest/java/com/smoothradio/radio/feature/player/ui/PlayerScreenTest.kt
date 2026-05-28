@@ -44,7 +44,6 @@ class PlayerScreenTest {
 
     private val testStation = RadioStation(
         id = 1,
-        logoResource = R.drawable.hopefm,
         stationName = "HOPE FM",
         frequency = "93.3",
         location = "Nairobi",

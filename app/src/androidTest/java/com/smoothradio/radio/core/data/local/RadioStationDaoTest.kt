@@ -151,7 +151,6 @@ class RadioStationDaoTest {
         isFavorite: Boolean = false
     ) = RadioStation(
         id = id,
-        logoResource = 0,
         stationName = "Smooth Radio",
         frequency = "99.9 FM",
         location = "Nairobi",

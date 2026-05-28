@@ -75,7 +75,6 @@ class RadioViewModelTest {
         val stations = listOf(
             RadioStation(
                 id = 1,
-                logoResource = 0,
                 stationName = "Station One",
                 frequency = "99.1 FM",
                 location = "CityA",
@@ -86,7 +85,6 @@ class RadioViewModelTest {
             ),
             RadioStation(
                 id = 2,
-                logoResource = 0,
                 stationName = "Other Radio",
                 frequency = "100.2 FM",
                 location = "CityB",
@@ -142,7 +140,7 @@ class RadioViewModelTest {
 
         val stations = (1000..1019).map {
             RadioStation(
-                id = it, logoResource = 0, stationName = "Station $it",
+                id = it, stationName = "Station $it",
                 frequency = "", location = "", streamLink = "",
                 isPlaying = false, isFavorite = true, orderIndex = it
             )
@@ -154,7 +152,7 @@ class RadioViewModelTest {
         assertThat(favorites).hasSize(20)
 
         val newStation = RadioStation(
-            id = 2000, logoResource = 0, stationName = "New",
+            id = 2000, stationName = "New",
             frequency = "", location = "", streamLink = "",
             isPlaying = false, isFavorite = false, orderIndex = 2000
         )
@@ -183,7 +181,6 @@ class RadioViewModelTest {
         val stations = listOf(
             RadioStation(
                 id = 3000,
-                logoResource = 0,
                 stationName = "Station Three",
                 frequency = "100.2 FM",
                 location = "CityC",
