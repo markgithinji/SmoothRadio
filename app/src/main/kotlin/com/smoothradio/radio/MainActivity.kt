@@ -66,8 +66,6 @@ class MainActivity : FragmentActivity() {
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
         serviceIntent = Intent(this, StreamService::class.java)
 
-        showConsentForm()
-
         setContent {
             SmoothRadioTheme {
                 RadioApp()
@@ -75,6 +73,7 @@ class MainActivity : FragmentActivity() {
         }
 
         collectPlaybackFlows()
+        showConsentForm()
     }
 
     /**
