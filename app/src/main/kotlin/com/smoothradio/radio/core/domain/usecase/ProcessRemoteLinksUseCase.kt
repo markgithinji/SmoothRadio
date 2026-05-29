@@ -36,7 +36,7 @@ class ProcessRemoteLinksUseCase @Inject constructor(
         firebaseRepository.getRemoteStreamLinksFlow().collect { resource ->
             when (resource) {
                 is Resource.Success -> {
-                    LoggingHelper.d("Received ${resource.data.size} links from Firestore", "ProcessRemoteLinks")
+                    LoggingHelper.d("Received ${resource.data.size} links from Firestore", TAG)
 
                     val localStations = radioRepository.allStations.first()
                     val newStations = RadioStationsHelper.createRadioStations(resource.data)
@@ -46,7 +46,7 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                     val toDelete =
                         localStations.filterNot { it.id in newIds } // Get stations in old list that are not in new list
                     if (toDelete.isNotEmpty()) {
-                        LoggingHelper.d("Deleting ${toDelete.size} stations", "ProcessRemoteLinks")
+                        LoggingHelper.d("Deleting ${toDelete.size} stations", TAG)
                         radioRepository.deleteStations(toDelete)
                     }
 
@@ -62,19 +62,23 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                         )
                     }
 
-                    LoggingHelper.d("Inserting ${mergedStations.size} merged stations", "ProcessRemoteLinks")
+                    LoggingHelper.d("Inserting ${mergedStations.size} merged stations", TAG)
                     radioRepository.insertStations(mergedStations)
-                    LoggingHelper.d("Insert complete", "ProcessRemoteLinks")
+                    LoggingHelper.d("Insert complete", TAG)
                 }
 
                 is Resource.Error -> {
-                    LoggingHelper.e("Error loading links: ${resource.message}", "ProcessRemoteLinks")
+                    LoggingHelper.e("Error loading links: ${resource.message}", TAG)
                 }
 
                 Resource.Loading -> {
-                    LoggingHelper.d("Loading links from Firestore...", "ProcessRemoteLinks")
+                    LoggingHelper.d("Loading links from Firestore...", TAG)
                 }
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "ProcessRemoteLinksUseCase"
     }
 }

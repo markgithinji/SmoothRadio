@@ -17,7 +17,7 @@ class SyncAdSettingsUseCase @Inject constructor(
                 is Resource.Success -> {
                     LoggingHelper.d(
                         message = "Received remote ad settings - Interval: ${resource.data.adShowIntervalMinutes} min, Max per hour: ${resource.data.maxAdsPerHour}",
-                        tag = "SyncAdSettingsUseCase"
+                        tag = TAG
                     )
 
                     adSettingsRepository.updateAdSettings(
@@ -29,12 +29,16 @@ class SyncAdSettingsUseCase @Inject constructor(
                 is Resource.Error -> {
                     LoggingHelper.w(
                         message = "Failed to sync ad settings: ${resource.message}",
-                        tag = "SyncAdSettingsUseCase"
+                        tag = TAG
                     )
                 }
 
                 else -> {}
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "SyncAdSettingsUseCase"
     }
 }
