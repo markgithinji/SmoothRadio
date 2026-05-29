@@ -2,6 +2,7 @@ package com.smoothradio.radio.core.ui.common
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -107,6 +108,13 @@ fun AppToast(
         label = "toastOffset"
     )
 
+    // Animate elevation to prevent shadow "popping"
+    val animatedElevation by animateDpAsState(
+        targetValue = if (isVisible) 4.dp else 0.dp,
+        animationSpec = tween(durationMillis = 300),
+        label = "toastElevation"
+    )
+
     // Auto dismiss after 2.5 seconds
     LaunchedEffect(isVisible) {
         if (isVisible) {
@@ -134,7 +142,7 @@ fun AppToast(
                 colors = CardDefaults.cardColors(
                     containerColor = containerColor
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = animatedElevation)
             ) {
                 Row(
                     modifier = Modifier

@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.util
+package com.smoothradio.radio.core.ui.util
 
 import androidx.annotation.DrawableRes
 import com.smoothradio.radio.R

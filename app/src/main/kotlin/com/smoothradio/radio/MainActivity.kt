@@ -34,7 +34,7 @@ import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayCommand
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.util.AdConfig
-import com.smoothradio.radio.core.util.LogoMapper
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.service.StreamService
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint

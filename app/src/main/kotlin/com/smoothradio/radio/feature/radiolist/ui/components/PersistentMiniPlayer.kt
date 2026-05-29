@@ -55,7 +55,7 @@ import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
-import com.smoothradio.radio.core.util.LogoMapper
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation

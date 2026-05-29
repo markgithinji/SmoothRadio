@@ -52,7 +52,7 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
-import com.smoothradio.radio.core.util.LogoMapper
+import com.smoothradio.radio.core.ui.util.LogoMapper
 
 @Composable
 fun RadioStationGridItem(

@@ -105,7 +105,7 @@ import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
 import com.smoothradio.radio.core.util.AdConfig
-import com.smoothradio.radio.core.util.LogoMapper
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import timber.log.Timber
 
 @Composable

@@ -49,7 +49,7 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
-import com.smoothradio.radio.core.util.LogoMapper
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import kotlinx.coroutines.delay
 
 @Composable
