@@ -25,7 +25,7 @@ class ToggleFavoriteUseCaseTest {
 
     @Test
     fun invoke_addFavorite_belowLimit_success() = runTest {
-        val station = RadioStation(1, 0, "Test", "", "", "", false, false, 0)
+        val station = RadioStation(1, "Test", "", "", "", false, false, 0)
         repository.insertStations(listOf(station))
 
         val result = useCase(1, true)
@@ -37,11 +37,11 @@ class ToggleFavoriteUseCaseTest {
     @Test
     fun invoke_addFavorite_atLimit_error() = runTest {
         val stations = (1..20).map { 
-            RadioStation(it, 0, "S$it", "", "", "", false, true, it)
+            RadioStation(it, "S$it", "", "", "", false, true, it)
         }
         repository.insertStations(stations)
 
-        val newStation = RadioStation(21, 0, "S21", "", "", "", false, false, 21)
+        val newStation = RadioStation(21, "S21", "", "", "", false, false, 21)
         repository.insertStations(listOf(newStation))
 
         val result = useCase(21, true)
@@ -52,7 +52,7 @@ class ToggleFavoriteUseCaseTest {
 
     @Test
     fun invoke_removeFavorite_alwaysSuccess() = runTest {
-        val station = RadioStation(1, 0, "Test", "", "", "", false, true, 0)
+        val station = RadioStation(1, "Test", "", "", "", false, true, 0)
         repository.insertStations(listOf(station))
 
         val result = useCase(1, false)

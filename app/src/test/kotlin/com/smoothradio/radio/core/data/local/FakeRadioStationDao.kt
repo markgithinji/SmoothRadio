@@ -1,26 +1,26 @@
 package com.smoothradio.radio.core.data.local
 
-import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.data.local.model.RadioStationEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
 class FakeRadioStationDao : RadioStationDao {
 
-    private val stations = mutableListOf<RadioStation>()
-    private val _stationsFlow = MutableStateFlow<List<RadioStation>>(emptyList())
+    private val stations = mutableListOf<RadioStationEntity>()
+    private val _stationsFlow = MutableStateFlow<List<RadioStationEntity>>(emptyList())
 
     private fun refreshFlows() {
         _stationsFlow.value = stations.toList()
     }
 
-    override fun getAllStations(): Flow<List<RadioStation>> = _stationsFlow
+    override fun getAllStations(): Flow<List<RadioStationEntity>> = _stationsFlow
 
-    override fun getFavoriteStations(): Flow<List<RadioStation>> = _stationsFlow.map { list ->
+    override fun getFavoriteStations(): Flow<List<RadioStationEntity>> = _stationsFlow.map { list ->
         list.filter { it.isFavorite }
     }
 
-    override fun getPlayingStation(): Flow<RadioStation?> = _stationsFlow.map { list ->
+    override fun getPlayingStation(): Flow<RadioStationEntity?> = _stationsFlow.map { list ->
         list.find { it.isPlaying }
     }
 
@@ -34,7 +34,7 @@ class FakeRadioStationDao : RadioStationDao {
         refreshFlows()
     }
 
-    override suspend fun insertStations(stations: List<RadioStation>) {
+    override suspend fun insertStations(stations: List<RadioStationEntity>) {
         stations.forEach { newStation ->
             val index = this.stations.indexOfFirst { it.id == newStation.id }
             if (index != -1) {
@@ -59,7 +59,7 @@ class FakeRadioStationDao : RadioStationDao {
         refreshFlows()
     }
 
-    override suspend fun deleteStations(stations: List<RadioStation>) {
+    override suspend fun deleteStations(stations: List<RadioStationEntity>) {
         val idsToDelete = stations.map { it.id }.toSet()
         this.stations.removeAll { it.id in idsToDelete }
         refreshFlows()

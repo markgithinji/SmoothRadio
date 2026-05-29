@@ -45,8 +45,8 @@ class ProcessRemoteLinksUseCaseTest {
     fun invoke_success_preserveFavoritesAndPlaying() = runTest {
         // Prepare local stations
         val localStations = listOf(
-            RadioStation(0, 0, "HOPE FM", "93.3", "NAIROBI", "local-url", false, true, 0),
-            RadioStation(1, 0, "SOUNDCITY RADIO", "88.5", "NAIROBI", "local-url", true, false, 1)
+            RadioStation(0, "HOPE FM", "93.3", "NAIROBI", "local-url", false, true, 0),
+            RadioStation(1, "SOUNDCITY RADIO", "88.5", "NAIROBI", "local-url", true, false, 1)
         )
         repository.insertStations(localStations)
         repository.setPlayingStation(1)
