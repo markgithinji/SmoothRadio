@@ -11,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
+import com.smoothradio.radio.core.data.model.AdSettingsDto
 import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.util.RadioStationLinksHelper
 import com.smoothradio.radio.core.util.Resource
@@ -132,8 +133,12 @@ class DefaultFirebaseRepositoryTest {
         val snapshot: DocumentSnapshot = mock()
 
         whenever(snapshot.exists()).thenReturn(true)
-        whenever(snapshot.getLong("adShowIntervalMinutes")).thenReturn(10L)
-        whenever(snapshot.getLong("maxAdsPerHour")).thenReturn(5L)
+        whenever(snapshot.toObject(AdSettingsDto::class.java)).thenReturn(
+            AdSettingsDto(
+                adShowIntervalMinutes = 10L,
+                maxAdsPerHour = 5L
+            )
+        )
 
         whenever(firestore.collection("config")).thenReturn(collectionReference)
         whenever(collectionReference.document("ad_settings")).thenReturn(documentReference)
