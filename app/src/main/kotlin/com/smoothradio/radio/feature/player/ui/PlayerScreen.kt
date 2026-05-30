@@ -48,6 +48,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,6 +69,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -116,6 +120,8 @@ fun PlayerScreen(
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
+    val position by playerControlViewModel.position.collectAsStateWithLifecycle()
+    val duration by playerControlViewModel.duration.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
     LaunchedEffect(metadata) {
@@ -316,6 +322,15 @@ fun PlayerScreen(
                                         }
                                     }
                                 }
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                AudioSeekBar(
+                                    position = position,
+                                    duration = duration,
+                                    onSeek = { playerControlViewModel.seekTo(it) },
+                                    colorScheme = colorScheme
+                                )
+
                                 Spacer(modifier = Modifier.height(24.dp))
                             }
 
@@ -331,6 +346,8 @@ fun PlayerScreen(
                                     swipeDirection = 1f; playerControlViewModel.requestNextStation()
                                 },
                                 onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
+                                onSeekBack = { playerControlViewModel.seekBack() },
+                                onSeekForward = { playerControlViewModel.seekForward() },
                                 colorScheme = colorScheme
                             )
 
@@ -412,6 +429,13 @@ fun PlayerScreen(
                             }
                         }
 
+                        AudioSeekBar(
+                            position = position,
+                            duration = duration,
+                            onSeek = { playerControlViewModel.seekTo(it) },
+                            colorScheme = colorScheme
+                        )
+
                         if (!layoutConfig.tinyCompact) {
                             Spacer(
                                 modifier = Modifier.height(
@@ -442,6 +466,8 @@ fun PlayerScreen(
                                     currentStation
                                 )
                             },
+                            onSeekBack = { playerControlViewModel.seekBack() },
+                            onSeekForward = { playerControlViewModel.seekForward() },
                             colorScheme = colorScheme
                         )
 
@@ -558,6 +584,62 @@ fun StationHeader(
 }
 
 @Composable
+fun AudioSeekBar(
+    position: Long,
+    duration: Long,
+    onSeek: (Long) -> Unit,
+    colorScheme: ColorScheme
+) {
+    var isDragging by remember { mutableStateOf(false) }
+    var dragPosition by remember { mutableLongStateOf(0L) }
+    val currentDisplayPosition = if (isDragging) dragPosition else position
+
+    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(1) else duration
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+    ) {
+        Slider(
+            value = currentDisplayPosition.toFloat(),
+            onValueChange = {
+                isDragging = true
+                dragPosition = it.toLong()
+            },
+            onValueChangeFinished = {
+                onSeek(dragPosition)
+                isDragging = false
+            },
+            valueRange = 0f..safeDuration.toFloat(),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                formatTime(currentDisplayPosition),
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurfaceVariant
+            )
+            Text(
+                if (duration > 0) formatTime(duration) else "LIVE",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (duration > 0) colorScheme.onSurfaceVariant else colorScheme.primary
+            )
+        }
+    }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d".format(minutes, seconds)
+}
+
+@Composable
 fun PlaybackControlRow(
     playbackState: StreamStates,
     playButtonScale: Float,
@@ -566,6 +648,8 @@ fun PlaybackControlRow(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onPlayPause: () -> Unit,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
     colorScheme: ColorScheme
 ) {
     Row(
@@ -575,8 +659,8 @@ fun PlaybackControlRow(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val btnSize = if (isTinyCompact) 36.dp else if (isCompact) 40.dp else 56.dp
-        val iconSize = if (isTinyCompact) 18.dp else if (isCompact) 20.dp else 28.dp
+        val btnSize = if (isTinyCompact) 36.dp else if (isCompact) 40.dp else 48.dp
+        val iconSize = if (isTinyCompact) 18.dp else if (isCompact) 20.dp else 24.dp
 
         IconButton(onClick = onPrevious, modifier = Modifier.size(btnSize)) {
             Icon(
@@ -586,11 +670,31 @@ fun PlaybackControlRow(
                 tint = colorScheme.onSurfaceVariant
             )
         }
+
+        IconButton(onClick = onSeekBack, modifier = Modifier.size(btnSize)) {
+            Icon(
+                imageVector = Icons.Default.Replay10,
+                contentDescription = "Seek Back",
+                modifier = Modifier.size(iconSize + 4.dp),
+                tint = colorScheme.onSurfaceVariant
+            )
+        }
+
         AnimatedPlayPauseButton(
             playbackState = playbackState,
             onClick = onPlayPause,
             modifier = if (isTinyCompact) Modifier.size(56.dp) else if (isCompact) Modifier.size(64.dp) else Modifier
         )
+
+        IconButton(onClick = onSeekForward, modifier = Modifier.size(btnSize)) {
+            Icon(
+                imageVector = Icons.Default.Forward10,
+                contentDescription = "Seek Forward",
+                modifier = Modifier.size(iconSize + 4.dp),
+                tint = colorScheme.onSurfaceVariant
+            )
+        }
+
         IconButton(onClick = onNext, modifier = Modifier.size(btnSize)) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_player_next),

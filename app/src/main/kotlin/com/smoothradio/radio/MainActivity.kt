@@ -161,6 +161,10 @@ class MainActivity : FragmentActivity() {
                                 command.band,
                                 command.level
                             )
+
+                            is PlayCommand.SeekTo -> seekTo(command.position)
+                            PlayCommand.SeekBack -> seekBack()
+                            PlayCommand.SeekForward -> seekForward()
                         }
                     }
                 }
@@ -174,6 +178,28 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    private fun seekTo(position: Long) {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_TO
+            putExtra(StreamService.EXTRA_POSITION, position)
+        }
+        startService(intent)
+    }
+
+    private fun seekBack() {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_BACK
+        }
+        startService(intent)
+    }
+
+    private fun seekForward() {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_FORWARD
+        }
+        startService(intent)
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
