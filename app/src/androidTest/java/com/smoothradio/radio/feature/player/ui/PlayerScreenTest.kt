@@ -44,7 +44,6 @@ class PlayerScreenTest {
 
     private val testStation = RadioStation(
         id = 1,
-        logoResource = R.drawable.hopefm,
         stationName = "HOPE FM",
         frequency = "93.3",
         location = "Nairobi",
@@ -252,14 +251,16 @@ class PlayerScreenTest {
         // The Sleep button is in the ActionButtonsRow which only shows if layoutConfig.showSecondRow is true.
         // showSecondRow = screenHeight > 740.dp
         // On many standard emulators (like Pixel 4), height is enough.
+
+        // We use onNodeWithContentDescription to target the IconButton's Icon, which handles the click.
+        // onNodeWithText("Sleep") would target the Text composable which is not clickable.
+        composeTestRule.onNodeWithContentDescription("Sleep").performClick()
         
-        try {
-            composeTestRule.onNodeWithText("Sleep").performClick()
-            composeTestRule.onNodeWithText("Sleep Timer").assertIsDisplayed()
-            composeTestRule.onNodeWithText("5 minutes").assertIsDisplayed()
-        } catch (e: AssertionError) {
-            // Screen might be too small to show the Sleep button in the current test environment
-            // This is an expected limitation of responsive UI testing
+        composeTestRule.waitUntil(3000) {
+            composeTestRule.onAllNodesWithText("Sleep Timer").fetchSemanticsNodes().isNotEmpty()
         }
+
+        composeTestRule.onNodeWithText("Sleep Timer").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5 minutes").assertIsDisplayed()
     }
 }

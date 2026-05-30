@@ -44,16 +44,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
-import com.smoothradio.radio.core.ui.common.AppToast
-import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
+import com.smoothradio.radio.core.ui.common.AppToast
+import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.feature.radiolist.ui.components.AboutDialog
 import com.smoothradio.radio.feature.radiolist.ui.components.PersistentMiniPlayer
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
@@ -127,7 +127,11 @@ fun RadioStationsScreen(
                         else -> ScreenState.List
                     },
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(
+                            animationSpec = tween(
+                                300
+                            )
+                        )
                     },
                     label = "screenState"
                 ) { state ->
@@ -146,6 +150,7 @@ fun RadioStationsScreen(
                             onStationClick = { playerControlViewModel.requestPlayStation(it) },
                             onFavoriteClick = { id, fav -> radioViewModel.toggleFavorite(id, fav) }
                         )
+
                         ScreenState.List -> RadioStationListContent(
                             stations = uiState.filteredStations,
                             playingStation = playingStation,

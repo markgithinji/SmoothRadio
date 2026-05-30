@@ -4,7 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.domain.model.RadioStation
+import com.smoothradio.radio.core.data.local.model.RadioStationEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -149,9 +149,8 @@ class RadioStationDaoTest {
         id: Int,
         isPlaying: Boolean = false,
         isFavorite: Boolean = false
-    ) = RadioStation(
+    ) = RadioStationEntity(
         id = id,
-        logoResource = 0,
         stationName = "Smooth Radio",
         frequency = "99.9 FM",
         location = "Nairobi",

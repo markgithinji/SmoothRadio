@@ -1,7 +1,7 @@
 package com.smoothradio.radio.core.domain.usecase
 
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.util.Resource
@@ -13,7 +13,7 @@ import javax.inject.Singleton
 /**
  * Use case responsible for processing remote radio station links.
  *
- * This class observes a flow of remote stream links from [RadioLinkRepository].
+ * This class observes a flow of remote stream links from [FirebaseRepository].
  * When new links are successfully fetched, it:
  * 1. Creates [RadioStation] objects from the remote data.
  * 2. If no local stations exist, it inserts the new stations and sets the first one as playing.
@@ -24,19 +24,19 @@ import javax.inject.Singleton
  * It also includes placeholders for handling error and loading states from the remote data source.
  *
  * @property radioRepository Repository for managing local radio station data.
- * @property radioLinkRepository Repository for fetching remote radio station links.
+ * @property firebaseRepository Repository for fetching remote radio station links.
  */
 @Singleton
 class ProcessRemoteLinksUseCase @Inject constructor(
     private val radioRepository: RadioRepository,
-    private val radioLinkRepository: RadioLinkRepository
+    private val firebaseRepository: FirebaseRepository
 ) {
 
     suspend operator fun invoke() {
-        radioLinkRepository.getRemoteStreamLinksFlow().collect { resource ->
+        firebaseRepository.getRemoteStreamLinksFlow().collect { resource ->
             when (resource) {
                 is Resource.Success -> {
-                    LoggingHelper.d("Received ${resource.data.size} links from Firestore", "ProcessRemoteLinks")
+                    LoggingHelper.d("Received ${resource.data.size} links from Firestore", TAG)
 
                     val localStations = radioRepository.allStations.first()
                     val newStations = RadioStationsHelper.createRadioStations(resource.data)
@@ -46,7 +46,7 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                     val toDelete =
                         localStations.filterNot { it.id in newIds } // Get stations in old list that are not in new list
                     if (toDelete.isNotEmpty()) {
-                        LoggingHelper.d("Deleting ${toDelete.size} stations", "ProcessRemoteLinks")
+                        LoggingHelper.d("Deleting ${toDelete.size} stations", TAG)
                         radioRepository.deleteStations(toDelete)
                     }
 
@@ -62,19 +62,23 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                         )
                     }
 
-                    LoggingHelper.d("Inserting ${mergedStations.size} merged stations", "ProcessRemoteLinks")
+                    LoggingHelper.d("Inserting ${mergedStations.size} merged stations", TAG)
                     radioRepository.insertStations(mergedStations)
-                    LoggingHelper.d("Insert complete", "ProcessRemoteLinks")
+                    LoggingHelper.d("Insert complete", TAG)
                 }
 
                 is Resource.Error -> {
-                    LoggingHelper.e("Error loading links: ${resource.message}", "ProcessRemoteLinks")
+                    LoggingHelper.e("Error loading links: ${resource.message}", TAG)
                 }
 
                 Resource.Loading -> {
-                    LoggingHelper.d("Loading links from Firestore...", "ProcessRemoteLinks")
+                    LoggingHelper.d("Loading links from Firestore...", TAG)
                 }
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "ProcessRemoteLinksUseCase"
     }
 }

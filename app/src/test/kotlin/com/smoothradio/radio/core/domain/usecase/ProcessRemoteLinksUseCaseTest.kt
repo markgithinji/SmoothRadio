@@ -2,10 +2,10 @@ package com.smoothradio.radio.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -17,7 +17,7 @@ import org.junit.Test
 class ProcessRemoteLinksUseCaseTest {
 
     private lateinit var repository: RadioRepository
-    private lateinit var radioLinkRepository: RadioLinkRepository
+    private lateinit var firebaseRepository: FirebaseRepository
     private lateinit var useCase: ProcessRemoteLinksUseCase
     private lateinit var fakeRadioStationDao: FakeRadioStationDao
 
@@ -25,8 +25,8 @@ class ProcessRemoteLinksUseCaseTest {
     fun setup() {
         fakeRadioStationDao = FakeRadioStationDao()
         repository = FakeRadioRepository(fakeRadioStationDao)
-        radioLinkRepository = FakeRadioLinkRepository()
-        useCase = ProcessRemoteLinksUseCase(repository, radioLinkRepository)
+        firebaseRepository = FakeFirebaseRepository()
+        useCase = ProcessRemoteLinksUseCase(repository, firebaseRepository)
     }
 
     @Test
@@ -45,8 +45,8 @@ class ProcessRemoteLinksUseCaseTest {
     fun invoke_success_preserveFavoritesAndPlaying() = runTest {
         // Prepare local stations
         val localStations = listOf(
-            RadioStation(0, 0, "HOPE FM", "93.3", "NAIROBI", "local-url", false, true, 0),
-            RadioStation(1, 0, "SOUNDCITY RADIO", "88.5", "NAIROBI", "local-url", true, false, 1)
+            RadioStation(0, "HOPE FM", "93.3", "NAIROBI", "local-url", false, true, 0),
+            RadioStation(1, "SOUNDCITY RADIO", "88.5", "NAIROBI", "local-url", true, false, 1)
         )
         repository.insertStations(localStations)
         repository.setPlayingStation(1)

@@ -4,8 +4,8 @@ plugins {
 }
 
 android {
-    namespace = "com.smoothradio.radio"
-    compileSdk = 36
+    namespace = "com.smoothradio.radio.baselineprofile"
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "LOW-BATTERY,DEBUGGABLE"
@@ -32,6 +32,9 @@ android {
                     device = "Pixel 6"
                     apiLevel = 33
                     systemImageSource = "aosp-atd"
+                    // Specify the ABI to avoid warnings and ensure compatibility with most Windows machines
+                    @Suppress("UnstableApiUsage")
+                    testedAbi = "x86_64"
                 }
             }
         }
@@ -39,10 +42,9 @@ android {
 }
 
 // This is the configuration block for the Baseline Profile plugin.
-// You can specify to run the generators on a managed devices or connected devices.
 baselineProfile {
-    managedDevices += "pixel6api33"
-    useConnectedDevices = false
+    // managedDevices += "pixel6api33" // Disable the GMD that was failing
+    useConnectedDevices = true       // Enable your real device/manual emulator
 }
 
 dependencies {

@@ -3,7 +3,7 @@ package com.smoothradio.radio.core.ui
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.local.RadioStationDao
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.data.repository.FakeViewPreferenceRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -30,7 +30,7 @@ class RadioViewModelTest {
 
     private lateinit var viewModel: RadioViewModel
     private lateinit var fakeRadioRepository: RadioRepository
-    private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
+    private lateinit var fakeRadioLinkRepository: FakeFirebaseRepository
     private lateinit var fakeViewPreferenceRepository: FakeViewPreferenceRepository
     private lateinit var remoteLinksUseCase: ProcessRemoteLinksUseCase
     private lateinit var fakeRadioStationDao: RadioStationDao
@@ -40,7 +40,7 @@ class RadioViewModelTest {
     fun setup() {
         fakeRadioStationDao = FakeRadioStationDao()
         fakeRadioRepository = FakeRadioRepository(fakeRadioStationDao)
-        fakeRadioLinkRepository = FakeRadioLinkRepository()
+        fakeRadioLinkRepository = FakeFirebaseRepository()
         fakeViewPreferenceRepository = FakeViewPreferenceRepository()
         remoteLinksUseCase =
             ProcessRemoteLinksUseCase(fakeRadioRepository, fakeRadioLinkRepository)
@@ -75,7 +75,6 @@ class RadioViewModelTest {
         val stations = listOf(
             RadioStation(
                 id = 1,
-                logoResource = 0,
                 stationName = "Station One",
                 frequency = "99.1 FM",
                 location = "CityA",
@@ -86,7 +85,6 @@ class RadioViewModelTest {
             ),
             RadioStation(
                 id = 2,
-                logoResource = 0,
                 stationName = "Other Radio",
                 frequency = "100.2 FM",
                 location = "CityB",
@@ -142,7 +140,7 @@ class RadioViewModelTest {
 
         val stations = (1000..1019).map {
             RadioStation(
-                id = it, logoResource = 0, stationName = "Station $it",
+                id = it, stationName = "Station $it",
                 frequency = "", location = "", streamLink = "",
                 isPlaying = false, isFavorite = true, orderIndex = it
             )
@@ -154,7 +152,7 @@ class RadioViewModelTest {
         assertThat(favorites).hasSize(20)
 
         val newStation = RadioStation(
-            id = 2000, logoResource = 0, stationName = "New",
+            id = 2000, stationName = "New",
             frequency = "", location = "", streamLink = "",
             isPlaying = false, isFavorite = false, orderIndex = 2000
         )
@@ -183,7 +181,6 @@ class RadioViewModelTest {
         val stations = listOf(
             RadioStation(
                 id = 3000,
-                logoResource = 0,
                 stationName = "Station Three",
                 frequency = "100.2 FM",
                 location = "CityC",

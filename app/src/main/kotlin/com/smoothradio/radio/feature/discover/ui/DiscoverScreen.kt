@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.Category
@@ -116,7 +116,7 @@ fun DiscoverScreen(
             val totalHorizontalOffset = horizontalSpacing * (gridColumns + 1)
             val visualWidth = (screenWidth - totalHorizontalOffset) / gridColumns
             val slotWidth = screenWidth / gridColumns
-            
+
             visualWidth to slotWidth
         }
 
@@ -279,7 +279,7 @@ fun CategoryRow(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 12 .dp)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -287,7 +287,7 @@ fun CategoryRow(
         LazyRow(
             state = scrollState,
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(

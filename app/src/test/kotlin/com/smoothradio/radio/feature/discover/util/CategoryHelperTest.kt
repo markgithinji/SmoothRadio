@@ -83,7 +83,6 @@ class CategoryHelperTest {
 
     private fun dummyStation(id: Int, isFavorite: Boolean = false) = RadioStation(
         id = id,
-        logoResource = 0,
         stationName = "Station $id",
         frequency = "",
         location = "",

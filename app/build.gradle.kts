@@ -13,12 +13,12 @@ plugins {
 android {
     namespace = "com.smoothradio.radio"
 
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.smoothradio.radio"
         minSdk = 25
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 29
         versionName = "3.7.6"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
@@ -29,7 +29,6 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"  // Enables simultaneous installation
             isMinifyEnabled = false
-            isShrinkResources = false
         }
         release {
             isDebuggable = false
@@ -100,14 +99,7 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.core.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.activity.ktx)
-    implementation(libs.androidx.media)
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.compose.material)
-    detektPlugins(libs.detekt.formatting)
-    implementation(libs.timber)
-    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(platform(libs.androidx.compose.bom))
@@ -117,21 +109,25 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    // Third party libraries
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.cast)
     implementation(libs.play.services.cast.framework)
     implementation(libs.androidx.mediarouter)
-    implementation(libs.lottie)
+    implementation(libs.androidx.compose.runtime.tracing)
+    implementation(libs.androidx.profileinstaller)
+    implementation(libs.coil.compose)
+    "baselineProfile"(project(":baselineprofile"))
+    // Third party libraries
+    implementation(libs.timber)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.profileinstaller)
-    "baselineProfile"(project(":baselineprofile"))
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    detektPlugins(libs.detekt.formatting)
     // Ads
     implementation(libs.play.services.ads)
     implementation(libs.facebook)
@@ -157,11 +153,8 @@ dependencies {
     androidTestImplementation(libs.mockito.android)
     androidTestImplementation(libs.truth)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.espresso.contrib)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.uiautomator)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.androidx.espresso.intents) // set to debug impl due to known bugs
-    debugImplementation(libs.androidx.fragment.testing) // set to debug impl due to known bugs
 }

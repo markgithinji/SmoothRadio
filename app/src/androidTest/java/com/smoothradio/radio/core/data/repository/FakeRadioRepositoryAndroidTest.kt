@@ -1,6 +1,5 @@
 package com.smoothradio.radio.core.data.repository
 
-import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +10,6 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
     private val initialStations = listOf(
         RadioStation(
             id = 1,
-            logoResource = R.drawable.hopefm,
             stationName = "HOPE FM",
             frequency = "101.1",
             location = "Nairobi",
@@ -22,7 +20,6 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         ),
         RadioStation(
             id = 2,
-            logoResource = R.drawable.soundcityradiologo,
             stationName = "SOUNDCITY RADIO",
             frequency = "102.2",
             location = "Mombasa",
@@ -33,7 +30,6 @@ class FakeRadioRepositoryAndroidTest : RadioRepository {
         ),
         RadioStation( // KIKUYU
             id = 38,
-            logoResource = R.drawable.inooro,
             stationName = "INOORO FM",
             frequency = "104.4",
             location = "Nyeri",

@@ -3,7 +3,6 @@ package com.smoothradio.radio.feature.radiolist.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,21 +31,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
-import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
+import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import kotlinx.coroutines.delay
 
 @Composable
@@ -56,10 +59,11 @@ fun RadioStationRow(
     playbackState: StreamStates,
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val isBuffering = isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
-    val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
+    val isBuffering =
+        isPlaying && ((playbackState is StreamStates.BUFFERING) || (playbackState is StreamStates.PREPARING))
+    val isLivePlaying = isPlaying && (playbackState is StreamStates.PLAYING)
     val colorScheme = MaterialTheme.colorScheme
 
     val rowBackgroundColor by animateColorAsState(
@@ -72,7 +76,7 @@ fun RadioStationRow(
         label = "rowBackgroundColor"
     )
 
-    var isAnimating by remember { mutableStateOf(false) }
+    var isAnimating by remember { mutableStateOf(value = false) }
     LaunchedEffect(isAnimating) {
         if (isAnimating) {
             delay(200)
@@ -101,14 +105,31 @@ fun RadioStationRow(
             Box(
                 modifier = Modifier
                     .size(if (isSmall) 36.dp else 48.dp)
-                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                    .border(
+                        0.5.dp,
+                        colorScheme.outline.copy(alpha = 0.6f),
+                        RoundedCornerShape(0.dp)
+                    )
                     .pulseAnimation(enabled = isBuffering)
             ) {
-                Image(
-                    painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
-                    modifier = Modifier.fillMaxSize().padding(1.dp),
-                    contentScale = ContentScale.Fit
+                val logoRes = LogoMapper.getLogoById(station.id)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(logoRes)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(1.dp),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
                 if (isBuffering) {
                     Box(
@@ -192,9 +213,26 @@ fun RadioStationRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = freqColor)
-                        Text("•", style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant)
-                        Text(station.location, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            station.frequency,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = freqColor,
+                        )
+                        Text(
+                            "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            station.location,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -204,7 +242,11 @@ fun RadioStationRow(
                 horizontalArrangement = Arrangement.spacedBy(if (isSmall) 2.dp else 8.dp),
             ) {
                 if (isLivePlaying && !isSmall) {
-                    MiniWaveformVisualization(modifier = Modifier.width(60.dp), height = 16.dp, color = colorScheme.primary)
+                    MiniWaveformVisualization(
+                        modifier = Modifier.width(60.dp),
+                        height = 16.dp,
+                        color = colorScheme.primary
+                    )
                 }
                 FavoriteIcon(
                     isFavorite = station.isFavorite,

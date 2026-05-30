@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -42,17 +41,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
@@ -66,7 +69,8 @@ fun PersistentMiniPlayer(
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isBuffering =
+        playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
@@ -114,13 +118,24 @@ fun PersistentMiniPlayer(
                     .pulseAnimation(enabled = isBuffering, targetValue = 1.05f),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
+                val logoRes = LogoMapper.getLogoById(station.id)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(logoRes)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(2.dp),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
 
                 if (isBuffering) {
@@ -219,7 +234,8 @@ fun MiniPlayerControl(
     onPlayPauseClick: () -> Unit,
     colorScheme: ColorScheme
 ) {
-    val isBuffering = playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isBuffering =
+        playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
     val isPlaying = playbackState is StreamStates.PLAYING
 
     AnimatedContent(
@@ -294,7 +310,9 @@ fun MiniPlayerControl(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
+                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(
+                            R.string.player_play
+                        ),
                         tint = colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )

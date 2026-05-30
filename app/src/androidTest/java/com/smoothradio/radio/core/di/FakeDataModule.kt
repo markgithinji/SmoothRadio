@@ -4,13 +4,13 @@ import com.smoothradio.radio.core.data.di.CoreDataModule
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepositoryAndroidTest
 import com.smoothradio.radio.core.data.repository.FakeEqualizerRepositoryAndroidTest
 import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepositoryAndroidTest
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepositoryAndroidTest
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepositoryAndroidTest
 import com.smoothradio.radio.core.data.repository.FakeRadioRepositoryAndroidTest
 import com.smoothradio.radio.core.data.repository.FakeViewPreferenceRepositoryAndroidTest
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.core.domain.repository.RadioLinkRepository
+import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import dagger.Module
@@ -31,7 +31,7 @@ object FakeDataModule {
 
     @Provides
     @Singleton
-    fun provideRadioLinkRepository(): RadioLinkRepository = FakeRadioLinkRepositoryAndroidTest()
+    fun provideFirebaseRepository(): FirebaseRepository = FakeFirebaseRepositoryAndroidTest()
 
     @Provides
     @Singleton

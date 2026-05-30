@@ -1,8 +1,12 @@
 package com.smoothradio.radio
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +24,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,9 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
@@ -44,7 +49,7 @@ fun RadioApp(
     playerControlViewModel: PlayerControlViewModel = hiltViewModel(),
     radioViewModel: RadioViewModel = hiltViewModel()
 ) {
-    val selectedTab by radioViewModel.selectedTab.collectAsState()
+    val selectedTab by radioViewModel.selectedTab.collectAsStateWithLifecycle()
 
     val listScrollState = rememberLazyListState()
     val gridScrollState = rememberLazyGridState()
@@ -72,41 +77,18 @@ fun RadioApp(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
-                            NavigationBarItem(
-                                selected = selectedTab == index,
-                                onClick = { radioViewModel.setSelectedTab(index) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = when (index) {
-                                                0 -> R.drawable.ic_nav_stations
-                                                1 -> R.drawable.ic_nav_live
-                                                else -> R.drawable.ic_nav_discover
-                                            }
-                                        ),
-                                        contentDescription = title,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                },
-                                label = { Text(title) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
+                    listOf("Stations", "Live", "Discover").forEachIndexed { index, title ->
+                        AnimatedNavigationBarItem(
+                            isSelected = selectedTab == index,
+                            title = title,
+                            index = index,
+                            onTabSelected = { radioViewModel.setSelectedTab(index) }
+                        )
                     }
                 }
             }
         ) { paddingValues ->
-            val playingStation by playerControlViewModel.playingStation.collectAsState()
+            val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
             val isMiniPlayerVisible = selectedTab == 0 && playingStation != null
 
             Box(
@@ -139,4 +121,60 @@ fun RadioApp(
             }
         }
     }
+}
+
+@Composable
+private fun RowScope.AnimatedNavigationBarItem(
+    isSelected: Boolean,
+    title: String,
+    index: Int,
+    onTabSelected: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scaleState = animateFloatAsState(
+        targetValue = when {
+            isPressed -> 0.88f
+            isSelected -> 1.12f
+            else -> 1f
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "nav_icon_scale"
+    )
+
+    NavigationBarItem(
+        selected = isSelected,
+        onClick = onTabSelected,
+        interactionSource = interactionSource,
+        icon = {
+            Icon(
+                painter = painterResource(
+                    id = when (index) {
+                        0 -> R.drawable.ic_nav_stations
+                        1 -> R.drawable.ic_nav_live
+                        else -> R.drawable.ic_nav_discover
+                    }
+                ),
+                contentDescription = title,
+                modifier = Modifier
+                    .size(26.dp)
+                    .graphicsLayer {
+                        val baseScale = if (index == 1) 0.95f else 0.85f
+                        scaleX = scaleState.value * baseScale
+                        scaleY = scaleState.value * baseScale
+                    }
+            )
+        },
+        label = { Text(title) },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
 }

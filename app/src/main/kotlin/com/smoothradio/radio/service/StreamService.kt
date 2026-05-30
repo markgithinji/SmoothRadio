@@ -11,6 +11,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.audiofx.Equalizer
@@ -41,7 +42,6 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.service.MetadataUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,10 +67,13 @@ class StreamService : MediaSessionService() {
 
     @Inject
     lateinit var player: ExoPlayer
+
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
+
     @Inject
     lateinit var equalizerRepository: EqualizerRepository
+
     @Inject
     @JvmField
     var castPlayer: CastPlayer? = null
@@ -89,6 +92,14 @@ class StreamService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Only stop the service if we are not playing anything.
+        // This allows the radio to keep playing even if the app is swiped away from Recents.
+        if (!wrappedPlayer.isPlaying && !wrappedPlayer.playWhenReady) {
+            stopSelf()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -188,6 +199,7 @@ class StreamService : MediaSessionService() {
         val playPauseIntent = Intent(this, StreamService::class.java).apply {
             action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
         }
+
         val playPausePendingIntent = PendingIntent.getService(
             this, 2, playPauseIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -196,6 +208,7 @@ class StreamService : MediaSessionService() {
         val stopIntent = Intent(this, StreamService::class.java).apply {
             action = ACTION_STOP
         }
+
         val stopPendingIntent = PendingIntent.getService(
             this, 3, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -217,7 +230,7 @@ class StreamService : MediaSessionService() {
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(wrappedPlayer.isPlaying)
+            .setOngoing(true)
             .addAction(
                 if (wrappedPlayer.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
                 if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
@@ -240,13 +253,35 @@ class StreamService : MediaSessionService() {
     }
 
     private fun updateNotificationInternal() {
+        val notification = createMediaStyleNotification()
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, notification)
+
         notificationCallback?.onNotificationChanged(
-            MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
+            MediaNotification(NOTIFICATION_ID, notification)
         )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        intent?.let { handleIntent(it) }
+        intent?.let {
+            val action = it.action
+            if (action == ACTION_START || action == ACTION_SHOW_AD) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            createMediaStyleNotification(),
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, createMediaStyleNotification())
+                    }
+                } catch (e: Exception) {
+                    Log.e("StreamService", "Failed to start foreground", e)
+                }
+            }
+            handleIntent(it)
+        }
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -288,6 +323,7 @@ class StreamService : MediaSessionService() {
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
                 setState(StreamStates.IDLE)
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
 
@@ -325,6 +361,7 @@ class StreamService : MediaSessionService() {
     private fun prepareShowAd() {
         wrappedPlayer.stop()
         isPlaying = false
+        updateNotificationInternal()
     }
 
     private fun setupEqualizer(sessionId: Int) {
@@ -384,6 +421,7 @@ class StreamService : MediaSessionService() {
         mediaSession = null
         isPlaying = false
         stateChange = StreamStates.IDLE
+        stateRepository.updateState(StreamStates.IDLE) // Reset repo state on destroy
         isPreparingForAd = false
         unregisterTimerReceivers()
     }
@@ -477,7 +515,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else return
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.IDLE
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
@@ -495,7 +533,6 @@ class StreamService : MediaSessionService() {
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         private const val NOTIFICATION_ID = 1
-        const val EXTRA_STATE = "state"
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"

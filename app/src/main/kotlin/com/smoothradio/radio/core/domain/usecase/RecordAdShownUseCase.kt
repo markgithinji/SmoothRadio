@@ -8,10 +8,6 @@ class RecordAdShownUseCase @Inject constructor(
     private val adSettingsRepository: AdSettingsRepository
 ) {
 
-    companion object {
-        private const val TAG = "RecordAdShownUseCase"
-    }
-
     suspend operator fun invoke() {
         val currentTime = System.currentTimeMillis()
         val currentHour = getCurrentHour()
@@ -35,5 +31,9 @@ class RecordAdShownUseCase @Inject constructor(
 
     private fun getCurrentHour(): Long {
         return System.currentTimeMillis() / (1000 * 60 * 60)
+    }
+
+    companion object {
+        private const val TAG = "RecordAdShownUseCase"
     }
 }

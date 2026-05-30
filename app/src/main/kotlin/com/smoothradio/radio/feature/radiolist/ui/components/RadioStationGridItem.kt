@@ -7,10 +7,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,11 +31,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,12 +44,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.FavoriteIcon
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.util.LogoMapper
 
 @Composable
 fun RadioStationGridItem(
@@ -58,9 +62,10 @@ fun RadioStationGridItem(
     onPlayClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
-    gridItemWidth: Dp = 120.dp
+    gridItemWidth: Dp = 120.dp,
 ) {
-    val isBuffering = isPlaying && (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+    val isBuffering =
+        isPlaying && ((playbackState is StreamStates.BUFFERING) || (playbackState is StreamStates.PREPARING))
     val isLivePlaying = isPlaying && playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
 
@@ -77,17 +82,26 @@ fun RadioStationGridItem(
             else -> Color.Transparent
         },
         animationSpec = tween(500, easing = FastOutSlowInEasing),
-        label = "overlayColor"
+        label = "overlayColor",
     )
 
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "grid_item")
+
     val liveDotScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(animation = tween(600, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "live_dot_scale"
     )
     val liveDotAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(600, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "live_dot_alpha"
     )
     val nameColor by animateColorAsState(
         targetValue = when {
@@ -107,27 +121,62 @@ fun RadioStationGridItem(
             .clip(RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
             .background(colorScheme.surface)
             .background(overlayColor)
-            .border(0.8.dp, colorScheme.outline.copy(alpha = 1f), RoundedCornerShape(if (isTiny) 6.dp else 10.dp))
+            .then(
+                if (!isSystemInDarkTheme()) {
+                    Modifier.border(
+                        0.8.dp,
+                        colorScheme.outline,
+                        RoundedCornerShape(if (isTiny) 6.dp else 10.dp)
+                    )
+                } else Modifier
+            )
             .clickable { onPlayClick() }
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(if (isTiny) 4.dp else 8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isTiny) 4.dp else 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             // Logo
             Box(
                 modifier = Modifier
-                    .size(when { isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp })
-                    .border(0.5.dp, colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                    .size(
+                        when {
+                            isTiny -> 36.dp; isSmall -> 44.dp; else -> 55.dp
+                        }
+                    )
+                    .then(
+                        if (!isSystemInDarkTheme()) {
+                            Modifier.border(
+                                0.5.dp,
+                                colorScheme.outline.copy(alpha = 0.6f),
+                                RoundedCornerShape(0.dp)
+                            )
+                        } else Modifier
+                    )
                     .pulseAnimation(enabled = isBuffering),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = station.logoResource),
-                    contentDescription = stringResource(R.string.station_logo_content_description, station.stationName),
-                    modifier = Modifier.fillMaxSize().padding(2.dp),
-                    contentScale = ContentScale.Fit
+                val logoRes = LogoMapper.getLogoById(station.id)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(logoRes)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
+                    contentDescription = stringResource(
+                        R.string.station_logo_content_description,
+                        station.stationName
+                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(2.dp),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = if (logoRes == 0 || logoRes == R.drawable.ic_radio_default) {
+                        ColorFilter.tint(colorScheme.primary)
+                    } else null
                 )
                 if (isBuffering) {
                     Box(
@@ -137,6 +186,7 @@ fun RadioStationGridItem(
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(if (isTiny) 2.dp else 4.dp))
 
             // Station Name
@@ -144,7 +194,9 @@ fun RadioStationGridItem(
                 text = station.stationName,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                fontSize = when { isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp },
+                fontSize = when {
+                    isTiny -> 8.sp; isSmall -> 10.sp; else -> 11.sp
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -163,12 +215,47 @@ fun RadioStationGridItem(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            isBuffering -> DotLoadingAnimation(dotSize = 6.dp, dotSpacing = 4.dp, color = colorScheme.tertiary, animationDelay = 150, animationDuration = 400)
-                            isLivePlaying -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(6.dp).scale(liveDotScale).clip(CircleShape).background(colorScheme.primary.copy(alpha = liveDotAlpha)))
-                                Text(stringResource(R.string.player_live_tag), style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = colorScheme.primary, maxLines = 1)
+                            isBuffering -> DotLoadingAnimation(
+                                dotSize = 6.dp,
+                                dotSpacing = 4.dp,
+                                color = colorScheme.tertiary,
+                                animationDelay = 150,
+                                animationDuration = 400
+                            )
+
+                            isLivePlaying -> Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(6.dp)
+                                        .graphicsLayer {
+                                            scaleX = liveDotScale
+                                            scaleY = liveDotScale
+                                            alpha = liveDotAlpha
+                                        }
+                                        .clip(CircleShape)
+                                        .background(colorScheme.primary)
+                                )
+                                Text(
+                                    stringResource(R.string.player_live_tag),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorScheme.primary,
+                                    maxLines = 1
+                                )
                             }
-                            else -> Text(station.frequency, style = MaterialTheme.typography.bodySmall, fontSize = 9.sp, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                            else -> Text(
+                                station.frequency,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 9.sp,
+                                color = colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(2.dp))

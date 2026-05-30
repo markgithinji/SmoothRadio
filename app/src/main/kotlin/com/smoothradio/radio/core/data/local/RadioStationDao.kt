@@ -5,20 +5,21 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.smoothradio.radio.core.domain.model.RadioStation
+import androidx.room.Transaction
+import com.smoothradio.radio.core.data.local.model.RadioStationEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RadioStationDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStations(stations: List<RadioStation>)
+    suspend fun insertStations(stations: List<RadioStationEntity>)
 
     @Query("SELECT * FROM radio_stations ORDER BY orderIndex ASC")
-    fun getAllStations(): Flow<List<RadioStation>>
+    fun getAllStations(): Flow<List<RadioStationEntity>>
 
     @Query("SELECT * FROM radio_stations WHERE isFavorite = 1")
-    fun getFavoriteStations(): Flow<List<RadioStation>>
+    fun getFavoriteStations(): Flow<List<RadioStationEntity>>
 
     @Query("UPDATE radio_stations SET isPlaying = 0")
     suspend fun clearPlayingState()
@@ -27,9 +28,9 @@ interface RadioStationDao {
     suspend fun updatePlayingStation(id: Int)
 
     @Query("SELECT * FROM radio_stations WHERE isPlaying = 1 LIMIT 1")
-    fun getPlayingStation(): Flow<RadioStation?>
+    fun getPlayingStation(): Flow<RadioStationEntity?>
 
-    @androidx.room.Transaction
+    @Transaction
     suspend fun setCurrentPlayingStation(id: Int) {
         clearPlayingState()
         updatePlayingStation(id)
@@ -42,5 +43,5 @@ interface RadioStationDao {
     suspend fun clearAll()
 
     @Delete
-    suspend fun deleteStations(stations: List<RadioStation>)
+    suspend fun deleteStations(stations: List<RadioStationEntity>)
 }

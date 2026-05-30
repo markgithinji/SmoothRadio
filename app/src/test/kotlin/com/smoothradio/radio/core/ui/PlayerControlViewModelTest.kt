@@ -5,7 +5,7 @@ import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.FakeEqualizerRepository
 import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepository
-import com.smoothradio.radio.core.data.repository.FakeRadioLinkRepository
+import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
@@ -35,7 +35,7 @@ class PlayerControlViewModelTest {
     private lateinit var fakePlaybackStateRepository: FakePlaybackStateRepository
     private lateinit var fakeEqualizerRepository: FakeEqualizerRepository
     private lateinit var fakeAdSettingsRepository: FakeAdSettingsRepository
-    private lateinit var fakeRadioLinkRepository: FakeRadioLinkRepository
+    private lateinit var fakeFirebaseRepository: FakeFirebaseRepository
 
     @Before
     fun setup() {
@@ -43,12 +43,12 @@ class PlayerControlViewModelTest {
         fakePlaybackStateRepository = FakePlaybackStateRepository()
         fakeEqualizerRepository = FakeEqualizerRepository()
         fakeAdSettingsRepository = FakeAdSettingsRepository()
-        fakeRadioLinkRepository = FakeRadioLinkRepository()
+        fakeFirebaseRepository = FakeFirebaseRepository()
 
         val canShowAdUseCase = CanShowAdUseCase(fakeAdSettingsRepository)
         val recordAdShownUseCase = RecordAdShownUseCase(fakeAdSettingsRepository)
         val syncAdSettingsUseCase =
-            SyncAdSettingsUseCase(fakeAdSettingsRepository, fakeRadioLinkRepository)
+            SyncAdSettingsUseCase(fakeAdSettingsRepository, fakeFirebaseRepository)
 
         viewModel = PlayerControlViewModel(
             fakeRadioRepository,
@@ -64,7 +64,6 @@ class PlayerControlViewModelTest {
     fun requestPlayStation_shouldEmitCommandAndSaveId() = runTest {
         val station = RadioStation(
             id = 1,
-            logoResource = 0,
             stationName = "Test",
             frequency = "1.1",
             location = "City",
@@ -91,9 +90,9 @@ class PlayerControlViewModelTest {
     @Test
     fun requestNextStation_shouldCalculateNextAndPlay() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "S1", "", "", "u1", false, false, 0),
-            RadioStation(2, 0, "S2", "", "", "u2", false, false, 1),
-            RadioStation(3, 0, "S3", "", "", "u3", false, false, 2)
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1),
+            RadioStation(3, "S3", "", "", "u3", false, false, 2)
         )
         fakeRadioRepository.insertStations(stations)
 
@@ -114,8 +113,8 @@ class PlayerControlViewModelTest {
     @Test
     fun requestNextStation_atEnd_shouldWrapToFirst() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "S1", "", "", "u1", false, false, 0),
-            RadioStation(2, 0, "S2", "", "", "u2", false, false, 1)
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1)
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(2)
@@ -131,8 +130,8 @@ class PlayerControlViewModelTest {
     @Test
     fun requestPreviousStation_shouldCalculatePrevAndPlay() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "S1", "", "", "u1", false, false, 0),
-            RadioStation(2, 0, "S2", "", "", "u2", false, false, 1)
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1)
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(2)
@@ -148,8 +147,8 @@ class PlayerControlViewModelTest {
     @Test
     fun requestPreviousStation_atStart_shouldWrapToEnd() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "S1", "", "", "u1", false, false, 0),
-            RadioStation(2, 0, "S2", "", "", "u2", false, false, 1)
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1)
         )
         fakeRadioRepository.insertStations(stations)
         fakeRadioRepository.setPlayingStation(1)

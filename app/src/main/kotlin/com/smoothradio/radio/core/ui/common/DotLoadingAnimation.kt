@@ -14,12 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -33,7 +32,7 @@ fun DotLoadingAnimation(
     animationDelay: Int = 200,
     animationDuration: Int = 400
 ) {
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "dots")
 
     Row(
         modifier = modifier.testTag("dot_loading_animation"),
@@ -42,18 +41,22 @@ fun DotLoadingAnimation(
     ) {
         repeat(3) { index ->
             val delay = (index * animationDelay)
-            val scale by infiniteTransition.animateFloat(
+            val scaleState = infiniteTransition.animateFloat(
                 initialValue = 0.5f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween<Float>(animationDuration, delayMillis = delay),
+                    animation = tween(animationDuration, delayMillis = delay),
                     repeatMode = RepeatMode.Reverse
-                )
+                ),
+                label = "dot_scale_$index"
             )
             Box(
                 modifier = Modifier
                     .size(dotSize)
-                    .scale(scale)
+                    .graphicsLayer {
+                        scaleX = scaleState.value
+                        scaleY = scaleState.value
+                    }
                     .clip(CircleShape)
                     .background(color)
             )

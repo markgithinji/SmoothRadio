@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,13 +33,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.smoothradio.radio.R
 
 @Composable
@@ -51,7 +53,8 @@ fun AboutDialog(
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
     val deviceInfo = remember { "${Build.MANUFACTURER} ${Build.MODEL}" }
-    val androidVersion = remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
+    val androidVersion =
+        remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -62,12 +65,17 @@ fun AboutDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.smoothradioapplogored),
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(R.drawable.smoothradioapplogored)
+                        .error(R.drawable.ic_radio_default)
+                        .fallback(R.drawable.ic_radio_default)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Fit
                 )
                 Column {
                     Text(
@@ -185,10 +193,15 @@ fun AboutDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.facebooklogo),
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(R.drawable.facebooklogo)
+                            .error(R.drawable.ic_radio_default)
+                            .fallback(R.drawable.ic_radio_default)
+                            .build(),
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        contentScale = ContentScale.Fit
                     )
                     Text(
                         stringResource(R.string.follow_facebook),
@@ -253,7 +266,11 @@ private fun shareApp(context: Context) {
         putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
         putExtra(
             Intent.EXTRA_TEXT,
-            context.getString(R.string.share_app_text, context.getString(R.string.app_name), appPackage)
+            context.getString(
+                R.string.share_app_text,
+                context.getString(R.string.app_name),
+                appPackage
+            )
         )
     }
     context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_via)))

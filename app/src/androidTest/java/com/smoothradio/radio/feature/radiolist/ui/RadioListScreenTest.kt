@@ -592,7 +592,6 @@ class RadioListScreenTest {
             val dummyStations = (1000..1020).map { id ->
                 com.smoothradio.radio.core.domain.model.RadioStation(
                     id = id,
-                    logoResource = 0,
                     stationName = "Station $id",
                     frequency = "0.0",
                     location = "Test",

@@ -1,4 +1,4 @@
-package com.smoothradio.radio
+package com.smoothradio.radio.baselineprofile
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.BySelector

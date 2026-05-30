@@ -2,6 +2,7 @@ package com.smoothradio.radio.core.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.FakeRadioStationDao
+import com.smoothradio.radio.core.data.mapper.toEntity
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,10 +29,10 @@ class DefaultRadioRepositoryTest {
     @Test
     fun getAllStationsFlow_shouldEmitStationsFromDao() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false,0),
-            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, true,1)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", false, false, 0),
+            RadioStation(2, "Station Two", "100.2 FM", "CityB", "url2", false, true, 1)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
 
         val emitted = repository.allStations.first()
 
@@ -41,10 +42,10 @@ class DefaultRadioRepositoryTest {
     @Test
     fun getFavoriteStationsFlow_shouldEmitFavoritesFromDao() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false,0),
-            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, true,1)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", false, false, 0),
+            RadioStation(2, "Station Two", "100.2 FM", "CityB", "url2", false, true, 1)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
 
         val emitted = repository.favoriteStations.first()
 
@@ -54,10 +55,10 @@ class DefaultRadioRepositoryTest {
     @Test
     fun getPlayingStationFlow_shouldEmitCurrentlyPlayingStation() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", true, false,0),
-            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, true,1)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", true, false, 0),
+            RadioStation(2, "Station Two", "100.2 FM", "CityB", "url2", false, true, 1)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
         dao.updatePlayingStation(1)
 
         val emitted = repository.playingStation.first()
@@ -68,10 +69,10 @@ class DefaultRadioRepositoryTest {
     @Test
     fun setPlayingStation_shouldClearPreviousAndUpdatePlayingStation() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", true, false,0),
-            RadioStation(5, 0, "Station Five", "103.5 FM", "CityE", "url5", false, false,1)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", true, false, 0),
+            RadioStation(5, "Station Five", "103.5 FM", "CityE", "url5", false, false, 1)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
 
         repository.setPlayingStation(5)
 
@@ -84,7 +85,7 @@ class DefaultRadioRepositoryTest {
     @Test
     fun insertStations_shouldCallDaoInsert() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false,0)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", false, false, 0)
         )
 
         repository.insertStations(stations)
@@ -95,8 +96,8 @@ class DefaultRadioRepositoryTest {
 
     @Test
     fun updateFavoriteStatus_shouldCallDaoUpdate() = runTest {
-        val station = RadioStation(3, 0, "Station Three", "102.2 FM", "CityC", "url3", false, false,0)
-        dao.insertStations(listOf(station))
+        val station = RadioStation(3, "Station Three", "102.2 FM", "CityC", "url3", false, false, 0)
+        dao.insertStations(listOf(station.toEntity()))
 
         repository.updateFavoriteStatus(3, true)
 
@@ -107,9 +108,9 @@ class DefaultRadioRepositoryTest {
     @Test
     fun clearAllStations_shouldCallDaoClearAll() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false, 0)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", false, false, 0)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
 
         repository.clearAllStations()
 
@@ -120,10 +121,10 @@ class DefaultRadioRepositoryTest {
     @Test
     fun deleteStations_shouldCallDaoDelete() = runTest {
         val stations = listOf(
-            RadioStation(1, 0, "Station One", "99.1 FM", "CityA", "url1", false, false, 0),
-            RadioStation(2, 0, "Station Two", "100.2 FM", "CityB", "url2", false, false, 1)
+            RadioStation(1, "Station One", "99.1 FM", "CityA", "url1", false, false, 0),
+            RadioStation(2, "Station Two", "100.2 FM", "CityB", "url2", false, false, 1)
         )
-        dao.insertStations(stations)
+        dao.insertStations(stations.map { it.toEntity() })
 
         repository.deleteStations(listOf(stations[0]))
 
