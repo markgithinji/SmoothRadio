@@ -7,7 +7,16 @@ import androidx.media3.cast.CastPlayer
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
+import androidx.media3.extractor.ts.AdtsExtractor
+import com.smoothradio.radio.core.util.LocalAudioProxy
 import com.google.android.gms.cast.framework.CastContext
 import dagger.Module
 import dagger.Provides
@@ -51,12 +60,53 @@ object ServiceModule {
         .build()
 
     @Provides
+    @Singleton
+    fun provideDataSourceFactory(@ApplicationContext context: Context): DataSource.Factory {
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(15000)
+        
+        return DefaultDataSource.Factory(context, httpDataSourceFactory)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLocalAudioProxy(@ApplicationContext context: Context): LocalAudioProxy = 
+        LocalAudioProxy(context)
+
+    @Provides
     fun provideExoPlayer(
         @ApplicationContext context: Context,
-        audioAttributes: AudioAttributes
-    ): ExoPlayer = ExoPlayer.Builder(context)
-        .setAudioAttributes(audioAttributes, true)
-        .setHandleAudioBecomingNoisy(true)
-        .setWakeMode(C.WAKE_MODE_NETWORK)
-        .build()
+        audioAttributes: AudioAttributes,
+        dataSourceFactory: DataSource.Factory
+    ): ExoPlayer {
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
+            .setAdtsExtractorFlags(AdtsExtractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
+            .setDataSourceFactory(dataSourceFactory)
+
+        // Configure LoadControl to maintain a large back buffer
+        val loadControl = DefaultLoadControl.Builder()
+            .setBackBuffer(3600000, true) // 1 hour back buffer
+            .setBufferDurationsMs(
+                50000, // min buffer
+                50000, // max buffer
+                1500,  // buffer for playback
+                2000   // buffer after rebuffer
+            )
+            .build()
+
+        return ExoPlayer.Builder(context)
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
+            .setSeekBackIncrementMs(10000)
+            .setSeekForwardIncrementMs(10000)
+            .build()
+    }
 }

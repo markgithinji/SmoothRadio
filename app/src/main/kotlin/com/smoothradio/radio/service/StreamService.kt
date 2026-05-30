@@ -28,6 +28,7 @@ import androidx.media3.cast.CastPlayer
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -42,6 +43,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import com.smoothradio.radio.core.util.LocalAudioProxy
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +77,9 @@ class StreamService : MediaSessionService() {
     lateinit var equalizerRepository: EqualizerRepository
 
     @Inject
+    lateinit var localAudioProxy: LocalAudioProxy
+
+    @Inject
     @JvmField
     var castPlayer: CastPlayer? = null
 
@@ -85,6 +90,7 @@ class StreamService : MediaSessionService() {
 
     private var equalizer: Equalizer? = null
     private var audioSessionId: Int = 0
+    private var maxPositionReached: Long = 0L
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
@@ -110,6 +116,37 @@ class StreamService : MediaSessionService() {
         setupNotificationChannel()
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
+        startProgressUpdate()
+    }
+
+    private fun startProgressUpdate() {
+        serviceScope.launch {
+            while (true) {
+                try {
+                    val pos = wrappedPlayer.currentPosition
+                    val dur = wrappedPlayer.duration
+                    
+                    if (pos > maxPositionReached) {
+                        maxPositionReached = pos
+                    }
+
+                    // Log progress every 5 seconds to avoid spam but keep track
+                    if (System.currentTimeMillis() % 5000 < 1000) {
+                        Log.d("SmoothSeek", "Progress Update: Pos=$pos, MaxPos=$maxPositionReached, Dur=$dur")
+                    }
+
+                    // For live streams dur is often negative/unset. 
+                    // Use maxPositionReached as a fallback duration to allow seeking back.
+                    val displayDur = if (dur > 0) dur else maxPositionReached
+                    
+                    stateRepository.updatePosition(if (pos < 0) 0 else pos)
+                    stateRepository.updateDuration(displayDur)
+                } catch (e: Exception) {
+                    Log.e("SmoothSeek", "Error in progress update", e)
+                }
+                kotlinx.coroutines.delay(1000)
+            }
+        }
     }
 
     private fun setupWrappedPlayer() {
@@ -117,6 +154,11 @@ class StreamService : MediaSessionService() {
         wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
+                    .add(COMMAND_SEEK_BACK)
+                    .add(COMMAND_SEEK_FORWARD)
+                    .add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+                    .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
+                    .add(COMMAND_PLAY_PAUSE)
                     .remove(COMMAND_SEEK_TO_NEXT)
                     .remove(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .remove(COMMAND_SEEK_TO_PREVIOUS)
@@ -126,6 +168,12 @@ class StreamService : MediaSessionService() {
 
             override fun isCommandAvailable(command: Int): Boolean {
                 return when (command) {
+                    COMMAND_SEEK_BACK,
+                    COMMAND_SEEK_FORWARD,
+                    COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                    COMMAND_SEEK_TO_DEFAULT_POSITION,
+                    COMMAND_PLAY_PAUSE -> true
+
                     COMMAND_SEEK_TO_NEXT,
                     COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
                     COMMAND_SEEK_TO_PREVIOUS,
@@ -133,6 +181,16 @@ class StreamService : MediaSessionService() {
 
                     else -> super.isCommandAvailable(command)
                 }
+            }
+
+            override fun isCurrentMediaItemLive(): Boolean = false
+
+            override fun isCurrentMediaItemSeekable(): Boolean = true
+
+            override fun getDuration(): Long {
+                val baseDur = super.getDuration()
+                // If the stream doesn't have a duration (live), use the furthest point we've reached
+                return if (baseDur > 0) baseDur else maxPositionReached
             }
 
             override fun getMediaMetadata(): MediaMetadata {
@@ -299,12 +357,16 @@ class StreamService : MediaSessionService() {
 
         val link = intent.getStringExtra(EXTRA_LINK) ?: ""
 
-        updateNotificationInternal()
+        // Only update notification here if it's a metadata-changing action
+        if (action == ACTION_START || action == ACTION_SHOW_AD || action == ACTION_STOP) {
+            updateNotificationInternal()
+        }
 
         when (action) {
             ACTION_START -> {
                 Log.d("StreamService", " ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
+                maxPositionReached = 0L // Reset for new station
                 setState(StreamStates.PREPARING)
                 play(link)
             }
@@ -327,8 +389,33 @@ class StreamService : MediaSessionService() {
                 stopSelf()
             }
 
-            ACTION_PLAY -> wrappedPlayer.play()
-            ACTION_PAUSE -> wrappedPlayer.pause()
+            ACTION_PLAY -> {
+                Log.d("SmoothSeek", "ACTION_PLAY received")
+                wrappedPlayer.play()
+            }
+            ACTION_PAUSE -> {
+                Log.d("SmoothSeek", "ACTION_PAUSE received")
+                wrappedPlayer.pause()
+            }
+            ACTION_SEEK_BACK -> {
+                val current = wrappedPlayer.currentPosition
+                val target = (current - 10000).coerceAtLeast(0)
+                Log.d("SmoothSeek", "ACTION_SEEK_BACK: current=$current -> target=$target")
+                wrappedPlayer.seekTo(target)
+            }
+            ACTION_SEEK_FORWARD -> {
+                val current = wrappedPlayer.currentPosition
+                val target = (current + 10000)
+                Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
+                wrappedPlayer.seekTo(target)
+            }
+            ACTION_SEEK_TO -> {
+                val position = intent.getLongExtra(EXTRA_POSITION, 0L)
+                val currentPos = wrappedPlayer.currentPosition
+                val dur = wrappedPlayer.duration
+                Log.d("SmoothSeek", "ACTION_SEEK_TO: target=$position, current=$currentPos, duration=$dur, isLive=${wrappedPlayer.isCurrentMediaItemLive}, seekable=${wrappedPlayer.isCurrentMediaItemSeekable}")
+                wrappedPlayer.seekTo(position)
+            }
             ACTION_SET_EQ_BAND -> {
                 val band = intent.getIntExtra(EXTRA_BAND, -1)
                 val level = intent.getShortExtra(EXTRA_LEVEL, 0)
@@ -353,7 +440,19 @@ class StreamService : MediaSessionService() {
 
     private fun preparePlayer(uri: Uri) {
         wrappedPlayer.stop()
-        val mediaItem = MediaItem.fromUri(uri)
+        
+        // Start the local proxy to handle the live stream as a growing file
+        localAudioProxy.start(uri.toString())
+        val proxyUri = localAudioProxy.proxyUrl.toUri()
+        
+        val cacheKey = currentStationName ?: uri.toString()
+        Log.d("SmoothSeek", "Preparing player via Proxy: $proxyUri, CacheKey=$cacheKey")
+        
+        val mediaItem = MediaItem.Builder()
+            .setUri(proxyUri)
+            .setMimeType(MimeTypes.AUDIO_MPEG)
+            .setCustomCacheKey(cacheKey)
+            .build()
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
     }
@@ -413,6 +512,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun cleanupResources() {
+        localAudioProxy.stop()
         equalizer?.release()
         equalizer = null
         wrappedPlayer.removeListener(exoplayerEventListener)
@@ -491,8 +591,15 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
+            Log.d("SmoothSeek", "onIsPlayingChanged: $isPlaying, State=${wrappedPlayer.playbackState}")
             updateNotificationInternal()
             if (isPreparingForAd) return
+            
+            // Avoid setting IDLE state during seek/buffer transitions
+            if (!isPlaying && (wrappedPlayer.playbackState == Player.STATE_BUFFERING || wrappedPlayer.playbackState == Player.STATE_IDLE)) {
+                return
+            }
+
             val newState = if (isPlaying) StreamStates.PLAYING
             else if (wrappedPlayer.playbackState == Player.STATE_READY) StreamStates.IDLE
             else return
@@ -500,6 +607,13 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            Log.e("SmoothSeek", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
+            if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                // If we seek too far back and lose the window, jump to live
+                wrappedPlayer.seekToDefaultPosition()
+                wrappedPlayer.prepare()
+                return
+            }
             val message = when (error.errorCode) {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
@@ -511,6 +625,15 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            val stateName = when(state) {
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+            Log.d("SmoothSeek", "Playback State Changed: $stateName, Pos=${wrappedPlayer.currentPosition}")
+
             if (isPreparingForAd) return
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
@@ -521,6 +644,23 @@ class StreamService : MediaSessionService() {
             }
             setState(newState)
         }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
+            val reasonName = when(reason) {
+                Player.DISCONTINUITY_REASON_AUTO_TRANSITION -> "AUTO"
+                Player.DISCONTINUITY_REASON_SEEK -> "SEEK"
+                Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> "SEEK_ADJUST"
+                Player.DISCONTINUITY_REASON_SKIP -> "SKIP"
+                Player.DISCONTINUITY_REASON_REMOVE -> "REMOVE"
+                Player.DISCONTINUITY_REASON_INTERNAL -> "INTERNAL"
+                else -> "UNKNOWN"
+            }
+            Log.d("SmoothSeek", "Position Discontinuity: Reason=$reasonName, Old=${oldPosition.positionMs}, New=${newPosition.positionMs}")
+        }
     }
 
     companion object {
@@ -528,6 +668,9 @@ class StreamService : MediaSessionService() {
         const val ACTION_STOP = "SmoothService:Stop"
         const val ACTION_PLAY = "SmoothService:Play"
         const val ACTION_PAUSE = "SmoothService:Pause"
+        const val ACTION_SEEK_BACK = "SmoothService:SeekBack"
+        const val ACTION_SEEK_FORWARD = "SmoothService:SeekForward"
+        const val ACTION_SEEK_TO = "SmoothService:SeekTo"
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
@@ -537,6 +680,7 @@ class StreamService : MediaSessionService() {
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
         const val EXTRA_LINK = "url"
+        const val EXTRA_POSITION = "position"
         const val EXTRA_BAND = "band"
         const val EXTRA_LEVEL = "level"
         private const val CHANNEL_ID = "media_playback_channel"
