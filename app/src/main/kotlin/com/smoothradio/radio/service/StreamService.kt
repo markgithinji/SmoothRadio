@@ -444,16 +444,28 @@ class StreamService : MediaSessionService() {
         // Reset seek history for new play
         maxPositionReached = 0L
         
-        // Start the local proxy to handle the live stream as a growing file
-        localAudioProxy.start(uri.toString())
+        val uriString = uri.toString()
+        val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
+        
+        // Use the LocalProxy for EVERYTHING
+        localAudioProxy.start(uriString)
         val proxyUri = localAudioProxy.proxyUrl.toUri()
         
-        val cacheKey = currentStationName ?: uri.toString()
-        Log.d("SmoothSeek", "Preparing player via Proxy: $proxyUri, CacheKey=$cacheKey")
+        val cacheKey = currentStationName ?: uriString
+        
+        // Smarter MimeType detection: 
+        // HLS audio segments are typically AAC (ADTS). Progressive is usually MP3.
+        val mimeType = when {
+            isHls -> MimeTypes.AUDIO_AAC 
+            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC
+            else -> MimeTypes.AUDIO_MPEG
+        }
+
+        Log.d("SmoothSeek", "Preparing player via Proxy. Mode: ${if(isHls) "HLS-to-AAC" else "Progressive"}, Mime: $mimeType")
         
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
-            .setMimeType(MimeTypes.AUDIO_MPEG)
+            .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
             .build()
         wrappedPlayer.setMediaItem(mediaItem)

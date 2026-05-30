@@ -30,6 +30,7 @@ class LocalAudioProxy(private val context: Context) {
     
     private var bufferFile: File? = null
     private var sessionTag: String = ""
+    private var currentUrl: String? = null
 
     val proxyUrl: String
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
@@ -72,31 +73,132 @@ class LocalAudioProxy(private val context: Context) {
     }
 
     private suspend fun downloadStream(streamUrl: String) = withContext(Dispatchers.IO) {
+        val isHls = streamUrl.contains(".m3u8") || streamUrl.contains("playlist")
+        if (isHls) {
+            downloadHlsStream(streamUrl)
+        } else {
+            downloadProgressiveStream(streamUrl)
+        }
+    }
+
+    private suspend fun downloadProgressiveStream(streamUrl: String) = withContext(Dispatchers.IO) {
         var inputStream: InputStream? = null
         var outputStream: FileOutputStream? = null
         try {
+            Log.d("LocalProxy", "[$sessionTag] Downloading Progressive: $streamUrl")
             val url = URL(streamUrl)
             val connection = url.openConnection() as HttpURLConnection
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
-            inputStream = connection.inputStream
             
-            // USE APPEND=FALSE TO ENSURE WE START FRESH
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                Log.e("LocalProxy", "[$sessionTag] Server error code: $responseCode")
+                return@withContext
+            }
+
+            inputStream = connection.inputStream
             outputStream = FileOutputStream(bufferFile, false)
 
-            val buffer = ByteArray(16384)
+            val buffer = ByteArray(32768)
             var bytesRead: Int
             while (isRunning.get()) {
                 bytesRead = inputStream?.read(buffer) ?: -1
-                if (bytesRead == -1) break
+                if (bytesRead == -1) {
+                    Log.d("LocalProxy", "[$sessionTag] End of stream")
+                    break
+                }
                 outputStream.write(buffer, 0, bytesRead)
                 outputStream.flush()
             }
         } catch (e: Exception) {
-            Log.e("LocalProxy", "Download interrupted for $sessionTag", e)
+            Log.e("LocalProxy", "[$sessionTag] Progressive download failed", e)
         } finally {
             try { inputStream?.close() } catch (e: Exception) {}
             try { outputStream?.close() } catch (e: Exception) {}
+        }
+    }
+
+    private suspend fun downloadHlsStream(playlistUrl: String): Unit = withContext(Dispatchers.IO) {
+        val downloadedSegments = mutableSetOf<String>()
+        val baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1)
+        Log.d("LocalProxy", "[$sessionTag] Downloading HLS: $playlistUrl")
+        
+        while (isRunning.get()) {
+            try {
+                val connection = URL(playlistUrl).openConnection() as HttpURLConnection
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                val playlistText = connection.inputStream.bufferedReader().readText()
+                
+                val lines = playlistText.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                
+                // If it's a master playlist, follow the first variant
+                if (playlistText.contains("#EXT-X-STREAM-INF")) {
+                    val variant = lines.firstOrNull { !it.startsWith("#") }
+                    if (variant != null) {
+                        val newUrl = if (variant.startsWith("http")) variant else baseUrl + variant
+                        Log.d("LocalProxy", "[$sessionTag] Following HLS variant: $newUrl")
+                        downloadHlsStream(newUrl)
+                        return@withContext
+                    }
+                }
+
+                val newSegments = lines.filter { !it.startsWith("#") }
+                
+                for (segmentPath in newSegments) {
+                    if (!isRunning.get()) break
+                    if (downloadedSegments.contains(segmentPath)) continue
+                    
+                    val fullSegmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
+                    downloadAndAppendSegment(fullSegmentUrl)
+                    downloadedSegments.add(segmentPath)
+                }
+                
+                kotlinx.coroutines.delay(4000)
+            } catch (e: Exception) {
+                Log.e("LocalProxy", "[$sessionTag] HLS Playlist error", e)
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+    }
+
+    private fun downloadAndAppendSegment(segmentUrl: String) {
+        try {
+            val connection = URL(segmentUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 10000
+            val inputStream = connection.inputStream
+            
+            // Read into memory to allow stripping metadata headers (segments are usually small, 200KB-1MB)
+            val segmentData = inputStream.readBytes()
+            inputStream.close()
+
+            var offset = 0
+            // Strip ID3 tags which are often present at the start of HLS segments.
+            // When segments are glued, middle ID3 tags break bitrate-based seeking.
+            if (segmentData.size > 10 && 
+                segmentData[0] == 'I'.code.toByte() && 
+                segmentData[1] == 'D'.code.toByte() && 
+                segmentData[2] == '3'.code.toByte()) {
+                
+                val size = ((segmentData[6].toInt() and 0x7F) shl 21) or
+                           ((segmentData[7].toInt() and 0x7F) shl 14) or
+                           ((segmentData[8].toInt() and 0x7F) shl 7) or
+                           (segmentData[9].toInt() and 0x7F)
+                offset = 10 + size
+                Log.d("LocalProxy", "[$sessionTag] Stripped ID3 metadata ($size bytes) from segment")
+            }
+
+            val outputStream = FileOutputStream(bufferFile, true)
+            if (offset < segmentData.size) {
+                outputStream.write(segmentData, offset, segmentData.size - offset)
+            }
+            outputStream.flush()
+            outputStream.close()
+            
+            Log.d("LocalProxy", "[$sessionTag] Appended segment. Total buffer: ${bufferFile?.length()} bytes")
+        } catch (e: Exception) {
+            Log.e("LocalProxy", "[$sessionTag] Segment download failed", e)
         }
     }
 
@@ -106,7 +208,7 @@ class LocalAudioProxy(private val context: Context) {
                 val input = socket.getInputStream().bufferedReader()
                 val requestLine = input.readLine() ?: return@launch
                 Log.d("LocalProxy", "[$sessionTag] Request: $requestLine")
-                
+
                 var rangeStart = 0L
                 var line = input.readLine()
                 while (!line.isNullOrEmpty()) {
@@ -122,37 +224,37 @@ class LocalAudioProxy(private val context: Context) {
 
                 val output = socket.getOutputStream()
                 val file = bufferFile ?: return@launch
-                
-                // Safety wait for initial data
-                var waitCount = 0
-                while (file.length() <= rangeStart && waitCount < 50 && isRunning.get()) {
-                    kotlinx.coroutines.delay(100)
-                    waitCount++
-                }
 
-                val currentSize = file.length()
-                Log.d("LocalProxy", "[$sessionTag] Serving Range: $rangeStart, Current Buffer: $currentSize")
+                // Determine MimeType. If segments were .aac or .ts, use appropriate type.
+                val isHlsSession = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
+                val contentType = if (isHlsSession) "audio/aac" else "audio/mpeg"
+
+                // A more realistic "Fake Size" (200MB instead of 1GB).
+                // This helps ExoPlayer's bitrate estimator converge much faster.
+                val totalFakeSize = 200 * 1024 * 1024L
 
                 if (rangeStart > 0) {
                     val header = "HTTP/1.1 206 Partial Content\r\n" +
-                            "Content-Type: audio/mpeg\r\n" +
+                            "Content-Type: $contentType\r\n" +
                             "Accept-Ranges: bytes\r\n" +
-                            "Content-Range: bytes $rangeStart-${currentSize - 1}/1073741824\r\n" +
-                            "Content-Length: ${1073741824 - rangeStart}\r\n" +
+                            "Content-Range: bytes $rangeStart-${totalFakeSize - 1}/$totalFakeSize\r\n" +
+                            "Content-Length: ${totalFakeSize - rangeStart}\r\n" +
                             "Connection: close\r\n\r\n"
                     output.write(header.toByteArray())
                 } else {
                     val header = "HTTP/1.1 200 OK\r\n" +
-                            "Content-Type: audio/mpeg\r\n" +
+                            "Content-Type: $contentType\r\n" +
                             "Accept-Ranges: bytes\r\n" +
-                            "Content-Length: 1073741824\r\n" +
+                            "Content-Length: $totalFakeSize\r\n" +
                             "Connection: close\r\n\r\n"
                     output.write(header.toByteArray())
                 }
 
+                Log.d("LocalProxy", "[$sessionTag] Serving $contentType from Byte: $rangeStart")
+
                 var lastReadPos = rangeStart
                 val buffer = ByteArray(16384)
-                
+
                 while (isRunning.get() && !socket.isClosed) {
                     val availableSize = file.length()
                     if (availableSize > lastReadPos) {
