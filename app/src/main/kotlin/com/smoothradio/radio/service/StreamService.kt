@@ -441,6 +441,9 @@ class StreamService : MediaSessionService() {
     private fun preparePlayer(uri: Uri) {
         wrappedPlayer.stop()
         
+        // Reset seek history for new play
+        maxPositionReached = 0L
+        
         // Start the local proxy to handle the live stream as a growing file
         localAudioProxy.start(uri.toString())
         val proxyUri = localAudioProxy.proxyUrl.toUri()

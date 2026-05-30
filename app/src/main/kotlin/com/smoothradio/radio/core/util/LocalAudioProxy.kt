@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URL
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -27,26 +28,30 @@ class LocalAudioProxy(private val context: Context) {
     private val isRunning = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.IO)
     
-    private var currentUrl: String? = null
     private var bufferFile: File? = null
+    private var sessionTag: String = ""
 
     val proxyUrl: String
-        get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/live.mp3"
+        get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
 
     fun start(streamUrl: String) {
-        if (isRunning.get() && currentUrl == streamUrl) return
+        // Always stop existing session to ensure we start from the live edge
         stop()
 
-        currentUrl = streamUrl
-        bufferFile = File(context.cacheDir, "live_buffer.mp3").apply {
+        sessionTag = UUID.randomUUID().toString().take(8)
+        
+        // Clean up any stray buffer files from previous crashes/sessions
+        cleanupLegacyFiles()
+
+        bufferFile = File(context.cacheDir, "proxy_buffer_$sessionTag.mp3").apply {
             if (exists()) delete()
             createNewFile()
         }
 
         isRunning.set(true)
-        serverSocket = ServerSocket(0) // Bind to any random available port
+        serverSocket = ServerSocket(0) 
         
-        Log.d("LocalProxy", "Proxy started at $proxyUrl for $streamUrl")
+        Log.d("LocalProxy", "Starting New Session [$sessionTag] at $proxyUrl")
 
         // 1. Background Download
         downloadJob = scope.launch {
@@ -75,21 +80,23 @@ class LocalAudioProxy(private val context: Context) {
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
             inputStream = connection.inputStream
-            outputStream = FileOutputStream(bufferFile, true)
+            
+            // USE APPEND=FALSE TO ENSURE WE START FRESH
+            outputStream = FileOutputStream(bufferFile, false)
 
-            val buffer = ByteArray(8192)
+            val buffer = ByteArray(16384)
             var bytesRead: Int
             while (isRunning.get()) {
-                bytesRead = inputStream.read(buffer)
+                bytesRead = inputStream?.read(buffer) ?: -1
                 if (bytesRead == -1) break
                 outputStream.write(buffer, 0, bytesRead)
                 outputStream.flush()
             }
         } catch (e: Exception) {
-            Log.e("LocalProxy", "Download interrupted", e)
+            Log.e("LocalProxy", "Download interrupted for $sessionTag", e)
         } finally {
-            inputStream?.close()
-            outputStream?.close()
+            try { inputStream?.close() } catch (e: Exception) {}
+            try { outputStream?.close() } catch (e: Exception) {}
         }
     }
 
@@ -98,12 +105,11 @@ class LocalAudioProxy(private val context: Context) {
             try {
                 val input = socket.getInputStream().bufferedReader()
                 val requestLine = input.readLine() ?: return@launch
-                Log.d("LocalProxy", "Incoming Request: $requestLine")
+                Log.d("LocalProxy", "[$sessionTag] Request: $requestLine")
                 
                 var rangeStart = 0L
                 var line = input.readLine()
                 while (!line.isNullOrEmpty()) {
-                    Log.d("LocalProxy", "Header: $line")
                     if (line.lowercase().startsWith("range: bytes=")) {
                         val range = line.substring("range: bytes=".length).trim()
                         val dashPos = range.indexOf('-')
@@ -117,7 +123,7 @@ class LocalAudioProxy(private val context: Context) {
                 val output = socket.getOutputStream()
                 val file = bufferFile ?: return@launch
                 
-                // Wait until we have enough data to satisfy the range request
+                // Safety wait for initial data
                 var waitCount = 0
                 while (file.length() <= rangeStart && waitCount < 50 && isRunning.get()) {
                     kotlinx.coroutines.delay(100)
@@ -125,11 +131,9 @@ class LocalAudioProxy(private val context: Context) {
                 }
 
                 val currentSize = file.length()
-                Log.d("LocalProxy", "Serving Range: $rangeStart, Current File Size: $currentSize")
+                Log.d("LocalProxy", "[$sessionTag] Serving Range: $rangeStart, Current Buffer: $currentSize")
 
                 if (rangeStart > 0) {
-                    // Send 206 Partial Content for seeks
-                    // We provide a huge total size (1GB) so ExoPlayer knows it can keep seeking
                     val header = "HTTP/1.1 206 Partial Content\r\n" +
                             "Content-Type: audio/mpeg\r\n" +
                             "Accept-Ranges: bytes\r\n" +
@@ -138,7 +142,6 @@ class LocalAudioProxy(private val context: Context) {
                             "Connection: close\r\n\r\n"
                     output.write(header.toByteArray())
                 } else {
-                    // Send 200 OK for initial play
                     val header = "HTTP/1.1 200 OK\r\n" +
                             "Content-Type: audio/mpeg\r\n" +
                             "Accept-Ranges: bytes\r\n" +
@@ -162,21 +165,28 @@ class LocalAudioProxy(private val context: Context) {
                                     lastReadPos += bytesRead
                                     bytesRead = raf.read(buffer)
                                 } catch (e: Exception) {
-                                    Log.d("LocalProxy", "Socket closed by player")
                                     return@launch
                                 }
                             }
                         }
                         output.flush()
                     }
-                    kotlinx.coroutines.delay(100)
+                    kotlinx.coroutines.delay(200)
                 }
             } catch (e: Exception) {
-                Log.e("LocalProxy", "Error in client handler", e)
+                Log.e("LocalProxy", "[$sessionTag] Error in handler", e)
             } finally {
                 try { socket.close() } catch (e: Exception) {}
             }
         }
+    }
+
+    private fun cleanupLegacyFiles() {
+        try {
+            context.cacheDir.listFiles { file -> 
+                file.name.startsWith("proxy_buffer_") && file.name.endsWith(".mp3") 
+            }?.forEach { it.delete() }
+        } catch (e: Exception) {}
     }
 
     fun stop() {
@@ -187,6 +197,11 @@ class LocalAudioProxy(private val context: Context) {
             serverSocket?.close()
         } catch (e: Exception) {}
         serverSocket = null
-        bufferFile?.delete()
+        
+        // Final attempt to delete current file
+        try {
+            bufferFile?.delete()
+        } catch (e: Exception) {}
+        bufferFile = null
     }
 }
