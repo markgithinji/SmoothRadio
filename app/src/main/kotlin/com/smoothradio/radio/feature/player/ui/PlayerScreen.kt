@@ -336,6 +336,7 @@ fun PlayerScreen(
                                     duration = duration,
                                     minPosition = minPosition,
                                     loadedPosition = loadedPosition,
+                                    playbackState = playbackState,
                                     onSeek = { playerControlViewModel.seekTo(it) },
                                     colorScheme = colorScheme
                                 )
@@ -443,6 +444,7 @@ fun PlayerScreen(
                             duration = duration,
                             minPosition = minPosition,
                             loadedPosition = loadedPosition,
+                            playbackState = playbackState,
                             onSeek = { playerControlViewModel.seekTo(it) },
                             colorScheme = colorScheme
                         )
@@ -599,11 +601,21 @@ fun AudioSeekBar(
     duration: Long,
     minPosition: Long,
     loadedPosition: Long,
+    playbackState: StreamStates,
     onSeek: (Long) -> Unit,
     colorScheme: ColorScheme
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(position.toFloat()) }
+
+    val isPlaying = playbackState is StreamStates.PLAYING || playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+
+    // Reset slider when playback stops
+    LaunchedEffect(playbackState) {
+        if (playbackState is StreamStates.IDLE || playbackState is StreamStates.ENDED) {
+            sliderValue = 0f
+        }
+    }
 
     // GESTURE LOCK: Capture the range when drag starts to prevent the bar from 
     // shifting or jumping under the user's finger during rollovers.
@@ -630,8 +642,10 @@ fun AudioSeekBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
+            .graphicsLayer { alpha = if (isPlaying) 1f else 0.6f }
     ) {
         Slider(
+            enabled = isPlaying,
             value = sliderValue.coerceIn(
                 if (isDragging) capturedMin else minPosition.toFloat(),
                 if (isDragging) capturedMax else safeDuration.toFloat()
@@ -654,16 +668,18 @@ fun AudioSeekBar(
             valueRange = if (isDragging) (capturedMin..capturedMax) else (minPosition.toFloat()..safeDuration.toFloat()),
             modifier = Modifier.fillMaxWidth(),
             thumb = {
-                Box(
-                    modifier = Modifier.size(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                if (isPlaying) {
                     Box(
-                        modifier = Modifier
-                            .size(thumbSize)
-                            .background(colorScheme.primary, CircleShape)
-                            .shadow(if (isDragging) 2.dp else 1.dp, CircleShape)
-                    )
+                        modifier = Modifier.size(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(thumbSize)
+                                .background(colorScheme.primary, CircleShape)
+                                .shadow(if (isDragging) 2.dp else 1.dp, CircleShape)
+                        )
+                    }
                 }
             },
             track = { sliderState ->
@@ -694,20 +710,25 @@ fun AudioSeekBar(
                             cornerRadius = CornerRadius(trackRadius, trackRadius)
                         )
                         // 2. Buffer Progress (Loaded data)
-                        drawRoundRect(
-                            color = colorScheme.secondary.copy(alpha = 0.5f),
-                            size = size.copy(width = size.width * loadedFraction),
-                            cornerRadius = CornerRadius(trackRadius, trackRadius)
-                        )
+                        if (isPlaying) {
+                            drawRoundRect(
+                                color = colorScheme.secondary.copy(alpha = 0.5f),
+                                size = size.copy(width = size.width * loadedFraction),
+                                cornerRadius = CornerRadius(trackRadius, trackRadius)
+                            )
+                        }
                     }
 
                     SliderDefaults.Track(
+                        enabled = isPlaying,
                         sliderState = sliderState,
                         modifier = Modifier.height(2.dp),
                         thumbTrackGapSize = 0.dp,
                         colors = SliderDefaults.colors(
                             activeTrackColor = colorScheme.primary,
-                            inactiveTrackColor = Color.Transparent
+                            inactiveTrackColor = Color.Transparent,
+                            disabledActiveTrackColor = colorScheme.onSurface.copy(alpha = 0.12f),
+                            disabledInactiveTrackColor = Color.Transparent
                         )
                     )
                 }
@@ -716,7 +737,7 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { translationY = -32f } // Reduced pull-up to prevent touch overlap
+                .graphicsLayer { translationY = -48f } // Pulled closer up to the seek bar
                 .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically

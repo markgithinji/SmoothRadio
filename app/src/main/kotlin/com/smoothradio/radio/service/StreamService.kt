@@ -588,7 +588,15 @@ class StreamService : MediaSessionService() {
         mediaSession = null
         isPlaying = false
         stateChange = StreamStates.IDLE
-        stateRepository.updateState(StreamStates.IDLE) // Reset repo state on destroy
+        
+        // Reset repository state on destroy
+        stateRepository.updateState(StreamStates.IDLE)
+        stateRepository.updatePosition(0L)
+        stateRepository.updateDuration(0L)
+        stateRepository.updateMinPosition(0L)
+        stateRepository.updateLoadedPosition(0L)
+        stateRepository.updateMetadata("")
+
         isPreparingForAd = false
         unregisterTimerReceivers()
     }
