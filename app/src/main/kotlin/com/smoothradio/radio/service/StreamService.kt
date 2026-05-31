@@ -135,12 +135,20 @@ class StreamService : MediaSessionService() {
                         Log.d("SmoothSeek", "Progress Update: Pos=$pos, MaxPos=$maxPositionReached, Dur=$dur")
                     }
 
-                    // For live streams dur is often negative/unset. 
-                    // Use maxPositionReached as a fallback duration to allow seeking back.
-                    val displayDur = if (dur > 0) dur else maxPositionReached
+                    if (pos > maxPositionReached) {
+                        maxPositionReached = pos
+                    }
+
+                    // Total capacity of the 200MB buffer in milliseconds (~3.5 hours)
+                    val bufferCapacityMs = 200 * 1024 * 1024L / 16 
+
+                    // Show the fixed 3.5 hour window so the thumb moves across the bar
+                    // If they listen longer, the bar expands.
+                    val displayDur = bufferCapacityMs.coerceAtLeast(maxPositionReached)
                     
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
                     stateRepository.updateDuration(displayDur)
+                    stateRepository.updateMinPosition(localAudioProxy.getDroppedDurationMs())
                 } catch (e: Exception) {
                     Log.e("SmoothSeek", "Error in progress update", e)
                 }

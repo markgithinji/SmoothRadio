@@ -64,6 +64,7 @@ class PlayerControlViewModel @Inject constructor(
     val metadata: StateFlow<String> = stateRepository.metadata
     val position: StateFlow<Long> = stateRepository.position
     val duration: StateFlow<Long> = stateRepository.duration
+    val minPosition: StateFlow<Long> = stateRepository.minPosition
 
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()

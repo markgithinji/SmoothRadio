@@ -9,10 +9,12 @@ interface PlaybackStateRepository {
     val stationName: StateFlow<String?>
     val position: StateFlow<Long>
     val duration: StateFlow<Long>
+    val minPosition: StateFlow<Long>
 
     fun updateState(state: StreamStates)
     fun updateMetadata(title: String)
     fun updateStationName(name: String?)
     fun updatePosition(position: Long)
     fun updateDuration(duration: Long)
+    fun updateMinPosition(minPos: Long)
 }

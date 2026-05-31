@@ -122,6 +122,7 @@ fun PlayerScreen(
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val position by playerControlViewModel.position.collectAsStateWithLifecycle()
     val duration by playerControlViewModel.duration.collectAsStateWithLifecycle()
+    val minPosition by playerControlViewModel.minPosition.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
     LaunchedEffect(metadata) {
@@ -327,6 +328,7 @@ fun PlayerScreen(
                                 AudioSeekBar(
                                     position = position,
                                     duration = duration,
+                                    minPosition = minPosition,
                                     onSeek = { playerControlViewModel.seekTo(it) },
                                     colorScheme = colorScheme
                                 )
@@ -432,6 +434,7 @@ fun PlayerScreen(
                         AudioSeekBar(
                             position = position,
                             duration = duration,
+                            minPosition = minPosition,
                             onSeek = { playerControlViewModel.seekTo(it) },
                             colorScheme = colorScheme
                         )
@@ -587,6 +590,7 @@ fun StationHeader(
 fun AudioSeekBar(
     position: Long,
     duration: Long,
+    minPosition: Long,
     onSeek: (Long) -> Unit,
     colorScheme: ColorScheme
 ) {
@@ -594,7 +598,7 @@ fun AudioSeekBar(
     var dragPosition by remember { mutableLongStateOf(0L) }
     val currentDisplayPosition = if (isDragging) dragPosition else position
 
-    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(1) else duration
+    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
 
     Column(
         modifier = Modifier
@@ -611,7 +615,7 @@ fun AudioSeekBar(
                 onSeek(dragPosition)
                 isDragging = false
             },
-            valueRange = 0f..safeDuration.toFloat(),
+            valueRange = minPosition.toFloat()..safeDuration.toFloat(),
             modifier = Modifier.fillMaxWidth()
         )
         Row(
