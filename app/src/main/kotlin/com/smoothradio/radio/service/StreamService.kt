@@ -421,11 +421,12 @@ class StreamService : MediaSessionService() {
             ACTION_SEEK_TO -> {
                 val position = intent.getLongExtra(EXTRA_POSITION, 0L)
                 val loadedDur = localAudioProxy.getLoadedDurationMs()
-                // Snap back logic: If target is beyond loaded data, clamp it to the live edge
                 val target = position.coerceAtMost(loadedDur)
                 
                 Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, loaded=$loadedDur, target=$target")
                 wrappedPlayer.seekTo(target)
+                // Immediately update repository to prevent UI flicker
+                stateRepository.updatePosition(target)
             }
             ACTION_SET_EQ_BAND -> {
                 val band = intent.getIntExtra(EXTRA_BAND, -1)

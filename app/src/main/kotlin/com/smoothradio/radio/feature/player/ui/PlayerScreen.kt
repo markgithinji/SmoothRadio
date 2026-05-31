@@ -600,8 +600,14 @@ fun AudioSeekBar(
     colorScheme: ColorScheme
 ) {
     var isDragging by remember { mutableStateOf(false) }
-    var dragPosition by remember { mutableLongStateOf(0L) }
-    val currentDisplayPosition = if (isDragging) dragPosition else position
+    var sliderValue by remember { mutableFloatStateOf(position.toFloat()) }
+
+    // Sync slider with system position ONLY when not dragging
+    LaunchedEffect(position) {
+        if (!isDragging) {
+            sliderValue = position.toFloat()
+        }
+    }
 
     val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
 
@@ -618,17 +624,17 @@ fun AudioSeekBar(
             .padding(horizontal = 24.dp)
     ) {
         Slider(
-            value = currentDisplayPosition.toFloat(),
+            value = sliderValue.coerceIn(minPosition.toFloat(), safeDuration.toFloat()),
             onValueChange = {
                 if (!isDragging) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
                 isDragging = true
-                dragPosition = it.toLong()
+                sliderValue = it
             },
             onValueChangeFinished = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSeek(dragPosition)
+                onSeek(sliderValue.toLong())
                 isDragging = false
             },
             valueRange = minPosition.toFloat()..safeDuration.toFloat(),
@@ -660,7 +666,7 @@ fun AudioSeekBar(
             }
         )
         Text(
-            text = formatTime(currentDisplayPosition),
+            text = formatTime(sliderValue.toLong()),
             style = MaterialTheme.typography.labelSmall,
             color = colorScheme.onSurfaceVariant,
             modifier = Modifier
