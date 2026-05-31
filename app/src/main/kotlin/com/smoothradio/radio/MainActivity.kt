@@ -119,7 +119,8 @@ class MainActivity : FragmentActivity() {
                         isPlaying = when (state) {
                             StreamStates.PLAYING,
                             StreamStates.BUFFERING,
-                            StreamStates.PREPARING -> true
+                            StreamStates.PREPARING,
+                            StreamStates.PAUSED -> true
 
                             else -> false
                         }
@@ -131,30 +132,37 @@ class MainActivity : FragmentActivity() {
                 }
 
                 launch {
+                    playerControlViewModel.playingStation.collect { station ->
+                        if (station != null) {
+                            currentStation = station
+                        }
+                    }
+                }
+
+                launch {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 val station = command.station
-                                val repoState = playerControlViewModel.playbackState.value
-
+                                val isSameStation = currentStation?.id == station.id
+                                
                                 Log.d(
                                     "MainActivityLogs", "▶ Tap: ${station.stationName} | " +
-                                            "station.isPlaying=${station.isPlaying} | " +
-                                            "local=$isPlaying | " +
-                                            "repo=$repoState | " +
-                                            "sameStation=${currentStation?.id == station.id}"
+                                            "localIsPlaying=$isPlaying | " +
+                                            "isSameStation=$isSameStation"
                                 )
 
                                 currentStation = station
-                                if (station.isPlaying) {
-                                    Log.d("MainActivityLogs", "  → playOrStop()")
-                                    playOrStop()
+                                if (isSameStation && isPlaying) {
+                                    Log.d("MainActivityLogs", "  → togglePlayPause()")
+                                    togglePlayPause()
                                 } else {
                                     Log.d("MainActivityLogs", "  → startNewPlay()")
                                     startNewPlay()
                                 }
                             }
 
+                            is PlayCommand.TogglePlayPause -> togglePlayPause()
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
@@ -221,6 +229,27 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
+    private fun togglePlayPause() {
+        val state = playerControlViewModel.playbackState.value
+        when (state) {
+            is StreamStates.PLAYING, is StreamStates.BUFFERING -> {
+                Log.d("MainActivityLogs", "  → PAUSE")
+                serviceIntent.action = StreamService.ACTION_PAUSE
+                startService(serviceIntent)
+            }
+            is StreamStates.PAUSED -> {
+                Log.d("MainActivityLogs", "  → RESUME")
+                serviceIntent.action = StreamService.ACTION_PLAY
+                startService(serviceIntent)
+            }
+            else -> {
+                // If IDLE or something else, treat as a fresh start
+                Log.d("MainActivityLogs", "  → START (from toggle)")
+                startNewPlay()
+            }
+        }
+    }
+
     private fun startNewPlay() {
         Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying")
 
@@ -234,22 +263,6 @@ class MainActivity : FragmentActivity() {
         loadInterstitialAd()
         checkInternet()
 //        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station") ////////////////////////////////////////////////////////////////////////////////////////////
-    }
-
-    private fun playOrStop() {
-        if (isPlaying) {
-            Log.d("MainActivityLogs", "  → STOP")
-            currentAdRequestId++ // Invalidate any pending ad load requests immediately
-            serviceIntent.action = StreamService.ACTION_STOP
-            startService(serviceIntent)
-            return
-        }
-
-        Log.d("MainActivityLogs", "  → START")
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
     }
 
     private fun refresh() {

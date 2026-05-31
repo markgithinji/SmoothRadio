@@ -452,6 +452,11 @@ class StreamService : MediaSessionService() {
     }
 
     private fun play(link: String) {
+        if (link.isEmpty()) {
+            Log.e("StreamService", "Cannot play: link is empty")
+            setState(StreamStates.IDLE)
+            return
+        }
         isPreparingForAd = false
         preparePlayer(link.toUri())
         wrappedPlayer.play()
@@ -635,9 +640,11 @@ class StreamService : MediaSessionService() {
                 return
             }
 
-            val newState = if (isPlaying) StreamStates.PLAYING
-            else if (wrappedPlayer.playbackState == Player.STATE_READY) StreamStates.IDLE
-            else return
+            val newState = when {
+                isPlaying -> StreamStates.PLAYING
+                wrappedPlayer.playbackState == Player.STATE_READY -> StreamStates.PAUSED
+                else -> StreamStates.IDLE
+            }
             setState(newState)
         }
 
@@ -682,7 +689,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.IDLE
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.PAUSED
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }

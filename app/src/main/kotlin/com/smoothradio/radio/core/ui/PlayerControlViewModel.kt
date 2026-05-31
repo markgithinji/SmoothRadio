@@ -208,6 +208,12 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun togglePlayPause() {
+        viewModelScope.launch {
+            _playCommand.send(PlayCommand.TogglePlayPause)
+        }
+    }
+
     fun savePlayingStationId(id: Int) {
         viewModelScope.launch {
             radioRepository.setPlayingStation(id)
@@ -230,6 +236,7 @@ class PlayerControlViewModel @Inject constructor(
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()
     object Refresh : PlayCommand()
+    object TogglePlayPause : PlayCommand()
     data class SetSleepTimer(val minutes: Int) : PlayCommand()
     data class SetEqBand(val band: Int, val level: Short) : PlayCommand()
     data class SeekTo(val position: Long) : PlayCommand()

@@ -343,22 +343,22 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
                             }
 
-                            PlaybackControlRow(
-                                playbackState = playbackState,
-                                playButtonScale = layoutConfig.btnScale,
-                                isTinyCompact = layoutConfig.tinyCompact,
-                                isCompact = layoutConfig.compact,
-                                onPrevious = {
-                                    swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
-                                },
-                                onNext = {
-                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                },
-                                onPlayPause = { playerControlViewModel.requestPlayStation(currentStation) },
-                                onSeekBack = { playerControlViewModel.seekBack() },
-                                onSeekForward = { playerControlViewModel.seekForward() },
-                                colorScheme = colorScheme
-                            )
+                                PlaybackControlRow(
+                                    playbackState = playbackState,
+                                    playButtonScale = layoutConfig.btnScale,
+                                    isTinyCompact = layoutConfig.tinyCompact,
+                                    isCompact = layoutConfig.compact,
+                                    onPrevious = {
+                                        swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                                    },
+                                    onNext = {
+                                        swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                                    },
+                                    onPlayPause = { playerControlViewModel.togglePlayPause() },
+                                    onSeekBack = { playerControlViewModel.seekBack() },
+                                    onSeekForward = { playerControlViewModel.seekForward() },
+                                    colorScheme = colorScheme
+                                )
 
                             if (layoutConfig.showSecondRow) {
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -473,9 +473,7 @@ fun PlayerScreen(
                                 swipeDirection = 1f; playerControlViewModel.requestNextStation()
                             },
                             onPlayPause = {
-                                playerControlViewModel.requestPlayStation(
-                                    currentStation
-                                )
+                                playerControlViewModel.togglePlayPause()
                             },
                             onSeekBack = { playerControlViewModel.seekBack() },
                             onSeekForward = { playerControlViewModel.seekForward() },
@@ -1094,7 +1092,7 @@ fun AnimatedPlayPauseButton(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isPlaying = playbackState is StreamStates.PLAYING
+    val isPlaying = playbackState is StreamStates.PLAYING || playbackState is StreamStates.BUFFERING
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
