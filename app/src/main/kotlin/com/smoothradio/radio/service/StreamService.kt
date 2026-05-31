@@ -142,7 +142,7 @@ class StreamService : MediaSessionService() {
                     // Total capacity of the buffer in milliseconds
                     val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / LocalAudioProxy.BYTES_PER_MS
 
-                    // Show the fixed window so the thumb moves across the bar
+                    // Show the full 25-minute window as requested.
                     // If they listen longer, the bar expands.
                     val displayDur = bufferCapacityMs.coerceAtLeast(maxPositionReached)
                     
@@ -413,16 +413,19 @@ class StreamService : MediaSessionService() {
             }
             ACTION_SEEK_FORWARD -> {
                 val current = wrappedPlayer.currentPosition
-                val target = (current + 10000)
+                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                val target = (current + 10000).coerceAtMost(loadedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
                 wrappedPlayer.seekTo(target)
             }
             ACTION_SEEK_TO -> {
                 val position = intent.getLongExtra(EXTRA_POSITION, 0L)
-                val currentPos = wrappedPlayer.currentPosition
-                val dur = wrappedPlayer.duration
-                Log.d("SmoothSeek", "ACTION_SEEK_TO: target=$position, current=$currentPos, duration=$dur, isLive=${wrappedPlayer.isCurrentMediaItemLive}, seekable=${wrappedPlayer.isCurrentMediaItemSeekable}")
-                wrappedPlayer.seekTo(position)
+                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                // Snap back logic: If target is beyond loaded data, clamp it to the live edge
+                val target = position.coerceAtMost(loadedDur)
+                
+                Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, loaded=$loadedDur, target=$target")
+                wrappedPlayer.seekTo(target)
             }
             ACTION_SET_EQ_BAND -> {
                 val band = intent.getIntExtra(EXTRA_BAND, -1)

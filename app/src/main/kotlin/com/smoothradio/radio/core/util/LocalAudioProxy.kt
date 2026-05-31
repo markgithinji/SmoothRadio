@@ -50,6 +50,10 @@ class LocalAudioProxy(private val context: Context) {
         return totalBytesDropped / BYTES_PER_MS
     }
 
+    fun getLoadedDurationMs(): Long {
+        return totalBytesWritten / BYTES_PER_MS
+    }
+
     fun start(streamUrl: String) {
         stop() // Decisively stop previous session
         
