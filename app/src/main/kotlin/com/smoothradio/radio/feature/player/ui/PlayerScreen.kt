@@ -57,11 +57,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -586,6 +588,7 @@ fun StationHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioSeekBar(
     position: Long,
@@ -616,23 +619,41 @@ fun AudioSeekBar(
                 isDragging = false
             },
             valueRange = minPosition.toFloat()..safeDuration.toFloat(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                formatTime(currentDisplayPosition),
-                style = MaterialTheme.typography.labelSmall,
-                color = colorScheme.onSurfaceVariant
-            )
-            Text(
-                if (duration > 0) formatTime(duration) else "LIVE",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (duration > 0) colorScheme.onSurfaceVariant else colorScheme.primary
-            )
-        }
+            thumb = {
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(colorScheme.primary, CircleShape)
+                            .shadow(1.dp, CircleShape)
+                    )
+                }
+            },
+            track = { sliderState ->
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SliderDefaults.Track(
+                        sliderState = sliderState,
+                        modifier = Modifier.height(2.dp),
+                        thumbTrackGapSize = 0.dp
+                    )
+                }
+            }
+        )
+        Text(
+            text = formatTime(currentDisplayPosition),
+            style = MaterialTheme.typography.labelSmall,
+            color = colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .graphicsLayer { translationY = -32f }
+                .padding(start = 10.dp)
+        )
     }
 }
 
