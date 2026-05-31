@@ -143,22 +143,23 @@ class MainActivity : FragmentActivity() {
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 val station = command.station
-                                val isSameStation = currentStation?.id == station.id
+                                // Check if we are already playing THIS specific station
+                                val isPlayingSameStation = isPlaying && currentStation?.id == station.id
                                 
                                 Log.d(
                                     "MainActivityLogs", "▶ Tap: ${station.stationName} | " +
                                             "localIsPlaying=$isPlaying | " +
-                                            "isSameStation=$isSameStation"
+                                            "isPlayingSameStation=$isPlayingSameStation"
                                 )
 
-                                currentStation = station
-                                if (isSameStation && isPlaying) {
-                                    Log.d("MainActivityLogs", "  → STOP")
+                                if (isPlayingSameStation) {
+                                    Log.d("MainActivityLogs", "  → STOP (Toggled same station)")
                                     currentAdRequestId++
                                     serviceIntent.action = StreamService.ACTION_STOP
                                     startService(serviceIntent)
                                 } else {
-                                    Log.d("MainActivityLogs", "  → startNewPlay()")
+                                    Log.d("MainActivityLogs", "  → START (Station change or resume from stop)")
+                                    currentStation = station
                                     startNewPlay()
                                 }
                             }

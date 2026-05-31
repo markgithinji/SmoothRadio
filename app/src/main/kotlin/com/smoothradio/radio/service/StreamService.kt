@@ -143,7 +143,6 @@ class StreamService : MediaSessionService() {
             while (true) {
                 try {
                     val pos = wrappedPlayer.currentPosition
-                    val dur = wrappedPlayer.duration
                     
                     if (pos > maxPositionReached) {
                         maxPositionReached = pos
@@ -151,11 +150,7 @@ class StreamService : MediaSessionService() {
 
                     // Log progress every 5 seconds to avoid spam but keep track
                     if (System.currentTimeMillis() % 5000 < 1000) {
-                        Log.d("SmoothSeek", "Progress Update: Pos=$pos, MaxPos=$maxPositionReached, Dur=$dur")
-                    }
-
-                    if (pos > maxPositionReached) {
-                        maxPositionReached = pos
+                        Log.d("SmoothSeek", "Progress Update: Pos=$pos, MaxPos=$maxPositionReached")
                     }
                     
                     updateBitrateEstimation()
@@ -164,11 +159,7 @@ class StreamService : MediaSessionService() {
                     val loadedDur = getLoadedDurationMs()
 
                     // FIXED-WIDTH SLIDING WINDOW:
-                    // 1. Calculate how many ms the physical buffer can hold at current bitrate.
                     val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / estimatedBytesPerMs.coerceAtLeast(4.0)
-                    
-                    // 2. The right edge is always [left edge + total capacity].
-                    // This keeps the bar width constant and handles the "jump back" correctly.
                     val displayDur = droppedDur + bufferCapacityMs.toLong()
                     
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
@@ -723,7 +714,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.IDLE
+                Player.STATE_READY -> if (wrappedPlayer.playWhenReady) StreamStates.PLAYING else StreamStates.IDLE
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }
