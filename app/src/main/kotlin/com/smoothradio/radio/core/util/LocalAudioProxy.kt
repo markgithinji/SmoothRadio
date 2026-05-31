@@ -23,7 +23,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class LocalAudioProxy(private val context: Context) {
     companion object {
-        private const val PART_SIZE = 100 * 1024 * 1024L // 100MB per part (~1.7 hours at 128kbps)
+        const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
+        const val PART_SIZE = 12 * 1024 * 1024L // 12MB per part (Total 24MB ~25 mins)
+        const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
     }
 
     private var serverSocket: ServerSocket? = null
@@ -45,7 +47,7 @@ class LocalAudioProxy(private val context: Context) {
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
 
     fun getDroppedDurationMs(): Long {
-        return totalBytesDropped / 16 // ~16 bytes per ms for 128kbps
+        return totalBytesDropped / BYTES_PER_MS
     }
 
     fun start(streamUrl: String) {
@@ -198,16 +200,15 @@ class LocalAudioProxy(private val context: Context) {
                 val out = socket.getOutputStream()
                 val isHls = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
                 val contentType = if (isHls) "audio/aac" else "audio/mpeg"
-                val totalPhysicalCapacity = PART_SIZE * 2
 
                 if (rangeStart > 0) {
                     val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            "Content-Range: bytes $rangeStart-${totalPhysicalCapacity - 1}/$totalPhysicalCapacity\r\n" +
-                            "Content-Length: ${totalPhysicalCapacity - rangeStart}\r\nConnection: close\r\n\r\n"
+                            "Content-Range: bytes $rangeStart-${TOTAL_CAPACITY_BYTES - 1}/$TOTAL_CAPACITY_BYTES\r\n" +
+                            "Content-Length: ${TOTAL_CAPACITY_BYTES - rangeStart}\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 } else {
                     val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            "Content-Length: $totalPhysicalCapacity\r\nConnection: close\r\n\r\n"
+                            "Content-Length: $TOTAL_CAPACITY_BYTES\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 }
 

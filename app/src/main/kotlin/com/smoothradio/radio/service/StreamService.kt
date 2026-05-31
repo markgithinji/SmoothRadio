@@ -139,10 +139,10 @@ class StreamService : MediaSessionService() {
                         maxPositionReached = pos
                     }
 
-                    // Total capacity of the 200MB buffer in milliseconds (~3.5 hours)
-                    val bufferCapacityMs = 200 * 1024 * 1024L / 16 
+                    // Total capacity of the buffer in milliseconds
+                    val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / LocalAudioProxy.BYTES_PER_MS
 
-                    // Show the fixed 3.5 hour window so the thumb moves across the bar
+                    // Show the fixed window so the thumb moves across the bar
                     // If they listen longer, the bar expands.
                     val displayDur = bufferCapacityMs.coerceAtLeast(maxPositionReached)
                     

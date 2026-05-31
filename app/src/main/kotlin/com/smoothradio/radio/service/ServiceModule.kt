@@ -88,9 +88,9 @@ object ServiceModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(dataSourceFactory)
 
-        // Configure LoadControl to maintain a large back buffer
+        // Configure LoadControl to maintain a back buffer matching the proxy (25 mins)
         val loadControl = DefaultLoadControl.Builder()
-            .setBackBuffer(3600000, true) // 1 hour back buffer
+            .setBackBuffer(1500000, true) // 25 minute back buffer
             .setBufferDurationsMs(
                 50000, // min buffer
                 50000, // max buffer
