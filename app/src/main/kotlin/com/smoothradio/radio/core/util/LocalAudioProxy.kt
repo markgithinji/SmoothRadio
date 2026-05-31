@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LocalAudioProxy(private val context: Context) {
     companion object {
         const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
-        const val PART_SIZE = 12 * 1024 * 1024L // 12MB per part (Total 24MB ~25 mins)
+        const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
     }
 
@@ -38,21 +38,17 @@ class LocalAudioProxy(private val context: Context) {
     private var sessionTag: String = ""
 
     // Rolling Buffer State
-    private var part1File: File? = null
-    private var part2File: File? = null
-    private var totalBytesDropped = 0L // Total bytes ever purged from history
-    private var totalBytesWritten = 0L // Total bytes ever written in this session
+    var part1File: File? = null
+        private set
+    var part2File: File? = null
+        private set
+    var totalBytesDropped = 0L // Total bytes ever purged from history
+        private set
+    var totalBytesWritten = 0L // Total bytes ever written in this session
+        private set
 
     val proxyUrl: String
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
-
-    fun getDroppedDurationMs(): Long {
-        return totalBytesDropped / BYTES_PER_MS
-    }
-
-    fun getLoadedDurationMs(): Long {
-        return totalBytesWritten / BYTES_PER_MS
-    }
 
     fun start(streamUrl: String) {
         stop() // Decisively stop previous session
@@ -174,6 +170,7 @@ class LocalAudioProxy(private val context: Context) {
                 FileOutputStream(p2, true).use { it.write(data, offset, bytesToWrite) }
                 
                 if (p2.length() >= PART_SIZE) {
+                    Log.d("LocalProxy", "[$sessionTag] Buffer Rollover: Purging Part 1, rotating Part 2. Total Dropped: ${totalBytesDropped + p1.length()} bytes")
                     totalBytesDropped += p1.length()
                     p1.delete()
                     p2.renameTo(p1)
@@ -204,15 +201,19 @@ class LocalAudioProxy(private val context: Context) {
                 val out = socket.getOutputStream()
                 val isHls = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
                 val contentType = if (isHls) "audio/aac" else "audio/mpeg"
+                
+                // Tell ExoPlayer the file is very large (e.g., 1GB ~18 hours) 
+                // so it doesn't stop playing when it reaches the physical buffer limit.
+                val virtualCapacity = 1024 * 1024 * 1024L 
 
                 if (rangeStart > 0) {
                     val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            "Content-Range: bytes $rangeStart-${TOTAL_CAPACITY_BYTES - 1}/$TOTAL_CAPACITY_BYTES\r\n" +
-                            "Content-Length: ${TOTAL_CAPACITY_BYTES - rangeStart}\r\nConnection: close\r\n\r\n"
+                            "Content-Range: bytes $rangeStart-${virtualCapacity - 1}/$virtualCapacity\r\n" +
+                            "Content-Length: ${virtualCapacity - rangeStart}\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 } else {
                     val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            "Content-Length: $TOTAL_CAPACITY_BYTES\r\nConnection: close\r\n\r\n"
+                            "Content-Length: $virtualCapacity\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 }
 
@@ -235,6 +236,11 @@ class LocalAudioProxy(private val context: Context) {
                                 physicalFile = part2File
                                 physicalOffset = relativePos - p1Size
                             }
+                        } else {
+                            // DATA PURGED! Jump forward to the start of available data
+                            lastReadPos = totalBytesDropped
+                            physicalFile = part1File
+                            physicalOffset = 0
                         }
                     }
 

@@ -119,8 +119,7 @@ class MainActivity : FragmentActivity() {
                         isPlaying = when (state) {
                             StreamStates.PLAYING,
                             StreamStates.BUFFERING,
-                            StreamStates.PREPARING,
-                            StreamStates.PAUSED -> true
+                            StreamStates.PREPARING -> true
 
                             else -> false
                         }
@@ -154,15 +153,25 @@ class MainActivity : FragmentActivity() {
 
                                 currentStation = station
                                 if (isSameStation && isPlaying) {
-                                    Log.d("MainActivityLogs", "  → togglePlayPause()")
-                                    togglePlayPause()
+                                    Log.d("MainActivityLogs", "  → STOP")
+                                    currentAdRequestId++
+                                    serviceIntent.action = StreamService.ACTION_STOP
+                                    startService(serviceIntent)
                                 } else {
                                     Log.d("MainActivityLogs", "  → startNewPlay()")
                                     startNewPlay()
                                 }
                             }
 
-                            is PlayCommand.TogglePlayPause -> togglePlayPause()
+                            is PlayCommand.TogglePlayPause -> {
+                                if (isPlaying) {
+                                    currentAdRequestId++
+                                    serviceIntent.action = StreamService.ACTION_STOP
+                                    startService(serviceIntent)
+                                } else {
+                                    startNewPlay()
+                                }
+                            }
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
@@ -227,27 +236,6 @@ class MainActivity : FragmentActivity() {
         }
         sendBroadcast(intent)
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
-    }
-
-    private fun togglePlayPause() {
-        val state = playerControlViewModel.playbackState.value
-        when (state) {
-            is StreamStates.PLAYING, is StreamStates.BUFFERING -> {
-                Log.d("MainActivityLogs", "  → PAUSE")
-                serviceIntent.action = StreamService.ACTION_PAUSE
-                startService(serviceIntent)
-            }
-            is StreamStates.PAUSED -> {
-                Log.d("MainActivityLogs", "  → RESUME")
-                serviceIntent.action = StreamService.ACTION_PLAY
-                startService(serviceIntent)
-            }
-            else -> {
-                // If IDLE or something else, treat as a fresh start
-                Log.d("MainActivityLogs", "  → START (from toggle)")
-                startNewPlay()
-            }
-        }
     }
 
     private fun startNewPlay() {

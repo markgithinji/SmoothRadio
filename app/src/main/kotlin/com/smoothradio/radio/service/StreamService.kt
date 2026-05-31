@@ -97,6 +97,23 @@ class StreamService : MediaSessionService() {
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
     private var jumpToLiveOnReady = false
+    private var estimatedBytesPerMs: Double = 16.0 // Initial guess (128kbps)
+    private var sessionStartTime: Long = 0L
+
+    private fun updateBitrateEstimation() {
+        val bytes = localAudioProxy.totalBytesWritten
+        if (sessionStartTime == 0L) return
+        
+        val elapsed = System.currentTimeMillis() - sessionStartTime
+        if (elapsed > 10000 && bytes > 0) {
+            // Live streams are real-time, so bytes/elapsed_time is the true bitrate
+            // Clamp between 4 (32kbps) and 40 (320kbps) to prevent crazy values
+            estimatedBytesPerMs = (bytes.toDouble() / elapsed.toDouble()).coerceIn(4.0, 40.0)
+        }
+    }
+
+    private fun getDroppedDurationMs(): Long = (localAudioProxy.totalBytesDropped / estimatedBytesPerMs).toLong()
+    private fun getLoadedDurationMs(): Long = (localAudioProxy.totalBytesWritten / estimatedBytesPerMs).toLong()
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
@@ -140,19 +157,22 @@ class StreamService : MediaSessionService() {
                     if (pos > maxPositionReached) {
                         maxPositionReached = pos
                     }
+                    
+                    updateBitrateEstimation()
 
-                    // Total capacity of the buffer in milliseconds
-                    val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / LocalAudioProxy.BYTES_PER_MS
+                    val droppedDur = getDroppedDurationMs()
+                    val loadedDur = getLoadedDurationMs()
 
-                    // Show the full 25-minute window as requested.
-                    // If they listen longer, the bar expands.
-                    val displayDur = bufferCapacityMs.coerceAtLeast(maxPositionReached)
-                    val loadedPos = localAudioProxy.getLoadedDurationMs()
+                    // Live-Anchored Sliding Window:
+                    // 1. The right edge (Duration) is always the live download point.
+                    // 2. The left edge (Min) is always the oldest byte on disk.
+                    // This ensures the far right of the bar IS the Live position.
+                    // When data is purged, the left edge moves up, effectively "resetting" the bar.
                     
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
-                    stateRepository.updateDuration(displayDur)
-                    stateRepository.updateMinPosition(localAudioProxy.getDroppedDurationMs())
-                    stateRepository.updateLoadedPosition(loadedPos)
+                    stateRepository.updateDuration(loadedDur)
+                    stateRepository.updateMinPosition(droppedDur)
+                    stateRepository.updateLoadedPosition(loadedDur)
                 } catch (e: Exception) {
                     Log.e("SmoothSeek", "Error in progress update", e)
                 }
@@ -403,8 +423,8 @@ class StreamService : MediaSessionService() {
 
             ACTION_PLAY -> {
                 Log.d("SmoothSeek", "ACTION_PLAY received. Catching up to live.")
-                val loadedDur = localAudioProxy.getLoadedDurationMs()
-                // If they were near live or have been paused, jump to fresh data
+                val loadedDur = getLoadedDurationMs()
+                // Use calibrated live edge
                 wrappedPlayer.seekTo((loadedDur - 2000).coerceAtLeast(0))
                 wrappedPlayer.play()
             }
@@ -414,23 +434,26 @@ class StreamService : MediaSessionService() {
             }
             ACTION_SEEK_BACK -> {
                 val current = wrappedPlayer.currentPosition
-                val target = (current - 10000).coerceAtLeast(0)
+                val droppedDur = getDroppedDurationMs()
+                val target = (current - 10000).coerceAtLeast(droppedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_BACK: current=$current -> target=$target")
                 wrappedPlayer.seekTo(target)
             }
             ACTION_SEEK_FORWARD -> {
                 val current = wrappedPlayer.currentPosition
-                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                val loadedDur = getLoadedDurationMs()
                 val target = (current + 10000).coerceAtMost(loadedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
                 wrappedPlayer.seekTo(target)
             }
             ACTION_SEEK_TO -> {
                 val position = intent.getLongExtra(EXTRA_POSITION, 0L)
-                val loadedDur = localAudioProxy.getLoadedDurationMs()
-                val target = position.coerceAtMost(loadedDur)
+                val loadedDur = getLoadedDurationMs()
+                val droppedDur = getDroppedDurationMs()
+                // Physical coercion: target must be between oldest and newest data on disk
+                val target = position.coerceIn(droppedDur, loadedDur)
                 
-                Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, loaded=$loadedDur, target=$target")
+                Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, available=$droppedDur..$loadedDur, target=$target")
                 wrappedPlayer.seekTo(target)
                 // Immediately update repository to prevent UI flicker
                 stateRepository.updatePosition(target)
@@ -458,6 +481,8 @@ class StreamService : MediaSessionService() {
             return
         }
         isPreparingForAd = false
+        sessionStartTime = System.currentTimeMillis()
+        estimatedBytesPerMs = 16.0 // Reset to default for fresh calibration
         preparePlayer(link.toUri())
         wrappedPlayer.play()
     }
@@ -642,7 +667,6 @@ class StreamService : MediaSessionService() {
 
             val newState = when {
                 isPlaying -> StreamStates.PLAYING
-                wrappedPlayer.playbackState == Player.STATE_READY -> StreamStates.PAUSED
                 else -> StreamStates.IDLE
             }
             setState(newState)
@@ -677,7 +701,7 @@ class StreamService : MediaSessionService() {
             Log.d("SmoothSeek", "Playback State Changed: $stateName, Pos=${wrappedPlayer.currentPosition}")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
-                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                val loadedDur = getLoadedDurationMs()
                 // Jump to 2 seconds behind the live edge to give ExoPlayer room to buffer ahead
                 val target = (loadedDur - 2000).coerceAtLeast(0)
                 Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
@@ -689,7 +713,7 @@ class StreamService : MediaSessionService() {
             val newState = when (state) {
                 Player.STATE_BUFFERING -> StreamStates.BUFFERING
                 Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.PAUSED
+                Player.STATE_READY -> if (wrappedPlayer.isPlaying) StreamStates.PLAYING else StreamStates.IDLE
                 Player.STATE_ENDED -> StreamStates.ENDED
                 else -> return
             }

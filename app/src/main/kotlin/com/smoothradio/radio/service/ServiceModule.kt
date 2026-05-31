@@ -90,7 +90,7 @@ object ServiceModule {
 
         // Configure LoadControl for live-streaming performance
         val loadControl = DefaultLoadControl.Builder()
-            .setBackBuffer(1500000, true) // 25 minute back buffer
+            .setBackBuffer(120000, true) // 2 minute back buffer
             .setBufferDurationsMs(
                 10000, // min buffer (10s)
                 20000, // max buffer (20s)
