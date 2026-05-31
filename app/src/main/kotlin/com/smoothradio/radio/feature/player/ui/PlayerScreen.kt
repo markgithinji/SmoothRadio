@@ -787,16 +787,16 @@ fun PlaybackControlRow(
             Icon(
                 painter = painterResource(id = R.drawable.ic_player_prev),
                 contentDescription = stringResource(R.string.player_previous),
-                modifier = Modifier.size(iconSize),
+                modifier = Modifier.size(iconSize - 4.dp),
                 tint = colorScheme.onSurfaceVariant
             )
         }
 
         IconButton(onClick = onSeekBack, modifier = Modifier.size(btnSize)) {
             Icon(
-                imageVector = Icons.Default.Replay10,
+                painter = painterResource(id = R.drawable.ic_player_seek_back_10),
                 contentDescription = "Seek Back",
-                modifier = Modifier.size(iconSize + 4.dp),
+                modifier = Modifier.size(iconSize + 8.dp),
                 tint = colorScheme.onSurfaceVariant
             )
         }
@@ -809,9 +809,9 @@ fun PlaybackControlRow(
 
         IconButton(onClick = onSeekForward, modifier = Modifier.size(btnSize)) {
             Icon(
-                imageVector = Icons.Default.Forward10,
+                painter = painterResource(id = R.drawable.ic_player_seek_forward_10),
                 contentDescription = "Seek Forward",
-                modifier = Modifier.size(iconSize + 4.dp),
+                modifier = Modifier.size(iconSize + 8.dp),
                 tint = colorScheme.onSurfaceVariant
             )
         }
@@ -820,7 +820,7 @@ fun PlaybackControlRow(
             Icon(
                 painter = painterResource(id = R.drawable.ic_player_next),
                 contentDescription = stringResource(R.string.player_next),
-                modifier = Modifier.size(iconSize),
+                modifier = Modifier.size(iconSize - 4.dp),
                 tint = colorScheme.onSurfaceVariant
             )
         }
