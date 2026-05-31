@@ -28,6 +28,9 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
     private val _minPosition = MutableStateFlow(0L)
     override val minPosition: StateFlow<Long> = _minPosition.asStateFlow()
 
+    private val _loadedPosition = MutableStateFlow(0L)
+    override val loadedPosition: StateFlow<Long> = _loadedPosition.asStateFlow()
+
     override fun updateState(state: StreamStates) {
         _playbackState.value = state
     }
@@ -50,5 +53,9 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
 
     override fun updateMinPosition(minPos: Long) {
         _minPosition.value = minPos
+    }
+
+    override fun updateLoadedPosition(loadedPos: Long) {
+        _loadedPosition.value = loadedPos
     }
 }

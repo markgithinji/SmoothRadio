@@ -145,10 +145,12 @@ class StreamService : MediaSessionService() {
                     // Show the full 25-minute window as requested.
                     // If they listen longer, the bar expands.
                     val displayDur = bufferCapacityMs.coerceAtLeast(maxPositionReached)
+                    val loadedPos = localAudioProxy.getLoadedDurationMs()
                     
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
                     stateRepository.updateDuration(displayDur)
                     stateRepository.updateMinPosition(localAudioProxy.getDroppedDurationMs())
+                    stateRepository.updateLoadedPosition(loadedPos)
                 } catch (e: Exception) {
                     Log.e("SmoothSeek", "Error in progress update", e)
                 }

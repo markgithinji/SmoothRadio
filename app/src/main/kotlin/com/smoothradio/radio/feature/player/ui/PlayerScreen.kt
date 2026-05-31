@@ -80,6 +80,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -127,6 +128,7 @@ fun PlayerScreen(
     val position by playerControlViewModel.position.collectAsStateWithLifecycle()
     val duration by playerControlViewModel.duration.collectAsStateWithLifecycle()
     val minPosition by playerControlViewModel.minPosition.collectAsStateWithLifecycle()
+    val loadedPosition by playerControlViewModel.loadedPosition.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
     LaunchedEffect(metadata) {
@@ -333,6 +335,7 @@ fun PlayerScreen(
                                     position = position,
                                     duration = duration,
                                     minPosition = minPosition,
+                                    loadedPosition = loadedPosition,
                                     onSeek = { playerControlViewModel.seekTo(it) },
                                     colorScheme = colorScheme
                                 )
@@ -439,6 +442,7 @@ fun PlayerScreen(
                             position = position,
                             duration = duration,
                             minPosition = minPosition,
+                            loadedPosition = loadedPosition,
                             onSeek = { playerControlViewModel.seekTo(it) },
                             colorScheme = colorScheme
                         )
@@ -596,6 +600,7 @@ fun AudioSeekBar(
     position: Long,
     duration: Long,
     minPosition: Long,
+    loadedPosition: Long,
     onSeek: (Long) -> Unit,
     colorScheme: ColorScheme
 ) {
@@ -654,13 +659,44 @@ fun AudioSeekBar(
             },
             track = { sliderState ->
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Secondary Track (Loaded/Buffer)
+                    val loadedFraction = if (safeDuration > minPosition) {
+                        ((loadedPosition - minPosition).toFloat() / (safeDuration - minPosition).toFloat()).coerceIn(0f, 1f)
+                    } else 0f
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                    ) {
+                        val trackRadius = size.height / 2
+                        // 1. Background (Full 25 min window)
+                        drawRoundRect(
+                            color = colorScheme.onSurface.copy(alpha = 0.12f),
+                            size = size,
+                            cornerRadius = CornerRadius(trackRadius, trackRadius)
+                        )
+                        // 2. Buffer Progress (Loaded data)
+                        drawRoundRect(
+                            color = colorScheme.secondary.copy(alpha = 0.5f),
+                            size = size.copy(width = size.width * loadedFraction),
+                            cornerRadius = CornerRadius(trackRadius, trackRadius)
+                        )
+                    }
+
                     SliderDefaults.Track(
                         sliderState = sliderState,
                         modifier = Modifier.height(2.dp),
-                        thumbTrackGapSize = 0.dp
+                        thumbTrackGapSize = 0.dp,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = colorScheme.primary,
+                            inactiveTrackColor = Color.Transparent // Hide default inactive to show our custom track
+                        )
                     )
                 }
             }
