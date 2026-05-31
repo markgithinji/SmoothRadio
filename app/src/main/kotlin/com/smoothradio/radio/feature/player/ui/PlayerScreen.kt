@@ -605,14 +605,19 @@ fun AudioSeekBar(
     var isDragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(position.toFloat()) }
 
+    // GESTURE LOCK: Capture the range when drag starts to prevent the bar from 
+    // shifting or jumping under the user's finger during rollovers.
+    var capturedMin by remember { mutableFloatStateOf(minPosition.toFloat()) }
+    var capturedMax by remember { mutableFloatStateOf(duration.toFloat()) }
+
+    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
+
     // Sync slider with system position ONLY when not dragging
     LaunchedEffect(position) {
         if (!isDragging) {
             sliderValue = position.toFloat()
         }
     }
-
-    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
 
     val haptic = LocalHapticFeedback.current
     val thumbSize by animateDpAsState(
@@ -627,10 +632,16 @@ fun AudioSeekBar(
             .padding(horizontal = 24.dp)
     ) {
         Slider(
-            value = sliderValue.coerceIn(minPosition.toFloat(), safeDuration.toFloat()),
+            value = sliderValue.coerceIn(
+                if (isDragging) capturedMin else minPosition.toFloat(),
+                if (isDragging) capturedMax else safeDuration.toFloat()
+            ),
             onValueChange = {
                 if (!isDragging) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    // Lock the range the moment the interaction starts
+                    capturedMin = minPosition.toFloat()
+                    capturedMax = safeDuration.toFloat()
                 }
                 isDragging = true
                 sliderValue = it
@@ -640,7 +651,7 @@ fun AudioSeekBar(
                 onSeek(sliderValue.toLong())
                 isDragging = false
             },
-            valueRange = minPosition.toFloat()..safeDuration.toFloat(),
+            valueRange = if (isDragging) (capturedMin..capturedMax) else (minPosition.toFloat()..safeDuration.toFloat()),
             modifier = Modifier.fillMaxWidth(),
             thumb = {
                 Box(
@@ -662,9 +673,12 @@ fun AudioSeekBar(
                         .height(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Secondary Track (Loaded/Buffer)
-                    val loadedFraction = if (safeDuration > minPosition) {
-                        ((loadedPosition - minPosition).toFloat() / (safeDuration - minPosition).toFloat()).coerceIn(0f, 1f)
+                    // Use active range for fraction calculation
+                    val activeMin = if (isDragging) capturedMin else minPosition.toFloat()
+                    val activeMax = if (isDragging) capturedMax else safeDuration.toFloat()
+                    
+                    val loadedFraction = if (activeMax > activeMin) {
+                        ((loadedPosition - activeMin).toFloat() / (activeMax - activeMin).toFloat()).coerceIn(0f, 1f)
                     } else 0f
 
                     Canvas(
@@ -673,7 +687,7 @@ fun AudioSeekBar(
                             .height(2.dp)
                     ) {
                         val trackRadius = size.height / 2
-                        // 1. Background (Full 25 min window)
+                        // 1. Background (Full Window)
                         drawRoundRect(
                             color = colorScheme.onSurface.copy(alpha = 0.12f),
                             size = size,
@@ -693,7 +707,7 @@ fun AudioSeekBar(
                         thumbTrackGapSize = 0.dp,
                         colors = SliderDefaults.colors(
                             activeTrackColor = colorScheme.primary,
-                            inactiveTrackColor = Color.Transparent // Hide default inactive to show our custom track
+                            inactiveTrackColor = Color.Transparent
                         )
                     )
                 }
@@ -702,7 +716,7 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { translationY = -36f }
+                .graphicsLayer { translationY = -32f } // Reduced pull-up to prevent touch overlap
                 .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
