@@ -96,6 +96,8 @@ class StreamService : MediaSessionService() {
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
+    private var jumpToLiveOnReady = false
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
 
@@ -400,7 +402,10 @@ class StreamService : MediaSessionService() {
             }
 
             ACTION_PLAY -> {
-                Log.d("SmoothSeek", "ACTION_PLAY received")
+                Log.d("SmoothSeek", "ACTION_PLAY received. Catching up to live.")
+                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                // If they were near live or have been paused, jump to fresh data
+                wrappedPlayer.seekTo((loadedDur - 2000).coerceAtLeast(0))
                 wrappedPlayer.play()
             }
             ACTION_PAUSE -> {
@@ -457,6 +462,7 @@ class StreamService : MediaSessionService() {
         
         // Reset seek history for new play
         maxPositionReached = 0L
+        jumpToLiveOnReady = true
         
         val uriString = uri.toString()
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
@@ -662,6 +668,15 @@ class StreamService : MediaSessionService() {
                 else -> "UNKNOWN"
             }
             Log.d("SmoothSeek", "Playback State Changed: $stateName, Pos=${wrappedPlayer.currentPosition}")
+
+            if (state == Player.STATE_READY && jumpToLiveOnReady) {
+                val loadedDur = localAudioProxy.getLoadedDurationMs()
+                // Jump to 2 seconds behind the live edge to give ExoPlayer room to buffer ahead
+                val target = (loadedDur - 2000).coerceAtLeast(0)
+                Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
+                wrappedPlayer.seekTo(target)
+                jumpToLiveOnReady = false
+            }
 
             if (isPreparingForAd) return
             val newState = when (state) {

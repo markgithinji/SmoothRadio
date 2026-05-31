@@ -88,15 +88,16 @@ object ServiceModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(dataSourceFactory)
 
-        // Configure LoadControl to maintain a back buffer matching the proxy (25 mins)
+        // Configure LoadControl for live-streaming performance
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(1500000, true) // 25 minute back buffer
             .setBufferDurationsMs(
-                50000, // min buffer
-                50000, // max buffer
-                1500,  // buffer for playback
-                2000   // buffer after rebuffer
+                10000, // min buffer (10s)
+                20000, // max buffer (20s)
+                2000,  // buffer for playback (2s)
+                3000   // buffer after rebuffer (3s)
             )
+            .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
         return ExoPlayer.Builder(context)
