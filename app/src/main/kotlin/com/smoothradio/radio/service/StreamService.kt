@@ -163,14 +163,16 @@ class StreamService : MediaSessionService() {
                     val droppedDur = getDroppedDurationMs()
                     val loadedDur = getLoadedDurationMs()
 
-                    // Live-Anchored Sliding Window:
-                    // 1. The right edge (Duration) is always the live download point.
-                    // 2. The left edge (Min) is always the oldest byte on disk.
-                    // This ensures the far right of the bar IS the Live position.
-                    // When data is purged, the left edge moves up, effectively "resetting" the bar.
+                    // FIXED-WIDTH SLIDING WINDOW:
+                    // 1. Calculate how many ms the physical buffer can hold at current bitrate.
+                    val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / estimatedBytesPerMs.coerceAtLeast(4.0)
+                    
+                    // 2. The right edge is always [left edge + total capacity].
+                    // This keeps the bar width constant and handles the "jump back" correctly.
+                    val displayDur = droppedDur + bufferCapacityMs.toLong()
                     
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
-                    stateRepository.updateDuration(loadedDur)
+                    stateRepository.updateDuration(displayDur)
                     stateRepository.updateMinPosition(droppedDur)
                     stateRepository.updateLoadedPosition(loadedDur)
                 } catch (e: Exception) {
@@ -221,8 +223,8 @@ class StreamService : MediaSessionService() {
 
             override fun getDuration(): Long {
                 val baseDur = super.getDuration()
-                // If the stream doesn't have a duration (live), use the furthest point we've reached
-                return if (baseDur > 0) baseDur else maxPositionReached
+                // Use a large virtual duration (24 hours) for live streams to allow infinite seeking
+                return if (baseDur > 0) baseDur else 24 * 60 * 60 * 1000L
             }
 
             override fun getMediaMetadata(): MediaMetadata {
