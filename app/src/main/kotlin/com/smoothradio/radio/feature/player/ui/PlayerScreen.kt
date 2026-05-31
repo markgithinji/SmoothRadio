@@ -85,8 +85,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -603,6 +605,13 @@ fun AudioSeekBar(
 
     val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
 
+    val haptic = LocalHapticFeedback.current
+    val thumbSize by animateDpAsState(
+        targetValue = if (isDragging) 14.dp else 10.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "thumbSize"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -611,10 +620,14 @@ fun AudioSeekBar(
         Slider(
             value = currentDisplayPosition.toFloat(),
             onValueChange = {
+                if (!isDragging) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
                 isDragging = true
                 dragPosition = it.toLong()
             },
             onValueChangeFinished = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onSeek(dragPosition)
                 isDragging = false
             },
@@ -622,20 +635,20 @@ fun AudioSeekBar(
             modifier = Modifier.fillMaxWidth(),
             thumb = {
                 Box(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(thumbSize)
                             .background(colorScheme.primary, CircleShape)
-                            .shadow(1.dp, CircleShape)
+                            .shadow(if (isDragging) 2.dp else 1.dp, CircleShape)
                     )
                 }
             },
             track = { sliderState ->
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    modifier = Modifier.fillMaxWidth().height(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     SliderDefaults.Track(
@@ -651,7 +664,7 @@ fun AudioSeekBar(
             style = MaterialTheme.typography.labelSmall,
             color = colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .graphicsLayer { translationY = -32f }
+                .graphicsLayer { translationY = -36f }
                 .padding(start = 10.dp)
         )
     }
