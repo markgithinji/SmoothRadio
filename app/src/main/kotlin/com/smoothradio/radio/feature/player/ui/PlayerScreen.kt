@@ -701,14 +701,55 @@ fun AudioSeekBar(
                 }
             }
         )
-        Text(
-            text = formatTime(sliderValue.toLong()),
-            style = MaterialTheme.typography.labelSmall,
-            color = colorScheme.onSurfaceVariant,
+        Row(
             modifier = Modifier
+                .fillMaxWidth()
                 .graphicsLayer { translationY = -36f }
-                .padding(start = 10.dp)
-        )
+                .padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatTime(sliderValue.toLong()),
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurfaceVariant
+            )
+
+            val isLive = (loadedPosition - position) < 5000 // 5 second threshold
+            
+            Surface(
+                onClick = { 
+                    if (!isLive) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSeek(loadedPosition) 
+                    }
+                },
+                shape = RoundedCornerShape(6.dp),
+                color = if (isLive) colorScheme.primary.copy(alpha = 0.1f) else colorScheme.surfaceVariant,
+                modifier = Modifier.padding(bottom = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(if (isLive) Color.Red else colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "LIVE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = if (isLive) colorScheme.primary else colorScheme.onSurfaceVariant,
+                        fontSize = 9.sp
+                    )
+                }
+            }
+        }
     }
 }
 
