@@ -141,6 +141,11 @@ class StreamService : MediaSessionService() {
         serviceScope.launch {
             while (true) {
                 try {
+                    if (isPreparingForAd) {
+                        kotlinx.coroutines.delay(500)
+                        continue
+                    }
+
                     val pos = wrappedPlayer.currentPosition
                     
                     if (pos > maxPositionReached) {
@@ -400,6 +405,19 @@ class StreamService : MediaSessionService() {
             ACTION_SHOW_AD -> {
                 Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
+                maxPositionReached = 0L // Reset history immediately
+                sessionStartTime = 0L // Stop bitrate estimation
+                
+                // Stop the proxy immediately to reset byte counters
+                localAudioProxy.stop()
+                
+                // RESET UI STATE IMMEDIATELY
+                stateRepository.updatePosition(0L)
+                stateRepository.updateDuration(0L)
+                stateRepository.updateMinPosition(0L)
+                stateRepository.updateLoadedPosition(0L)
+                stateRepository.updateMetadata("")
+
                 setState(StreamStates.PREPARING)
                 prepareShowAd()
             }
@@ -525,6 +543,7 @@ class StreamService : MediaSessionService() {
 
     private fun prepareShowAd() {
         wrappedPlayer.stop()
+        wrappedPlayer.clearMediaItems()
         isPlaying = false
         updateNotificationInternal()
     }
