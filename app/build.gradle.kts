@@ -118,6 +118,8 @@ dependencies {
     implementation(libs.androidx.compose.runtime.tracing)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     "baselineProfile"(project(":baselineprofile"))
     // Third party libraries
     implementation(libs.timber)
