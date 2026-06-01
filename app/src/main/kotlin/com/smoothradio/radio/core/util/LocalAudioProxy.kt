@@ -60,6 +60,9 @@ class LocalAudioProxy(private val context: Context) {
     private var sessionTag: String = ""
     private var remoteMimeType: String? = null
     private var remoteBitrate: String? = null
+    var detectedBitrateKbps: Double? = null
+        private set
+
     private val metadataMap = TreeMap<Long, String>()
     
     // Memory bursting buffer
@@ -224,10 +227,30 @@ class LocalAudioProxy(private val context: Context) {
                 val lines = playlistText.lines().map { it.trim() }.filter { it.isNotEmpty() }
                 
                 if (playlistText.contains("#EXT-X-STREAM-INF")) {
-                    val variant = lines.firstOrNull { !it.startsWith("#") }
-                    if (variant != null) {
-                        val variantUrl = if (variant.startsWith("http")) variant else baseUrl + variant
-                        downloadHlsStream(variantUrl, tag)
+                    val variantLines = lines.mapIndexedNotNull { index, line ->
+                        if (line.startsWith("#EXT-X-STREAM-INF")) {
+                            val url = lines.getOrNull(index + 1)
+                            if (url != null && !url.startsWith("#")) line to url else null
+                        } else null
+                    }
+                    
+                    Log.d("LocalProxy", "[$tag] Master Playlist detected with ${variantLines.size} variants:")
+                    variantLines.forEach { (info, url) ->
+                        Log.d("LocalProxy", "  -> $info | URL: $url")
+                    }
+
+                    // Pick the best variant (highest bandwidth)
+                    val bestVariant = variantLines.mapNotNull { (info, url) ->
+                        val bandwidth = Regex("BANDWIDTH=(\\d+)").find(info)?.groupValues?.get(1)?.toLongOrNull()
+                        if (bandwidth != null) Triple(bandwidth, info, url) else null
+                    }.maxByOrNull { it.first }
+
+                    if (bestVariant != null) {
+                        val (bandwidth, info, variantUrl) = bestVariant
+                        detectedBitrateKbps = bandwidth.toDouble() / 1000.0
+                        val fullUrl = if (variantUrl.startsWith("http")) variantUrl else baseUrl + variantUrl
+                        Log.d("LocalProxy", "[$tag] Selected best variant (${detectedBitrateKbps}kbps): $fullUrl")
+                        downloadHlsStream(fullUrl, tag)
                         return@withContext
                     }
                 }
@@ -272,9 +295,12 @@ class LocalAudioProxy(private val context: Context) {
                                 val id3Data = data.sliceArray(0 until (10 + size))
                                 val title = extractTitleFromId3(id3Data)
                                 if (title != null) {
-                                    Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
-                                    synchronized(this@LocalAudioProxy) {
-                                        metadataMap[totalBytesWritten] = title
+                                    val lastTitle = synchronized(this@LocalAudioProxy) { metadataMap.lastEntry()?.value }
+                                    if (title != lastTitle) {
+                                        Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
+                                        synchronized(this@LocalAudioProxy) {
+                                            metadataMap[totalBytesWritten] = title
+                                        }
                                     }
                                 }
                                 offset = 10 + size

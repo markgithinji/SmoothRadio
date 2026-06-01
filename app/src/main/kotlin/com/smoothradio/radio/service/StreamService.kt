@@ -102,12 +102,24 @@ class StreamService : MediaSessionService() {
 
     private fun updateBitrateEstimation() {
         if (sessionStartTime == 0L) return
+        
         val bytes = localAudioProxy.totalBytesWritten
         val elapsed = System.currentTimeMillis() - sessionStartTime
-        if (elapsed > 10000 && bytes > 0) {
-            // Live streams are real-time, so bytes/elapsed_time is the true bitrate
-            // Clamp between 4 (32kbps) and 40 (320kbps) to prevent crazy values
-            estimatedBytesPerMs = (bytes.toDouble() / elapsed.toDouble()).coerceIn(4.0, 40.0)
+        
+        // Start trusting reality after just 2 seconds to correct for lying manifests
+        if (elapsed > 2000 && bytes > 0) {
+            val realTimeBitrate = (bytes.toDouble() / elapsed.toDouble()).coerceIn(4.0, 40.0)
+            
+            val manifestBitrate = localAudioProxy.detectedBitrateKbps?.let { it / 8.0 }
+            
+            estimatedBytesPerMs = if (manifestBitrate != null) {
+                // Blend with manifest hint, but favor reality (80% reality, 20% hint)
+                (realTimeBitrate * 0.8) + (manifestBitrate * 0.2)
+            } else {
+                realTimeBitrate
+            }
+        } else if (localAudioProxy.detectedBitrateKbps != null) {
+            estimatedBytesPerMs = localAudioProxy.detectedBitrateKbps!! / 8.0
         }
     }
 
@@ -756,14 +768,13 @@ class StreamService : MediaSessionService() {
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 val loadedDur = getLoadedDurationMs()
-                // Jump to 10 seconds behind live. 
-                // This prevents the "start -> rebuffer -> play" loop by ensuring a healthy buffer
-                // before we even begin playback.
-                val target = (loadedDur - 10000).coerceAtLeast(0)
+                // Jump to 5 seconds behind live. 
+                // With faster bitrate correction, 5s is the sweet spot for "truly live" feel.
+                val target = (loadedDur - 5000).coerceAtLeast(0)
                 Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
                 wrappedPlayer.seekTo(target)
                 jumpToLiveOnReady = false
-                wrappedPlayer.play() // NOW start playing
+                wrappedPlayer.play()
             } else {
                 updateUiState()
             }
