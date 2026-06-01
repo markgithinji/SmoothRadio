@@ -184,30 +184,52 @@ class LocalAudioProxy(private val context: Context) {
                     if (downloadedSegments.contains(segmentPath)) continue
                     
                     try {
-                        val segmentData = URL(if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath)
-                            .openConnection().apply { connectTimeout = 10000 }.inputStream.readBytes()
+                        val segmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
+                        val segConn = URL(segmentUrl).openConnection() as HttpURLConnection
+                        segConn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                        segConn.connectTimeout = 8000
+                        segConn.readTimeout = 8000
                         
-                        var offset = 0
-                        if (segmentData.size > 10 && segmentData[0] == 'I'.code.toByte() && segmentData[1] == 'D'.code.toByte() && segmentData[2] == '3'.code.toByte()) {
-                            val size = ((segmentData[6].toInt() and 0x7F) shl 21) or ((segmentData[7].toInt() and 0x7F) shl 14) or
-                                       ((segmentData[8].toInt() and 0x7F) shl 7) or (segmentData[9].toInt() and 0x7F)
+                        segConn.inputStream.use { ins ->
+                            val buffer = ByteArray(16384)
+                            var bytesRead: Int
+                            var isFirstChunk = true
                             
-                            val id3Data = segmentData.sliceArray(0 until (10 + size))
-                            val title = extractTitleFromId3(id3Data)
-                            if (title != null) {
-                                Log.d("LocalProxy", "[$tag] Extracted ID3 Title: $title at offset $totalBytesWritten")
-                                synchronized(this@LocalAudioProxy) {
-                                    metadataMap[totalBytesWritten] = title
+                            while (ins.read(buffer).also { bytesRead = it } != -1) {
+                                if (!isRunning.get() || sessionTag != tag) break
+                                
+                                var offset = 0
+                                // On the very first chunk of a segment, check for ID3 tags to extract metadata
+                                if (isFirstChunk && bytesRead > 10 && buffer[0] == 'I'.code.toByte() && buffer[1] == 'D'.code.toByte() && buffer[2] == '3'.code.toByte()) {
+                                    val size = ((buffer[6].toInt() and 0x7F) shl 21) or 
+                                               ((buffer[7].toInt() and 0x7F) shl 14) or
+                                               ((buffer[8].toInt() and 0x7F) shl 7) or 
+                                               (buffer[9].toInt() and 0x7F)
+                                    
+                                    // If the ID3 tag is small enough to fit in our first buffer, try to parse it
+                                    if (10 + size < bytesRead) {
+                                        val id3Data = buffer.sliceArray(0 until (10 + size))
+                                        val title = extractTitleFromId3(id3Data)
+                                        if (title != null) {
+                                            Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
+                                            synchronized(this@LocalAudioProxy) {
+                                                metadataMap[totalBytesWritten] = title
+                                            }
+                                        }
+                                        offset = 10 + size
+                                    }
                                 }
+                                
+                                if (bytesRead > offset) {
+                                    appendData(tag, buffer.sliceArray(offset until bytesRead), bytesRead - offset)
+                                }
+                                isFirstChunk = false
                             }
-                            offset = 10 + size
-                        }
-                        
-                        if (offset < segmentData.size) {
-                            appendData(tag, segmentData, segmentData.size, offset)
                         }
                         downloadedSegments.add(segmentPath)
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                        Log.e("LocalProxy", "[$tag] Segment download failed: $segmentPath", e)
+                    }
                 }
                 kotlinx.coroutines.delay(4000)
             } catch (e: Exception) {
@@ -365,9 +387,6 @@ class LocalAudioProxy(private val context: Context) {
     fun getMetadataForOffset(offset: Long): String? {
         synchronized(this) {
             val entry = metadataMap.floorEntry(offset)
-            if (entry != null) {
-                Log.v("LocalProxy", "Lookup offset $offset -> Found ${entry.value} (from offset ${entry.key})")
-            }
             return entry?.value
         }
     }

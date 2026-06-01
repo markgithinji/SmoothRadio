@@ -169,9 +169,6 @@ class StreamService : MediaSessionService() {
                             stateRepository.updateMetadata(cleaned)
                             updateNotificationInternal()
                         }
-                    } else if (pos > 5000) {
-                        // Log a warning if we are well into the stream but have no metadata
-                        Log.v("SmoothSeek", "No metadata found at offset $byteOffset (pos $pos)")
                     }
 
                     // FIXED-WIDTH SLIDING WINDOW:

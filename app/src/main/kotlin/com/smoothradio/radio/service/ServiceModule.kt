@@ -92,10 +92,10 @@ object ServiceModule {
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(120000, true) // 2 minute back buffer
             .setBufferDurationsMs(
-                10000, // min buffer (10s)
-                20000, // max buffer (20s)
-                2000,  // buffer for playback (2s)
-                3000   // buffer after rebuffer (3s)
+                4000,  // min buffer (4s) - reduced from 10s for faster start
+                15000, // max buffer (15s) - reduced from 20s
+                1500,  // buffer for playback (1.5s) - reduced from 2s
+                2500   // buffer after rebuffer (2.5s) - reduced from 3s
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
