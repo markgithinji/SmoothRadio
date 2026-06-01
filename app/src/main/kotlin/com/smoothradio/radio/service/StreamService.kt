@@ -157,6 +157,18 @@ class StreamService : MediaSessionService() {
                     val droppedDur = getDroppedDurationMs()
                     val loadedDur = getLoadedDurationMs()
 
+                    // Update metadata from proxy if available (handles Time Machine seeking)
+                    val byteOffset = (pos * estimatedBytesPerMs).toLong()
+                    val proxyMetadata = localAudioProxy.getMetadataForOffset(byteOffset)
+                    if (proxyMetadata != null) {
+                        val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
+                        if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
+                            currentSongTitle = cleaned
+                            stateRepository.updateMetadata(cleaned)
+                            updateNotificationInternal()
+                        }
+                    }
+
                     // FIXED-WIDTH SLIDING WINDOW:
                     val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / estimatedBytesPerMs.coerceAtLeast(4.0)
                     val displayDur = droppedDur + bufferCapacityMs.toLong()

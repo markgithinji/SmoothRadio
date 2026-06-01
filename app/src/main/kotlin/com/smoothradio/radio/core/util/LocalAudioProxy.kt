@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URL
+import java.util.TreeMap
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -36,6 +37,7 @@ class LocalAudioProxy(private val context: Context) {
     
     private var currentUrl: String? = null
     private var sessionTag: String = ""
+    private val metadataMap = TreeMap<Long, String>()
 
     // Rolling Buffer State
     var part1File: File? = null
@@ -61,6 +63,10 @@ class LocalAudioProxy(private val context: Context) {
         part2File = File(context.cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
         totalBytesDropped = 0L
         totalBytesWritten = 0L
+
+        synchronized(this) {
+            metadataMap.clear()
+        }
 
         isRunning.set(true)
         serverSocket = ServerSocket(0)
@@ -90,21 +96,63 @@ class LocalAudioProxy(private val context: Context) {
         try {
             val connection = URL(streamUrl).openConnection() as HttpURLConnection
             connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            connection.setRequestProperty("Icy-MetaData", "1")
             connection.connectTimeout = 15000
+            
+            val metaint = connection.getHeaderField("icy-metaint")?.toIntOrNull() ?: -1
             inputStream = connection.inputStream
 
-            val buffer = ByteArray(65536)
-            var bytesRead: Int
-            while (isRunning.get() && sessionTag == tag) {
-                bytesRead = inputStream?.read(buffer) ?: -1
-                if (bytesRead == -1) break
-                appendData(tag, buffer, bytesRead)
+            if (metaint > 0) {
+                var bytesUntilMetadata = metaint
+                while (isRunning.get() && sessionTag == tag) {
+                    if (bytesUntilMetadata > 0) {
+                        val buf = ByteArray(minOf(bytesUntilMetadata, 16384))
+                        val read = inputStream.read(buf)
+                        if (read == -1) break
+                        appendData(tag, buf, read)
+                        bytesUntilMetadata -= read
+                    } else {
+                        val n = inputStream.read()
+                        if (n == -1) break
+                        if (n > 0) {
+                            val metaLen = n * 16
+                            val metaBuf = ByteArray(metaLen)
+                            var metaRead = 0
+                            while (metaRead < metaLen) {
+                                val r = inputStream.read(metaBuf, metaRead, metaLen - metaRead)
+                                if (r == -1) break
+                                metaRead += r
+                            }
+                            val metadata = String(metaBuf, 0, metaRead, Charsets.UTF_8)
+                            val title = parseIcyMetadata(metadata)
+                            if (title != null) {
+                                synchronized(this@LocalAudioProxy) {
+                                    metadataMap[totalBytesWritten] = title
+                                }
+                            }
+                        }
+                        bytesUntilMetadata = metaint
+                    }
+                }
+            } else {
+                val buffer = ByteArray(65536)
+                var bytesRead: Int
+                while (isRunning.get() && sessionTag == tag) {
+                    bytesRead = inputStream?.read(buffer) ?: -1
+                    if (bytesRead == -1) break
+                    appendData(tag, buffer, bytesRead)
+                }
             }
         } catch (e: Exception) {
             Log.e("LocalProxy", "[$tag] Download failed", e)
         } finally {
             try { inputStream?.close() } catch (e: Exception) {}
         }
+    }
+
+    private fun parseIcyMetadata(metadata: String): String? {
+        val match = Regex("StreamTitle='(.*?)';").find(metadata)
+        return match?.groupValues?.get(1)
     }
 
     private suspend fun downloadHlsStream(playlistUrl: String, tag: String): Unit = withContext(Dispatchers.IO) {
@@ -135,9 +183,17 @@ class LocalAudioProxy(private val context: Context) {
                             .openConnection().apply { connectTimeout = 10000 }.inputStream.readBytes()
                         
                         var offset = 0
-                        if (segmentData.size > 10 && segmentData[0] == 'I'.code.toByte() && segmentData[1] == 'D'.code.toByte()) {
+                        if (segmentData.size > 10 && segmentData[0] == 'I'.code.toByte() && segmentData[1] == 'D'.code.toByte() && segmentData[2] == '3'.code.toByte()) {
                             val size = ((segmentData[6].toInt() and 0x7F) shl 21) or ((segmentData[7].toInt() and 0x7F) shl 14) or
                                        ((segmentData[8].toInt() and 0x7F) shl 7) or (segmentData[9].toInt() and 0x7F)
+                            
+                            val id3Data = segmentData.sliceArray(0 until (10 + size))
+                            val title = extractTitleFromId3(id3Data)
+                            if (title != null) {
+                                synchronized(this@LocalAudioProxy) {
+                                    metadataMap[totalBytesWritten] = title
+                                }
+                            }
                             offset = 10 + size
                         }
                         
@@ -172,6 +228,7 @@ class LocalAudioProxy(private val context: Context) {
                 if (p2.length() >= PART_SIZE) {
                     Log.d("LocalProxy", "[$sessionTag] Buffer Rollover: Purging Part 1, rotating Part 2. Total Dropped: ${totalBytesDropped + p1.length()} bytes")
                     totalBytesDropped += p1.length()
+                    metadataMap.headMap(totalBytesDropped).clear()
                     p1.delete()
                     p2.renameTo(p1)
                     p2.createNewFile()
@@ -270,11 +327,49 @@ class LocalAudioProxy(private val context: Context) {
         } catch (e: Exception) {}
     }
 
+    private fun extractTitleFromId3(data: ByteArray): String? {
+        try {
+            var i = 10 // Skip header
+            while (i + 10 < data.size) {
+                if (i + 4 > data.size) break
+                val frameId = String(data, i, 4)
+                if (frameId.all { it == '\u0000' }) break
+                
+                val frameSize = ((data[i + 4].toInt() and 0xFF) shl 24) or
+                                ((data[i + 5].toInt() and 0xFF) shl 16) or
+                                ((data[i + 6].toInt() and 0xFF) shl 8) or
+                                (data[i + 7].toInt() and 0xFF)
+                
+                if (frameId == "TIT2" || frameId == "TPE1") {
+                    val encoding = if (i + 10 < data.size) data[i + 10].toInt() else 0
+                    val textOffset = i + 11
+                    val textLength = frameSize - 1
+                    if (textOffset + textLength <= data.size && textLength > 0) {
+                        return String(data, textOffset, textLength, if (encoding == 1) Charsets.UTF_16 else Charsets.UTF_8)
+                            .trim { it <= ' ' || it == '\u0000' }
+                    }
+                }
+                if (frameSize <= 0) break
+                i += 10 + frameSize
+            }
+        } catch (e: Exception) {}
+        return null
+    }
+
+    fun getMetadataForOffset(offset: Long): String? {
+        synchronized(this) {
+            return metadataMap.floorEntry(offset)?.value
+        }
+    }
+
     fun stop() {
         isRunning.set(false)
         sessionTag = "" // Invalidate current session immediately
         totalBytesWritten = 0L
         totalBytesDropped = 0L
+        synchronized(this) {
+            metadataMap.clear()
+        }
         downloadJob?.cancel()
         proxyJob?.cancel()
         try { serverSocket?.close() } catch (e: Exception) {}
