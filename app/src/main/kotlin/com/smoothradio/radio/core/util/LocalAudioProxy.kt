@@ -66,6 +66,10 @@ class LocalAudioProxy(private val context: Context) {
     val proxyUrl: String
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
 
+    fun isStartedFor(url: String): Boolean {
+        return isRunning.get() && currentUrl == url
+    }
+
     fun start(streamUrl: String) {
         stop() // Decisively stop previous session
         

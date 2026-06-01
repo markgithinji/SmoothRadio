@@ -420,10 +420,13 @@ class StreamService : MediaSessionService() {
                 Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 maxPositionReached = 0L // Reset history immediately
-                sessionStartTime = 0L // Stop bitrate estimation
+                sessionStartTime = System.currentTimeMillis() // Start calibration early
                 
-                // Stop the proxy immediately to reset byte counters
-                localAudioProxy.stop()
+                // SHADOW LOADING: Start downloading the stream while the ad is showing
+                if (link.isNotEmpty()) {
+                    Log.d("StreamService", "Shadow loading started for: $link")
+                    localAudioProxy.start(link)
+                }
                 
                 // RESET UI STATE IMMEDIATELY
                 stateRepository.updatePosition(0L)
@@ -531,7 +534,11 @@ class StreamService : MediaSessionService() {
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
         
         // Use the LocalProxy for EVERYTHING
-        localAudioProxy.start(uriString)
+        // Only start if not already shadow loading this specific URL
+        if (!localAudioProxy.isStartedFor(uriString)) {
+            localAudioProxy.start(uriString)
+        }
+
         val proxyUri = localAudioProxy.proxyUrl.toUri()
         
         val cacheKey = currentStationName ?: uriString
