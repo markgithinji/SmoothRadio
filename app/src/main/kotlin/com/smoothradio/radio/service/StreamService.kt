@@ -160,13 +160,18 @@ class StreamService : MediaSessionService() {
                     // Update metadata from proxy if available (handles Time Machine seeking)
                     val byteOffset = (pos * estimatedBytesPerMs).toLong()
                     val proxyMetadata = localAudioProxy.getMetadataForOffset(byteOffset)
+                    
                     if (proxyMetadata != null) {
                         val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
                         if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
+                            Log.d("SmoothSeek", "Metadata update at pos $pos: $cleaned")
                             currentSongTitle = cleaned
                             stateRepository.updateMetadata(cleaned)
                             updateNotificationInternal()
                         }
+                    } else if (pos > 5000) {
+                        // Log a warning if we are well into the stream but have no metadata
+                        Log.v("SmoothSeek", "No metadata found at offset $byteOffset (pos $pos)")
                     }
 
                     // FIXED-WIDTH SLIDING WINDOW:

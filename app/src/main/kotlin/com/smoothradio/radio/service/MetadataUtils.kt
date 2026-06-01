@@ -4,25 +4,25 @@ object MetadataUtils {
     fun extractSongTitle(rawTitle: String): String {
         val trimmed = rawTitle.trim()
 
-        // 1. Specific logic for LogEvent SONG packets
+        // 1. Specific logic for LogEvent SONG packets (Zetta/RCS format)
         if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {
             try {
+                // Find the active SONG LogEvent
                 val songPattern = Regex(
-                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?<Asset[^>]*Title="([^"]*)"[^>]*Artist1="([^"]*)"[^>]*/>.*?</LogEvent>""",
+                    """<LogEvent[^>]*Type="SONG"[^>]*LastStarted="true"[^>]*>.*?(<Asset[^>]*/>).*?</LogEvent>""",
                     RegexOption.DOT_MATCHES_ALL
                 )
                 val match = songPattern.find(trimmed)
-                if (match != null) {
-                    val title = match.groupValues[1].replace("&amp;", "&").trim()
-                    val artist = match.groupValues[2].replace("&amp;", "&").trim()
-                    if (title.isNotEmpty()) return "$title - $artist"
-                } else {
-                    val fallbackPattern = Regex("""<Asset[^>]*Title="([^"]*)"[^>]*/>""", RegexOption.DOT_MATCHES_ALL)
-                    val fallbackMatch = fallbackPattern.find(trimmed)
-                    if (fallbackMatch != null) {
-                        return fallbackMatch.groupValues[1].replace("&amp;", "&").trim()
-                    }
-                }
+                val assetTag = match?.groupValues?.get(1) ?: trimmed // Fallback to searching the whole string
+                
+                val titleMatch = Regex("""Title="([^"]*)"""").find(assetTag)
+                val artistMatch = Regex("""Artist1="([^"]*)"""").find(assetTag)
+                
+                val title = titleMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                val artist = artistMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                
+                if (title.isNotEmpty() && artist.isNotEmpty()) return "$title - $artist"
+                if (title.isNotEmpty()) return title
             } catch (e: Exception) {
                 // fall through
             }

@@ -102,6 +102,8 @@ class LocalAudioProxy(private val context: Context) {
             val metaint = connection.getHeaderField("icy-metaint")?.toIntOrNull() ?: -1
             inputStream = connection.inputStream
 
+            Log.d("LocalProxy", "[$tag] Connected to progressive stream. metaint: $metaint")
+
             if (metaint > 0) {
                 var bytesUntilMetadata = metaint
                 while (isRunning.get() && sessionTag == tag) {
@@ -124,8 +126,10 @@ class LocalAudioProxy(private val context: Context) {
                                 metaRead += r
                             }
                             val metadata = String(metaBuf, 0, metaRead, Charsets.UTF_8)
+                            Log.v("LocalProxy", "[$tag] Raw ICY metadata: $metadata")
                             val title = parseIcyMetadata(metadata)
                             if (title != null) {
+                                Log.d("LocalProxy", "[$tag] Parsed ICY Title: $title at offset $totalBytesWritten")
                                 synchronized(this@LocalAudioProxy) {
                                     metadataMap[totalBytesWritten] = title
                                 }
@@ -151,7 +155,8 @@ class LocalAudioProxy(private val context: Context) {
     }
 
     private fun parseIcyMetadata(metadata: String): String? {
-        val match = Regex("StreamTitle='(.*?)';").find(metadata)
+        // Use DOT_MATCHES_ALL because XML metadata often contains newlines
+        val match = Regex("StreamTitle='(.*?)';", RegexOption.DOT_MATCHES_ALL).find(metadata)
         return match?.groupValues?.get(1)
     }
 
@@ -190,6 +195,7 @@ class LocalAudioProxy(private val context: Context) {
                             val id3Data = segmentData.sliceArray(0 until (10 + size))
                             val title = extractTitleFromId3(id3Data)
                             if (title != null) {
+                                Log.d("LocalProxy", "[$tag] Extracted ID3 Title: $title at offset $totalBytesWritten")
                                 synchronized(this@LocalAudioProxy) {
                                     metadataMap[totalBytesWritten] = title
                                 }
@@ -358,7 +364,11 @@ class LocalAudioProxy(private val context: Context) {
 
     fun getMetadataForOffset(offset: Long): String? {
         synchronized(this) {
-            return metadataMap.floorEntry(offset)?.value
+            val entry = metadataMap.floorEntry(offset)
+            if (entry != null) {
+                Log.v("LocalProxy", "Lookup offset $offset -> Found ${entry.value} (from offset ${entry.key})")
+            }
+            return entry?.value
         }
     }
 
