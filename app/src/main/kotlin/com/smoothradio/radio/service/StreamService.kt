@@ -547,15 +547,15 @@ class StreamService : MediaSessionService() {
         
         val cacheKey = currentStationName ?: uriString
         
-        // Smarter MimeType detection: 
-        // HLS audio segments are typically AAC (ADTS). Progressive is usually MP3.
+        // Smarter MimeType detection:
         val mimeType = when {
-            isHls -> MimeTypes.AUDIO_AAC 
+            uriString.contains(".m3u8") || uriString.contains("playlist") -> MimeTypes.AUDIO_AAC
             uriString.contains(".aac") -> MimeTypes.AUDIO_AAC
-            else -> MimeTypes.AUDIO_MPEG
+            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG
+            else -> MimeTypes.AUDIO_MPEG // Default to MPEG for progressive streams
         }
 
-        Log.d("SmoothSeek", "Preparing player via Proxy. Mode: ${if(isHls) "HLS-to-AAC" else "Progressive"}, Mime: $mimeType")
+        Log.d("SmoothSeek", "Preparing player via Proxy. Mode: ${if(uriString.contains(".m3u8")) "HLS" else "Progressive"}, Mime Hint: $mimeType")
         
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)

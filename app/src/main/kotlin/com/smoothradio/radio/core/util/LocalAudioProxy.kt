@@ -57,6 +57,8 @@ class LocalAudioProxy(private val context: Context) {
 
     private var currentUrl: String? = null
     private var sessionTag: String = ""
+    private var remoteMimeType: String? = null
+    private var remoteBitrate: String? = null
     private val metadataMap = TreeMap<Long, String>()
 
     // Rolling Buffer State
@@ -81,6 +83,8 @@ class LocalAudioProxy(private val context: Context) {
         
         currentUrl = streamUrl
         sessionTag = UUID.randomUUID().toString().take(8)
+        remoteMimeType = null
+        remoteBitrate = null
         cleanupLegacyFiles()
 
         part1File = File(context.cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
@@ -130,9 +134,12 @@ class LocalAudioProxy(private val context: Context) {
                 }
 
                 val metaint = response.header("icy-metaint")?.toIntOrNull() ?: -1
+                remoteBitrate = response.header("icy-br")
+                remoteMimeType = response.header("Content-Type")
+                
                 val inputStream = response.body?.byteStream() ?: return@withContext
 
-                Log.d("LocalProxy", "[$tag] Connected to progressive stream via OkHttp. metaint: $metaint")
+                Log.d("LocalProxy", "[$tag] Connected: mime=$remoteMimeType, br=$remoteBitrate, metaint=$metaint")
 
                 if (metaint > 0) {
                     var bytesUntilMetadata = metaint
@@ -338,19 +345,25 @@ class LocalAudioProxy(private val context: Context) {
 
                 val out = socket.getOutputStream()
                 val isHls = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
-                val contentType = if (isHls) "audio/aac" else "audio/mpeg"
+                
+                // Use captured remote mime or fall back to defaults
+                val contentType = remoteMimeType ?: if (isHls) "audio/aac" else "audio/mpeg"
                 
                 // Tell ExoPlayer the file is very large (e.g., 1GB ~18 hours) 
                 // so it doesn't stop playing when it reaches the physical buffer limit.
                 val virtualCapacity = 1024 * 1024 * 1024L 
 
+                val bitrateHeader = if (remoteBitrate != null) "X-Bitrate: $remoteBitrate\r\n" else ""
+
                 if (rangeStart > 0) {
                     val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
+                            bitrateHeader +
                             "Content-Range: bytes $rangeStart-${virtualCapacity - 1}/$virtualCapacity\r\n" +
                             "Content-Length: ${virtualCapacity - rangeStart}\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 } else {
                     val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
+                            bitrateHeader +
                             "Content-Length: $virtualCapacity\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 }
