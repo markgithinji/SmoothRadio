@@ -304,13 +304,12 @@ class LocalAudioProxy(private val context: Context) {
         
         val p1 = part1File ?: return
         val p2 = part2File ?: return
-        val bytesToWrite = length - offset
 
         try {
             if (p1.length() < PART_SIZE) {
-                FileOutputStream(p1, true).use { it.write(data, offset, bytesToWrite) }
+                FileOutputStream(p1, true).use { it.write(data, offset, length) }
             } else {
-                FileOutputStream(p2, true).use { it.write(data, offset, bytesToWrite) }
+                FileOutputStream(p2, true).use { it.write(data, offset, length) }
                 
                 if (p2.length() >= PART_SIZE) {
                     Log.d("LocalProxy", "[$sessionTag] Buffer Rollover: Purging Part 1, rotating Part 2. Total Dropped: ${totalBytesDropped + p1.length()} bytes")
@@ -321,7 +320,7 @@ class LocalAudioProxy(private val context: Context) {
                     p2.createNewFile()
                 }
             }
-            totalBytesWritten += bytesToWrite
+            totalBytesWritten += length
             dataSignal.tryEmit(Unit)
         } catch (e: Exception) {
             Log.e("LocalProxy", "Storage error", e)
