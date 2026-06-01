@@ -405,12 +405,14 @@ class StreamService : MediaSessionService() {
                 Log.d("StreamService", " ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
                 maxPositionReached = 0L // Reset for new station
+                currentSongTitle = "" // Clear stale metadata
                 
                 // RESET UI STATE
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
                 stateRepository.updateMinPosition(0L)
                 stateRepository.updateLoadedPosition(0L)
+                stateRepository.updateMetadata("")
 
                 setState(StreamStates.PREPARING)
                 play(link)
@@ -421,6 +423,7 @@ class StreamService : MediaSessionService() {
                 isPreparingForAd = true
                 maxPositionReached = 0L // Reset history immediately
                 sessionStartTime = System.currentTimeMillis() // Start calibration early
+                currentSongTitle = "" // Clear stale metadata
                 
                 // SHADOW LOADING: Start downloading the stream while the ad is showing
                 if (link.isNotEmpty()) {
@@ -445,6 +448,7 @@ class StreamService : MediaSessionService() {
                 wrappedPlayer.pause()
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
+                currentSongTitle = ""
                 
                 // RESET UI STATE
                 stateRepository.updatePosition(0L)
