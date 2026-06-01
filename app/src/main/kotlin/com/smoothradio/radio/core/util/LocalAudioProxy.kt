@@ -37,6 +37,7 @@ class LocalAudioProxy(private val context: Context) {
         const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
         const val MAX_PARALLEL_DOWNLOADS = 6
+        const val MEMORY_FLUSH_THRESHOLD = 64 * 1024 // 64KB Burst size
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -60,6 +61,10 @@ class LocalAudioProxy(private val context: Context) {
     private var remoteMimeType: String? = null
     private var remoteBitrate: String? = null
     private val metadataMap = TreeMap<Long, String>()
+    
+    // Memory bursting buffer
+    private val memoryBuffer = java.io.ByteArrayOutputStream()
+    private var bytesInMemory = 0L // Bytes currently in memoryBuffer
 
     // Rolling Buffer State
     var part1File: File? = null
@@ -304,14 +309,35 @@ class LocalAudioProxy(private val context: Context) {
         // REJECT DATA FROM STALE SESSIONS
         if (tag != sessionTag || !isRunning.get()) return
         
+        try {
+            memoryBuffer.write(data, offset, length)
+            bytesInMemory += length
+            totalBytesWritten += length
+            
+            if (memoryBuffer.size() >= MEMORY_FLUSH_THRESHOLD) {
+                flushBufferToDisk()
+            }
+            
+            dataSignal.tryEmit(Unit)
+        } catch (e: Exception) {
+            Log.e("LocalProxy", "Buffer error", e)
+        }
+    }
+
+    @Synchronized
+    private fun flushBufferToDisk() {
+        if (memoryBuffer.size() == 0) return
+        
         val p1 = part1File ?: return
         val p2 = part2File ?: return
+        val data = memoryBuffer.toByteArray()
+        val length = data.size
 
         try {
             if (p1.length() < PART_SIZE) {
-                FileOutputStream(p1, true).use { it.write(data, offset, length) }
+                FileOutputStream(p1, true).use { it.write(data) }
             } else {
-                FileOutputStream(p2, true).use { it.write(data, offset, length) }
+                FileOutputStream(p2, true).use { it.write(data) }
                 
                 if (p2.length() >= PART_SIZE) {
                     Log.d("LocalProxy", "[$sessionTag] Buffer Rollover: Purging Part 1, rotating Part 2. Total Dropped: ${totalBytesDropped + p1.length()} bytes")
@@ -322,8 +348,8 @@ class LocalAudioProxy(private val context: Context) {
                     p2.createNewFile()
                 }
             }
-            totalBytesWritten += length
-            dataSignal.tryEmit(Unit)
+            memoryBuffer.reset()
+            bytesInMemory = 0
         } catch (e: Exception) {
             Log.e("LocalProxy", "Storage error", e)
         }
@@ -375,18 +401,29 @@ class LocalAudioProxy(private val context: Context) {
                 while (isRunning.get() && sessionTag == tag && !socket.isClosed) {
                     var physicalFile: File? = null
                     var physicalOffset = 0L
+                    var dataFromMemory: ByteArray? = null
+                    var memoryOffset = 0
 
                     synchronized(this@LocalAudioProxy) {
                         val p1Size = part1File?.length() ?: 0L
+                        val p2Size = part2File?.length() ?: 0L
+                        val totalPhysicalSize = p1Size + p2Size
                         val relativePos = lastReadPos - totalBytesDropped
                         
                         if (relativePos >= 0) {
                             if (relativePos < p1Size) {
                                 physicalFile = part1File
                                 physicalOffset = relativePos
-                            } else {
+                            } else if (relativePos < totalPhysicalSize) {
                                 physicalFile = part2File
                                 physicalOffset = relativePos - p1Size
+                            } else {
+                                // DATA MIGHT BE IN MEMORY
+                                val memoryPos = (relativePos - totalPhysicalSize).toInt()
+                                if (memoryPos < memoryBuffer.size()) {
+                                    dataFromMemory = memoryBuffer.toByteArray()
+                                    memoryOffset = memoryPos
+                                }
                             }
                         } else {
                             // DATA PURGED! Jump forward to the start of available data
@@ -404,6 +441,12 @@ class LocalAudioProxy(private val context: Context) {
                                 out.write(buffer, 0, read)
                                 lastReadPos += read
                             }
+                        }
+                    } else if (dataFromMemory != null) {
+                        val toWrite = minOf(buffer.size, dataFromMemory!!.size - memoryOffset)
+                        if (toWrite > 0) {
+                            out.write(dataFromMemory!!, memoryOffset, toWrite)
+                            lastReadPos += toWrite
                         }
                     } else {
                         // No more data available right now. Wait for signal or timeout.
@@ -465,6 +508,7 @@ class LocalAudioProxy(private val context: Context) {
         totalBytesWritten = 0L
         totalBytesDropped = 0L
         synchronized(this) {
+            flushBufferToDisk()
             metadataMap.clear()
         }
         downloadJob?.cancel()
