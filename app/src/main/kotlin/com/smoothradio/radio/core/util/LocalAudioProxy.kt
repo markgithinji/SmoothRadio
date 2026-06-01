@@ -36,7 +36,7 @@ class LocalAudioProxy(private val context: Context) {
         const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
         const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
-        const val MAX_PARALLEL_DOWNLOADS = 3
+        const val MAX_PARALLEL_DOWNLOADS = 6
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -290,7 +290,9 @@ class LocalAudioProxy(private val context: Context) {
                     downloadedSegments.addAll(list.takeLast(50))
                 }
 
-                delay(4000)
+                // If we found new segments, check again quickly to catch up.
+                // Otherwise, wait 4 seconds for the next segment to be produced.
+                if (newSegments.isNotEmpty()) delay(500) else delay(4000)
             } catch (e: Exception) {
                 delay(2000)
             }

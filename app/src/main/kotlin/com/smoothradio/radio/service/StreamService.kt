@@ -524,7 +524,7 @@ class StreamService : MediaSessionService() {
         sessionStartTime = System.currentTimeMillis()
         estimatedBytesPerMs = 16.0 // Reset to default for fresh calibration
         preparePlayer(link.toUri())
-        wrappedPlayer.play()
+        // Remove immediate play() to avoid the "play at 0:00 then seek" glitch
     }
 
     private fun preparePlayer(uri: Uri) {
@@ -756,11 +756,14 @@ class StreamService : MediaSessionService() {
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 val loadedDur = getLoadedDurationMs()
-                // Jump to 2 seconds behind the live edge to give ExoPlayer room to buffer ahead
-                val target = (loadedDur - 2000).coerceAtLeast(0)
+                // Jump to 10 seconds behind live. 
+                // This prevents the "start -> rebuffer -> play" loop by ensuring a healthy buffer
+                // before we even begin playback.
+                val target = (loadedDur - 10000).coerceAtLeast(0)
                 Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
                 wrappedPlayer.seekTo(target)
                 jumpToLiveOnReady = false
+                wrappedPlayer.play() // NOW start playing
             } else {
                 updateUiState()
             }

@@ -88,14 +88,14 @@ object ServiceModule {
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(dataSourceFactory)
 
-        // Configure LoadControl for live-streaming performance
+        // Configure LoadControl for live-streaming stability
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(120000, true) // 2 minute back buffer
             .setBufferDurationsMs(
-                4000,  // min buffer (4s) - reduced from 10s for faster start
-                15000, // max buffer (15s) - reduced from 20s
-                1500,  // buffer for playback (1.5s) - reduced from 2s
-                2500   // buffer after rebuffer (2.5s) - reduced from 3s
+                10000, // min buffer (10s)
+                30000, // max buffer (30s)
+                3000,  // buffer for playback (3s)
+                4000   // buffer after rebuffer (4s)
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
