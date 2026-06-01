@@ -5,7 +5,12 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,6 +33,7 @@ class LocalAudioProxy(private val context: Context) {
         const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
         const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
+        const val MAX_PARALLEL_DOWNLOADS = 3
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -189,7 +195,7 @@ class LocalAudioProxy(private val context: Context) {
                 }
                 
                 if (playlistText.isEmpty()) {
-                    kotlinx.coroutines.delay(2000)
+                    delay(2000)
                     continue
                 }
 
@@ -204,62 +210,72 @@ class LocalAudioProxy(private val context: Context) {
                     }
                 }
 
-                for (segmentPath in lines.filter { !it.startsWith("#") }) {
-                    if (!isRunning.get() || sessionTag != tag) break
-                    if (downloadedSegments.contains(segmentPath)) continue
-                    
-                    try {
-                        val segmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
-                        val segRequest = Request.Builder()
-                            .url(segmentUrl)
-                            .addHeader("User-Agent", "Mozilla/5.0")
-                            .build()
-                        
-                        okHttpClient.newCall(segRequest).execute().use { response ->
-                            val ins = response.body?.byteStream() ?: return@use
-                            val buffer = ByteArray(16384)
-                            var bytesRead: Int
-                            var isFirstChunk = true
+                val allSegments = lines.filter { !it.startsWith("#") }
+                val newSegments = allSegments.filter { !downloadedSegments.contains(it) }
+
+                // Download multiple segments in parallel to fill the buffer faster
+                val tasks = newSegments.take(MAX_PARALLEL_DOWNLOADS).map { segmentPath ->
+                    val segmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
+                    scope.async {
+                        try {
+                            val segRequest = Request.Builder()
+                                .url(segmentUrl)
+                                .addHeader("User-Agent", "Mozilla/5.0")
+                                .build()
                             
-                            while (ins.read(buffer).also { bytesRead = it } != -1) {
-                                if (!isRunning.get() || sessionTag != tag) break
-                                
-                                var offset = 0
-                                // On the very first chunk of a segment, check for ID3 tags to extract metadata
-                                if (isFirstChunk && bytesRead > 10 && buffer[0] == 'I'.code.toByte() && buffer[1] == 'D'.code.toByte() && buffer[2] == '3'.code.toByte()) {
-                                    val size = ((buffer[6].toInt() and 0x7F) shl 21) or 
-                                               ((buffer[7].toInt() and 0x7F) shl 14) or
-                                               ((buffer[8].toInt() and 0x7F) shl 7) or 
-                                               (buffer[9].toInt() and 0x7F)
-                                    
-                                    // If the ID3 tag is small enough to fit in our first buffer, try to parse it
-                                    if (10 + size < bytesRead) {
-                                        val id3Data = buffer.sliceArray(0 until (10 + size))
-                                        val title = extractTitleFromId3(id3Data)
-                                        if (title != null) {
-                                            Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
-                                            synchronized(this@LocalAudioProxy) {
-                                                metadataMap[totalBytesWritten] = title
-                                            }
-                                        }
-                                        offset = 10 + size
-                                    }
-                                }
-                                
-                                if (bytesRead > offset) {
-                                    appendData(tag, buffer.sliceArray(offset until bytesRead), bytesRead - offset)
-                                }
-                                isFirstChunk = false
+                            okHttpClient.newCall(segRequest).execute().use { response ->
+                                response.body?.bytes() ?: byteArrayOf()
                             }
+                        } catch (e: Exception) {
+                            byteArrayOf()
                         }
-                        downloadedSegments.add(segmentPath)
-                    } catch (e: Exception) {
-                        Log.e("LocalProxy", "[$tag] Segment download failed: $segmentPath", e)
                     }
                 }
-                kotlinx.coroutines.delay(4000)
+
+                // Process them in order to maintain stream continuity
+                newSegments.take(MAX_PARALLEL_DOWNLOADS).forEachIndexed { index, segmentPath ->
+                    if (!isRunning.get() || sessionTag != tag) return@forEachIndexed
+                    
+                    val data = tasks[index].await()
+                    if (data.isNotEmpty()) {
+                        var offset = 0
+                        // Check for ID3 metadata at the start of the segment
+                        if (data.size > 10 && data[0] == 'I'.code.toByte() && data[1] == 'D'.code.toByte() && data[2] == '3'.code.toByte()) {
+                            val size = ((data[6].toInt() and 0x7F) shl 21) or 
+                                       ((data[7].toInt() and 0x7F) shl 14) or
+                                       ((data[8].toInt() and 0x7F) shl 7) or 
+                                       (data[9].toInt() and 0x7F)
+                            
+                            if (10 + size < data.size) {
+                                val id3Data = data.sliceArray(0 until (10 + size))
+                                val title = extractTitleFromId3(id3Data)
+                                if (title != null) {
+                                    Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
+                                    synchronized(this@LocalAudioProxy) {
+                                        metadataMap[totalBytesWritten] = title
+                                    }
+                                }
+                                offset = 10 + size
+                            }
+                        }
+                        
+                        if (data.size > offset) {
+                            appendData(tag, data, data.size - offset, offset)
+                        }
+                        downloadedSegments.add(segmentPath)
+                    }
+                }
+
+                // Prune history to keep memory usage low
+                if (downloadedSegments.size > 100) {
+                    val list = downloadedSegments.toList()
+                    downloadedSegments.clear()
+                    downloadedSegments.addAll(list.takeLast(50))
+                }
+
+                delay(4000)
             } catch (e: Exception) {
-                kotlinx.coroutines.delay(2000)
+                delay(2000)
             }
         }
     }
