@@ -8,10 +8,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -49,6 +52,9 @@ class LocalAudioProxy(private val context: Context) {
     private val isRunning = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.IO)
     
+    // Signal for handleClient to wake up when new data is available
+    private val dataSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     private var currentUrl: String? = null
     private var sessionTag: String = ""
     private val metadataMap = TreeMap<Long, String>()
@@ -309,6 +315,7 @@ class LocalAudioProxy(private val context: Context) {
                 }
             }
             totalBytesWritten += bytesToWrite
+            dataSignal.tryEmit(Unit)
         } catch (e: Exception) {
             Log.e("LocalProxy", "Storage error", e)
         }
@@ -385,7 +392,8 @@ class LocalAudioProxy(private val context: Context) {
                             }
                         }
                     } else {
-                        kotlinx.coroutines.delay(200)
+                        // No more data available right now. Wait for signal or timeout.
+                        withTimeoutOrNull(500) { dataSignal.first() }
                     }
                 }
             } catch (e: Exception) {
