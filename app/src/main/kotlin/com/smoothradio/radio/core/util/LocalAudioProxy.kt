@@ -273,6 +273,8 @@ class LocalAudioProxy(private val context: Context) {
     fun stop() {
         isRunning.set(false)
         sessionTag = "" // Invalidate current session immediately
+        totalBytesWritten = 0L
+        totalBytesDropped = 0L
         downloadJob?.cancel()
         proxyJob?.cancel()
         try { serverSocket?.close() } catch (e: Exception) {}

@@ -101,9 +101,8 @@ class StreamService : MediaSessionService() {
     private var sessionStartTime: Long = 0L
 
     private fun updateBitrateEstimation() {
-        val bytes = localAudioProxy.totalBytesWritten
         if (sessionStartTime == 0L) return
-        
+        val bytes = localAudioProxy.totalBytesWritten
         val elapsed = System.currentTimeMillis() - sessionStartTime
         if (elapsed > 10000 && bytes > 0) {
             // Live streams are real-time, so bytes/elapsed_time is the true bitrate
@@ -146,11 +145,6 @@ class StreamService : MediaSessionService() {
                     
                     if (pos > maxPositionReached) {
                         maxPositionReached = pos
-                    }
-
-                    // Log progress every 5 seconds to avoid spam but keep track
-                    if (System.currentTimeMillis() % 5000 < 1000) {
-                        Log.d("SmoothSeek", "Progress Update: Pos=$pos, MaxPos=$maxPositionReached")
                     }
                     
                     updateBitrateEstimation()
@@ -392,6 +386,13 @@ class StreamService : MediaSessionService() {
                 Log.d("StreamService", " ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
                 maxPositionReached = 0L // Reset for new station
+                
+                // RESET UI STATE
+                stateRepository.updatePosition(0L)
+                stateRepository.updateDuration(0L)
+                stateRepository.updateMinPosition(0L)
+                stateRepository.updateLoadedPosition(0L)
+
                 setState(StreamStates.PREPARING)
                 play(link)
             }
@@ -409,6 +410,13 @@ class StreamService : MediaSessionService() {
                 wrappedPlayer.pause()
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
+                
+                // RESET UI STATE
+                stateRepository.updatePosition(0L)
+                stateRepository.updateDuration(0L)
+                stateRepository.updateMinPosition(0L)
+                stateRepository.updateLoadedPosition(0L)
+
                 setState(StreamStates.IDLE)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()

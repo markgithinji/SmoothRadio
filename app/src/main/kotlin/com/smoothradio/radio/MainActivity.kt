@@ -143,35 +143,25 @@ class MainActivity : FragmentActivity() {
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 val station = command.station
-                                // Check if we are already playing THIS specific station
-                                val isPlayingSameStation = isPlaying && currentStation?.id == station.id
                                 
                                 Log.d(
                                     "MainActivityLogs", "▶ Tap: ${station.stationName} | " +
-                                            "localIsPlaying=$isPlaying | " +
-                                            "isPlayingSameStation=$isPlayingSameStation"
+                                            "station.isPlaying=${station.isPlaying} | " +
+                                            "localIsPlaying=$isPlaying"
                                 )
 
-                                if (isPlayingSameStation) {
-                                    Log.d("MainActivityLogs", "  → STOP (Toggled same station)")
-                                    currentAdRequestId++
-                                    serviceIntent.action = StreamService.ACTION_STOP
-                                    startService(serviceIntent)
+                                currentStation = station
+                                if (station.isPlaying && isPlaying) {
+                                    Log.d("MainActivityLogs", "  → playOrStop()")
+                                    playOrStop()
                                 } else {
-                                    Log.d("MainActivityLogs", "  → START (Station change or resume from stop)")
-                                    currentStation = station
+                                    Log.d("MainActivityLogs", "  → startNewPlay()")
                                     startNewPlay()
                                 }
                             }
 
                             is PlayCommand.TogglePlayPause -> {
-                                if (isPlaying) {
-                                    currentAdRequestId++
-                                    serviceIntent.action = StreamService.ACTION_STOP
-                                    startService(serviceIntent)
-                                } else {
-                                    startNewPlay()
-                                }
+                                playOrStop()
                             }
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
@@ -239,8 +229,34 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
+    private fun playOrStop() {
+        if (isPlaying) {
+            Log.d("MainActivityLogs", "  → STOP")
+            currentAdRequestId++ // Invalidate any pending ad load requests immediately
+            serviceIntent.action = StreamService.ACTION_STOP
+            startService(serviceIntent)
+            return
+        }
+
+        Log.d("MainActivityLogs", "  → START")
+        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+    }
+
     private fun startNewPlay() {
-        Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying")
+        // Fallback: If currentStation is null, try to recover it from the ViewModel
+        if (currentStation == null) {
+            currentStation = playerControlViewModel.playingStation.value
+        }
+        
+        if (currentStation == null) {
+            Log.e("MainActivityLogs", "startNewPlay | ABORTED: No station selected")
+            return
+        }
+
+        Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
 
         if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
             Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
