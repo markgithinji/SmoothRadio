@@ -692,6 +692,26 @@ class StreamService : MediaSessionService() {
         }
     }
 
+    private fun updateUiState() {
+        if (isPreparingForAd) return
+
+        val playbackState = wrappedPlayer.playbackState
+        val isPlayerPlaying = wrappedPlayer.isPlaying
+
+        val newState = when {
+            playbackState == Player.STATE_BUFFERING -> StreamStates.BUFFERING
+            playbackState == Player.STATE_READY && isPlayerPlaying -> StreamStates.PLAYING
+            playbackState == Player.STATE_READY && !isPlayerPlaying -> StreamStates.IDLE
+            playbackState == Player.STATE_ENDED -> StreamStates.ENDED
+            else -> StreamStates.IDLE
+        }
+
+        if (stateChange != newState) {
+            Log.d("SmoothSeek", "UI State Update: ${newState.label} (Internal State: $playbackState, isPlaying: $isPlayerPlaying)")
+            setState(newState)
+        }
+    }
+
     inner class EventListener : Player.Listener {
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             setupEqualizer(audioSessionId)
@@ -709,20 +729,8 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
-            Log.d("SmoothSeek", "onIsPlayingChanged: $isPlaying, State=${wrappedPlayer.playbackState}")
             updateNotificationInternal()
-            if (isPreparingForAd) return
-            
-            // Avoid setting IDLE state during seek/buffer transitions
-            if (!isPlaying && (wrappedPlayer.playbackState == Player.STATE_BUFFERING || wrappedPlayer.playbackState == Player.STATE_IDLE)) {
-                return
-            }
-
-            val newState = when {
-                isPlaying -> StreamStates.PLAYING
-                else -> StreamStates.IDLE
-            }
-            setState(newState)
+            updateUiState()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -744,14 +752,7 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            val stateName = when(state) {
-                Player.STATE_IDLE -> "IDLE"
-                Player.STATE_BUFFERING -> "BUFFERING"
-                Player.STATE_READY -> "READY"
-                Player.STATE_ENDED -> "ENDED"
-                else -> "UNKNOWN"
-            }
-            Log.d("SmoothSeek", "Playback State Changed: $stateName, Pos=${wrappedPlayer.currentPosition}")
+            Log.d("SmoothSeek", "onPlaybackStateChanged: $state, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 val loadedDur = getLoadedDurationMs()
@@ -760,17 +761,9 @@ class StreamService : MediaSessionService() {
                 Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
                 wrappedPlayer.seekTo(target)
                 jumpToLiveOnReady = false
+            } else {
+                updateUiState()
             }
-
-            if (isPreparingForAd) return
-            val newState = when (state) {
-                Player.STATE_BUFFERING -> StreamStates.BUFFERING
-                Player.STATE_IDLE -> StreamStates.IDLE
-                Player.STATE_READY -> if (wrappedPlayer.playWhenReady) StreamStates.PLAYING else StreamStates.IDLE
-                Player.STATE_ENDED -> StreamStates.ENDED
-                else -> return
-            }
-            setState(newState)
         }
 
         override fun onPositionDiscontinuity(
