@@ -40,10 +40,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -206,9 +208,10 @@ fun PlayerScreen(
             }
 
             object {
-                val showAd = if (isLandscape) screenHeight > 500.dp else screenHeight > 670.dp
-                val showSecondRow = if (isLandscape) screenHeight >= 440.dp else screenHeight > 740.dp
-                val showMetadata = if (isLandscape) screenHeight > 320.dp else true
+                val showAd = if (isLandscape) screenHeight > 480.dp else screenHeight > 620.dp
+                val showSecondRow = if (isLandscape) screenHeight >= 420.dp else screenHeight > 720.dp
+                val showMetadata = if (isLandscape) screenHeight > 300.dp else screenHeight > 420.dp
+                val showSeekBar = screenHeight >= 770.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
@@ -227,16 +230,23 @@ fun PlayerScreen(
                     isTinyCompact || isCompact -> 4.dp
                     isShrinking -> 6.dp
                     isMedium -> 8.dp
-                    else -> 16.dp
+                    else -> 12.dp
                 }
 
-                val logoScale = when {
+                val baseLogoScale = when {
                     isLandscape -> 0.45f
-                    isWidePortrait -> 0.5f // Smaller scale for wide portrait to prevent crowding
+                    isWidePortrait -> 0.5f
                     isShrinking -> 0.4f
-                    isMedium -> 0.55f
-                    else -> 0.7f
-                } * logoVisibility
+                    isMedium -> 0.52f
+                    else -> 0.62f
+                }
+                
+                // If ad is shown on a screen that isn't very tall, shrink the logo further to compensate
+                val logoScale = (if (showAd && !isLandscape && screenHeight < 750.dp) {
+                    baseLogoScale * 0.85f
+                } else {
+                    baseLogoScale
+                }) * logoVisibility
             }
         }
 
@@ -331,17 +341,19 @@ fun PlayerScreen(
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                AudioSeekBar(
-                                    position = position,
-                                    duration = duration,
-                                    minPosition = minPosition,
-                                    loadedPosition = loadedPosition,
-                                    playbackState = playbackState,
-                                    onSeek = { playerControlViewModel.seekTo(it) },
-                                    colorScheme = colorScheme
-                                )
+                                if (layoutConfig.showSeekBar) {
+                                    AudioSeekBar(
+                                        position = position,
+                                        duration = duration,
+                                        minPosition = minPosition,
+                                        loadedPosition = loadedPosition,
+                                        playbackState = playbackState,
+                                        onSeek = { playerControlViewModel.seekTo(it) },
+                                        colorScheme = colorScheme
+                                    )
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                }
                             }
 
                                 PlaybackControlRow(
@@ -383,120 +395,128 @@ fun PlayerScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = layoutConfig.horizontalPadding)
-                            .padding(top = layoutConfig.topPadding, bottom = 8.dp), // Reduced bottom padding
+                            .padding(top = layoutConfig.topPadding, bottom = 4.dp), // Reduced bottom padding
                         verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
                     ) {
-                        // Logo Section
-                        if (layoutConfig.logoAlpha > 0f) {
-                            PlayerLogoSection(
-                                currentStation = currentStation,
-                                playbackState = playbackState,
-                                swipeDirection = swipeDirection,
-                                modifier = Modifier
-                                    .fillMaxWidth(layoutConfig.logoScale)
-                                    .fillMaxHeight(0.40f)
-                                    .sizeIn(maxWidth = 400.dp, maxHeight = 400.dp)
-                                    .aspectRatio(1f)
-                            )
-                            Spacer(
-                                modifier = Modifier.height(
-                                    (if (layoutConfig.shrinking) 4.dp else 12.dp) * layoutConfig.logoAlpha
+                        // Top Section (Logo, Station, Metadata)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.wrapContentHeight()
+                        ) {
+                            // Logo Section
+                            if (layoutConfig.logoAlpha > 0f) {
+                                PlayerLogoSection(
+                                    currentStation = currentStation,
+                                    playbackState = playbackState,
+                                    swipeDirection = swipeDirection,
+                                    modifier = Modifier
+                                        .fillMaxWidth(layoutConfig.logoScale)
+                                        .fillMaxHeight(if (layoutConfig.showAd) 0.33f else 0.38f)
+                                        .sizeIn(maxWidth = 400.dp, maxHeight = 400.dp)
+                                        .aspectRatio(1f)
                                 )
-                            )
-                        }
-
-                        // Station Name
-                        if (!layoutConfig.tinyCompact) {
-                            StationHeader(
-                                stationName = currentStation.stationName,
-                                playbackState = playbackState,
-                                isCompact = layoutConfig.compact,
-                                isShrinking = layoutConfig.shrinking,
-                                colorScheme = colorScheme
-                            )
-                        }
-
-                        // Metadata
-                        if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
-                            Spacer(
-                                modifier = Modifier.height(
-                                    if (layoutConfig.showAd) 12.dp else 8.dp
-                                )
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
-                                    AnimatedMetadataWithMarquee(
-                                        metadata = metadata,
-                                        isVisible = true
+                                Spacer(
+                                    modifier = Modifier.height(
+                                        (if (layoutConfig.showAd) 4.dp else if (layoutConfig.shrinking) 8.dp else 12.dp) * layoutConfig.logoAlpha
                                     )
+                                )
+                            }
+
+                            // Station Name & Header
+                            if (!layoutConfig.tinyCompact) {
+                                StationHeader(
+                                    stationName = currentStation.stationName,
+                                    playbackState = playbackState,
+                                    isCompact = layoutConfig.compact,
+                                    isShrinking = layoutConfig.shrinking,
+                                    colorScheme = colorScheme
+                                )
+                            }
+
+                            // Metadata
+                            if (layoutConfig.showMetadata && !layoutConfig.tinyCompact) {
+                                Spacer(
+                                    modifier = Modifier.height(
+                                        if (layoutConfig.compact) 4.dp else 6.dp
+                                    )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .height(if (layoutConfig.compact) 40.dp else 44.dp)
+                                        .fillMaxWidth(0.85f)
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (playbackState is StreamStates.PLAYING && metadata.isNotEmpty()) {
+                                        AnimatedMetadataWithMarquee(
+                                            metadata = metadata,
+                                            isVisible = true
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        AudioSeekBar(
-                            position = position,
-                            duration = duration,
-                            minPosition = minPosition,
-                            loadedPosition = loadedPosition,
-                            playbackState = playbackState,
-                            onSeek = { playerControlViewModel.seekTo(it) },
-                            colorScheme = colorScheme
-                        )
+                        // Flexible spacer between Top and Bottom sections
+                        Spacer(modifier = Modifier.weight(1f))
 
-                        if (!layoutConfig.tinyCompact) {
-                            Spacer(
-                                modifier = Modifier.height(
-                                    if (layoutConfig.compact || layoutConfig.shrinking) 8.dp else 12.dp
+                        // Bottom Section (Seekbar, Controls, Ad)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.wrapContentHeight()
+                        ) {
+                            if (layoutConfig.showSeekBar) {
+                                AudioSeekBar(
+                                    position = position,
+                                    duration = duration,
+                                    minPosition = minPosition,
+                                    loadedPosition = loadedPosition,
+                                    playbackState = playbackState,
+                                    onSeek = { playerControlViewModel.seekTo(it) },
+                                    colorScheme = colorScheme
                                 )
-                            )
-                        }
-                        if (!layoutConfig.compact && !layoutConfig.tinyCompact) Spacer(
-                            modifier = Modifier.weight(
-                                1f
-                            )
-                        )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
 
-                        // Playback Controls
-                        PlaybackControlRow(
-                            playbackState = playbackState,
-                            playButtonScale = layoutConfig.btnScale,
-                            isTinyCompact = layoutConfig.tinyCompact,
-                            isCompact = layoutConfig.compact,
-                            onPrevious = {
-                                swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
-                            },
-                            onNext = {
-                                swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                            },
-                            onPlayPause = {
-                                playerControlViewModel.togglePlayPause()
-                            },
-                            onSeekBack = { playerControlViewModel.seekBack() },
-                            onSeekForward = { playerControlViewModel.seekForward() },
-                            colorScheme = colorScheme
-                        )
-
-                        // Secondary controls
-                        if (layoutConfig.showSecondRow) {
-                            Spacer(modifier = Modifier.height(if (layoutConfig.showAd) 16.dp else 24.dp))
-                            ActionButtonsRow(
-                                onRefresh = { playerControlViewModel.requestRefresh() },
-                                onSleepClick = { showSleepDialog = true },
+                            // Playback Controls
+                            PlaybackControlRow(
+                                playbackState = playbackState,
+                                playButtonScale = layoutConfig.btnScale,
+                                isTinyCompact = layoutConfig.tinyCompact,
+                                isCompact = layoutConfig.compact,
+                                onPrevious = {
+                                    swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                                },
+                                onNext = {
+                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                                },
+                                onPlayPause = {
+                                    playerControlViewModel.togglePlayPause()
+                                },
+                                onSeekBack = { playerControlViewModel.seekBack() },
+                                onSeekForward = { playerControlViewModel.seekForward() },
                                 colorScheme = colorScheme
                             )
+
+                            // Secondary controls
+                            if (layoutConfig.showSecondRow) {
+                                Spacer(modifier = Modifier.height(if (layoutConfig.showAd) 12.dp else 16.dp))
+                                ActionButtonsRow(
+                                    onRefresh = { playerControlViewModel.requestRefresh() },
+                                    onSleepClick = { showSleepDialog = true },
+                                    colorScheme = colorScheme
+                                )
+                            }
+
+                            // Ad
+                            if (layoutConfig.showAd) {
+                                Spacer(modifier = Modifier.height(if (layoutConfig.compact) 8.dp else 16.dp))
+                                AdBanner()
+                            }
                         }
 
-                        // Ad
-                        if (layoutConfig.showAd) {
-                            Spacer(modifier = Modifier.height(if (layoutConfig.compact) 8.dp else 16.dp))
-                            AdBanner()
-                        }
+                        // Fixed bottom clearance
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
             }
@@ -549,7 +569,7 @@ fun StationHeader(
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(if (isCompact || isShrinking) 2.dp else 8.dp))
         Box(
             modifier = Modifier.height(20.dp),
             contentAlignment = Alignment.Center
@@ -676,8 +696,8 @@ fun AudioSeekBar(
                         Box(
                             modifier = Modifier
                                 .size(thumbSize)
+                                .shadow(if (isDragging) 4.dp else 2.dp, CircleShape)
                                 .background(colorScheme.primary, CircleShape)
-                                .shadow(if (isDragging) 2.dp else 1.dp, CircleShape)
                         )
                     }
                 }
@@ -737,8 +757,8 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { translationY = -48f } // Pulled closer up to the seek bar
-                .padding(horizontal = 10.dp),
+                .offset(y = (-22).dp)
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
