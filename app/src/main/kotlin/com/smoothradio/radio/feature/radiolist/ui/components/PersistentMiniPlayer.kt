@@ -3,7 +3,9 @@ package com.smoothradio.radio.feature.radiolist.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -38,10 +40,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -64,6 +67,7 @@ import com.smoothradio.radio.core.ui.common.pulseAnimation
 fun PersistentMiniPlayer(
     station: RadioStation?,
     playbackState: StreamStates,
+    loadingProgress: Float = 1f,
     onPlayPauseClick: () -> Unit
 ) {
     // Don't render if no station
@@ -74,6 +78,12 @@ fun PersistentMiniPlayer(
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
+
+    val animatedLoadingProgress by animateFloatAsState(
+        targetValue = loadingProgress,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "loadingProgress"
+    )
 
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -93,15 +103,32 @@ fun PersistentMiniPlayer(
             .clip(RoundedCornerShape(4.dp))
             .background(colorScheme.surfaceVariant.copy(alpha = 0.95f))
             .background(overlayColor)
-            .drawBehind {
-                val strokeWidth = 1.5.dp.toPx()
-                val y = size.height - strokeWidth / 2
+            .drawWithContent {
+                drawContent() // Draw the player content first
+
+                val strokeWidth = 3.dp.toPx()
+                val y = size.height - strokeWidth / 2 // Bottom placement is safer for visibility
+
+                // Background track
                 drawLine(
                     color = outlineVariantColor,
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
                     strokeWidth = strokeWidth
                 )
+
+                // Initial Loading / Buffering progress (Spotify style)
+                if (isBuffering || animatedLoadingProgress < 1f) {
+                    val progressWidth = size.width * animatedLoadingProgress
+                    if (progressWidth > 0) {
+                        drawLine(
+                            color = colorScheme.primary,
+                            start = Offset(0f, y),
+                            end = Offset(progressWidth, y),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                }
             }
     ) {
         Row(

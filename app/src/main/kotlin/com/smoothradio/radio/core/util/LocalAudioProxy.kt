@@ -78,6 +78,8 @@ class LocalAudioProxy(private val context: Context) {
         private set
     var totalBytesWritten = 0L // Total bytes ever written in this session
         private set
+    var totalBytesReceived = 0L // Total bytes ever fetched from network in this session
+        private set
 
     val proxyUrl: String
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
@@ -99,6 +101,7 @@ class LocalAudioProxy(private val context: Context) {
         part2File = File(context.cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
         totalBytesDropped = 0L
         totalBytesWritten = 0L
+        totalBytesReceived = 0L
 
         synchronized(this) {
             metadataMap.clear()
@@ -269,7 +272,23 @@ class LocalAudioProxy(private val context: Context) {
                                 .build()
                             
                             okHttpClient.newCall(segRequest).execute().use { response ->
-                                response.body?.bytes() ?: byteArrayOf()
+                                if (!response.isSuccessful) return@use byteArrayOf()
+                                val body = response.body ?: return@use byteArrayOf()
+                                
+                                val out = java.io.ByteArrayOutputStream()
+                                val inputStream = body.byteStream()
+                                val buffer = ByteArray(8192)
+                                var read: Int
+                                while (isRunning.get() && sessionTag == tag) {
+                                    read = inputStream.read(buffer)
+                                    if (read == -1) break
+                                    out.write(buffer, 0, read)
+                                    
+                                    synchronized(this@LocalAudioProxy) {
+                                        totalBytesReceived += read
+                                    }
+                                }
+                                out.toByteArray()
                             }
                         } catch (e: Exception) {
                             byteArrayOf()
@@ -339,6 +358,11 @@ class LocalAudioProxy(private val context: Context) {
             memoryBuffer.write(data, offset, length)
             bytesInMemory += length
             totalBytesWritten += length
+            
+            // For progressive streams, totalBytesReceived is same as totalBytesWritten
+            if (currentUrl?.contains(".m3u8") == false && !currentUrl?.contains("playlist")!!) {
+                totalBytesReceived = totalBytesWritten
+            }
             
             if (memoryBuffer.size() >= MEMORY_FLUSH_THRESHOLD) {
                 flushBufferToDisk()

@@ -191,10 +191,31 @@ class StreamService : MediaSessionService() {
                     stateRepository.updateDuration(displayDur)
                     stateRepository.updateMinPosition(droppedDur)
                     stateRepository.updateLoadedPosition(loadedDur)
+
+                    // Initial Buffering Progress (Percentage toward starting playback)
+                    if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) {
+                        // Use a 12-second target for the progress bar to make it feel substantial
+                        val targetMs = 12000.0
+                        val currentMs = localAudioProxy.totalBytesReceived.toDouble() / estimatedBytesPerMs.coerceAtLeast(1.0)
+                        
+                        val progress = (currentMs / targetMs).toFloat().coerceIn(0f, 1f)
+                        
+                        // Add a small baseline (5%) once we start to show "Connecting..." activity
+                        val displayProgress = if (progress > 0 || localAudioProxy.totalBytesReceived > 0) 0.05f + (progress * 0.95f) else 0f
+                        
+                        Log.d("SmoothSeek", "Loading Progress: ${(displayProgress * 100).toInt()}% (Fetched: ${currentMs.toInt()}ms / ${targetMs.toInt()}ms)")
+                        stateRepository.updateLoadingProgress(displayProgress)
+                    } else {
+                        if (stateRepository.loadingProgress.value < 1f) {
+                            Log.d("SmoothSeek", "Loading Complete: 100%")
+                        }
+                        stateRepository.updateLoadingProgress(1f)
+                    }
                 } catch (e: Exception) {
                     Log.e("SmoothSeek", "Error in progress update", e)
                 }
-                kotlinx.coroutines.delay(1000)
+                val delay = if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) 100L else 1000L
+                kotlinx.coroutines.delay(delay)
             }
         }
     }
@@ -425,6 +446,7 @@ class StreamService : MediaSessionService() {
                 stateRepository.updateMinPosition(0L)
                 stateRepository.updateLoadedPosition(0L)
                 stateRepository.updateMetadata("")
+                stateRepository.updateLoadingProgress(0f)
 
                 setState(StreamStates.PREPARING)
                 play(link)
@@ -449,6 +471,7 @@ class StreamService : MediaSessionService() {
                 stateRepository.updateMinPosition(0L)
                 stateRepository.updateLoadedPosition(0L)
                 stateRepository.updateMetadata("")
+                stateRepository.updateLoadingProgress(0f)
 
                 setState(StreamStates.PREPARING)
                 prepareShowAd()

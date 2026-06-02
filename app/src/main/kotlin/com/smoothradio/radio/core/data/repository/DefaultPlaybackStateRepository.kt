@@ -31,6 +31,9 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
     private val _loadedPosition = MutableStateFlow(0L)
     override val loadedPosition: StateFlow<Long> = _loadedPosition.asStateFlow()
 
+    private val _loadingProgress = MutableStateFlow(1f)
+    override val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
+
     override fun updateState(state: StreamStates) {
         _playbackState.value = state
     }
@@ -57,5 +60,9 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
 
     override fun updateLoadedPosition(loadedPos: Long) {
         _loadedPosition.value = loadedPos
+    }
+
+    override fun updateLoadingProgress(progress: Float) {
+        _loadingProgress.value = progress
     }
 }

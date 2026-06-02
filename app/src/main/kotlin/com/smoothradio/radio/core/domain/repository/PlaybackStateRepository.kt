@@ -11,6 +11,7 @@ interface PlaybackStateRepository {
     val duration: StateFlow<Long>
     val minPosition: StateFlow<Long>
     val loadedPosition: StateFlow<Long>
+    val loadingProgress: StateFlow<Float>
 
     fun updateState(state: StreamStates)
     fun updateMetadata(title: String)
@@ -19,4 +20,5 @@ interface PlaybackStateRepository {
     fun updateDuration(duration: Long)
     fun updateMinPosition(minPos: Long)
     fun updateLoadedPosition(loadedPos: Long)
+    fun updateLoadingProgress(progress: Float)
 }
