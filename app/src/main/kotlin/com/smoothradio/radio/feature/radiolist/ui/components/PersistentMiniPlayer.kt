@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -81,7 +82,7 @@ fun PersistentMiniPlayer(
 
     val animatedLoadingProgress by animateFloatAsState(
         targetValue = loadingProgress,
-        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        animationSpec = if (loadingProgress == 0f) snap() else tween(500, easing = FastOutSlowInEasing),
         label = "loadingProgress"
     )
 
@@ -118,16 +119,14 @@ fun PersistentMiniPlayer(
                 )
 
                 // Initial Loading / Buffering progress (Spotify style)
-                if (isBuffering || animatedLoadingProgress < 1f) {
+                if (animatedLoadingProgress > 0f && animatedLoadingProgress < 1f) {
                     val progressWidth = size.width * animatedLoadingProgress
-                    if (progressWidth > 0) {
-                        drawLine(
-                            color = colorScheme.primary,
-                            start = Offset(0f, y),
-                            end = Offset(progressWidth, y),
-                            strokeWidth = strokeWidth
-                        )
-                    }
+                    drawLine(
+                        color = colorScheme.primary,
+                        start = Offset(0f, y),
+                        end = Offset(progressWidth, y),
+                        strokeWidth = strokeWidth
+                    )
                 }
             }
     ) {
