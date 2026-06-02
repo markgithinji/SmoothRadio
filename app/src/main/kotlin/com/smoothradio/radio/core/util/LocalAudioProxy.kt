@@ -42,8 +42,8 @@ class LocalAudioProxy(private val context: Context) {
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
@@ -148,6 +148,7 @@ class LocalAudioProxy(private val context: Context) {
             response?.use { res ->
                 if (!res.isSuccessful) {
                     Log.e("LocalProxy", "[$tag] Stream request failed: ${res.code}")
+                    stop() // Fail-fast: Stop proxy so player gets a connection error
                     return@withContext
                 }
 

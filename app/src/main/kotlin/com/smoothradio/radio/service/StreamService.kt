@@ -159,7 +159,16 @@ class StreamService : MediaSessionService() {
                     }
 
                     val pos = wrappedPlayer.currentPosition
+                    val state = wrappedPlayer.playbackState
+                    val isPlaying = wrappedPlayer.isPlaying
                     
+                    val isBusy = jumpToLiveOnReady || state == Player.STATE_BUFFERING || (state == Player.STATE_READY && isPlaying)
+                    
+                    if (!isBusy && state == Player.STATE_IDLE && currentStationName == null) {
+                        kotlinx.coroutines.delay(2000)
+                        continue
+                    }
+
                     if (pos > maxPositionReached) {
                         maxPositionReached = pos
                     }
@@ -203,7 +212,6 @@ class StreamService : MediaSessionService() {
                         // Add a small baseline (5%) once we start to show "Connecting..." activity
                         val displayProgress = if (progress > 0 || localAudioProxy.totalBytesReceived > 0) 0.05f + (progress * 0.95f) else 0f
                         
-                        Log.d("SmoothSeek", "Loading Progress: ${(displayProgress * 100).toInt()}% (Fetched: ${currentMs.toInt()}ms / ${targetMs.toInt()}ms)")
                         stateRepository.updateLoadingProgress(displayProgress)
                     } else {
                         if (stateRepository.loadingProgress.value < 1f) {
@@ -214,7 +222,9 @@ class StreamService : MediaSessionService() {
                 } catch (e: Exception) {
                     Log.e("SmoothSeek", "Error in progress update", e)
                 }
-                val delay = if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) 100L else 1000L
+                val currentState = wrappedPlayer.playbackState
+                val isActuallyBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
+                val delay = if (isActuallyBusy) 100L else 1000L
                 kotlinx.coroutines.delay(delay)
             }
         }
@@ -774,6 +784,7 @@ class StreamService : MediaSessionService() {
 
         override fun onPlayerError(error: PlaybackException) {
             Log.e("SmoothSeek", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
+            jumpToLiveOnReady = false // Stop high-frequency progress polling on error
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                 // If we seek too far back and lose the window, jump to live
                 wrappedPlayer.seekToDefaultPosition()
