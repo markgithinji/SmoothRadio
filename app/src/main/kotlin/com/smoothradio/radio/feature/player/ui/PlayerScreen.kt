@@ -1147,7 +1147,7 @@ fun AnimatedPlayPauseButton(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isPlaying = playbackState is StreamStates.PLAYING || playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    val isPlaying = playbackState is StreamStates.PLAYING
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
