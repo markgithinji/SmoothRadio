@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A local HTTP proxy that downloads a live stream to a rolling two-part buffer.
- * Provides a "Time Machine" seeking experience while strictly limiting disk usage to ~200MB.
+ * Provides a "Time Machine" seeking experience while strictly limiting disk usage.
  */
 class LocalAudioProxy(private val context: Context) {
     companion object {
@@ -37,12 +37,13 @@ class LocalAudioProxy(private val context: Context) {
         const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
         const val MAX_PARALLEL_DOWNLOADS = 6
-        const val MEMORY_FLUSH_THRESHOLD = 64 * 1024 // 64KB Burst size
+        const val MEMORY_FLUSH_THRESHOLD = 32 * 1024 // 32KB Burst size
+        const val INITIAL_BURST_SIZE = 8 * 1024     // 8KB initial burst for faster start
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
@@ -110,7 +111,7 @@ class LocalAudioProxy(private val context: Context) {
         isRunning.set(true)
         serverSocket = ServerSocket(0)
         
-        val tagAtStart = sessionTag // Capture the tag for this specific job
+        val tagAtStart = sessionTag
         Log.d("LocalProxy", "Starting Session [$tagAtStart]")
 
         downloadJob = scope.launch {
@@ -132,31 +133,40 @@ class LocalAudioProxy(private val context: Context) {
 
     private suspend fun downloadProgressiveStream(streamUrl: String, tag: String) = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder()
-                .url(streamUrl)
-                .addHeader("User-Agent", "Mozilla/5.0")
-                .addHeader("Icy-MetaData", "1")
-                .build()
+            // First attempt: Request metadata
+            var useMetadata = true
+            var response = executeStreamRequest(streamUrl, tag, requestMetadata = true)
 
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e("LocalProxy", "[$tag] Stream request failed: ${response.code}")
+            // AUTOMATIC RETRY: If metadata request fails (401/403), retry clean
+            if (response != null && (response.code == 401 || response.code == 403)) {
+                Log.w("LocalProxy", "[$tag] Server rejected metadata request. Retrying clean connection...")
+                response.close()
+                useMetadata = false
+                response = executeStreamRequest(streamUrl, tag, requestMetadata = false)
+            }
+
+            response?.use { res ->
+                if (!res.isSuccessful) {
+                    Log.e("LocalProxy", "[$tag] Stream request failed: ${res.code}")
                     return@withContext
                 }
 
-                val metaint = response.header("icy-metaint")?.toIntOrNull() ?: -1
-                remoteBitrate = response.header("icy-br")
-                remoteMimeType = response.header("Content-Type")
+                val metaint = if (useMetadata) res.header("icy-metaint")?.toIntOrNull() ?: -1 else -1
+                remoteBitrate = res.header("icy-br")
+                remoteMimeType = res.header("Content-Type")
                 
-                val inputStream = response.body?.byteStream() ?: return@withContext
-
-                Log.d("LocalProxy", "[$tag] Connected: mime=$remoteMimeType, br=$remoteBitrate, metaint=$metaint")
+                Log.d("LocalProxy", "**************************************************")
+                Log.d("LocalProxy", ">>> SERVER REPORTED MIME: $remoteMimeType")
+                Log.d("LocalProxy", ">>> SERVER REPORTED BITRATE: $remoteBitrate")
+                Log.d("LocalProxy", "**************************************************")
+                
+                val inputStream = res.body?.byteStream() ?: return@withContext
 
                 if (metaint > 0) {
                     var bytesUntilMetadata = metaint
                     while (isRunning.get() && sessionTag == tag) {
                         if (bytesUntilMetadata > 0) {
-                            val buf = ByteArray(minOf(bytesUntilMetadata, 16384))
+                            val buf = ByteArray(minOf(bytesUntilMetadata, 8192))
                             val read = inputStream.read(buf)
                             if (read == -1) break
                             appendData(tag, buf, read)
@@ -174,10 +184,8 @@ class LocalAudioProxy(private val context: Context) {
                                     metaRead += r
                                 }
                                 val metadata = String(metaBuf, 0, metaRead, Charsets.UTF_8)
-                                Log.v("LocalProxy", "[$tag] Raw ICY metadata: $metadata")
                                 val title = parseIcyMetadata(metadata)
                                 if (title != null) {
-                                    Log.d("LocalProxy", "[$tag] Parsed ICY Title: $title at offset $totalBytesWritten")
                                     synchronized(this@LocalAudioProxy) {
                                         metadataMap[totalBytesWritten] = title
                                     }
@@ -187,7 +195,7 @@ class LocalAudioProxy(private val context: Context) {
                         }
                     }
                 } else {
-                    val buffer = ByteArray(65536)
+                    val buffer = ByteArray(8192)
                     var bytesRead: Int
                     while (isRunning.get() && sessionTag == tag) {
                         bytesRead = inputStream.read(buffer)
@@ -201,10 +209,39 @@ class LocalAudioProxy(private val context: Context) {
         }
     }
 
+    private fun executeStreamRequest(url: String, tag: String, requestMetadata: Boolean): okhttp3.Response? {
+        val requestBuilder = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "ExoPlayer/2.18.5")
+            .addHeader("Accept", "*/*")
+            .addHeader("Connection", "keep-alive")
+        
+        if (requestMetadata) {
+            requestBuilder.addHeader("Icy-MetaData", "1")
+        }
+
+        return try {
+            okHttpClient.newCall(requestBuilder.build()).execute()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun parseIcyMetadata(metadata: String): String? {
-        // Use DOT_MATCHES_ALL because XML metadata often contains newlines
         val match = Regex("StreamTitle='(.*?)';", RegexOption.DOT_MATCHES_ALL).find(metadata)
-        return match?.groupValues?.get(1)
+        val rawTitle = match?.groupValues?.get(1) ?: return null
+        
+        if (rawTitle.startsWith("<?xml") || rawTitle.contains("<LogEvent")) {
+            try {
+                val titleMatch = Regex("Title=\"(.*?)\"").find(rawTitle)
+                val artistMatch = Regex("Artist1=\"(.*?)\"").find(rawTitle)
+                val title = titleMatch?.groupValues?.get(1)
+                val artist = artistMatch?.groupValues?.get(1)
+                if (title != null && artist != null) return "$title - $artist"
+                if (title != null) return title
+            } catch (e: Exception) {}
+        }
+        return rawTitle
     }
 
     private suspend fun downloadHlsStream(playlistUrl: String, tag: String): Unit = withContext(Dispatchers.IO) {
@@ -213,22 +250,11 @@ class LocalAudioProxy(private val context: Context) {
         
         while (isRunning.get() && sessionTag == tag) {
             try {
-                val request = Request.Builder()
-                    .url(playlistUrl)
-                    .addHeader("User-Agent", "Mozilla/5.0")
-                    .build()
-
-                val playlistText = okHttpClient.newCall(request).execute().use { response ->
-                    response.body?.string() ?: ""
-                }
-                
-                if (playlistText.isEmpty()) {
-                    delay(2000)
-                    continue
-                }
+                val request = Request.Builder().url(playlistUrl).addHeader("User-Agent", "Mozilla/5.0").build()
+                val playlistText = okHttpClient.newCall(request).execute().use { response -> response.body?.string() ?: "" }
+                if (playlistText.isEmpty()) { delay(2000); continue }
 
                 val lines = playlistText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                
                 if (playlistText.contains("#EXT-X-STREAM-INF")) {
                     val variantLines = lines.mapIndexedNotNull { index, line ->
                         if (line.startsWith("#EXT-X-STREAM-INF")) {
@@ -236,13 +262,6 @@ class LocalAudioProxy(private val context: Context) {
                             if (url != null && !url.startsWith("#")) line to url else null
                         } else null
                     }
-                    
-                    Log.d("LocalProxy", "[$tag] Master Playlist detected with ${variantLines.size} variants:")
-                    variantLines.forEach { (info, url) ->
-                        Log.d("LocalProxy", "  -> $info | URL: $url")
-                    }
-
-                    // Pick the best variant (highest bandwidth)
                     val bestVariant = variantLines.mapNotNull { (info, url) ->
                         val bandwidth = Regex("BANDWIDTH=(\\d+)").find(info)?.groupValues?.get(1)?.toLongOrNull()
                         if (bandwidth != null) Triple(bandwidth, info, url) else null
@@ -251,8 +270,12 @@ class LocalAudioProxy(private val context: Context) {
                     if (bestVariant != null) {
                         val (bandwidth, info, variantUrl) = bestVariant
                         detectedBitrateKbps = bandwidth.toDouble() / 1000.0
+                        
+                        Log.d("LocalProxy", "**************************************************")
+                        Log.d("LocalProxy", ">>> HLS VARIANT SELECTED: ${detectedBitrateKbps}kbps | INFO: $info")
+                        Log.d("LocalProxy", "**************************************************")
+
                         val fullUrl = if (variantUrl.startsWith("http")) variantUrl else baseUrl + variantUrl
-                        Log.d("LocalProxy", "[$tag] Selected best variant (${detectedBitrateKbps}kbps): $fullUrl")
                         downloadHlsStream(fullUrl, tag)
                         return@withContext
                     }
@@ -261,20 +284,14 @@ class LocalAudioProxy(private val context: Context) {
                 val allSegments = lines.filter { !it.startsWith("#") }
                 val newSegments = allSegments.filter { !downloadedSegments.contains(it) }
 
-                // Download multiple segments in parallel to fill the buffer faster
                 val tasks = newSegments.take(MAX_PARALLEL_DOWNLOADS).map { segmentPath ->
                     val segmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
                     scope.async {
                         try {
-                            val segRequest = Request.Builder()
-                                .url(segmentUrl)
-                                .addHeader("User-Agent", "Mozilla/5.0")
-                                .build()
-                            
+                            val segRequest = Request.Builder().url(segmentUrl).addHeader("User-Agent", "Mozilla/5.0").build()
                             okHttpClient.newCall(segRequest).execute().use { response ->
                                 if (!response.isSuccessful) return@use byteArrayOf()
                                 val body = response.body ?: return@use byteArrayOf()
-                                
                                 val out = java.io.ByteArrayOutputStream()
                                 val inputStream = body.byteStream()
                                 val buffer = ByteArray(8192)
@@ -283,126 +300,76 @@ class LocalAudioProxy(private val context: Context) {
                                     read = inputStream.read(buffer)
                                     if (read == -1) break
                                     out.write(buffer, 0, read)
-                                    
-                                    synchronized(this@LocalAudioProxy) {
-                                        totalBytesReceived += read
-                                    }
+                                    synchronized(this@LocalAudioProxy) { totalBytesReceived += read }
                                 }
                                 out.toByteArray()
                             }
-                        } catch (e: Exception) {
-                            byteArrayOf()
-                        }
+                        } catch (e: Exception) { byteArrayOf() }
                     }
                 }
 
-                // Process them in order to maintain stream continuity
                 newSegments.take(MAX_PARALLEL_DOWNLOADS).forEachIndexed { index, segmentPath ->
                     if (!isRunning.get() || sessionTag != tag) return@forEachIndexed
-                    
                     val data = tasks[index].await()
                     if (data.isNotEmpty()) {
                         var offset = 0
-                        // Check for ID3 metadata at the start of the segment
                         if (data.size > 10 && data[0] == 'I'.code.toByte() && data[1] == 'D'.code.toByte() && data[2] == '3'.code.toByte()) {
-                            val size = ((data[6].toInt() and 0x7F) shl 21) or 
-                                       ((data[7].toInt() and 0x7F) shl 14) or
-                                       ((data[8].toInt() and 0x7F) shl 7) or 
-                                       (data[9].toInt() and 0x7F)
-                            
+                            val size = ((data[6].toInt() and 0x7F) shl 21) or ((data[7].toInt() and 0x7F) shl 14) or ((data[8].toInt() and 0x7F) shl 7) or (data[9].toInt() and 0x7F)
                             if (10 + size < data.size) {
                                 val id3Data = data.sliceArray(0 until (10 + size))
                                 val title = extractTitleFromId3(id3Data)
                                 if (title != null) {
                                     val lastTitle = synchronized(this@LocalAudioProxy) { metadataMap.lastEntry()?.value }
                                     if (title != lastTitle) {
-                                        Log.d("LocalProxy", "[$tag] Extracted ID3: $title")
-                                        synchronized(this@LocalAudioProxy) {
-                                            metadataMap[totalBytesWritten] = title
-                                        }
+                                        synchronized(this@LocalAudioProxy) { metadataMap[totalBytesWritten] = title }
                                     }
                                 }
                                 offset = 10 + size
                             }
                         }
-                        
-                        if (data.size > offset) {
-                            appendData(tag, data, data.size - offset, offset)
-                        }
+                        if (data.size > offset) appendData(tag, data, data.size - offset, offset)
                         downloadedSegments.add(segmentPath)
                     }
                 }
-
-                // Prune history to keep memory usage low
-                if (downloadedSegments.size > 100) {
-                    val list = downloadedSegments.toList()
-                    downloadedSegments.clear()
-                    downloadedSegments.addAll(list.takeLast(50))
-                }
-
-                // If we found new segments, check again quickly to catch up.
-                // Otherwise, wait 4 seconds for the next segment to be produced.
                 if (newSegments.isNotEmpty()) delay(500) else delay(4000)
-            } catch (e: Exception) {
-                delay(2000)
-            }
+            } catch (e: Exception) { delay(2000) }
         }
     }
 
     @Synchronized
     private fun appendData(tag: String, data: ByteArray, length: Int, offset: Int = 0) {
-        // REJECT DATA FROM STALE SESSIONS
         if (tag != sessionTag || !isRunning.get()) return
-        
         try {
             memoryBuffer.write(data, offset, length)
-            bytesInMemory += length
             totalBytesWritten += length
-            
-            // For progressive streams, totalBytesReceived is same as totalBytesWritten
             if (currentUrl?.contains(".m3u8") == false && !currentUrl?.contains("playlist")!!) {
                 totalBytesReceived = totalBytesWritten
             }
-            
-            if (memoryBuffer.size() >= MEMORY_FLUSH_THRESHOLD) {
-                flushBufferToDisk()
-            }
-            
+            val threshold = if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
+            if (memoryBuffer.size() >= threshold) flushBufferToDisk()
             dataSignal.tryEmit(Unit)
-        } catch (e: Exception) {
-            Log.e("LocalProxy", "Buffer error", e)
-        }
+        } catch (e: Exception) { Log.e("LocalProxy", "Buffer error", e) }
     }
 
     @Synchronized
     private fun flushBufferToDisk() {
         if (memoryBuffer.size() == 0) return
-        
         val p1 = part1File ?: return
         val p2 = part2File ?: return
         val data = memoryBuffer.toByteArray()
-        val length = data.size
-
         try {
             if (p1.length() < PART_SIZE) {
                 FileOutputStream(p1, true).use { it.write(data) }
             } else {
                 FileOutputStream(p2, true).use { it.write(data) }
-                
                 if (p2.length() >= PART_SIZE) {
-                    Log.d("LocalProxy", "[$sessionTag] Buffer Rollover: Purging Part 1, rotating Part 2. Total Dropped: ${totalBytesDropped + p1.length()} bytes")
                     totalBytesDropped += p1.length()
                     metadataMap.headMap(totalBytesDropped).clear()
-                    p1.delete()
-                    p2.renameTo(p1)
-                    p2.createNewFile()
+                    p1.delete(); p2.renameTo(p1); p2.createNewFile()
                 }
             }
             memoryBuffer.reset()
-            bytesInMemory = 0
-        } catch (e: Exception) {
-            Log.e("LocalProxy", "Storage error", e)
-        }
+        } catch (e: Exception) { Log.e("LocalProxy", "Storage error", e) }
     }
 
     private fun handleClient(socket: Socket, tag: String) {
@@ -410,7 +377,6 @@ class LocalAudioProxy(private val context: Context) {
             try {
                 val input = socket.getInputStream().bufferedReader()
                 val requestLine = input.readLine() ?: return@launch
-                
                 var rangeStart = 0L
                 var line = input.readLine()
                 while (!line.isNullOrEmpty()) {
@@ -419,123 +385,82 @@ class LocalAudioProxy(private val context: Context) {
                     }
                     line = input.readLine()
                 }
-
                 val out = socket.getOutputStream()
                 val isHls = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
-                
-                // Use captured remote mime or fall back to defaults
                 val contentType = remoteMimeType ?: if (isHls) "audio/aac" else "audio/mpeg"
-                
-                // Tell ExoPlayer the file is very large (e.g., 1GB ~18 hours) 
-                // so it doesn't stop playing when it reaches the physical buffer limit.
                 val virtualCapacity = 1024 * 1024 * 1024L 
-
                 val bitrateHeader = if (remoteBitrate != null) "X-Bitrate: $remoteBitrate\r\n" else ""
-
                 if (rangeStart > 0) {
-                    val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            bitrateHeader +
+                    val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n$bitrateHeader" +
                             "Content-Range: bytes $rangeStart-${virtualCapacity - 1}/$virtualCapacity\r\n" +
                             "Content-Length: ${virtualCapacity - rangeStart}\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 } else {
-                    val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n" +
-                            bitrateHeader +
+                    val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n$bitrateHeader" +
                             "Content-Length: $virtualCapacity\r\nConnection: close\r\n\r\n"
                     out.write(header.toByteArray())
                 }
 
                 var lastReadPos = rangeStart
                 val buffer = ByteArray(65536)
-                
                 while (isRunning.get() && sessionTag == tag && !socket.isClosed) {
                     var physicalFile: File? = null
                     var physicalOffset = 0L
                     var dataFromMemory: ByteArray? = null
                     var memoryOffset = 0
-
+                    var memoryAvailable = 0
                     synchronized(this@LocalAudioProxy) {
                         val p1Size = part1File?.length() ?: 0L
                         val p2Size = part2File?.length() ?: 0L
                         val totalPhysicalSize = p1Size + p2Size
                         val relativePos = lastReadPos - totalBytesDropped
-                        
                         if (relativePos >= 0) {
-                            if (relativePos < p1Size) {
-                                physicalFile = part1File
-                                physicalOffset = relativePos
-                            } else if (relativePos < totalPhysicalSize) {
-                                physicalFile = part2File
-                                physicalOffset = relativePos - p1Size
-                            } else {
-                                // DATA MIGHT BE IN MEMORY
+                            if (relativePos < p1Size) { physicalFile = part1File; physicalOffset = relativePos }
+                            else if (relativePos < totalPhysicalSize) { physicalFile = part2File; physicalOffset = relativePos - p1Size }
+                            else {
                                 val memoryPos = (relativePos - totalPhysicalSize).toInt()
-                                if (memoryPos < memoryBuffer.size()) {
+                                val memSize = memoryBuffer.size()
+                                if (memoryPos < memSize) {
                                     dataFromMemory = memoryBuffer.toByteArray()
                                     memoryOffset = memoryPos
+                                    memoryAvailable = memSize - memoryPos
                                 }
                             }
-                        } else {
-                            // DATA PURGED! Jump forward to the start of available data
-                            lastReadPos = totalBytesDropped
-                            physicalFile = part1File
-                            physicalOffset = 0
-                        }
+                        } else { lastReadPos = totalBytesDropped; physicalFile = part1File; physicalOffset = 0 }
                     }
-
                     if (physicalFile != null && physicalFile!!.exists() && physicalFile!!.length() > physicalOffset) {
                         java.io.RandomAccessFile(physicalFile, "r").use { raf ->
                             raf.seek(physicalOffset)
                             val read = raf.read(buffer)
-                            if (read > 0) {
-                                out.write(buffer, 0, read)
-                                lastReadPos += read
-                            }
+                            if (read > 0) { out.write(buffer, 0, read); lastReadPos += read }
                         }
                     } else if (dataFromMemory != null) {
-                        val toWrite = minOf(buffer.size, dataFromMemory!!.size - memoryOffset)
-                        if (toWrite > 0) {
-                            out.write(dataFromMemory!!, memoryOffset, toWrite)
-                            lastReadPos += toWrite
-                        }
-                    } else {
-                        // No more data available right now. Wait for signal or timeout.
-                        withTimeoutOrNull(500) { dataSignal.first() }
-                    }
+                        val toWrite = minOf(buffer.size, memoryAvailable)
+                        if (toWrite > 0) { out.write(dataFromMemory!!, memoryOffset, toWrite); lastReadPos += toWrite }
+                    } else { withTimeoutOrNull(500) { dataSignal.first() } }
                 }
-            } catch (e: Exception) {
-            } finally {
-                try { socket.close() } catch (e: Exception) {}
-            }
+            } catch (e: Exception) {} finally { try { socket.close() } catch (e: Exception) {} }
         }
     }
 
     private fun cleanupLegacyFiles() {
-        try {
-            context.cacheDir.listFiles { f -> f.name.startsWith("proxy_") }?.forEach { it.delete() }
-        } catch (e: Exception) {}
+        try { context.cacheDir.listFiles { f -> f.name.startsWith("proxy_") }?.forEach { it.delete() } } catch (e: Exception) {}
     }
 
     private fun extractTitleFromId3(data: ByteArray): String? {
         try {
-            var i = 10 // Skip header
+            var i = 10 
             while (i + 10 < data.size) {
                 if (i + 4 > data.size) break
                 val frameId = String(data, i, 4)
                 if (frameId.all { it == '\u0000' }) break
-                
-                val frameSize = ((data[i + 4].toInt() and 0xFF) shl 24) or
-                                ((data[i + 5].toInt() and 0xFF) shl 16) or
-                                ((data[i + 6].toInt() and 0xFF) shl 8) or
-                                (data[i + 7].toInt() and 0xFF)
-                
+                val frameSize = ((data[i + 4].toInt() and 0xFF) shl 24) or ((data[i + 5].toInt() and 0xFF) shl 16) or ((data[i + 6].toInt() and 0xFF) shl 8) or (data[i + 7].toInt() and 0xFF)
                 if (frameId == "TIT2" || frameId == "TPE1") {
                     val encoding = if (i + 10 < data.size) data[i + 10].toInt() else 0
                     val textOffset = i + 11
                     val textLength = frameSize - 1
                     if (textOffset + textLength <= data.size && textLength > 0) {
-                        return String(data, textOffset, textLength, if (encoding == 1) Charsets.UTF_16 else Charsets.UTF_8)
-                            .trim { it <= ' ' || it == '\u0000' }
+                        return String(data, textOffset, textLength, if (encoding == 1) Charsets.UTF_16 else Charsets.UTF_8).trim { it <= ' ' || it == '\u0000' }
                     }
                 }
                 if (frameSize <= 0) break
@@ -545,22 +470,14 @@ class LocalAudioProxy(private val context: Context) {
         return null
     }
 
-    fun getMetadataForOffset(offset: Long): String? {
-        synchronized(this) {
-            val entry = metadataMap.floorEntry(offset)
-            return entry?.value
-        }
-    }
+    fun getMetadataForOffset(offset: Long): String? { synchronized(this) { return metadataMap.floorEntry(offset)?.value } }
 
     fun stop() {
         isRunning.set(false)
-        sessionTag = "" // Invalidate current session immediately
+        sessionTag = "" 
         totalBytesWritten = 0L
         totalBytesDropped = 0L
-        synchronized(this) {
-            flushBufferToDisk()
-            metadataMap.clear()
-        }
+        synchronized(this) { flushBufferToDisk(); metadataMap.clear() }
         downloadJob?.cancel()
         proxyJob?.cancel()
         try { serverSocket?.close() } catch (e: Exception) {}

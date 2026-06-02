@@ -570,6 +570,7 @@ class StreamService : MediaSessionService() {
         jumpToLiveOnReady = true
         
         val uriString = uri.toString()
+        
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
         
         // Use the LocalProxy for EVERYTHING
@@ -583,14 +584,17 @@ class StreamService : MediaSessionService() {
         val cacheKey = currentStationName ?: uriString
         
         // Smarter MimeType detection:
-        val mimeType = when {
-            uriString.contains(".m3u8") || uriString.contains("playlist") -> MimeTypes.AUDIO_AAC
-            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC
-            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG
-            else -> MimeTypes.AUDIO_MPEG // Default to MPEG for progressive streams
+        val (mimeType, streamType) = when {
+            isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
+            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
+            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
+            else -> MimeTypes.AUDIO_MPEG to "Progressive (Default: MP3)"
         }
 
-        Log.d("SmoothSeek", "Preparing player via Proxy. Mode: ${if(uriString.contains(".m3u8")) "HLS" else "Progressive"}, Mime Hint: $mimeType")
+        Log.d("SmoothSeek", "**************************************************")
+        Log.d("SmoothSeek", ">>> STREAM TYPE DETECTED: $streamType")
+        Log.d("SmoothSeek", ">>> URL: $uriString")
+        Log.d("SmoothSeek", "**************************************************")
         
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
