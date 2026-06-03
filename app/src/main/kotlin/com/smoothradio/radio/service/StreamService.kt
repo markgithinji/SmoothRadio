@@ -100,6 +100,8 @@ class StreamService : MediaSessionService() {
     private var estimatedBytesPerMs: Double = 16.0 // Initial guess (128kbps)
     private var sessionStartTime: Long = 0L
     private var preparationStartTime: Long = 0L
+    private var playbackBaseTimeMs: Long = 0L
+    private var activeStreamUrl: String? = null
 
     private fun updateBitrateEstimation() {
         if (sessionStartTime == 0L) return
@@ -209,8 +211,8 @@ class StreamService : MediaSessionService() {
 
                     // Initial Buffering Progress (Percentage toward starting playback)
                     if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) {
-                        // Use a 12-second target for the progress bar to make it feel substantial
-                        val targetMs = 12000.0
+                        // Experiment: Use a much smaller target (2s) now that we are true streaming
+                        val targetMs = 2000.0
                         val currentMs = localAudioProxy.totalBytesReceived.toDouble() / estimatedBytesPerMs.coerceAtLeast(1.0)
                         
                         val progress = (currentMs / targetMs).toFloat().coerceIn(0f, 1f)
@@ -270,9 +272,17 @@ class StreamService : MediaSessionService() {
                 }
             }
 
-            override fun isCurrentMediaItemLive(): Boolean = false
+                // Experiment 1: Let Media3 decide if it's live
+                // override fun isCurrentMediaItemLive(): Boolean = false
 
-            override fun isCurrentMediaItemSeekable(): Boolean = true
+                override fun isCurrentMediaItemLive(): Boolean = super.isCurrentMediaItemLive()
+
+                override fun isCurrentMediaItemSeekable(): Boolean = true
+
+                override fun getCurrentPosition(): Long {
+                    // Calculate absolute position based on our custom seek base
+                    return playbackBaseTimeMs + super.getCurrentPosition()
+                }
 
             override fun getDuration(): Long {
                 val baseDur = super.getDuration()
@@ -455,6 +465,8 @@ class StreamService : MediaSessionService() {
                 isPreparingForAd = false
                 maxPositionReached = 0L // Reset for new station
                 currentSongTitle = "" // Clear stale metadata
+                playbackBaseTimeMs = 0L
+                activeStreamUrl = link
                 
                 // RESET UI STATE
                 stateRepository.updatePosition(0L)
@@ -474,6 +486,8 @@ class StreamService : MediaSessionService() {
                 maxPositionReached = 0L // Reset history immediately
                 sessionStartTime = System.currentTimeMillis() // Start calibration early
                 currentSongTitle = "" // Clear stale metadata
+                playbackBaseTimeMs = 0L
+                activeStreamUrl = link
                 
                 // SHADOW LOADING: Start downloading the stream while the ad is showing
                 if (link.isNotEmpty()) {
@@ -516,8 +530,7 @@ class StreamService : MediaSessionService() {
                 Log.d("SmoothSeek", "ACTION_PLAY received. Catching up to live.")
                 val loadedDur = getLoadedDurationMs()
                 // Use calibrated live edge
-                wrappedPlayer.seekTo((loadedDur - 2000).coerceAtLeast(0))
-                wrappedPlayer.play()
+                seekToAbsolute((loadedDur - 2000).coerceAtLeast(0))
             }
             ACTION_PAUSE -> {
                 Log.d("SmoothSeek", "ACTION_PAUSE received")
@@ -528,14 +541,14 @@ class StreamService : MediaSessionService() {
                 val droppedDur = getDroppedDurationMs()
                 val target = (current - 10000).coerceAtLeast(droppedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_BACK: current=$current -> target=$target")
-                wrappedPlayer.seekTo(target)
+                seekToAbsolute(target)
             }
             ACTION_SEEK_FORWARD -> {
                 val current = wrappedPlayer.currentPosition
                 val loadedDur = getLoadedDurationMs()
                 val target = (current + 10000).coerceAtMost(loadedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
-                wrappedPlayer.seekTo(target)
+                seekToAbsolute(target)
             }
             ACTION_SEEK_TO -> {
                 val position = intent.getLongExtra(EXTRA_POSITION, 0L)
@@ -545,9 +558,7 @@ class StreamService : MediaSessionService() {
                 val target = position.coerceIn(droppedDur, loadedDur)
                 
                 Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, available=$droppedDur..$loadedDur, target=$target")
-                wrappedPlayer.seekTo(target)
-                // Immediately update repository to prevent UI flicker
-                stateRepository.updatePosition(target)
+                seekToAbsolute(target)
             }
             ACTION_SET_EQ_BAND -> {
                 val band = intent.getIntExtra(EXTRA_BAND, -1)
@@ -586,6 +597,7 @@ class StreamService : MediaSessionService() {
         // Reset seek history for new play
         maxPositionReached = 0L
         jumpToLiveOnReady = true
+        playbackBaseTimeMs = 0L
         preparationStartTime = System.currentTimeMillis()
         Log.d("SmoothSeek", "preparePlayer() started at $preparationStartTime")
         
@@ -599,7 +611,8 @@ class StreamService : MediaSessionService() {
             localAudioProxy.start(uriString)
         }
 
-        val proxyUri = localAudioProxy.proxyUrl.toUri()
+        // Use a custom scheme with byteOffset to ensure our ProxyDataSource is used
+        val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
         
         val cacheKey = currentStationName ?: uriString
         
@@ -620,9 +633,53 @@ class StreamService : MediaSessionService() {
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
+            .setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(2000) // Start after only 2s of buffer
+                    .build()
+            )
             .build()
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
+    }
+
+    private fun seekToAbsolute(positionMs: Long) {
+        val urlString = activeStreamUrl ?: return
+        val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+        
+        // Calculate byte offset from time using our calibrated bitrate
+        val targetByte = (positionMs * estimatedBytesPerMs).toLong()
+        
+        // Construct new proxy URI with the specific byte offset
+        // This bypasses ExoPlayer's time-to-byte mapping which fails for live streams.
+        val proxyUri = "proxy://smoothradio/stream?byteOffset=$targetByte".toUri()
+        
+        val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
+        val cacheKey = currentStationName ?: urlString
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(proxyUri)
+            .setMimeType(mimeType)
+            .setCustomCacheKey(cacheKey)
+            .setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(2000)
+                    .build()
+            )
+            .build()
+            
+        Log.d("SmoothSeek", "seekToAbsolute: requestedMs=$positionMs -> targetByte=$targetByte")
+
+        // Update the base time so getCurrentPosition() reports correctly
+        playbackBaseTimeMs = positionMs
+
+        // Restart playback at the new byte position
+        wrappedPlayer.setMediaItem(mediaItem, true) // reset position to 0 in the "new" stream
+        wrappedPlayer.prepare()
+        wrappedPlayer.play()
+        
+        // Force immediate UI update to show the new seek position
+        stateRepository.updatePosition(positionMs)
     }
 
     private fun prepareShowAd() {
@@ -826,14 +883,15 @@ class StreamService : MediaSessionService() {
                 else -> "UNKNOWN"
             }
             Log.d("SmoothSeek", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
+            
+            // Experiment 3: Log detailed buffering stats
+            Log.d("SmoothSeek", "Experiment 3 Stats at $stateName: " +
+                "duration=${wrappedPlayer.duration}, " +
+                "bufferedPos=${wrappedPlayer.bufferedPosition}, " +
+                "totalBuffered=${wrappedPlayer.totalBufferedDuration}, " +
+                "isLive=${wrappedPlayer.isCurrentMediaItemLive}")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
-                val loadedDur = getLoadedDurationMs()
-                // Jump to 5 seconds behind live. 
-                // With faster bitrate correction, 5s is the sweet spot for "truly live" feel.
-                val target = (loadedDur - 5000).coerceAtLeast(0)
-                Log.d("SmoothSeek", "Initial Start: Jumping to live edge ($target)")
-                wrappedPlayer.seekTo(target)
                 jumpToLiveOnReady = false
                 wrappedPlayer.play()
             } else {

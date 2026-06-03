@@ -11,12 +11,15 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
 import com.smoothradio.radio.core.util.LocalAudioProxy
+import com.smoothradio.radio.core.util.ProxyDataSource
+import com.smoothradio.radio.core.util.UltraFastLoadControl
 import com.google.android.gms.cast.framework.CastContext
 import dagger.Module
 import dagger.Provides
@@ -79,26 +82,21 @@ object ServiceModule {
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
-        dataSourceFactory: DataSource.Factory
+        dataSourceFactory: DataSource.Factory,
+        localAudioProxy: LocalAudioProxy
     ): ExoPlayer {
         val extractorsFactory = DefaultExtractorsFactory()
             .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
             .setAdtsExtractorFlags(AdtsExtractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
 
+        // Use our custom ProxyDataSource to bypass HTTP layer for local proxy
+        val proxyDataSourceFactory = ProxyDataSource.Factory(context, localAudioProxy, dataSourceFactory)
+        
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
-            .setDataSourceFactory(dataSourceFactory)
+            .setDataSourceFactory(proxyDataSourceFactory)
 
-        // Configure LoadControl for ultra-fast startup and live stability
-        val loadControl = DefaultLoadControl.Builder()
-            .setBackBuffer(120000, true) // 2 minute back buffer
-            .setBufferDurationsMs(
-                2000,  // min buffer (2s) - reduced for faster start
-                10000, // max buffer (10s)
-                1000,  // buffer for playback (1s) - Start almost immediately
-                1500   // buffer after rebuffer (1.5s)
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
+        // Configure Ultra-Fast LoadControl
+        val loadControl = UltraFastLoadControl()
 
         return ExoPlayer.Builder(context)
             .setAudioAttributes(audioAttributes, true)
@@ -106,6 +104,12 @@ object ServiceModule {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
+            .setLivePlaybackSpeedControl(
+                DefaultLivePlaybackSpeedControl.Builder()
+                    .setFallbackMinPlaybackSpeed(1.0f)
+                    .setFallbackMaxPlaybackSpeed(1.0f)
+                    .build()
+            )
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
             .build()

@@ -1,0 +1,126 @@
+@file:OptIn(UnstableApi::class)
+package com.smoothradio.radio.core.util
+
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.BaseDataSource
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.annotation.OptIn
+import java.io.IOException
+
+/**
+ * A wrapper DataSource that handles our custom "proxy://" scheme while delegating others
+ * to the standard DefaultDataSource.
+ */
+class SmoothDataSource(
+    private val proxy: LocalAudioProxy,
+    private val baseDataSource: DataSource
+) : DataSource {
+    private val proxyDataSource = ProxyDataSource(proxy)
+    private var activeDataSource: DataSource? = null
+
+    override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+        baseDataSource.addTransferListener(transferListener)
+        proxyDataSource.addTransferListener(transferListener)
+    }
+
+    override fun open(dataSpec: DataSpec): Long {
+        activeDataSource = if (dataSpec.uri.scheme == "proxy") {
+            proxyDataSource
+        } else {
+            baseDataSource
+        }
+        return activeDataSource!!.open(dataSpec)
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        return activeDataSource?.read(buffer, offset, length) ?: -1
+    }
+
+    override fun getUri(): Uri? = activeDataSource?.uri
+
+    override fun getResponseHeaders(): Map<String, List<String>> = 
+        activeDataSource?.responseHeaders ?: emptyMap()
+
+    override fun close() {
+        activeDataSource?.close()
+        activeDataSource = null
+    }
+}
+
+/**
+ * A custom Media3 DataSource that reads directly from the LocalAudioProxy rolling buffer.
+ * Bypasses HTTP overhead and provides deterministic stream behavior.
+ */
+class ProxyDataSource(
+    private val proxy: LocalAudioProxy
+) : BaseDataSource(/* isNetwork= */ false) {
+
+    class Factory(
+        private val context: Context,
+        private val proxy: LocalAudioProxy,
+        private val baseFactory: DataSource.Factory
+    ) : DataSource.Factory {
+        override fun createDataSource(): DataSource {
+            val defaultDataSource = DefaultDataSource.Factory(context, baseFactory).createDataSource()
+            return SmoothDataSource(proxy, defaultDataSource)
+        }
+    }
+
+    private var dataSpec: DataSpec? = null
+    private var position: Long = 0
+    private var opened = false
+
+    override fun open(dataSpec: DataSpec): Long {
+        this.dataSpec = dataSpec
+        
+        // Parse custom byteOffset from URI query parameter if present
+        val uri = dataSpec.uri
+        val queryOffset = uri.getQueryParameter("byteOffset")?.toLongOrNull()
+        
+        // Use the query offset for seeking, falling back to ExoPlayer's position
+        this.position = queryOffset ?: dataSpec.position
+        
+        Log.d("ProxyDataSource", "open() called: uri=$uri, requestedPos=${dataSpec.position}, effectivePos=$position")
+
+        transferInitializing(dataSpec)
+        opened = true
+        transferStarted(dataSpec)
+        
+        // Return C.LENGTH_UNSET to indicate an unknown/infinite stream length.
+        // This is the clean way to handle live streaming without "fake file" delays.
+        return C.LENGTH_UNSET.toLong()
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        if (!opened) return -1
+
+        val bytesRead = proxy.readData(position, buffer, offset, length)
+        
+        return when (bytesRead) {
+            -1 -> -1 // EOF
+            -2 -> throw IOException("Position $position already dropped from proxy buffer")
+            else -> {
+                position += bytesRead
+                bytesTransferred(bytesRead)
+                bytesRead
+            }
+        }
+    }
+
+    override fun getUri(): Uri? = dataSpec?.uri
+
+    override fun close() {
+        if (opened) {
+            opened = false
+            transferEnded()
+        }
+        dataSpec = null
+    }
+}

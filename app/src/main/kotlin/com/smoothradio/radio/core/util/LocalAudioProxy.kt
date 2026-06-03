@@ -38,7 +38,7 @@ class LocalAudioProxy(private val context: Context) {
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
         const val MAX_PARALLEL_DOWNLOADS = 6
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024 // 32KB Burst size
-        const val INITIAL_BURST_SIZE = 8 * 1024     // 8KB initial burst for faster start
+        const val INITIAL_BURST_SIZE = 256 * 1024    // 256KB initial burst for instant player start
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -56,6 +56,9 @@ class LocalAudioProxy(private val context: Context) {
     
     // Signal for handleClient to wake up when new data is available
     private val dataSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    
+    // Manual sync object for synchronous ProxyDataSource
+    private val lock = Object()
 
     private var currentUrl: String? = null
     private var sessionTag: String = ""
@@ -362,6 +365,9 @@ class LocalAudioProxy(private val context: Context) {
             val threshold = if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
             if (memoryBuffer.size() >= threshold) flushBufferToDisk()
             dataSignal.tryEmit(Unit)
+            synchronized(lock) {
+                lock.notifyAll()
+            }
         } catch (e: Exception) { Log.e("LocalProxy", "Buffer error", e) }
     }
 
@@ -402,18 +408,14 @@ class LocalAudioProxy(private val context: Context) {
                 val out = socket.getOutputStream()
                 val isHls = currentUrl?.contains(".m3u8") == true || currentUrl?.contains("playlist") == true
                 val contentType = remoteMimeType ?: if (isHls) "audio/aac" else "audio/mpeg"
-                val virtualCapacity = 1024 * 1024 * 1024L 
                 val bitrateHeader = if (remoteBitrate != null) "X-Bitrate: $remoteBitrate\r\n" else ""
-                if (rangeStart > 0) {
-                    val header = "HTTP/1.1 206 Partial Content\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n$bitrateHeader" +
-                            "Content-Range: bytes $rangeStart-${virtualCapacity - 1}/$virtualCapacity\r\n" +
-                            "Content-Length: ${virtualCapacity - rangeStart}\r\nConnection: close\r\n\r\n"
-                    out.write(header.toByteArray())
-                } else {
-                    val header = "HTTP/1.1 200 OK\r\nContent-Type: $contentType\r\nAccept-Ranges: bytes\r\n$bitrateHeader" +
-                            "Content-Length: $virtualCapacity\r\nConnection: close\r\n\r\n"
-                    out.write(header.toByteArray())
-                }
+                
+                // Experiment: Remove fake Content-Length and Accept-Ranges to force "Live Stream" behavior
+                val header = "HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: $contentType\r\n" +
+                        bitrateHeader +
+                        "Connection: close\r\n\r\n"
+                out.write(header.toByteArray())
 
                 var lastReadPos = rangeStart
                 val buffer = ByteArray(65536)
@@ -493,6 +495,74 @@ class LocalAudioProxy(private val context: Context) {
     }
 
     fun getMetadataForOffset(offset: Long): String? { synchronized(this) { return metadataMap.floorEntry(offset)?.value } }
+
+    /**
+     * Reads data from the rolling buffer synchronously.
+     * Blocks until data is available or session stops.
+     */
+    fun readData(position: Long, buffer: ByteArray, offset: Int, length: Int): Int {
+        val tag = sessionTag
+        try {
+            while (isRunning.get() && sessionTag == tag) {
+                var physicalFile: File? = null
+                var physicalOffset = 0L
+                var dataFromMemory: ByteArray? = null
+                var memoryOffset = 0
+                var memoryAvailable = 0
+
+                synchronized(this) {
+                    val p1Size = part1File?.length() ?: 0L
+                    val p2Size = part2File?.length() ?: 0L
+                    val totalPhysicalSize = p1Size + p2Size
+                    val relativePos = position - totalBytesDropped
+
+                    if (relativePos >= 0) {
+                        if (relativePos < p1Size) {
+                            physicalFile = part1File
+                            physicalOffset = relativePos
+                        } else if (relativePos < totalPhysicalSize) {
+                            physicalFile = part2File
+                            physicalOffset = relativePos - p1Size
+                        } else {
+                            val memoryPos = (relativePos - totalPhysicalSize).toInt()
+                            val memSize = memoryBuffer.size()
+                            if (memoryPos < memSize) {
+                                dataFromMemory = memoryBuffer.toByteArray()
+                                memoryOffset = memoryPos
+                                memoryAvailable = memSize - memoryPos
+                            }
+                        }
+                    } else {
+                        // Position already dropped
+                        return -2 
+                    }
+                }
+
+                if (physicalFile != null && physicalFile!!.exists() && physicalFile!!.length() > physicalOffset) {
+                    java.io.RandomAccessFile(physicalFile, "r").use { raf ->
+                        raf.seek(physicalOffset)
+                        return raf.read(buffer, offset, length)
+                    }
+                } else if (dataFromMemory != null) {
+                    val toRead = minOf(length, memoryAvailable)
+                    if (toRead > 0) {
+                        System.arraycopy(dataFromMemory!!, memoryOffset, buffer, offset, toRead)
+                        return toRead
+                    }
+                }
+
+                // No data yet, wait
+                synchronized(lock) {
+                    if (isRunning.get() && sessionTag == tag) {
+                        lock.wait(500)
+                    }
+                }
+            }
+        } catch (e: InterruptedException) {
+            return 0
+        }
+        return -1 // EOF
+    }
 
     fun stop() {
         isRunning.set(false)
