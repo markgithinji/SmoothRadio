@@ -99,6 +99,7 @@ class StreamService : MediaSessionService() {
     private var jumpToLiveOnReady = false
     private var estimatedBytesPerMs: Double = 16.0 // Initial guess (128kbps)
     private var sessionStartTime: Long = 0L
+    private var preparationStartTime: Long = 0L
 
     private fun updateBitrateEstimation() {
         if (sessionStartTime == 0L) return
@@ -112,11 +113,16 @@ class StreamService : MediaSessionService() {
             
             val manifestBitrate = localAudioProxy.detectedBitrateKbps?.let { it / 8.0 }
             
+            val oldEstimation = estimatedBytesPerMs
             estimatedBytesPerMs = if (manifestBitrate != null) {
                 // Blend with manifest hint, but favor reality (80% reality, 20% hint)
                 (realTimeBitrate * 0.8) + (manifestBitrate * 0.2)
             } else {
                 realTimeBitrate
+            }
+            
+            if (Math.abs(oldEstimation - estimatedBytesPerMs) > 1.0) {
+                Log.d("SmoothSeek", "Bitrate estimation updated: $estimatedBytesPerMs (realTime=$realTimeBitrate, manifest=$manifestBitrate)")
             }
         } else if (localAudioProxy.detectedBitrateKbps != null) {
             estimatedBytesPerMs = localAudioProxy.detectedBitrateKbps!! / 8.0
@@ -567,7 +573,9 @@ class StreamService : MediaSessionService() {
         }
         isPreparingForAd = false
         sessionStartTime = System.currentTimeMillis()
+        preparationStartTime = sessionStartTime
         estimatedBytesPerMs = 16.0 // Reset to default for fresh calibration
+        Log.d("SmoothSeek", "play() called at $preparationStartTime for $link")
         preparePlayer(link.toUri())
         // Remove immediate play() to avoid the "play at 0:00 then seek" glitch
     }
@@ -578,6 +586,8 @@ class StreamService : MediaSessionService() {
         // Reset seek history for new play
         maxPositionReached = 0L
         jumpToLiveOnReady = true
+        preparationStartTime = System.currentTimeMillis()
+        Log.d("SmoothSeek", "preparePlayer() started at $preparationStartTime")
         
         val uriString = uri.toString()
         
@@ -778,6 +788,10 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
+            if (isPlaying) {
+                val duration = System.currentTimeMillis() - preparationStartTime
+                Log.d("SmoothSeek", "Actual playback started. Time since preparePlayer: ${duration}ms")
+            }
             updateNotificationInternal()
             updateUiState()
         }
@@ -802,7 +816,16 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            Log.d("SmoothSeek", "onPlaybackStateChanged: $state, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
+            val now = System.currentTimeMillis()
+            val duration = now - preparationStartTime
+            val stateName = when(state) {
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+            Log.d("SmoothSeek", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 val loadedDur = getLoadedDurationMs()

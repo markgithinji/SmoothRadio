@@ -85,6 +85,10 @@ class LocalAudioProxy(private val context: Context) {
     val proxyUrl: String
         get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}/$sessionTag.mp3"
 
+    private var sessionStartTime = 0L
+    private var firstByteReceivedTime = 0L
+    private var firstByteServedTime = 0L
+
     fun isStartedFor(url: String): Boolean {
         return isRunning.get() && currentUrl == url
     }
@@ -92,6 +96,9 @@ class LocalAudioProxy(private val context: Context) {
     fun start(streamUrl: String) {
         stop() // Decisively stop previous session
         
+        sessionStartTime = System.currentTimeMillis()
+        firstByteReceivedTime = 0L
+        firstByteServedTime = 0L
         currentUrl = streamUrl
         sessionTag = UUID.randomUUID().toString().take(8)
         remoteMimeType = null
@@ -313,9 +320,11 @@ class LocalAudioProxy(private val context: Context) {
                     if (!isRunning.get() || sessionTag != tag) return@forEachIndexed
                     val data = tasks[index].await()
                     if (data.isNotEmpty()) {
+                        Log.d("LocalProxy", "[$tag] Downloaded segment: ${data.size} bytes")
                         var offset = 0
                         if (data.size > 10 && data[0] == 'I'.code.toByte() && data[1] == 'D'.code.toByte() && data[2] == '3'.code.toByte()) {
                             val size = ((data[6].toInt() and 0x7F) shl 21) or ((data[7].toInt() and 0x7F) shl 14) or ((data[8].toInt() and 0x7F) shl 7) or (data[9].toInt() and 0x7F)
+                            Log.d("LocalProxy", "[$tag] Found ID3 tag, size: $size")
                             if (10 + size < data.size) {
                                 val id3Data = data.sliceArray(0 until (10 + size))
                                 val title = extractTitleFromId3(id3Data)
@@ -340,6 +349,10 @@ class LocalAudioProxy(private val context: Context) {
     @Synchronized
     private fun appendData(tag: String, data: ByteArray, length: Int, offset: Int = 0) {
         if (tag != sessionTag || !isRunning.get()) return
+        if (firstByteReceivedTime == 0L && length > 0) {
+            firstByteReceivedTime = System.currentTimeMillis()
+            Log.d("LocalProxy", "[$tag] First byte received from network after ${firstByteReceivedTime - sessionStartTime}ms")
+        }
         try {
             memoryBuffer.write(data, offset, length)
             totalBytesWritten += length
@@ -430,12 +443,20 @@ class LocalAudioProxy(private val context: Context) {
                         } else { lastReadPos = totalBytesDropped; physicalFile = part1File; physicalOffset = 0 }
                     }
                     if (physicalFile != null && physicalFile!!.exists() && physicalFile!!.length() > physicalOffset) {
+                        if (firstByteServedTime == 0L) {
+                            firstByteServedTime = System.currentTimeMillis()
+                            Log.d("LocalProxy", "[$tag] First byte served to client from disk after ${firstByteServedTime - sessionStartTime}ms")
+                        }
                         java.io.RandomAccessFile(physicalFile, "r").use { raf ->
                             raf.seek(physicalOffset)
                             val read = raf.read(buffer)
                             if (read > 0) { out.write(buffer, 0, read); lastReadPos += read }
                         }
                     } else if (dataFromMemory != null) {
+                        if (firstByteServedTime == 0L) {
+                            firstByteServedTime = System.currentTimeMillis()
+                            Log.d("LocalProxy", "[$tag] First byte served to client from memory after ${firstByteServedTime - sessionStartTime}ms")
+                        }
                         val toWrite = minOf(buffer.size, memoryAvailable)
                         if (toWrite > 0) { out.write(dataFromMemory!!, memoryOffset, toWrite); lastReadPos += toWrite }
                     } else { withTimeoutOrNull(500) { dataSignal.first() } }
