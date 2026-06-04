@@ -40,7 +40,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -50,7 +49,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.AlertDialog
@@ -625,35 +623,34 @@ fun AudioSeekBar(
     onSeek: (Long) -> Unit,
     colorScheme: ColorScheme
 ) {
-    var isDragging by remember { mutableStateOf(false) }
-    var sliderValue by remember { mutableFloatStateOf(position.toFloat()) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    var isDraggingManual by remember { mutableStateOf(false) }
+    val isInteracting = isPressed || isDraggingManual
 
-    val isPlaying = playbackState is StreamStates.PLAYING || playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
+    // The current window size (total buffer length in ms)
+    val windowSize = (duration - minPosition).coerceAtLeast(1L)
+    
+    // We use a fixed 0..1 scale for the Slider to ensure absolute coordinate stability
+    var sliderFraction by remember { mutableFloatStateOf(0f) }
 
-    // Reset slider when playback stops
-    LaunchedEffect(playbackState) {
-        if (playbackState is StreamStates.IDLE || playbackState is StreamStates.ENDED) {
-            sliderValue = 0f
+    // Lock the window values when interaction starts to ensure the mapping stays stable
+    val lockedWindow = remember(isInteracting) {
+        if (isInteracting) minPosition to windowSize else null
+    }
+
+    // Sync fraction with absolute position ONLY when not interacting
+    LaunchedEffect(position, minPosition, windowSize, isInteracting) {
+        if (!isInteracting) {
+            sliderFraction = ((position - minPosition).toFloat() / windowSize.toFloat()).coerceIn(0f, 1f)
         }
     }
 
-    // GESTURE LOCK: Capture the range when drag starts to prevent the bar from 
-    // shifting or jumping under the user's finger during rollovers.
-    var capturedMin by remember { mutableFloatStateOf(minPosition.toFloat()) }
-    var capturedMax by remember { mutableFloatStateOf(duration.toFloat()) }
-
-    val safeDuration = if (duration <= 0) (position + 60000).coerceAtLeast(minPosition + 1) else duration
-
-    // Sync slider with system position ONLY when not dragging
-    LaunchedEffect(position) {
-        if (!isDragging) {
-            sliderValue = position.toFloat()
-        }
-    }
+    val isInteractive = playbackState !is StreamStates.ENDED
 
     val haptic = LocalHapticFeedback.current
     val thumbSize by animateDpAsState(
-        targetValue = if (isDragging) 14.dp else 10.dp,
+        targetValue = if (isInteracting) 14.dp else 10.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "thumbSize"
     )
@@ -662,41 +659,42 @@ fun AudioSeekBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .graphicsLayer { alpha = if (isPlaying) 1f else 0.6f }
     ) {
         Slider(
-            enabled = isPlaying,
-            value = sliderValue.coerceIn(
-                if (isDragging) capturedMin else minPosition.toFloat(),
-                if (isDragging) capturedMax else safeDuration.toFloat()
-            ),
+            enabled = isInteractive,
+            interactionSource = interactionSource,
+            value = sliderFraction,
             onValueChange = {
-                if (!isDragging) {
+                if (!isDraggingManual) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    // Lock the range the moment the interaction starts
-                    capturedMin = minPosition.toFloat()
-                    capturedMax = safeDuration.toFloat()
                 }
-                isDragging = true
-                sliderValue = it
+                isDraggingManual = true
+                sliderFraction = it
             },
             onValueChangeFinished = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSeek(sliderValue.toLong())
-                isDragging = false
+                // Map the 0..1 fraction back to an absolute timestamp using the locked window
+                val currentMin = lockedWindow?.first ?: minPosition
+                val currentWidth = lockedWindow?.second ?: windowSize
+                val absoluteSeekTarget = currentMin + (sliderFraction * currentWidth).toLong()
+                
+                onSeek(absoluteSeekTarget)
+                isDraggingManual = false
             },
-            valueRange = if (isDragging) (capturedMin..capturedMax) else (minPosition.toFloat()..safeDuration.toFloat()),
-            modifier = Modifier.fillMaxWidth(),
+            valueRange = 0f..1f,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp), // Clear touch target
             thumb = {
-                if (isPlaying) {
-                    Box(
-                        modifier = Modifier.size(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                Box(
+                    modifier = Modifier.fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isInteractive) {
                         Box(
                             modifier = Modifier
                                 .size(thumbSize)
-                                .shadow(if (isDragging) 4.dp else 2.dp, CircleShape)
+                                .shadow(if (isInteracting) 4.dp else 2.dp, CircleShape)
                                 .background(colorScheme.primary, CircleShape)
                         )
                     }
@@ -706,69 +704,76 @@ fun AudioSeekBar(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(24.dp),
+                        .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Use active range for fraction calculation
-                    val activeMin = if (isDragging) capturedMin else minPosition.toFloat()
-                    val activeMax = if (isDragging) capturedMax else safeDuration.toFloat()
-                    
-                    val loadedFraction = if (activeMax > activeMin) {
-                        ((loadedPosition - activeMin).toFloat() / (activeMax - activeMin).toFloat()).coerceIn(0f, 1f)
-                    } else 0f
-
-                    Canvas(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(2.dp)
+                            .height(4.dp)
                     ) {
-                        val trackRadius = size.height / 2
+                        val loadedFraction =
+                            ((loadedPosition - minPosition).toFloat() / windowSize.toFloat()).coerceIn(
+                                0f,
+                                1f
+                            )
+
                         // 1. Background (Full Window)
-                        drawRoundRect(
-                            color = colorScheme.onSurface.copy(alpha = 0.12f),
-                            size = size,
-                            cornerRadius = CornerRadius(trackRadius, trackRadius)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .background(colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
                         )
+
                         // 2. Buffer Progress (Loaded data)
-                        if (isPlaying) {
-                            drawRoundRect(
-                                color = colorScheme.secondary.copy(alpha = 0.5f),
-                                size = size.copy(width = size.width * loadedFraction),
-                                cornerRadius = CornerRadius(trackRadius, trackRadius)
+                        if (isInteractive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(loadedFraction)
+                                    .fillMaxHeight()
+                                    .background(
+                                        colorScheme.secondary.copy(alpha = 0.4f),
+                                        CircleShape
+                                    )
                             )
                         }
-                    }
 
-                    SliderDefaults.Track(
-                        enabled = isPlaying,
-                        sliderState = sliderState,
-                        modifier = Modifier.height(2.dp),
-                        thumbTrackGapSize = 0.dp,
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = colorScheme.primary,
-                            inactiveTrackColor = Color.Transparent,
-                            disabledActiveTrackColor = colorScheme.onSurface.copy(alpha = 0.12f),
-                            disabledInactiveTrackColor = Color.Transparent
+                        // 3. Active Seek Track (Standard Slider visual)
+                        SliderDefaults.Track(
+                            enabled = isInteractive,
+                            sliderState = sliderState,
+                            modifier = Modifier.fillMaxHeight(),
+                            thumbTrackGapSize = 0.dp,
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = colorScheme.primary,
+                                inactiveTrackColor = Color.Transparent
+                            )
                         )
-                    )
+                    }
                 }
             }
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = (-22).dp)
+                .padding(top = 4.dp)
                 .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Calculate time based on the fraction and current window
+            val currentMin = lockedWindow?.first ?: minPosition
+            val currentWidth = lockedWindow?.second ?: windowSize
+            val displayTime = currentMin + (sliderFraction * currentWidth).toLong()
+
             Text(
-                text = formatTime(sliderValue.toLong()),
+                text = formatTime(displayTime),
                 style = MaterialTheme.typography.labelSmall,
                 color = colorScheme.onSurfaceVariant
             )
 
-            val isLive = (loadedPosition - position) < 5000 // 5 second threshold
+            val isLive = (loadedPosition - displayTime) < 5000
             
             Surface(
                 onClick = { 
