@@ -3,7 +3,6 @@ package com.smoothradio.radio.feature.radiolist.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -45,7 +44,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -59,10 +57,10 @@ import coil.request.ImageRequest
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
-import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
+import com.smoothradio.radio.core.ui.util.LogoMapper
 
 @Composable
 fun PersistentMiniPlayer(
@@ -82,7 +80,10 @@ fun PersistentMiniPlayer(
 
     val animatedLoadingProgress by animateFloatAsState(
         targetValue = loadingProgress,
-        animationSpec = if (loadingProgress == 0f) snap() else tween(500, easing = FastOutSlowInEasing),
+        animationSpec = if (loadingProgress < 0.1f) snap() else tween(
+            500,
+            easing = FastOutSlowInEasing
+        ),
         label = "loadingProgress"
     )
 
@@ -119,8 +120,13 @@ fun PersistentMiniPlayer(
                 )
 
                 // Initial Loading / Buffering progress (Spotify style)
-                if (animatedLoadingProgress > 0f && animatedLoadingProgress < 1f) {
-                    val progressWidth = size.width * animatedLoadingProgress
+                val showProgressBar =
+                    (animatedLoadingProgress > 0f && animatedLoadingProgress < 1f) || isBuffering
+                if (showProgressBar) {
+                    // Avoid flicker of full bar when switching stations by ignoring stale high values during buffering
+                    val displayProgress =
+                        if (isBuffering && loadingProgress < 0.1f) 0f else animatedLoadingProgress
+                    val progressWidth = size.width * displayProgress.coerceIn(0f, 1f)
                     drawLine(
                         color = colorScheme.primary,
                         start = Offset(0f, y),
