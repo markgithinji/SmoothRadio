@@ -75,7 +75,7 @@ object ServiceModule {
     @Provides
     @Singleton
     fun provideLocalAudioProxy(@ApplicationContext context: Context): LocalAudioProxy = 
-        LocalAudioProxy(context)
+        LocalAudioProxy(context.cacheDir)
 
     @Provides
     fun provideExoPlayer(
