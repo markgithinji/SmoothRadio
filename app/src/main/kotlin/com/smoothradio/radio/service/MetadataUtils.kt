@@ -18,11 +18,11 @@ object MetadataUtils {
                 val titleMatch = Regex("""Title="([^"]*)"""").find(assetTag)
                 val artistMatch = Regex("""Artist1="([^"]*)"""").find(assetTag)
                 
-                val title = titleMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
-                val artist = artistMatch?.groupValues?.get(1)?.replace("&amp;", "&")?.trim() ?: ""
+                val title = titleMatch?.groupValues?.get(1)?.trim() ?: ""
+                val artist = artistMatch?.groupValues?.get(1)?.trim() ?: ""
                 
-                if (title.isNotEmpty() && artist.isNotEmpty()) return "$title - $artist"
-                if (title.isNotEmpty()) return title
+                if (title.isNotEmpty() && artist.isNotEmpty()) return decodeHtmlEntities("$title - $artist")
+                if (title.isNotEmpty()) return decodeHtmlEntities(title)
             } catch (e: Exception) {
                 // fall through
             }
@@ -32,8 +32,8 @@ object MetadataUtils {
         if (trimmed.contains("Title=\"")) {
             val titleMatch = Regex("""Title="([^"]*)"""").find(trimmed)
             if (titleMatch != null) {
-                val title = titleMatch.groupValues[1].replace("&amp;", "&").trim()
-                if (title.isNotEmpty()) return title
+                val title = titleMatch.groupValues[1].trim()
+                if (title.isNotEmpty()) return decodeHtmlEntities(title)
             }
         }
 
@@ -45,6 +45,19 @@ object MetadataUtils {
             .replace("\\s+".toRegex(), " ")
             .trim()
 
-        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") cleanTitle else ""
+        return if (cleanTitle.isNotEmpty() && cleanTitle != "-") decodeHtmlEntities(cleanTitle) else ""
+    }
+
+    private fun decodeHtmlEntities(text: String): String {
+        return text.replace("&amp;", "&")
+            .replace("&amp", "&")
+            .replace("&smp;", "&") // Handle user-reported &smp
+            .replace("&smp", "&")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&#39;", "'")
+            .replace("&nbsp;", " ")
     }
 }

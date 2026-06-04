@@ -56,6 +56,20 @@ class MetadataUtilsTest {
     }
 
     @Test
+    fun extractSongTitle_withSmpEntity_replacesWithAmpersand() {
+        val raw = "Song Name &smp; Artist Name"
+        val result = MetadataUtils.extractSongTitle(raw)
+        Truth.assertThat(result).isEqualTo("Song Name & Artist Name")
+    }
+
+    @Test
+    fun extractSongTitle_withMalformedAmpersand_replacesWithAmpersand() {
+        val raw = "Rock &amp Roll"
+        val result = MetadataUtils.extractSongTitle(raw)
+        Truth.assertThat(result).isEqualTo("Rock & Roll")
+    }
+
+    @Test
     fun extractSongTitle_emptyOrDash_returnsEmpty() {
         Truth.assertThat(MetadataUtils.extractSongTitle("")).isEmpty()
         Truth.assertThat(MetadataUtils.extractSongTitle("-")).isEmpty()
