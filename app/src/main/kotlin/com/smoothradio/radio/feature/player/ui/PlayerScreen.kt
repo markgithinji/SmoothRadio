@@ -626,6 +626,10 @@ fun AudioSeekBar(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     var isDraggingManual by remember { mutableStateOf(false) }
+    
+    // Track when the last seek occurred to prevent "jumping" back to the old position
+    // while the player is processing the seek request.
+    var lastSeekTimestamp by remember { mutableLongStateOf(0L) }
     val isInteracting = isPressed || isDraggingManual
 
     // The current window size (total buffer length in ms)
@@ -639,9 +643,12 @@ fun AudioSeekBar(
         if (isInteracting) minPosition to windowSize else null
     }
 
-    // Sync fraction with absolute position ONLY when not interacting
+    // Sync fraction with absolute position ONLY when not interacting and not recently seeked
     LaunchedEffect(position, minPosition, windowSize, isInteracting) {
-        if (!isInteracting) {
+        val now = System.currentTimeMillis()
+        // If we are interacting, don't sync.
+        // If we just seeked (< 1 second ago), don't sync to avoid the "jump" while backend updates.
+        if (!isInteracting && (now - lastSeekTimestamp > 1000L)) {
             sliderFraction = ((position - minPosition).toFloat() / windowSize.toFloat()).coerceIn(0f, 1f)
         }
     }
@@ -685,6 +692,7 @@ fun AudioSeekBar(
                 val currentWidth = lockedWindow?.second ?: windowSize
                 val absoluteSeekTarget = currentMin + (sliderFraction * currentWidth).toLong()
                 
+                lastSeekTimestamp = System.currentTimeMillis()
                 onSeek(absoluteSeekTarget)
                 isDraggingManual = false
             },
