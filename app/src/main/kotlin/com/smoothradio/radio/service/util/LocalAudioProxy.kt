@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LocalAudioProxy(private val context: Context) {
     companion object {
         const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
-        const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part (Total 2MB ~2 mins)
-        const val TOTAL_CAPACITY_BYTES = PART_SIZE * 2
+        const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part
+        const val TOTAL_CAPACITY_BYTES = PART_SIZE * 3 // 3 Parts for Triple Buffering
         const val MAX_PARALLEL_DOWNLOADS = 6
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024 // 32KB Burst size
         const val INITIAL_BURST_SIZE = 256 * 1024    // 256KB initial burst for instant player start
@@ -77,6 +77,8 @@ class LocalAudioProxy(private val context: Context) {
         private set
     var part2File: File? = null
         private set
+    var part3File: File? = null
+        private set
     var totalBytesDropped = 0L // Total bytes ever purged from history
         private set
     var totalBytesWritten = 0L // Total bytes ever written in this session
@@ -109,6 +111,7 @@ class LocalAudioProxy(private val context: Context) {
 
         part1File = File(context.cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
         part2File = File(context.cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
+        part3File = File(context.cacheDir, "proxy_${sessionTag}_p3.mp3").apply { createNewFile() }
         totalBytesDropped = 0L
         totalBytesWritten = 0L
         totalBytesReceived = 0L
@@ -375,16 +378,23 @@ class LocalAudioProxy(private val context: Context) {
         if (memoryBuffer.size() == 0) return
         val p1 = part1File ?: return
         val p2 = part2File ?: return
+        val p3 = part3File ?: return
         val data = memoryBuffer.toByteArray()
         try {
             if (p1.length() < PART_SIZE) {
                 FileOutputStream(p1, true).use { it.write(data) }
-            } else {
+            } else if (p2.length() < PART_SIZE) {
                 FileOutputStream(p2, true).use { it.write(data) }
-                if (p2.length() >= PART_SIZE) {
+            } else {
+                FileOutputStream(p3, true).use { it.write(data) }
+                if (p3.length() >= PART_SIZE) {
                     totalBytesDropped += p1.length()
                     metadataMap.headMap(totalBytesDropped).clear()
-                    p1.delete(); p2.renameTo(p1); p2.createNewFile()
+                    // Rotate: Delete P1, move P2 to P1, P3 to P2, recreate P3
+                    p1.delete()
+                    p2.renameTo(p1)
+                    p3.renameTo(p2)
+                    p3.createNewFile()
                 }
             }
             memoryBuffer.reset()
@@ -427,11 +437,13 @@ class LocalAudioProxy(private val context: Context) {
                     synchronized(this@LocalAudioProxy) {
                         val p1Size = part1File?.length() ?: 0L
                         val p2Size = part2File?.length() ?: 0L
-                        val totalPhysicalSize = p1Size + p2Size
+                        val p3Size = part3File?.length() ?: 0L
+                        val totalPhysicalSize = p1Size + p2Size + p3Size
                         val relativePos = lastReadPos - totalBytesDropped
                         if (relativePos >= 0) {
                             if (relativePos < p1Size) { physicalFile = part1File; physicalOffset = relativePos }
-                            else if (relativePos < totalPhysicalSize) { physicalFile = part2File; physicalOffset = relativePos - p1Size }
+                            else if (relativePos < p1Size + p2Size) { physicalFile = part2File; physicalOffset = relativePos - p1Size }
+                            else if (relativePos < totalPhysicalSize) { physicalFile = part3File; physicalOffset = relativePos - p1Size - p2Size }
                             else {
                                 val memoryPos = (relativePos - totalPhysicalSize).toInt()
                                 val memSize = memoryBuffer.size()
@@ -512,16 +524,20 @@ class LocalAudioProxy(private val context: Context) {
                 synchronized(this) {
                     val p1Size = part1File?.length() ?: 0L
                     val p2Size = part2File?.length() ?: 0L
-                    val totalPhysicalSize = p1Size + p2Size
+                    val p3Size = part3File?.length() ?: 0L
+                    val totalPhysicalSize = p1Size + p2Size + p3Size
                     val relativePos = position - totalBytesDropped
 
                     if (relativePos >= 0) {
                         if (relativePos < p1Size) {
                             physicalFile = part1File
                             physicalOffset = relativePos
-                        } else if (relativePos < totalPhysicalSize) {
+                        } else if (relativePos < p1Size + p2Size) {
                             physicalFile = part2File
                             physicalOffset = relativePos - p1Size
+                        } else if (relativePos < totalPhysicalSize) {
+                            physicalFile = part3File
+                            physicalOffset = relativePos - p1Size - p2Size
                         } else {
                             val memoryPos = (relativePos - totalPhysicalSize).toInt()
                             val memSize = memoryBuffer.size()
