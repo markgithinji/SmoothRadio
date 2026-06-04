@@ -4,7 +4,7 @@ package com.smoothradio.radio.service.util
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
+import timber.log.Timber
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
@@ -14,15 +14,22 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.annotation.OptIn
 import androidx.media3.datasource.TransferListener
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * Thrown when the requested stream position has already been purged from the proxy's rolling buffer.
+ */
+class BufferEvictedException(position: Long) : IOException("Stream position $position has been purged from history")
 
 /**
  * A wrapper DataSource that handles our custom "proxy://" scheme while delegating others
  * to the standard DefaultDataSource.
  */
 class SmoothDataSource(
-    private val proxy: LocalAudioProxy,
+    proxy: LocalAudioProxy,
     private val baseDataSource: DataSource
 ) : DataSource {
+    
     private val proxyDataSource = ProxyDataSource(proxy)
     private var activeDataSource: DataSource? = null
 
@@ -32,16 +39,15 @@ class SmoothDataSource(
     }
 
     override fun open(dataSpec: DataSpec): Long {
-        activeDataSource = if (dataSpec.uri.scheme == "proxy") {
-            proxyDataSource
-        } else {
-            baseDataSource
+        activeDataSource = when (dataSpec.uri.scheme) {
+            ProxyDataSource.SCHEME -> proxyDataSource
+            else -> baseDataSource
         }
         return activeDataSource!!.open(dataSpec)
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return activeDataSource?.read(buffer, offset, length) ?: -1
+        return activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
     }
 
     override fun getUri(): Uri? = activeDataSource?.uri
@@ -63,6 +69,10 @@ class ProxyDataSource(
     private val proxy: LocalAudioProxy
 ) : BaseDataSource(/* isNetwork= */ false) {
 
+    companion object {
+        const val SCHEME = "proxy"
+    }
+
     class Factory(
         private val context: Context,
         private val proxy: LocalAudioProxy,
@@ -76,7 +86,7 @@ class ProxyDataSource(
 
     private var dataSpec: DataSpec? = null
     private var position: Long = 0
-    private var opened = false
+    private val isOpened = AtomicBoolean(false)
 
     override fun open(dataSpec: DataSpec): Long {
         this.dataSpec = dataSpec
@@ -88,26 +98,23 @@ class ProxyDataSource(
         // Use the query offset for seeking, falling back to ExoPlayer's position
         this.position = queryOffset ?: dataSpec.position
         
-        Log.d("ProxyDataSource", "open() called: uri=$uri, requestedPos=${dataSpec.position}, effectivePos=$position")
+        Timber.d("open() called: uri=%s, requestedPos=%d, effectivePos=%d", uri, dataSpec.position, position)
 
         transferInitializing(dataSpec)
-        opened = true
+        isOpened.set(true)
         transferStarted(dataSpec)
         
         // Return C.LENGTH_UNSET to indicate an unknown/infinite stream length.
-        // This is the clean way to handle live streaming without "fake file" delays.
         return C.LENGTH_UNSET.toLong()
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
-        if (!opened) return -1
+        if (!isOpened.get()) return C.RESULT_END_OF_INPUT
 
-        val bytesRead = proxy.readData(position, buffer, offset, length)
-        
-        return when (bytesRead) {
-            -1 -> -1 // EOF
-            -2 -> throw IOException("Position $position already dropped from proxy buffer")
+        return when (val bytesRead = proxy.readData(position, buffer, offset, length)) {
+            -1 -> C.RESULT_END_OF_INPUT // EOF
+            -2 -> throw BufferEvictedException(position)
             else -> {
                 position += bytesRead
                 bytesTransferred(bytesRead)
@@ -119,8 +126,7 @@ class ProxyDataSource(
     override fun getUri(): Uri? = dataSpec?.uri
 
     override fun close() {
-        if (opened) {
-            opened = false
+        if (isOpened.compareAndSet(true, false)) {
             transferEnded()
         }
         dataSpec = null
