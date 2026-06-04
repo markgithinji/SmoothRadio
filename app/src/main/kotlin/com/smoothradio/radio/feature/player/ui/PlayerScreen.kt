@@ -1319,6 +1319,120 @@ fun AnimatedPlayPauseButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EqualizerBandSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    colorScheme: ColorScheme
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val haptic = LocalHapticFeedback.current
+
+    val thumbSize by animateDpAsState(
+        targetValue = if (isPressed) 16.dp else 12.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "thumbSize"
+    )
+
+    val trackHeight by animateDpAsState(
+        targetValue = if (isPressed) 8.dp else 4.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "trackHeight"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(label, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "${value.toInt()} dB",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.primary
+                )
+            }
+            
+            Slider(
+                value = value,
+                onValueChange = {
+                    if (it != value) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                    onValueChange(it)
+                },
+                onValueChangeFinished = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onValueChangeFinished()
+                },
+                valueRange = -15f..15f,
+                interactionSource = interactionSource,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                thumb = {
+                    Box(
+                        modifier = Modifier.size(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            shadowElevation = if (isPressed) 3.dp else 1.dp,
+                            modifier = Modifier.size(thumbSize)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(2.dp)
+                                    .background(colorScheme.primary, CircleShape)
+                            )
+                        }
+                    }
+                },
+                track = { sliderState ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(trackHeight)
+                            .clip(CircleShape)
+                            .background(colorScheme.onSurface.copy(alpha = 0.1f))
+                    ) {
+                        // Progress Track with Gradient (Centered at 0dB)
+                        // For EQ, usually we show from the center or from the left. 
+                        // To match AudioSeekBar behavior, we show from left to current value.
+                        val fraction = (sliderState.value + 15f) / 30f
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            colorScheme.primary.copy(alpha = 0.7f),
+                                            colorScheme.primary
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
 @Composable
 fun EqualizerDialog(
     currentLevels: Map<Int, Short>,
@@ -1346,41 +1460,22 @@ fun EqualizerDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 bands.forEachIndexed { index, frequency ->
                     var localLevel by remember(currentLevels[index]) {
                         mutableFloatStateOf((currentLevels[index] ?: 0).toFloat() / 100f)
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(frequency, style = MaterialTheme.typography.labelLarge)
-                                Text(
-                                    "${localLevel.toInt()} dB",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Slider(
-                                value = localLevel,
-                                onValueChange = { localLevel = it },
-                                onValueChangeFinished = {
-                                    onBandChange(index, (localLevel * 100).toInt().toShort())
-                                },
-                                valueRange = -15f..15f,
-                                modifier = Modifier.height(20.dp)
-                            )
-                        }
-                    }
+                    EqualizerBandSlider(
+                        label = frequency,
+                        value = localLevel,
+                        onValueChange = { localLevel = it },
+                        onValueChangeFinished = {
+                            onBandChange(index, (localLevel * 100).toInt().toShort())
+                        },
+                        colorScheme = colorScheme
+                    )
                 }
             }
         },
