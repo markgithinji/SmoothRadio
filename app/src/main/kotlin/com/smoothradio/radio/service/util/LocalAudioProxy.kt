@@ -27,18 +27,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A local HTTP proxy that downloads a live stream to a rolling two-part buffer.
+ * A local HTTP proxy that downloads a live stream to a rolling three-part buffer.
  * Provides a "Time Machine" seeking experience while strictly limiting disk usage.
  */
 class LocalAudioProxy(private val context: Context) {
-    companion object {
-        const val BYTES_PER_MS = 16L // ~128kbps (16 bytes per millisecond)
-        const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part
-        const val TOTAL_CAPACITY_BYTES = PART_SIZE * 3 // 3 Parts for Triple Buffering
-        const val MAX_PARALLEL_DOWNLOADS = 6
-        const val MEMORY_FLUSH_THRESHOLD = 32 * 1024 // 32KB Burst size
-        const val INITIAL_BURST_SIZE = 256 * 1024    // 256KB initial burst for instant player start
-    }
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -69,8 +61,7 @@ class LocalAudioProxy(private val context: Context) {
     private val metadataMap = TreeMap<Long, String>()
     
     // Memory bursting buffer
-    private val memoryBuffer = ByteArrayOutputStream()
-    private var bytesInMemory = 0L // Bytes currently in memoryBuffer
+    private val memoryBuffer = FastMemoryBuffer(INITIAL_BURST_SIZE)
 
     // Rolling Buffer State
     var part1File: File? = null
@@ -379,14 +370,13 @@ class LocalAudioProxy(private val context: Context) {
         val p1 = part1File ?: return
         val p2 = part2File ?: return
         val p3 = part3File ?: return
-        val data = memoryBuffer.toByteArray()
         try {
             if (p1.length() < PART_SIZE) {
-                FileOutputStream(p1, true).use { it.write(data) }
+                FileOutputStream(p1, true).use { memoryBuffer.writeTo(it) }
             } else if (p2.length() < PART_SIZE) {
-                FileOutputStream(p2, true).use { it.write(data) }
+                FileOutputStream(p2, true).use { memoryBuffer.writeTo(it) }
             } else {
-                FileOutputStream(p3, true).use { it.write(data) }
+                FileOutputStream(p3, true).use { memoryBuffer.writeTo(it) }
                 if (p3.length() >= PART_SIZE) {
                     totalBytesDropped += p1.length()
                     metadataMap.headMap(totalBytesDropped).clear()
@@ -431,9 +421,7 @@ class LocalAudioProxy(private val context: Context) {
                 while (isRunning.get() && sessionTag == tag && !socket.isClosed) {
                     var physicalFile: File? = null
                     var physicalOffset = 0L
-                    var dataFromMemory: ByteArray? = null
-                    var memoryOffset = 0
-                    var memoryAvailable = 0
+                    var bytesFromMemory = 0
                     synchronized(this@LocalAudioProxy) {
                         val p1Size = part1File?.length() ?: 0L
                         val p2Size = part2File?.length() ?: 0L
@@ -448,9 +436,9 @@ class LocalAudioProxy(private val context: Context) {
                                 val memoryPos = (relativePos - totalPhysicalSize).toInt()
                                 val memSize = memoryBuffer.size()
                                 if (memoryPos < memSize) {
-                                    dataFromMemory = memoryBuffer.toByteArray()
-                                    memoryOffset = memoryPos
-                                    memoryAvailable = memSize - memoryPos
+                                    val toRead = minOf(buffer.size, memSize - memoryPos)
+                                    System.arraycopy(memoryBuffer.getInternalBuffer(), memoryPos, buffer, 0, toRead)
+                                    bytesFromMemory = toRead
                                 }
                             }
                         } else { lastReadPos = totalBytesDropped; physicalFile = part1File; physicalOffset = 0 }
@@ -465,13 +453,13 @@ class LocalAudioProxy(private val context: Context) {
                             val read = raf.read(buffer)
                             if (read > 0) { out.write(buffer, 0, read); lastReadPos += read }
                         }
-                    } else if (dataFromMemory != null) {
+                    } else if (bytesFromMemory > 0) {
                         if (firstByteServedTime == 0L) {
                             firstByteServedTime = System.currentTimeMillis()
                             Log.d("LocalProxy", "[$tag] First byte served to client from memory after ${firstByteServedTime - sessionStartTime}ms")
                         }
-                        val toWrite = minOf(buffer.size, memoryAvailable)
-                        if (toWrite > 0) { out.write(dataFromMemory!!, memoryOffset, toWrite); lastReadPos += toWrite }
+                        out.write(buffer, 0, bytesFromMemory)
+                        lastReadPos += bytesFromMemory
                     } else { withTimeoutOrNull(500) { dataSignal.first() } }
                 }
             } catch (e: Exception) {} finally { try { socket.close() } catch (e: Exception) {} }
@@ -517,9 +505,6 @@ class LocalAudioProxy(private val context: Context) {
             while (isRunning.get() && sessionTag == tag) {
                 var physicalFile: File? = null
                 var physicalOffset = 0L
-                var dataFromMemory: ByteArray? = null
-                var memoryOffset = 0
-                var memoryAvailable = 0
 
                 synchronized(this) {
                     val p1Size = part1File?.length() ?: 0L
@@ -542,9 +527,9 @@ class LocalAudioProxy(private val context: Context) {
                             val memoryPos = (relativePos - totalPhysicalSize).toInt()
                             val memSize = memoryBuffer.size()
                             if (memoryPos < memSize) {
-                                dataFromMemory = memoryBuffer.toByteArray()
-                                memoryOffset = memoryPos
-                                memoryAvailable = memSize - memoryPos
+                                val toRead = minOf(length, memSize - memoryPos)
+                                System.arraycopy(memoryBuffer.getInternalBuffer(), memoryPos, buffer, offset, toRead)
+                                return toRead
                             }
                         }
                     } else {
@@ -557,12 +542,6 @@ class LocalAudioProxy(private val context: Context) {
                     RandomAccessFile(physicalFile, "r").use { raf ->
                         raf.seek(physicalOffset)
                         return raf.read(buffer, offset, length)
-                    }
-                } else if (dataFromMemory != null) {
-                    val toRead = minOf(length, memoryAvailable)
-                    if (toRead > 0) {
-                        System.arraycopy(dataFromMemory!!, memoryOffset, buffer, offset, toRead)
-                        return toRead
                     }
                 }
 
@@ -589,5 +568,43 @@ class LocalAudioProxy(private val context: Context) {
         proxyJob?.cancel()
         try { serverSocket?.close() } catch (e: Exception) {}
         cleanupLegacyFiles()
+    }
+
+    /**
+     * A specialized memory buffer that avoids unnecessary copies when reading or flushing.
+     */
+    private class FastMemoryBuffer(initialCapacity: Int) {
+        private var buffer = ByteArray(initialCapacity)
+        private var size = 0
+
+        fun write(data: ByteArray, offset: Int, length: Int) {
+            ensureCapacity(size + length)
+            System.arraycopy(data, offset, buffer, size, length)
+            size += length
+        }
+
+        private fun ensureCapacity(minCapacity: Int) {
+            if (minCapacity > buffer.size) {
+                var newSize = buffer.size * 2
+                if (newSize < minCapacity) newSize = minCapacity
+                buffer = buffer.copyOf(newSize)
+            }
+        }
+
+        fun size() = size
+        fun reset() { size = 0 }
+        fun getInternalBuffer() = buffer
+
+        fun writeTo(out: java.io.OutputStream) {
+            out.write(buffer, 0, size)
+        }
+    }
+
+    companion object {
+        const val PART_SIZE = 1 * 1024 * 1024L // 1MB per part
+        const val TOTAL_CAPACITY_BYTES = PART_SIZE * 3 // 3 Parts for Triple Buffering
+        const val MAX_PARALLEL_DOWNLOADS = 6
+        const val MEMORY_FLUSH_THRESHOLD = 32 * 1024 // 32KB Burst size
+        const val INITIAL_BURST_SIZE = 256 * 1024    // 256KB initial burst for instant player start
     }
 }
