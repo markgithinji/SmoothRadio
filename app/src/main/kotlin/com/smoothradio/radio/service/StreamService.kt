@@ -204,10 +204,18 @@ class StreamService : MediaSessionService() {
                     val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / estimatedBytesPerMs.coerceAtLeast(4.0)
                     val displayDur = droppedDur + bufferCapacityMs.toLong()
                     
+                    val urlString = activeStreamUrl ?: ""
+                    val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                    val safetyBuffer = if (isHls) 12000L else 2000L
+
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
                     stateRepository.updateDuration(displayDur)
                     stateRepository.updateMinPosition(droppedDur)
-                    stateRepository.updateLoadedPosition(loadedDur)
+                    
+                    // We report the "Safe Live Edge" as the loaded position to the UI.
+                    // This ensures the "LIVE" indicator turns on when we are at the best possible HLS position.
+                    val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
+                    stateRepository.updateLoadedPosition(safeLoadedPos)
 
                     // Initial Buffering Progress (Percentage toward starting playback)
                     if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) {
@@ -529,8 +537,12 @@ class StreamService : MediaSessionService() {
             ACTION_PLAY -> {
                 Log.d("SmoothSeek", "ACTION_PLAY received. Catching up to live.")
                 val loadedDur = getLoadedDurationMs()
-                // Use calibrated live edge
-                seekToAbsolute((loadedDur - 2000).coerceAtLeast(0))
+                val urlString = activeStreamUrl ?: ""
+                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                
+                // Use a larger safety margin for HLS (12s) vs Progressive (2s)
+                val safetyBuffer = if (isHls) 12000L else 2000L
+                seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
             }
             ACTION_PAUSE -> {
                 Log.d("SmoothSeek", "ACTION_PAUSE received")
@@ -546,7 +558,12 @@ class StreamService : MediaSessionService() {
             ACTION_SEEK_FORWARD -> {
                 val current = wrappedPlayer.currentPosition
                 val loadedDur = getLoadedDurationMs()
-                val target = (current + 10000).coerceAtMost(loadedDur)
+                val urlString = activeStreamUrl ?: ""
+                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                
+                // Don't seek past the safety buffer
+                val safetyBuffer = if (isHls) 12000L else 2000L
+                val target = (current + 10000).coerceAtMost(loadedDur - safetyBuffer)
                 Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
                 seekToAbsolute(target)
             }
@@ -554,8 +571,12 @@ class StreamService : MediaSessionService() {
                 val position = intent.getLongExtra(EXTRA_POSITION, 0L)
                 val loadedDur = getLoadedDurationMs()
                 val droppedDur = getDroppedDurationMs()
-                // Physical coercion: target must be between oldest and newest data on disk
-                val target = position.coerceIn(droppedDur, loadedDur)
+                val urlString = activeStreamUrl ?: ""
+                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                
+                // Physical coercion: target must be between oldest data and the live safety buffer
+                val safetyBuffer = if (isHls) 12000L else 2000L
+                val target = position.coerceIn(droppedDur, (loadedDur - safetyBuffer).coerceAtLeast(droppedDur))
                 
                 Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, available=$droppedDur..$loadedDur, target=$target")
                 seekToAbsolute(target)
@@ -583,12 +604,23 @@ class StreamService : MediaSessionService() {
             return
         }
         isPreparingForAd = false
+        activeStreamUrl = link
         sessionStartTime = System.currentTimeMillis()
         preparationStartTime = sessionStartTime
         estimatedBytesPerMs = 16.0 // Reset to default for fresh calibration
         Log.d("SmoothSeek", "play() called at $preparationStartTime for $link")
+        
+        val isHls = link.contains(".m3u8") || link.contains("playlist")
+        if (isHls) {
+            // For HLS, we need to wait for at least one segment before jumping to live
+            // We'll let preparePlayer start at 0, then jump in onPlaybackStateChanged
+            jumpToLiveOnReady = true
+        } else {
+            // For Progressive, we start at the live edge (byte 0) naturally
+            jumpToLiveOnReady = false
+        }
+        
         preparePlayer(link.toUri())
-        // Remove immediate play() to avoid the "play at 0:00 then seek" glitch
     }
 
     private fun preparePlayer(uri: Uri) {
@@ -883,17 +915,24 @@ class StreamService : MediaSessionService() {
                 else -> "UNKNOWN"
             }
             Log.d("SmoothSeek", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
-            
-            // Experiment 3: Log detailed buffering stats
-            Log.d("SmoothSeek", "Experiment 3 Stats at $stateName: " +
-                "duration=${wrappedPlayer.duration}, " +
-                "bufferedPos=${wrappedPlayer.bufferedPosition}, " +
-                "totalBuffered=${wrappedPlayer.totalBufferedDuration}, " +
-                "isLive=${wrappedPlayer.isCurrentMediaItemLive}")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 jumpToLiveOnReady = false
-                wrappedPlayer.play()
+                
+                val urlString = activeStreamUrl ?: ""
+                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                
+                if (isHls) {
+                    val loadedDur = getLoadedDurationMs()
+                    // HLS SAFETY BUFFER: Jump to 12s before end.
+                    // HLS segments are usually 10s. Staying 12s back ensures we don't
+                    // hit the "wall" of the last segment and buffer immediately.
+                    val target = (loadedDur - 12000).coerceAtLeast(0)
+                    Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
+                    seekToAbsolute(target)
+                } else {
+                    wrappedPlayer.play()
+                }
             } else {
                 updateUiState()
             }
