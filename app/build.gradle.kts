@@ -118,8 +118,6 @@ dependencies {
     implementation(libs.androidx.compose.runtime.tracing)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.coil.compose)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
     "baselineProfile"(project(":baselineprofile"))
     // Third party libraries
     implementation(libs.timber)
@@ -130,6 +128,8 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     detektPlugins(libs.detekt.formatting)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     // Ads
     implementation(libs.play.services.ads)
     implementation(libs.facebook)
