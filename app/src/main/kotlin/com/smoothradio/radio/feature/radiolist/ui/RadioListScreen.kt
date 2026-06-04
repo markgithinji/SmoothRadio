@@ -71,6 +71,7 @@ fun RadioStationsScreen(
     val uiState by radioViewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
+    val loadingProgress by playerControlViewModel.loadingProgress.collectAsStateWithLifecycle()
 
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
@@ -184,6 +185,7 @@ fun RadioStationsScreen(
                             PersistentMiniPlayer(
                                 station = playingStation,
                                 playbackState = playbackState,
+                                loadingProgress = loadingProgress,
                                 onPlayPauseClick = {
                                     playingStation?.let {
                                         playerControlViewModel.requestPlayStation(

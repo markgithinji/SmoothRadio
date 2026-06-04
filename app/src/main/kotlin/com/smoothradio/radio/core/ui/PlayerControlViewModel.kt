@@ -62,6 +62,11 @@ class PlayerControlViewModel @Inject constructor(
     )
 
     val metadata: StateFlow<String> = stateRepository.metadata
+    val position: StateFlow<Long> = stateRepository.position
+    val duration: StateFlow<Long> = stateRepository.duration
+    val minPosition: StateFlow<Long> = stateRepository.minPosition
+    val loadedPosition: StateFlow<Long> = stateRepository.loadedPosition
+    val loadingProgress: StateFlow<Float> = stateRepository.loadingProgress
 
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
@@ -186,6 +191,30 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun seekTo(position: Long) {
+        viewModelScope.launch {
+            _playCommand.send(PlayCommand.SeekTo(position))
+        }
+    }
+
+    fun seekBack() {
+        viewModelScope.launch {
+            _playCommand.send(PlayCommand.SeekBack)
+        }
+    }
+
+    fun seekForward() {
+        viewModelScope.launch {
+            _playCommand.send(PlayCommand.SeekForward)
+        }
+    }
+
+    fun togglePlayPause() {
+        viewModelScope.launch {
+            _playCommand.send(PlayCommand.TogglePlayPause)
+        }
+    }
+
     fun savePlayingStationId(id: Int) {
         viewModelScope.launch {
             radioRepository.setPlayingStation(id)
@@ -208,6 +237,10 @@ class PlayerControlViewModel @Inject constructor(
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()
     object Refresh : PlayCommand()
+    object TogglePlayPause : PlayCommand()
     data class SetSleepTimer(val minutes: Int) : PlayCommand()
     data class SetEqBand(val band: Int, val level: Short) : PlayCommand()
+    data class SeekTo(val position: Long) : PlayCommand()
+    object SeekBack : PlayCommand()
+    object SeekForward : PlayCommand()
 }

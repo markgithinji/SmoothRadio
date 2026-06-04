@@ -131,22 +131,27 @@ class MainActivity : FragmentActivity() {
                 }
 
                 launch {
+                    playerControlViewModel.playingStation.collect { station ->
+                        if (station != null) {
+                            currentStation = station
+                        }
+                    }
+                }
+
+                launch {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 val station = command.station
-                                val repoState = playerControlViewModel.playbackState.value
-
+                                
                                 Log.d(
                                     "MainActivityLogs", "▶ Tap: ${station.stationName} | " +
                                             "station.isPlaying=${station.isPlaying} | " +
-                                            "local=$isPlaying | " +
-                                            "repo=$repoState | " +
-                                            "sameStation=${currentStation?.id == station.id}"
+                                            "localIsPlaying=$isPlaying"
                                 )
 
                                 currentStation = station
-                                if (station.isPlaying) {
+                                if (station.isPlaying && isPlaying) {
                                     Log.d("MainActivityLogs", "  → playOrStop()")
                                     playOrStop()
                                 } else {
@@ -155,12 +160,19 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
 
+                            is PlayCommand.TogglePlayPause -> {
+                                playOrStop()
+                            }
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
                                 command.band,
                                 command.level
                             )
+
+                            is PlayCommand.SeekTo -> seekTo(command.position)
+                            PlayCommand.SeekBack -> seekBack()
+                            PlayCommand.SeekForward -> seekForward()
                         }
                     }
                 }
@@ -174,6 +186,28 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    private fun seekTo(position: Long) {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_TO
+            putExtra(StreamService.EXTRA_POSITION, position)
+        }
+        startService(intent)
+    }
+
+    private fun seekBack() {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_BACK
+        }
+        startService(intent)
+    }
+
+    private fun seekForward() {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = StreamService.ACTION_SEEK_FORWARD
+        }
+        startService(intent)
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
@@ -195,21 +229,6 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-    private fun startNewPlay() {
-        Log.d("MainActivityLogs", "startNewPlay | isPlaying=$isPlaying")
-
-        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
-            Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
-            return
-        }
-
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-//        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station") ////////////////////////////////////////////////////////////////////////////////////////////
-    }
-
     private fun playOrStop() {
         if (isPlaying) {
             Log.d("MainActivityLogs", "  → STOP")
@@ -224,6 +243,31 @@ class MainActivity : FragmentActivity() {
         startStreamService()
         loadInterstitialAd()
         checkInternet()
+    }
+
+    private fun startNewPlay() {
+        // Fallback: If currentStation is null, try to recover it from the ViewModel
+        if (currentStation == null) {
+            currentStation = playerControlViewModel.playingStation.value
+        }
+        
+        if (currentStation == null) {
+            Log.e("MainActivityLogs", "startNewPlay | ABORTED: No station selected")
+            return
+        }
+
+        Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
+
+        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
+            Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
+            return
+        }
+
+        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+//        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station") ////////////////////////////////////////////////////////////////////////////////////////////
     }
 
     private fun refresh() {

@@ -3,6 +3,7 @@ package com.smoothradio.radio.core.domain.di
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
+import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.ProcessRemoteLinksUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
@@ -16,6 +17,14 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 class DomainModule {
+
+    @Provides
+    @Singleton
+    fun provideCanShowAdUseCase(
+        adSettingsRepository: AdSettingsRepository
+    ): CanShowAdUseCase {
+        return CanShowAdUseCase(adSettingsRepository)
+    }
 
     @Provides
     @Singleton

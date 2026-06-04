@@ -128,6 +128,8 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     detektPlugins(libs.detekt.formatting)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     // Ads
     implementation(libs.play.services.ads)
     implementation(libs.facebook)

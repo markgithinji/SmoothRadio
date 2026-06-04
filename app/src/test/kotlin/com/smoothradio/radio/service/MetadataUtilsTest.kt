@@ -1,6 +1,7 @@
 package com.smoothradio.radio.service
 
 import com.google.common.truth.Truth
+import com.smoothradio.radio.service.util.MetadataUtils
 import org.junit.Test
 
 class MetadataUtilsTest {
@@ -53,6 +54,20 @@ class MetadataUtilsTest {
         val raw = "Song\nName\r- Artist"
         val result = MetadataUtils.extractSongTitle(raw)
         Truth.assertThat(result).isEqualTo("Song Name - Artist")
+    }
+
+    @Test
+    fun extractSongTitle_withSmpEntity_replacesWithAmpersand() {
+        val raw = "Song Name &smp; Artist Name"
+        val result = MetadataUtils.extractSongTitle(raw)
+        Truth.assertThat(result).isEqualTo("Song Name & Artist Name")
+    }
+
+    @Test
+    fun extractSongTitle_withMalformedAmpersand_replacesWithAmpersand() {
+        val raw = "Rock &amp Roll"
+        val result = MetadataUtils.extractSongTitle(raw)
+        Truth.assertThat(result).isEqualTo("Rock & Roll")
     }
 
     @Test
