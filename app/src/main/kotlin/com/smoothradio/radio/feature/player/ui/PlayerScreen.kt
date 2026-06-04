@@ -49,13 +49,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -63,7 +59,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,7 +75,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -98,14 +92,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
@@ -113,9 +103,7 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
-import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.core.ui.util.LogoMapper
-import timber.log.Timber
 
 @Composable
 fun PlayerScreen(
@@ -130,12 +118,6 @@ fun PlayerScreen(
     val minPosition by playerControlViewModel.minPosition.collectAsStateWithLifecycle()
     val loadedPosition by playerControlViewModel.loadedPosition.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
-
-    LaunchedEffect(metadata) {
-        if (metadata.isNotEmpty()) {
-            Timber.d("Received metadata: $metadata")
-        }
-    }
 
     var swipeDirection by remember { mutableFloatStateOf(0f) }
     var showSleepDialog by remember { mutableStateOf(false) }
@@ -167,18 +149,10 @@ fun PlayerScreen(
         // Switch to landscape earlier (at 90% width) for a better desktop/foldable experience
         val isLandscape = screenWidth > (screenHeight * 0.9f)
 
-        LaunchedEffect(screenWidth, screenHeight) {
-            Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
-        }
-
-        LaunchedEffect(screenWidth, screenHeight) {
-            Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
-        }
-
         // Responsive Layout Configuration
         val layoutConfig = remember(screenHeight, screenWidth, isLandscape) {
             val isTinyCompact = if (isLandscape) screenHeight < 260.dp else screenHeight < 200.dp
-            
+
             // In landscape, we keep buttons compact
             val isCompact = isLandscape || screenHeight in 200.dp..380.dp
             val isShrinking = !isLandscape && screenHeight in 380.dp..425.dp
@@ -206,12 +180,14 @@ fun PlayerScreen(
                     val progress = (screenHeight.value - 300f) / range
                     (48 + progress * 32).dp
                 }
+
                 else -> 80.dp
             }
 
             object {
                 val showAd = if (isLandscape) screenHeight > 420.dp else screenHeight > 570.dp
-                val showSecondRow = if (isLandscape) screenHeight >= 500.dp else screenHeight > 720.dp
+                val showSecondRow =
+                    if (isLandscape) screenHeight >= 500.dp else screenHeight > 720.dp
                 val showMetadata = if (isLandscape) screenHeight > 300.dp else screenHeight > 420.dp
                 val showSeekBar = screenHeight >= 770.dp
                 val logoAlpha = logoVisibility
@@ -242,7 +218,7 @@ fun PlayerScreen(
                     isMedium -> 0.52f
                     else -> 0.62f
                 }
-                
+
                 // If ad is shown on a screen that isn't very tall, shrink the logo further to compensate
                 val logoScale = (if (showAd && !isLandscape && screenHeight < 750.dp) {
                     baseLogoScale * 0.85f
@@ -358,22 +334,23 @@ fun PlayerScreen(
                                 }
                             }
 
-                                PlaybackControlRow(
-                                    playbackState = playbackState,
-                                    playButtonSize = layoutConfig.btnSize,
-                                    isTinyCompact = layoutConfig.tinyCompact,
-                                    isCompact = layoutConfig.compact,
-                                    onPrevious = {
-                                        swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
-                                    },
-                                    onNext = {
-                                        swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                    },
-                                    onPlayPause = { playerControlViewModel.togglePlayPause() },
-                                    onSeekBack = { playerControlViewModel.seekBack() },
-                                    onSeekForward = { playerControlViewModel.seekForward() },
-                                    colorScheme = colorScheme
-                                )
+                            PlaybackControlRow(
+                                playbackState = playbackState,
+                                playButtonSize = layoutConfig.btnSize,
+                                isTinyCompact = layoutConfig.tinyCompact,
+                                isCompact = layoutConfig.compact,
+                                onPrevious = {
+                                    swipeDirection =
+                                        -1f; playerControlViewModel.requestPreviousStation()
+                                },
+                                onNext = {
+                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
+                                },
+                                onPlayPause = { playerControlViewModel.togglePlayPause() },
+                                onSeekBack = { playerControlViewModel.seekBack() },
+                                onSeekForward = { playerControlViewModel.seekForward() },
+                                colorScheme = colorScheme
+                            )
 
                             if (layoutConfig.showSecondRow) {
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -397,7 +374,10 @@ fun PlayerScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = layoutConfig.horizontalPadding)
-                            .padding(top = layoutConfig.topPadding, bottom = 4.dp), // Reduced bottom padding
+                            .padding(
+                                top = layoutConfig.topPadding,
+                                bottom = 4.dp
+                            ),
                         verticalArrangement = if (layoutConfig.tinyCompact || layoutConfig.compact) Arrangement.Center else Arrangement.Top
                     ) {
                         // Top Section (Logo, Station, Metadata)
@@ -487,7 +467,8 @@ fun PlayerScreen(
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
                                 onPrevious = {
-                                    swipeDirection = -1f; playerControlViewModel.requestPreviousStation()
+                                    swipeDirection =
+                                        -1f; playerControlViewModel.requestPreviousStation()
                                 },
                                 onNext = {
                                     swipeDirection = 1f; playerControlViewModel.requestNextStation()
@@ -630,7 +611,7 @@ fun AudioSeekBar(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     var isDraggingManual by remember { mutableStateOf(false) }
-    
+
     // Track when the last seek occurred to prevent "jumping" back to the old position
     // while the player is processing the seek request.
     var lastSeekTimestamp by remember { mutableLongStateOf(0L) }
@@ -638,7 +619,7 @@ fun AudioSeekBar(
 
     // The current window size (total buffer length in ms)
     val windowSize = (duration - minPosition).coerceAtLeast(1L)
-    
+
     // We use a fixed 0..1 scale for the Slider to ensure absolute coordinate stability
     var sliderFraction by remember { mutableFloatStateOf(0f) }
 
@@ -653,7 +634,8 @@ fun AudioSeekBar(
         // If we are interacting, don't sync.
         // If we just seeked (< 1 second ago), don't sync to avoid the "jump" while backend updates.
         if (!isInteracting && (now - lastSeekTimestamp > 1000L)) {
-            sliderFraction = ((position - minPosition).toFloat() / windowSize.toFloat()).coerceIn(0f, 1f)
+            sliderFraction =
+                ((position - minPosition).toFloat() / windowSize.toFloat()).coerceIn(0f, 1f)
         }
     }
 
@@ -663,7 +645,10 @@ fun AudioSeekBar(
 
     val thumbSize by animateDpAsState(
         targetValue = if (isInteracting) 18.dp else 12.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "thumbSize"
     )
 
@@ -695,7 +680,7 @@ fun AudioSeekBar(
                 val currentMin = lockedWindow?.first ?: minPosition
                 val currentWidth = lockedWindow?.second ?: windowSize
                 val absoluteSeekTarget = currentMin + (sliderFraction * currentWidth).toLong()
-                
+
                 lastSeekTimestamp = System.currentTimeMillis()
                 onSeek(absoluteSeekTarget)
                 isDraggingManual = false
@@ -703,7 +688,7 @@ fun AudioSeekBar(
             valueRange = 0f..1f,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp), // Clear touch target
+                .height(44.dp),
             thumb = {
                 Box(
                     modifier = Modifier.size(24.dp),
@@ -754,7 +739,7 @@ fun AudioSeekBar(
                                 .background(colorScheme.onSurface.copy(alpha = 0.1f))
                         )
 
-                        // 2. Buffer Progress (Loaded data - Darker Nav Orange)
+                        // 2. Buffer Progress
                         if (isInteractive) {
                             Box(
                                 modifier = Modifier
@@ -809,7 +794,7 @@ fun AudioSeekBar(
             // Function: Offset from live
             val offsetFromLiveMs = loadedPosition - displayTime
             val isLive = offsetFromLiveMs < 4000
-            
+
             val livePulseAlpha by rememberInfiniteTransition(label = "livePulse").animateFloat(
                 initialValue = 0.4f,
                 targetValue = 1f,
@@ -821,15 +806,20 @@ fun AudioSeekBar(
             )
 
             Surface(
-                onClick = { 
+                onClick = {
                     if (!isLive) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onSeek(loadedPosition) 
+                        onSeek(loadedPosition)
                     }
                 },
                 shape = RoundedCornerShape(8.dp),
-                color = if (isLive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                border = if (isLive) null else androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f)),
+                color = if (isLive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(
+                    alpha = 0.5f
+                ),
+                border = if (isLive) null else androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    colorScheme.outline.copy(alpha = 0.1f)
+                ),
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
                 Row(
@@ -840,7 +830,11 @@ fun AudioSeekBar(
                         modifier = Modifier
                             .size(6.dp)
                             .graphicsLayer { alpha = if (isLive) 1f else livePulseAlpha }
-                            .background(if (isLive) Color.Red else colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
+                            .background(
+                                if (isLive) Color.Red else colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.5f
+                                ), CircleShape
+                            )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -1334,7 +1328,10 @@ fun EqualizerBandSlider(
 
     val thumbSize by animateDpAsState(
         targetValue = if (isPressed) 16.dp else 12.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "thumbSize"
     )
 
@@ -1363,7 +1360,7 @@ fun EqualizerBandSlider(
                     color = colorScheme.primary
                 )
             }
-            
+
             Slider(
                 value = value,
                 onValueChange = {
