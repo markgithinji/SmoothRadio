@@ -370,18 +370,22 @@ class StreamService : MediaSessionService() {
         try {
             equalizer?.release()
             equalizer = Equalizer(0, sessionId).apply {
-                enabled = true
                 val bands = numberOfBands
                 serviceScope.launch {
+                    var hasActiveSettings = false
                     for (i in 0 until bands) {
                         val level = equalizerRepository.getBandLevel(i)
                         if (level != 0.toShort()) {
                             try {
                                 setBandLevel(i.toShort(), level)
+                                hasActiveSettings = true
                             } catch (e: Exception) {
                                 Log.e("StreamService", "Failed to apply EQ band $i", e)
                             }
                         }
+                    }
+                    if (hasActiveSettings) {
+                        enabled = true
                     }
                 }
             }
