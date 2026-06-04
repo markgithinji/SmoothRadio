@@ -639,7 +639,7 @@ fun AudioSeekBar(
         }
     }
 
-    val isInteractive = playbackState !is StreamStates.ENDED
+    val isInteractive = playbackState !is StreamStates.IDLE && playbackState !is StreamStates.ENDED
 
     val haptic = LocalHapticFeedback.current
 
@@ -662,6 +662,7 @@ fun AudioSeekBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
+            .graphicsLayer { alpha = if (isInteractive) 1f else 0.5f }
     ) {
         Slider(
             enabled = isInteractive,
@@ -812,8 +813,9 @@ fun AudioSeekBar(
                         onSeek(loadedPosition)
                     }
                 },
+                enabled = isInteractive,
                 shape = RoundedCornerShape(8.dp),
-                color = if (isLive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(
+                color = if (isLive && isInteractive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(
                     alpha = 0.5f
                 ),
                 border = if (isLive) null else androidx.compose.foundation.BorderStroke(
@@ -831,20 +833,24 @@ fun AudioSeekBar(
                             .size(6.dp)
                             .graphicsLayer { alpha = if (isLive) 1f else livePulseAlpha }
                             .background(
-                                if (isLive) Color.Red else colorScheme.onSurfaceVariant.copy(
+                                if (isLive && isInteractive) Color.Red else colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.5f
                                 ), CircleShape
                             )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isLive) "LIVE" else "-${formatOffset(offsetFromLiveMs)}",
+                        text = if (isLive && isInteractive) "LIVE" else if (isLive) "OFFLINE" else "-${
+                            formatOffset(
+                                offsetFromLiveMs
+                            )
+                        }",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.5.sp,
                             fontFeatureSettings = "tnum"
                         ),
-                        color = if (isLive) colorScheme.primary else colorScheme.onSurfaceVariant,
+                        color = if (isLive && isInteractive) colorScheme.primary else colorScheme.onSurfaceVariant,
                         fontSize = 10.sp
                     )
                 }
