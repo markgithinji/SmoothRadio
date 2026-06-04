@@ -649,10 +649,17 @@ fun AudioSeekBar(
     val isInteractive = playbackState !is StreamStates.ENDED
 
     val haptic = LocalHapticFeedback.current
+
     val thumbSize by animateDpAsState(
-        targetValue = if (isInteracting) 14.dp else 10.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        targetValue = if (isInteracting) 18.dp else 12.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "thumbSize"
+    )
+
+    val trackHeight by animateDpAsState(
+        targetValue = if (isInteracting) 8.dp else 4.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "trackHeight"
     )
 
     Column(
@@ -687,16 +694,24 @@ fun AudioSeekBar(
                 .height(44.dp), // Clear touch target
             thumb = {
                 Box(
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.size(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isInteractive) {
-                        Box(
-                            modifier = Modifier
-                                .size(thumbSize)
-                                .shadow(if (isInteracting) 4.dp else 2.dp, CircleShape)
-                                .background(colorScheme.primary, CircleShape)
-                        )
+                        // Main thumb (Green core with White border)
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            shadowElevation = if (isInteracting) 4.dp else 2.dp,
+                            modifier = Modifier.size(thumbSize)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(2.5.dp)
+                                    .background(colorScheme.primary, CircleShape)
+                            )
+                        }
                     }
                 }
             },
@@ -710,7 +725,8 @@ fun AudioSeekBar(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(4.dp)
+                            .height(trackHeight)
+                            .clip(CircleShape)
                     ) {
                         val loadedFraction =
                             ((loadedPosition - minPosition).toFloat() / windowSize.toFloat()).coerceIn(
@@ -723,7 +739,7 @@ fun AudioSeekBar(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .fillMaxHeight()
-                                .background(colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
+                                .background(colorScheme.onSurface.copy(alpha = 0.1f))
                         )
 
                         // 2. Buffer Progress (Loaded data)
@@ -733,22 +749,25 @@ fun AudioSeekBar(
                                     .fillMaxWidth(loadedFraction)
                                     .fillMaxHeight()
                                     .background(
-                                        colorScheme.secondary.copy(alpha = 0.4f),
-                                        CircleShape
+                                        colorScheme.primary.copy(alpha = 0.25f)
                                     )
                             )
                         }
 
-                        // 3. Active Seek Track (Standard Slider visual)
-                        SliderDefaults.Track(
-                            enabled = isInteractive,
-                            sliderState = sliderState,
-                            modifier = Modifier.fillMaxHeight(),
-                            thumbTrackGapSize = 0.dp,
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = colorScheme.primary,
-                                inactiveTrackColor = Color.Transparent
-                            )
+                        // 3. Active Seek Track with Gradient
+                        val activeFraction = sliderState.value
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(activeFraction)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            colorScheme.primary.copy(alpha = 0.7f),
+                                            colorScheme.primary
+                                        )
+                                    )
+                                )
                         )
                     }
                 }
@@ -757,8 +776,8 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp)
-                .padding(horizontal = 12.dp),
+                .graphicsLayer { translationY = -26f }
+                .padding(horizontal = 0.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -767,14 +786,30 @@ fun AudioSeekBar(
             val currentWidth = lockedWindow?.second ?: windowSize
             val displayTime = currentMin + (sliderFraction * currentWidth).toLong()
 
+            // Display time elapsed in current session
             Text(
                 text = formatTime(displayTime),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = "tnum" // Tabular numbers for stable width
+                ),
                 color = colorScheme.onSurfaceVariant
             )
 
-            val isLive = (loadedPosition - displayTime) < 5000
+            // Function: Offset from live
+            val offsetFromLiveMs = loadedPosition - displayTime
+            val isLive = offsetFromLiveMs < 4000
             
+            val livePulseAlpha by rememberInfiniteTransition(label = "livePulse").animateFloat(
+                initialValue = 0.4f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "pulse"
+            )
+
             Surface(
                 onClick = { 
                     if (!isLive) {
@@ -782,33 +817,42 @@ fun AudioSeekBar(
                         onSeek(loadedPosition) 
                     }
                 },
-                shape = RoundedCornerShape(6.dp),
-                color = if (isLive) colorScheme.primary.copy(alpha = 0.1f) else colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(8.dp),
+                color = if (isLive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = if (isLive) null else androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f)),
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
+                            .graphicsLayer { alpha = if (isLive) 1f else livePulseAlpha }
                             .background(if (isLive) Color.Red else colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "LIVE",
+                        text = if (isLive) "LIVE" else "-${formatOffset(offsetFromLiveMs)}",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp,
+                            fontFeatureSettings = "tnum"
                         ),
                         color = if (isLive) colorScheme.primary else colorScheme.onSurfaceVariant,
-                        fontSize = 9.sp
+                        fontSize = 10.sp
                     )
                 }
             }
         }
     }
+}
+
+private fun formatOffset(ms: Long): String {
+    val seconds = (ms / 1000) % 60
+    val minutes = (ms / (1000 * 60))
+    return if (minutes > 0) "%d:%02d".format(minutes, seconds) else "%ds".format(seconds)
 }
 
 private fun formatTime(ms: Long): String {
