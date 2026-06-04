@@ -171,6 +171,10 @@ fun PlayerScreen(
             Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
         }
 
+        LaunchedEffect(screenWidth, screenHeight) {
+            Timber.d("PlayerScreen Size: Width=$screenWidth, Height=$screenHeight, Landscape=$isLandscape")
+        }
+
         // Responsive Layout Configuration
         val layoutConfig = remember(screenHeight, screenWidth, isLandscape) {
             val isTinyCompact = if (isLandscape) screenHeight < 260.dp else screenHeight < 200.dp
@@ -194,27 +198,27 @@ fun PlayerScreen(
                 }
             }
 
-            val playButtonScale = when {
-                isTinyCompact -> 0.75f
+            val playButtonSize = when {
+                isTinyCompact -> 48.dp
+                isCompact -> 56.dp
                 isShrinking -> {
                     val range = 425f - 300f
-                    val position = screenHeight.value - 300f
-                    0.65f + (position / range) * 0.35f
+                    val progress = (screenHeight.value - 300f) / range
+                    (48 + progress * 32).dp
                 }
-
-                else -> 1f
+                else -> 80.dp
             }
 
             object {
-                val showAd = if (isLandscape) screenHeight > 480.dp else screenHeight > 620.dp
-                val showSecondRow = if (isLandscape) screenHeight >= 420.dp else screenHeight > 720.dp
+                val showAd = if (isLandscape) screenHeight > 420.dp else screenHeight > 570.dp
+                val showSecondRow = if (isLandscape) screenHeight >= 500.dp else screenHeight > 720.dp
                 val showMetadata = if (isLandscape) screenHeight > 300.dp else screenHeight > 420.dp
                 val showSeekBar = screenHeight >= 770.dp
                 val logoAlpha = logoVisibility
                 val tinyCompact = isTinyCompact
                 val compact = isCompact
                 val shrinking = isShrinking
-                val btnScale = playButtonScale
+                val btnSize = playButtonSize
                 val landscape = isLandscape
 
                 val horizontalPadding = when {
@@ -356,7 +360,7 @@ fun PlayerScreen(
 
                                 PlaybackControlRow(
                                     playbackState = playbackState,
-                                    playButtonScale = layoutConfig.btnScale,
+                                    playButtonSize = layoutConfig.btnSize,
                                     isTinyCompact = layoutConfig.tinyCompact,
                                     isCompact = layoutConfig.compact,
                                     onPrevious = {
@@ -479,7 +483,7 @@ fun PlayerScreen(
                             // Playback Controls
                             PlaybackControlRow(
                                 playbackState = playbackState,
-                                playButtonScale = layoutConfig.btnScale,
+                                playButtonSize = layoutConfig.btnSize,
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
                                 onPrevious = {
@@ -750,15 +754,13 @@ fun AudioSeekBar(
                                 .background(colorScheme.onSurface.copy(alpha = 0.1f))
                         )
 
-                        // 2. Buffer Progress (Loaded data)
+                        // 2. Buffer Progress (Loaded data - Darker Nav Orange)
                         if (isInteractive) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(loadedFraction)
                                     .fillMaxHeight()
-                                    .background(
-                                        colorScheme.primary.copy(alpha = 0.25f)
-                                    )
+                                    .background(colorScheme.secondary.copy(alpha = 0.30f))
                             )
                         }
 
@@ -873,7 +875,7 @@ private fun formatTime(ms: Long): String {
 @Composable
 fun PlaybackControlRow(
     playbackState: StreamStates,
-    playButtonScale: Float,
+    playButtonSize: androidx.compose.ui.unit.Dp,
     isTinyCompact: Boolean,
     isCompact: Boolean,
     onPrevious: () -> Unit,
@@ -884,55 +886,63 @@ fun PlaybackControlRow(
     colorScheme: ColorScheme
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer { scaleX = playButtonScale; scaleY = playButtonScale },
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         val btnSize = if (isTinyCompact) 36.dp else if (isCompact) 40.dp else 48.dp
         val iconSize = if (isTinyCompact) 18.dp else if (isCompact) 20.dp else 24.dp
 
-        IconButton(onClick = onPrevious, modifier = Modifier.size(btnSize)) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_player_prev),
-                contentDescription = stringResource(R.string.player_previous),
-                modifier = Modifier.size(iconSize - 4.dp),
-                tint = colorScheme.onSurfaceVariant
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(btnSize)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_player_prev),
+                    contentDescription = stringResource(R.string.player_previous),
+                    modifier = Modifier.size(iconSize - 4.dp),
+                    tint = colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            IconButton(onClick = onSeekBack, modifier = Modifier.size(btnSize)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_player_seek_back_10),
+                    contentDescription = "Seek Back",
+                    modifier = Modifier.size(iconSize + 8.dp),
+                    tint = colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Box(modifier = Modifier.weight(1.2f), contentAlignment = Alignment.Center) {
+            AnimatedPlayPauseButton(
+                playbackState = playbackState,
+                onClick = onPlayPause,
+                size = playButtonSize
             )
         }
 
-        IconButton(onClick = onSeekBack, modifier = Modifier.size(btnSize)) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_player_seek_back_10),
-                contentDescription = "Seek Back",
-                modifier = Modifier.size(iconSize + 8.dp),
-                tint = colorScheme.onSurfaceVariant
-            )
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            IconButton(onClick = onSeekForward, modifier = Modifier.size(btnSize)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_player_seek_forward_10),
+                    contentDescription = "Seek Forward",
+                    modifier = Modifier.size(iconSize + 8.dp),
+                    tint = colorScheme.onSurfaceVariant
+                )
+            }
         }
 
-        AnimatedPlayPauseButton(
-            playbackState = playbackState,
-            onClick = onPlayPause,
-            modifier = if (isTinyCompact) Modifier.size(56.dp) else if (isCompact) Modifier.size(64.dp) else Modifier
-        )
-
-        IconButton(onClick = onSeekForward, modifier = Modifier.size(btnSize)) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_player_seek_forward_10),
-                contentDescription = "Seek Forward",
-                modifier = Modifier.size(iconSize + 8.dp),
-                tint = colorScheme.onSurfaceVariant
-            )
-        }
-
-        IconButton(onClick = onNext, modifier = Modifier.size(btnSize)) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_player_next),
-                contentDescription = stringResource(R.string.player_next),
-                modifier = Modifier.size(iconSize - 4.dp),
-                tint = colorScheme.onSurfaceVariant
-            )
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            IconButton(onClick = onNext, modifier = Modifier.size(btnSize)) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_player_next),
+                    contentDescription = stringResource(R.string.player_next),
+                    modifier = Modifier.size(iconSize - 4.dp),
+                    tint = colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -945,40 +955,46 @@ fun ActionButtonsRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ActionButton(
-            iconRes = R.drawable.ic_player_refresh,
-            label = stringResource(R.string.player_refresh),
-            onClick = onRefresh,
-            colorScheme = colorScheme
-        )
-        ActionButton(
-            iconRes = R.drawable.ic_player_timer,
-            label = stringResource(R.string.player_sleep),
-            onClick = onSleepClick,
-            colorScheme = colorScheme
-        )
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
-            ) {
-                CastButton(
-                    modifier = Modifier.size(20.dp),
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            ActionButton(
+                iconRes = R.drawable.ic_player_refresh,
+                label = stringResource(R.string.player_refresh),
+                onClick = onRefresh,
+                colorScheme = colorScheme
+            )
+        }
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            ActionButton(
+                iconRes = R.drawable.ic_player_timer,
+                label = stringResource(R.string.player_sleep),
+                onClick = onSleepClick,
+                colorScheme = colorScheme
+            )
+        }
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CastButton(
+                        modifier = Modifier.size(20.dp),
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.player_cast),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
                     color = colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = stringResource(R.string.player_cast),
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
-                color = colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -1201,7 +1217,8 @@ fun AnimatedMetadataWithMarquee(
 fun AnimatedPlayPauseButton(
     playbackState: StreamStates,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 80.dp
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isPlaying = playbackState is StreamStates.PLAYING
@@ -1234,7 +1251,8 @@ fun AnimatedPlayPauseButton(
 
     Box(
         modifier = modifier
-            .size(80.dp)
+            .size(size)
+            .aspectRatio(1f)
             .graphicsLayer {
                 scaleX = buttonScale
                 scaleY = buttonScale
@@ -1244,7 +1262,7 @@ fun AnimatedPlayPauseButton(
         // Main button
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .fillMaxSize()
                 .shadow(
                     elevation = buttonElevation,
                     shape = CircleShape,
@@ -1293,7 +1311,7 @@ fun AnimatedPlayPauseButton(
                     contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(
                         R.string.player_play
                     ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(size * 0.5f),
                     tint = Color.White
                 )
             }
