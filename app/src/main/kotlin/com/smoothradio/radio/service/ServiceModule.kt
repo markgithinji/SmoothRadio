@@ -25,6 +25,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
 
 @Module
@@ -75,7 +76,7 @@ object ServiceModule {
     @Provides
     @Singleton
     fun provideLocalAudioProxy(@ApplicationContext context: Context): LocalAudioProxy = 
-        LocalAudioProxy(context.cacheDir)
+        LocalAudioProxy(context.cacheDir, Dispatchers.IO)
 
     @Provides
     fun provideExoPlayer(
