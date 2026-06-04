@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service
+package com.smoothradio.radio.service.util
 
 object MetadataUtils {
     fun extractSongTitle(rawTitle: String): String {
@@ -14,13 +14,13 @@ object MetadataUtils {
                 )
                 val match = songPattern.find(trimmed)
                 val assetTag = match?.groupValues?.get(1) ?: trimmed // Fallback to searching the whole string
-                
+
                 val titleMatch = Regex("""Title="([^"]*)"""").find(assetTag)
                 val artistMatch = Regex("""Artist1="([^"]*)"""").find(assetTag)
-                
+
                 val title = titleMatch?.groupValues?.get(1)?.trim() ?: ""
                 val artist = artistMatch?.groupValues?.get(1)?.trim() ?: ""
-                
+
                 if (title.isNotEmpty() && artist.isNotEmpty()) return decodeHtmlEntities("$title - $artist")
                 if (title.isNotEmpty()) return decodeHtmlEntities(title)
             } catch (e: Exception) {
