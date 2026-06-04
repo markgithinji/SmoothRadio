@@ -281,9 +281,6 @@ class StreamService : MediaSessionService() {
                 }
             }
 
-                // Experiment 1: Let Media3 decide if it's live
-                // override fun isCurrentMediaItemLive(): Boolean = false
-
                 override fun isCurrentMediaItemLive(): Boolean = super.isCurrentMediaItemLive()
 
                 override fun isCurrentMediaItemSeekable(): Boolean = true
@@ -637,8 +634,7 @@ class StreamService : MediaSessionService() {
         val uriString = uri.toString()
         
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
-        
-        // Use the LocalProxy for EVERYTHING
+
         // Only start if not already shadow loading this specific URL
         if (!localAudioProxy.isStartedFor(uriString)) {
             localAudioProxy.start(uriString)
@@ -649,7 +645,7 @@ class StreamService : MediaSessionService() {
         
         val cacheKey = currentStationName ?: uriString
         
-        // Smarter MimeType detection:
+        // MimeType detection:
         val (mimeType, streamType) = when {
             isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
             uriString.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
