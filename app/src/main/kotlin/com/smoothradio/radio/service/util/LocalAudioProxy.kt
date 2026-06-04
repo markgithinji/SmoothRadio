@@ -1,4 +1,4 @@
-package com.smoothradio.radio.core.util
+package com.smoothradio.radio.service.util
 
 import android.content.Context
 import android.util.Log
@@ -6,20 +6,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
+import java.io.RandomAccessFile
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.TreeMap
@@ -70,7 +69,7 @@ class LocalAudioProxy(private val context: Context) {
     private val metadataMap = TreeMap<Long, String>()
     
     // Memory bursting buffer
-    private val memoryBuffer = java.io.ByteArrayOutputStream()
+    private val memoryBuffer = ByteArrayOutputStream()
     private var bytesInMemory = 0L // Bytes currently in memoryBuffer
 
     // Rolling Buffer State
@@ -220,7 +219,7 @@ class LocalAudioProxy(private val context: Context) {
         }
     }
 
-    private fun executeStreamRequest(url: String, tag: String, requestMetadata: Boolean): okhttp3.Response? {
+    private fun executeStreamRequest(url: String, tag: String, requestMetadata: Boolean): Response? {
         val requestBuilder = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "ExoPlayer/2.18.5")
@@ -303,7 +302,7 @@ class LocalAudioProxy(private val context: Context) {
                             okHttpClient.newCall(segRequest).execute().use { response ->
                                 if (!response.isSuccessful) return@use byteArrayOf()
                                 val body = response.body ?: return@use byteArrayOf()
-                                val out = java.io.ByteArrayOutputStream()
+                                val out = ByteArrayOutputStream()
                                 val inputStream = body.byteStream()
                                 val buffer = ByteArray(8192)
                                 var read: Int
@@ -449,7 +448,7 @@ class LocalAudioProxy(private val context: Context) {
                             firstByteServedTime = System.currentTimeMillis()
                             Log.d("LocalProxy", "[$tag] First byte served to client from disk after ${firstByteServedTime - sessionStartTime}ms")
                         }
-                        java.io.RandomAccessFile(physicalFile, "r").use { raf ->
+                        RandomAccessFile(physicalFile, "r").use { raf ->
                             raf.seek(physicalOffset)
                             val read = raf.read(buffer)
                             if (read > 0) { out.write(buffer, 0, read); lastReadPos += read }
@@ -539,7 +538,7 @@ class LocalAudioProxy(private val context: Context) {
                 }
 
                 if (physicalFile != null && physicalFile!!.exists() && physicalFile!!.length() > physicalOffset) {
-                    java.io.RandomAccessFile(physicalFile, "r").use { raf ->
+                    RandomAccessFile(physicalFile, "r").use { raf ->
                         raf.seek(physicalOffset)
                         return raf.read(buffer, offset, length)
                     }

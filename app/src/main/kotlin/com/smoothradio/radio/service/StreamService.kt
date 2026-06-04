@@ -43,7 +43,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
-import com.smoothradio.radio.core.util.LocalAudioProxy
+import com.smoothradio.radio.service.util.LocalAudioProxy
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -1,5 +1,6 @@
 @file:OptIn(UnstableApi::class)
-package com.smoothradio.radio.core.util
+
+package com.smoothradio.radio.service.util
 
 import android.content.Context
 import android.net.Uri
@@ -11,6 +12,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.annotation.OptIn
+import androidx.media3.datasource.TransferListener
 import java.io.IOException
 
 /**
@@ -24,7 +26,7 @@ class SmoothDataSource(
     private val proxyDataSource = ProxyDataSource(proxy)
     private var activeDataSource: DataSource? = null
 
-    override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+    override fun addTransferListener(transferListener: TransferListener) {
         baseDataSource.addTransferListener(transferListener)
         proxyDataSource.addTransferListener(transferListener)
     }

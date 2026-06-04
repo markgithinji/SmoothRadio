@@ -1,5 +1,6 @@
 @file:OptIn(UnstableApi::class)
-package com.smoothradio.radio.core.util
+
+package com.smoothradio.radio.service.util
 
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
