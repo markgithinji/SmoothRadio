@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
-    private val stateRepository: PlaybackStateRepository,
+    stateRepository: PlaybackStateRepository,
     private val equalizerRepository: EqualizerRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
@@ -44,7 +44,9 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
     val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
-    // Flag to mask the "PLAYING" state during station transitions
+    // Flag used as a 'state guard' to:
+    // 1. Mask PLAYING state as BUFFERING during transitions (prevents UI flicker/dimming).
+    // 2. Lock out database emissions until they synchronize with manual user selection.
     private val _isStationChanging = MutableStateFlow(false)
 
     private val _stationUiState = MutableStateFlow(StationUiState(null))
@@ -154,9 +156,10 @@ class PlayerControlViewModel @Inject constructor(
         _stationUiState.value = StationUiState(station, direction)
         _playingStation.value = station
 
-        if (stateRepository.playbackState.value is StreamStates.PLAYING || direction != 0f) {
-            _isStationChanging.value = true
-        }
+        // Explicitly enter transition mode. This manual override is necessary because 
+        // database updates are asynchronous; we must 'trust' the UI state and ignore 
+        // stale DB emissions until the Repository confirms it has received this new ID.
+        _isStationChanging.value = true
 
         _playRequests.tryEmit(station)
     }
