@@ -56,6 +56,7 @@ class MainActivity : FragmentActivity() {
     private var adFailedCountdown = 0
     private var canShowAd: Boolean = true
     private var isPlaying = false
+    private var isPlaybackRequested = false // used to prevent playback from starting after user cancels during ad load
     private var currentStation: RadioStation? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -217,6 +218,7 @@ class MainActivity : FragmentActivity() {
     private fun playOrStop() {
         if (isPlaying) {
             Log.d("MainActivityLogs", "  → STOP")
+            isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
             startService(serviceIntent)
@@ -224,6 +226,7 @@ class MainActivity : FragmentActivity() {
         }
 
         Log.d("MainActivityLogs", "  → START")
+        isPlaybackRequested = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -243,6 +246,8 @@ class MainActivity : FragmentActivity() {
 
         Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
 
+        isPlaybackRequested = true
+
         if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
             Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
             return
@@ -258,6 +263,7 @@ class MainActivity : FragmentActivity() {
     private fun refresh() {
         if (serviceIntent.action == StreamService.ACTION_SHOW_AD) return
 
+        isPlaybackRequested = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
@@ -272,6 +278,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun playOnly() {
+        if (!isPlaybackRequested) {
+            Log.d("MainActivityLogsAd", "playOnly() | ABORTED: User cancelled playback during ad")
+            return
+        }
         serviceIntent.action = StreamService.ACTION_START
         startStreamService()
     }
