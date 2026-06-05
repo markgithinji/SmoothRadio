@@ -24,10 +24,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -47,11 +47,16 @@ class PlayerControlViewModel @Inject constructor(
     // Flag to mask the "PLAYING" state during station transitions
     private val _isStationChanging = MutableStateFlow(false)
 
-    // User intents for station changes (debounced internally)
-    private val _playRequests = MutableSharedFlow<RadioStation>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    private val _stationUiState = MutableStateFlow(StationUiState(null))
+    val stationUiState: StateFlow<StationUiState> = _stationUiState.asStateFlow()
+
+    private val _playingStation = MutableStateFlow<RadioStation?>(null)
+    val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
+
+    private val allStations = radioRepository.allStations.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
     )
 
     val playbackState: StateFlow<StreamStates> = combine(
@@ -81,8 +86,11 @@ class PlayerControlViewModel @Inject constructor(
     private val _canShowAd = MutableStateFlow(false)
     val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
 
-    private val _playingStation = MutableStateFlow<RadioStation?>(null)
-    val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
+    private val _playRequests = MutableSharedFlow<RadioStation>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     private val _toastMessage = MutableSharedFlow<ToastType>()
     val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
@@ -105,17 +113,17 @@ class PlayerControlViewModel @Inject constructor(
         }
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
-                // Filter out transient nulls during station swaps in the DB - ensure no null stations
-                if (station != null) {
-                    _playingStation.value = station
-                }
-            }
-        }
-        viewModelScope.launch {
-            stateRepository.playbackState.collect { state ->
-                // Reset the changing flag once the underlying state is no longer PLAYING
-                if (state !is StreamStates.PLAYING) {
-                    _isStationChanging.value = false
+                if (station != null) {  // Filter out transient nulls during station swaps in the DB - ensure no null stations
+                    val currentUi = _stationUiState.value
+
+                    if (station.id != currentUi.station?.id && !_isStationChanging.value) {
+                        Timber.d("Syncing UI station from DB: ${station.stationName}")
+                        _stationUiState.value = StationUiState(station, 0f)
+                        _playingStation.value = station
+                    } else if (station.id == currentUi.station?.id) {
+                        _playingStation.value = station
+                        _isStationChanging.value = false
+                    }
                 }
             }
         }
@@ -126,9 +134,10 @@ class PlayerControlViewModel @Inject constructor(
             _playRequests
                 .debounce(250.milliseconds)
                 .collect { station ->
+                    Timber.d("Processing play request for ${station.stationName} after debounce")
                     _canShowAd.value = canShowAdUseCase()
                     _playCommand.send(PlayCommand.PlayStation(station))
-                    savePlayingStationId(station.id)
+                    radioRepository.setPlayingStation(station.id)
                 }
         }
     }
@@ -139,22 +148,16 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
-    fun requestPlayStation(station: RadioStation) {
-        val isNewStation = _playingStation.value?.id != station.id
+    fun requestPlayStation(station: RadioStation, direction: Float = 0f) {
+        if (_playingStation.value?.id == station.id) return togglePlayPause()
 
-        if (!isNewStation) {
-            // If tapping the currently playing station, toggle play/pause immediately
-            togglePlayPause()
-            return
-        }
-
-        // 1. Immediate UI updates to keep the interface snappy
+        _stationUiState.value = StationUiState(station, direction)
         _playingStation.value = station
-        if (stateRepository.playbackState.value is StreamStates.PLAYING) {
+
+        if (stateRepository.playbackState.value is StreamStates.PLAYING || direction != 0f) {
             _isStationChanging.value = true
         }
 
-        // 2. Queue the heavy work via Flow pipeline
         _playRequests.tryEmit(station)
     }
 
@@ -165,43 +168,33 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestNextStation() {
-        viewModelScope.launch {
-            val stations = radioRepository.allStations.first()
-            if (stations.isEmpty()) return@launch
+        val stations = allStations.value
+        if (stations.isEmpty()) return
 
-            val current = _playingStation.value
-            val currentIndex = stations.indexOfFirst { it.id == current?.id }
-            val nextIndex = when {
-                currentIndex == -1 -> 0
-                currentIndex < stations.lastIndex -> currentIndex + 1
-                else -> 0
-            }
-
-            val nextStation = stations[nextIndex]
-            if (nextStation.id == current?.id) return@launch
-
-            requestPlayStation(nextStation)
+        val current = _playingStation.value
+        val currentIndex = stations.indexOfFirst { it.id == current?.id }
+        val nextIndex = when {
+            currentIndex == -1 -> 0
+            currentIndex < stations.lastIndex -> currentIndex + 1
+            else -> 0
         }
+
+        requestPlayStation(stations[nextIndex], direction = 1f)
     }
 
     fun requestPreviousStation() {
-        viewModelScope.launch {
-            val stations = radioRepository.allStations.first()
-            if (stations.isEmpty()) return@launch
+        val stations = allStations.value
+        if (stations.isEmpty()) return
 
-            val current = _playingStation.value
-            val currentIndex = stations.indexOfFirst { it.id == current?.id }
-            val prevIndex = when {
-                currentIndex == -1 -> stations.lastIndex
-                currentIndex > 0 -> currentIndex - 1
-                else -> stations.lastIndex
-            }
-
-            val prevStation = stations[prevIndex]
-            if (prevStation.id == current?.id) return@launch
-
-            requestPlayStation(prevStation)
+        val current = _playingStation.value
+        val currentIndex = stations.indexOfFirst { it.id == current?.id }
+        val prevIndex = when {
+            currentIndex == -1 -> stations.lastIndex
+            currentIndex > 0 -> currentIndex - 1
+            else -> stations.lastIndex
         }
+
+        requestPlayStation(stations[prevIndex], direction = -1f)
     }
 
     fun setSleepTimer(minutes: Int) {
@@ -241,12 +234,6 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
-    fun savePlayingStationId(id: Int) {
-        viewModelScope.launch {
-            radioRepository.setPlayingStation(id)
-        }
-    }
-
     fun recordAdShown() {
         viewModelScope.launch {
             recordAdShownUseCase()
@@ -259,6 +246,11 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 }
+
+data class StationUiState(
+    val station: RadioStation?,
+    val swipeDirection: Float = 0f
+)
 
 sealed class PlayCommand {
     data class PlayStation(val station: RadioStation) : PlayCommand()

@@ -97,9 +97,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
+import com.smoothradio.radio.core.ui.StationUiState
 import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
@@ -110,7 +110,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
     playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
-    val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
+    val stationUiState by playerControlViewModel.stationUiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val position by playerControlViewModel.position.collectAsStateWithLifecycle()
@@ -119,16 +119,13 @@ fun PlayerScreen(
     val loadedPosition by playerControlViewModel.loadedPosition.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
-    var swipeDirection by remember { mutableFloatStateOf(0f) }
     var showSleepDialog by remember { mutableStateOf(false) }
     var showEqDialog by remember { mutableStateOf(false) }
 
-    if (playingStation == null) {
-        EmptyPlayerContent(modifier = modifier, colorScheme = colorScheme)
-        return
-    }
-
-    val currentStation = playingStation!!
+    val currentStation = stationUiState.station ?: return EmptyPlayerContent(
+        modifier = modifier,
+        colorScheme = colorScheme
+    )
 
     val animatedColor by animateColorAsState(
         targetValue = when (playbackState) {
@@ -274,9 +271,8 @@ fun PlayerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 PlayerLogoSection(
-                                    currentStation = currentStation,
+                                    stationUiState = stationUiState,
                                     playbackState = playbackState,
-                                    swipeDirection = swipeDirection,
                                     modifier = Modifier
                                         .fillMaxHeight(0.9f)
                                         .aspectRatio(1f)
@@ -339,13 +335,8 @@ fun PlayerScreen(
                                 playButtonSize = layoutConfig.btnSize,
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
-                                onPrevious = {
-                                    swipeDirection =
-                                        -1f; playerControlViewModel.requestPreviousStation()
-                                },
-                                onNext = {
-                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                },
+                                onPrevious = { playerControlViewModel.requestPreviousStation() },
+                                onNext = { playerControlViewModel.requestNextStation() },
                                 onPlayPause = { playerControlViewModel.togglePlayPause() },
                                 onSeekBack = { playerControlViewModel.seekBack() },
                                 onSeekForward = { playerControlViewModel.seekForward() },
@@ -388,9 +379,8 @@ fun PlayerScreen(
                             // Logo Section
                             if (layoutConfig.logoAlpha > 0f) {
                                 PlayerLogoSection(
-                                    currentStation = currentStation,
+                                    stationUiState = stationUiState,
                                     playbackState = playbackState,
-                                    swipeDirection = swipeDirection,
                                     modifier = Modifier
                                         .fillMaxWidth(layoutConfig.logoScale)
                                         .fillMaxHeight(if (layoutConfig.showAd) 0.33f else 0.38f)
@@ -466,13 +456,8 @@ fun PlayerScreen(
                                 playButtonSize = layoutConfig.btnSize,
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
-                                onPrevious = {
-                                    swipeDirection =
-                                        -1f; playerControlViewModel.requestPreviousStation()
-                                },
-                                onNext = {
-                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                },
+                                onPrevious = { playerControlViewModel.requestPreviousStation() },
+                                onNext = { playerControlViewModel.requestNextStation() },
                                 onPlayPause = {
                                     playerControlViewModel.togglePlayPause()
                                 },
@@ -1037,9 +1022,8 @@ fun ActionButton(
 
 @Composable
 fun PlayerLogoSection(
-    currentStation: RadioStation,
+    stationUiState: StationUiState,
     playbackState: StreamStates,
-    swipeDirection: Float,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -1125,19 +1109,21 @@ fun PlayerLogoSection(
                 }
         ) {
             Box(contentAlignment = Alignment.Center) {
-                // Use a Pair of ID and logo as targetState to ensure the transition captures the specific logo
-                // and doesn't update the outgoing content's logo when currentStation changes.
+                // Use bundled state for synchronized animation
                 AnimatedContent(
-                    targetState = currentStation.id to LogoMapper.getLogoById(currentStation.id),
+                    targetState = stationUiState,
                     transitionSpec = {
+                        val direction = targetState.swipeDirection
+
                         val springSpec = spring<IntOffset>(
                             dampingRatio = Spring.DampingRatioLowBouncy,
                             stiffness = Spring.StiffnessMediumLow
                         )
-                        if (swipeDirection < 0f) {
+
+                        if (direction < 0f) {
                             (slideInHorizontally(springSpec) { -it } + fadeIn()) togetherWith
                                     (slideOutHorizontally(springSpec) { it } + fadeOut())
-                        } else if (swipeDirection > 0f) {
+                        } else if (direction > 0f) {
                             (slideInHorizontally(springSpec) { it } + fadeIn()) togetherWith
                                     (slideOutHorizontally(springSpec) { -it } + fadeOut())
                         } else {
@@ -1145,7 +1131,9 @@ fun PlayerLogoSection(
                         }
                     },
                     label = "logoTransition"
-                ) { (_, logoRes) ->
+                ) { uiState ->
+                    val station = uiState.station ?: return@AnimatedContent
+                    val logoRes = LogoMapper.getLogoById(station.id)
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(logoRes)
