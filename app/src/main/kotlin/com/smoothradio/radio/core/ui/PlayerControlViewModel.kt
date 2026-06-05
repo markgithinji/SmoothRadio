@@ -12,7 +12,9 @@ import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,15 +45,16 @@ class PlayerControlViewModel @Inject constructor(
 
     // Flag to mask the "PLAYING" state during station transitions
     private val _isStationChanging = MutableStateFlow(false)
+    private var debouncePlayJob: Job? = null
 
     val playbackState: StateFlow<StreamStates> = combine(
         stateRepository.playbackState,
         _isStationChanging
     ) { state, changing ->
-        // If we are changing stations, force a loading state until the old stream actually stops
-        // This ensures a consistent ui state when changing stations
+        // If we are changing stations, force a buffering state until the old stream actually stops.
+        // This keeps the UI (like the seekbar) visually active to avoid dimming "noise".
         if (changing && state is StreamStates.PLAYING) {
-            StreamStates.IDLE
+            StreamStates.BUFFERING
         } else {
             state
         }
@@ -118,15 +121,27 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestPlayStation(station: RadioStation) {
-        viewModelScope.launch {
-            // Mask the "playing" state for the new station until the old one stops
-            val isNewStation = _playingStation.value?.id != station.id
-            if (isNewStation && stateRepository.playbackState.value is StreamStates.PLAYING) {
-                _isStationChanging.value = true
-            }
+        val isNewStation = _playingStation.value?.id != station.id
+        
+        if (!isNewStation) {
+            // If tapping the currently playing station, toggle play/pause immediately
+            togglePlayPause()
+            return
+        }
 
+        // 1. Immediate UI updates to keep the interface snappy
+        _playingStation.value = station
+        if (stateRepository.playbackState.value is StreamStates.PLAYING) {
+            _isStationChanging.value = true
+        }
+
+        // 2. Debounce the heavy work (Network, Service logic, DB writes)
+        // This prevents "choppy" animations and main-thread lag during rapid station switching.
+        debouncePlayJob?.cancel()
+        debouncePlayJob = viewModelScope.launch {
+            delay(250) // Wait for user to stop "spamming" Next/Prev
+            
             _canShowAd.value = canShowAdUseCase()
-            _playingStation.value = station
             _playCommand.send(PlayCommand.PlayStation(station))
             savePlayingStationId(station.id)
         }
