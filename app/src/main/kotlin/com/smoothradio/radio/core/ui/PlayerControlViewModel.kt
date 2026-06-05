@@ -12,9 +12,8 @@ import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,11 +23,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
@@ -45,7 +46,13 @@ class PlayerControlViewModel @Inject constructor(
 
     // Flag to mask the "PLAYING" state during station transitions
     private val _isStationChanging = MutableStateFlow(false)
-    private var debouncePlayJob: Job? = null
+
+    // User intents for station changes (debounced internally)
+    private val _playRequests = MutableSharedFlow<RadioStation>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     val playbackState: StateFlow<StreamStates> = combine(
         stateRepository.playbackState,
@@ -112,6 +119,18 @@ class PlayerControlViewModel @Inject constructor(
                 }
             }
         }
+
+        // Debouncing: Process only the latest station request after a period of "silence"
+        viewModelScope.launch {
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            _playRequests
+                .debounce(250.milliseconds)
+                .collect { station ->
+                    _canShowAd.value = canShowAdUseCase()
+                    _playCommand.send(PlayCommand.PlayStation(station))
+                    savePlayingStationId(station.id)
+                }
+        }
     }
 
     fun showToast(toastType: ToastType) {
@@ -122,7 +141,7 @@ class PlayerControlViewModel @Inject constructor(
 
     fun requestPlayStation(station: RadioStation) {
         val isNewStation = _playingStation.value?.id != station.id
-        
+
         if (!isNewStation) {
             // If tapping the currently playing station, toggle play/pause immediately
             togglePlayPause()
@@ -135,16 +154,8 @@ class PlayerControlViewModel @Inject constructor(
             _isStationChanging.value = true
         }
 
-        // 2. Debounce the heavy work (Network, Service logic, DB writes)
-        // This prevents "choppy" animations and main-thread lag during rapid station switching.
-        debouncePlayJob?.cancel()
-        debouncePlayJob = viewModelScope.launch {
-            delay(250) // Wait for user to stop "spamming" Next/Prev
-            
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.send(PlayCommand.PlayStation(station))
-            savePlayingStationId(station.id)
-        }
+        // 2. Queue the heavy work via Flow pipeline
+        _playRequests.tryEmit(station)
     }
 
     fun requestRefresh() {

@@ -142,27 +142,12 @@ class MainActivity : FragmentActivity() {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
-                                val station = command.station
-                                
-                                Log.d(
-                                    "MainActivityLogs", "▶ Tap: ${station.stationName} | " +
-                                            "station.isPlaying=${station.isPlaying} | " +
-                                            "localIsPlaying=$isPlaying"
-                                )
-
-                                currentStation = station
-                                if (station.isPlaying && isPlaying) {
-                                    Log.d("MainActivityLogs", "  → playOrStop()")
-                                    playOrStop()
-                                } else {
-                                    Log.d("MainActivityLogs", "  → startNewPlay()")
-                                    startNewPlay()
-                                }
+                                Log.d("MainActivityLogs", "▶ New Station Command: ${command.station.stationName}")
+                                currentStation = command.station
+                                startNewPlay()
                             }
 
-                            is PlayCommand.TogglePlayPause -> {
-                                playOrStop()
-                            }
+                            is PlayCommand.TogglePlayPause -> playOrStop()
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
