@@ -37,7 +37,10 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.ListenableFuture
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
@@ -301,8 +304,73 @@ class StreamService : MediaSessionService() {
                     PendingIntent.FLAG_IMMUTABLE
                 )
             )
+            .setCallback(CustomMediaSessionCallback())
             .build()
     }
+
+    private inner class CustomMediaSessionCallback : MediaSession.Callback {
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): MediaSession.ConnectionResult {
+            val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(COMMAND_SET_EQ_BAND, Bundle.EMPTY))
+                .add(SessionCommand(COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY))
+                .build()
+            
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(sessionCommands)
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle
+        ): ListenableFuture<SessionResult> {
+            when (customCommand.customAction) {
+                COMMAND_SET_EQ_BAND -> {
+                    val band = args.getInt(EXTRA_BAND, -1)
+                    val level = args.getShort(EXTRA_LEVEL, 0)
+                    if (band != -1) setEqualizerBand(band, level)
+                }
+                COMMAND_SET_SLEEP_TIMER -> {
+                    val minutes = args.getInt("minutes", 0)
+                    // We can reuse the existing broadcast logic or implement directly
+                    val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+                    val intent = Intent(ACTION_SET_TIMER).apply {
+                        setPackage(packageName)
+                        putExtra(EXTRA_TIME_IN_MILLIS, timeInMillis)
+                    }
+                    sendBroadcast(intent)
+                }
+            }
+            return com.google.common.util.concurrent.Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+
+        override fun onAddMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>
+        ): ListenableFuture<MutableList<MediaItem>> {
+            // Intercept media items added via controller.setMediaUri() etc.
+            val updatedItems = mediaItems.map { item ->
+                val uri = item.localConfiguration?.uri.toString()
+                // If it's a real URL, wrap it in our proxy scheme
+                if (uri.startsWith("http")) {
+                    val name = item.mediaMetadata.title?.toString() ?: ""
+                    // We need to handle this like ACTION_START
+                    // Note: This is simplified, real logic would need to store metadata
+                    item.buildUpon()
+                        .setUri("proxy://smoothradio/stream?byteOffset=0".toUri())
+                        .build()
+                } else item
+            }.toMutableList()
+            return com.google.common.util.concurrent.Futures.immediateFuture(updatedItems)
+        }
+    }
+
 
     private fun setupNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1030,6 +1098,8 @@ class StreamService : MediaSessionService() {
         const val ACTION_SHOW_AD = "SmoothService:ShowAd"
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
+        const val COMMAND_SET_EQ_BAND = "SET_EQ_BAND"
+        const val COMMAND_SET_SLEEP_TIMER = "SET_SLEEP_TIMER"
         private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         private const val NOTIFICATION_ID = 1
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"

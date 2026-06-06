@@ -1,5 +1,6 @@
 package com.smoothradio.radio
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.ConnectivityManager
@@ -18,6 +19,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -27,6 +31,8 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
@@ -48,6 +54,11 @@ class MainActivity : FragmentActivity() {
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
     private lateinit var firebaseAnalytics: FirebaseAnalytics
+
+    // Media3 Controller
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private val controller: MediaController?
+        get() = if (controllerFuture?.isDone == true) controllerFuture?.get() else null
 
     // Playback state
     private lateinit var serviceIntent: Intent
@@ -77,6 +88,31 @@ class MainActivity : FragmentActivity() {
         collectPlaybackFlows()
         showConsentForm()
     }
+
+    override fun onStart() {
+        super.onStart()
+        setupMediaController()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        releaseMediaController()
+    }
+
+    private fun setupMediaController() {
+        val sessionToken = SessionToken(this, ComponentName(this, StreamService::class.java))
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture?.addListener({
+            // Controller is ready
+        }, MoreExecutors.directExecutor())
+    }
+
+    private fun releaseMediaController() {
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
+        }
+    }
+
 
     /**
      * Configures system bars (status bar and navigation bar) to match the app's surface color.
@@ -174,45 +210,70 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun seekTo(position: Long) {
-        val intent = Intent(this, StreamService::class.java).apply {
-            action = StreamService.ACTION_SEEK_TO
-            putExtra(StreamService.EXTRA_POSITION, position)
+        controller?.seekTo(position) ?: run {
+            // Fallback to legacy if controller not ready
+            val intent = Intent(this, StreamService::class.java).apply {
+                action = StreamService.ACTION_SEEK_TO
+                putExtra(StreamService.EXTRA_POSITION, position)
+            }
+            startService(intent)
         }
-        startService(intent)
     }
 
     private fun seekBack() {
-        val intent = Intent(this, StreamService::class.java).apply {
-            action = StreamService.ACTION_SEEK_BACK
+        controller?.seekBack() ?: run {
+            val intent = Intent(this, StreamService::class.java).apply {
+                action = StreamService.ACTION_SEEK_BACK
+            }
+            startService(intent)
         }
-        startService(intent)
     }
 
     private fun seekForward() {
-        val intent = Intent(this, StreamService::class.java).apply {
-            action = StreamService.ACTION_SEEK_FORWARD
+        controller?.seekForward() ?: run {
+            val intent = Intent(this, StreamService::class.java).apply {
+                action = StreamService.ACTION_SEEK_FORWARD
+            }
+            startService(intent)
         }
-        startService(intent)
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
-        val intent = Intent(this, StreamService::class.java).apply {
-            action = StreamService.ACTION_SET_EQ_BAND
-            putExtra(StreamService.EXTRA_BAND, band)
-            putExtra(StreamService.EXTRA_LEVEL, level)
+        val args = Bundle().apply {
+            putInt(StreamService.EXTRA_BAND, band)
+            putShort(StreamService.EXTRA_LEVEL, level)
         }
-        startService(intent)
+        controller?.sendCustomCommand(
+            SessionCommand(StreamService.COMMAND_SET_EQ_BAND, Bundle.EMPTY),
+            args
+        ) ?: run {
+            val intent = Intent(this, StreamService::class.java).apply {
+                action = StreamService.ACTION_SET_EQ_BAND
+                putExtra(StreamService.EXTRA_BAND, band)
+                putExtra(StreamService.EXTRA_LEVEL, level)
+            }
+            startService(intent)
+        }
     }
 
     private fun setSleepTimer(minutes: Int) {
-        val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
-        val intent = Intent(StreamService.ACTION_SET_TIMER).apply {
-            setPackage(packageName)
-            putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+        val args = Bundle().apply {
+            putInt("minutes", minutes)
         }
-        sendBroadcast(intent)
+        controller?.sendCustomCommand(
+            SessionCommand(StreamService.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
+            args
+        ) ?: run {
+            val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+            val intent = Intent(StreamService.ACTION_SET_TIMER).apply {
+                setPackage(packageName)
+                putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+            }
+            sendBroadcast(intent)
+        }
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
+
 
     private fun playOrStop() {
         Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
