@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.playback
 
 import com.smoothradio.radio.core.util.PlaybackConstants
 import javax.inject.Inject

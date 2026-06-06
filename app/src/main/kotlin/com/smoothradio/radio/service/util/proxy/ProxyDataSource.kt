@@ -1,6 +1,6 @@
 @file:OptIn(UnstableApi::class)
 
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.proxy
 
 import android.content.Context
 import android.net.Uri

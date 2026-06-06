@@ -42,7 +42,7 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.service.StreamService
-import com.smoothradio.radio.service.util.ServiceCommand
+import com.smoothradio.radio.service.util.command.ServiceCommand
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch

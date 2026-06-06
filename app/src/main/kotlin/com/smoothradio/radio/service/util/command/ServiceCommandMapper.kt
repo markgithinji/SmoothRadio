@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.command
 
 import android.content.Intent
 import javax.inject.Inject

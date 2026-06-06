@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.command
 
 sealed class ServiceCommand {
     data class Start(val link: String, val name: String?, val logo: Int) : ServiceCommand()

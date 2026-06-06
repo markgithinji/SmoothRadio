@@ -1,7 +1,7 @@
 package com.smoothradio.radio.service
 
 import com.google.common.truth.Truth
-import com.smoothradio.radio.service.util.MetadataUtils
+import com.smoothradio.radio.service.util.metadata.MetadataUtils
 import org.junit.Test
 
 class MetadataUtilsTest {

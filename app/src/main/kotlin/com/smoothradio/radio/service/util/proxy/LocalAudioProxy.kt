@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.proxy
 
 import com.smoothradio.radio.core.util.PlaybackConstants
 import kotlinx.coroutines.CoroutineDispatcher
@@ -645,7 +645,7 @@ class LocalAudioProxy(
                             val memoryPos = (relativePos - totalPhysicalSize).toInt()
                             val memSize = memoryBuffer.size()
                             if (memoryPos < memSize) {
-                                val toRead = minOf(length, memSize - memoryPos)
+                                val toRead = minOf(length, memoryPos)
                                 System.arraycopy(
                                     memoryBuffer.getInternalBuffer(),
                                     memoryPos,

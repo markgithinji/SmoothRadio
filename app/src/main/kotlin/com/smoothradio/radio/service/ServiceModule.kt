@@ -17,9 +17,9 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
 import com.google.android.gms.cast.framework.CastContext
-import com.smoothradio.radio.service.util.LocalAudioProxy
-import com.smoothradio.radio.service.util.ProxyDataSource
-import com.smoothradio.radio.service.util.UltraFastLoadControl
+import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import com.smoothradio.radio.service.util.proxy.ProxyDataSource
+import com.smoothradio.radio.service.util.playback.UltraFastLoadControl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

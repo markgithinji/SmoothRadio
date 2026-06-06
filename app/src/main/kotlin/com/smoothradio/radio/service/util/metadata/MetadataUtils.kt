@@ -1,4 +1,4 @@
-package com.smoothradio.radio.service.util
+package com.smoothradio.radio.service.util.metadata
 
 object MetadataUtils {
     fun extractSongTitle(rawTitle: String): String {
