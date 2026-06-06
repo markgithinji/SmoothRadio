@@ -42,6 +42,7 @@ import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.util.AdConfig
 import com.smoothradio.radio.core.ui.util.LogoMapper
 import com.smoothradio.radio.service.StreamService
+import com.smoothradio.radio.service.util.ServiceCommand
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -213,8 +214,8 @@ class MainActivity : FragmentActivity() {
         controller?.seekTo(position) ?: run {
             // Fallback to legacy if controller not ready
             val intent = Intent(this, StreamService::class.java).apply {
-                action = StreamService.ACTION_SEEK_TO
-                putExtra(StreamService.EXTRA_POSITION, position)
+                action = ServiceCommand.ACTION_SEEK_TO
+                putExtra(ServiceCommand.EXTRA_POSITION, position)
             }
             startService(intent)
         }
@@ -223,7 +224,7 @@ class MainActivity : FragmentActivity() {
     private fun seekBack() {
         controller?.seekBack() ?: run {
             val intent = Intent(this, StreamService::class.java).apply {
-                action = StreamService.ACTION_SEEK_BACK
+                action = ServiceCommand.ACTION_SEEK_BACK
             }
             startService(intent)
         }
@@ -232,7 +233,7 @@ class MainActivity : FragmentActivity() {
     private fun seekForward() {
         controller?.seekForward() ?: run {
             val intent = Intent(this, StreamService::class.java).apply {
-                action = StreamService.ACTION_SEEK_FORWARD
+                action = ServiceCommand.ACTION_SEEK_FORWARD
             }
             startService(intent)
         }
@@ -240,17 +241,17 @@ class MainActivity : FragmentActivity() {
 
     private fun setEqualizerBand(band: Int, level: Short) {
         val args = Bundle().apply {
-            putInt(StreamService.EXTRA_BAND, band)
-            putShort(StreamService.EXTRA_LEVEL, level)
+            putInt(ServiceCommand.EXTRA_BAND, band)
+            putShort(ServiceCommand.EXTRA_LEVEL, level)
         }
         controller?.sendCustomCommand(
-            SessionCommand(StreamService.COMMAND_SET_EQ_BAND, Bundle.EMPTY),
+            SessionCommand(ServiceCommand.COMMAND_SET_EQ_BAND, Bundle.EMPTY),
             args
         ) ?: run {
             val intent = Intent(this, StreamService::class.java).apply {
-                action = StreamService.ACTION_SET_EQ_BAND
-                putExtra(StreamService.EXTRA_BAND, band)
-                putExtra(StreamService.EXTRA_LEVEL, level)
+                action = ServiceCommand.ACTION_SET_EQ_BAND
+                putExtra(ServiceCommand.EXTRA_BAND, band)
+                putExtra(ServiceCommand.EXTRA_LEVEL, level)
             }
             startService(intent)
         }
@@ -261,13 +262,13 @@ class MainActivity : FragmentActivity() {
             putInt("minutes", minutes)
         }
         controller?.sendCustomCommand(
-            SessionCommand(StreamService.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
+            SessionCommand(ServiceCommand.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
             args
         ) ?: run {
             val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
-            val intent = Intent(StreamService.ACTION_SET_TIMER).apply {
+            val intent = Intent(ServiceCommand.ACTION_SET_TIMER).apply {
                 setPackage(packageName)
-                putExtra(StreamService.EXTRA_TIME_IN_MILLIS, timeInMillis)
+                putExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, timeInMillis)
             }
             sendBroadcast(intent)
         }
@@ -281,14 +282,14 @@ class MainActivity : FragmentActivity() {
             Log.d("MainActivityLogs", "  → STOP execution")
             isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
-            serviceIntent.action = StreamService.ACTION_STOP
+            serviceIntent.action = ServiceCommand.ACTION_STOP
             startService(serviceIntent)
             return
         }
 
         Log.d("MainActivityLogs", "  → START execution | setting isPlaybackRequested=true")
         isPlaybackRequested = true
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
         checkInternet()
@@ -299,11 +300,11 @@ class MainActivity : FragmentActivity() {
 
         isPlaybackRequested = true
 
-        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
+        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
             Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
         }
 
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
         checkInternet()
@@ -311,10 +312,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun refresh() {
-        if (serviceIntent.action == StreamService.ACTION_SHOW_AD) return
+        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
         isPlaybackRequested = true
-        serviceIntent.action = StreamService.ACTION_SHOW_AD
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
         startStreamService()
         loadInterstitialAd()
         checkInternet()
@@ -328,14 +329,14 @@ class MainActivity : FragmentActivity() {
         }
 
         Log.d("MainActivityLogs", "startStreamService | Creating Intent for: ${station.stationName} | URL: ${station.streamLink} | action: ${serviceIntent.action}")
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, station.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, station.stationName)
+        serviceIntent.putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
+        serviceIntent.putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
+        serviceIntent.putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun playOnly() {
-        serviceIntent.action = StreamService.ACTION_START
+        serviceIntent.action = ServiceCommand.ACTION_START
         startStreamService()
     }
 
@@ -348,7 +349,7 @@ class MainActivity : FragmentActivity() {
 
         if (interstitialAd != null) {
             Log.d("MainActivityLogsAd", "  → Ad already exists, showing now")
-            if (serviceIntent.action == StreamService.ACTION_SHOW_AD) showAd()
+            if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) showAd()
             return
         }
 
@@ -365,7 +366,7 @@ class MainActivity : FragmentActivity() {
                     }
                     Log.d("MainActivityLogsAd", "Ad successfully loaded (reqId=$requestId)")
                     interstitialAd = ad
-                    if (serviceIntent.action == StreamService.ACTION_SHOW_AD) showAd()
+                    if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) showAd()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {

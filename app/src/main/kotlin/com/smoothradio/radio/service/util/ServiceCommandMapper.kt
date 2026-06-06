@@ -1,7 +1,6 @@
 package com.smoothradio.radio.service.util
 
 import android.content.Intent
-import com.smoothradio.radio.service.StreamService
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,30 +10,30 @@ class ServiceCommandMapper @Inject constructor() {
         val action = intent.action ?: return ServiceCommand.None
 
         return when (action) {
-            StreamService.ACTION_START -> ServiceCommand.Start(
-                link = intent.getStringExtra(StreamService.EXTRA_LINK) ?: "",
-                name = intent.getStringExtra(StreamService.EXTRA_STATION_NAME),
-                logo = intent.getIntExtra(StreamService.EXTRA_LOGO, 0)
+            ServiceCommand.ACTION_START -> ServiceCommand.Start(
+                link = intent.getStringExtra(ServiceCommand.EXTRA_LINK) ?: "",
+                name = intent.getStringExtra(ServiceCommand.EXTRA_STATION_NAME),
+                logo = intent.getIntExtra(ServiceCommand.EXTRA_LOGO, 0)
             )
 
-            StreamService.ACTION_SHOW_AD -> ServiceCommand.ShowAd(
-                link = intent.getStringExtra(StreamService.EXTRA_LINK) ?: "",
-                name = intent.getStringExtra(StreamService.EXTRA_STATION_NAME),
-                logo = intent.getIntExtra(StreamService.EXTRA_LOGO, 0)
+            ServiceCommand.ACTION_SHOW_AD -> ServiceCommand.ShowAd(
+                link = intent.getStringExtra(ServiceCommand.EXTRA_LINK) ?: "",
+                name = intent.getStringExtra(ServiceCommand.EXTRA_STATION_NAME),
+                logo = intent.getIntExtra(ServiceCommand.EXTRA_LOGO, 0)
             )
 
-            StreamService.ACTION_STOP -> ServiceCommand.Stop
-            StreamService.ACTION_PLAY -> ServiceCommand.Play
-            StreamService.ACTION_PAUSE -> ServiceCommand.Pause
-            StreamService.ACTION_SEEK_BACK -> ServiceCommand.SeekBack
-            StreamService.ACTION_SEEK_FORWARD -> ServiceCommand.SeekForward
-            StreamService.ACTION_SEEK_TO -> ServiceCommand.SeekTo(
-                intent.getLongExtra(StreamService.EXTRA_POSITION, 0L)
+            ServiceCommand.ACTION_STOP -> ServiceCommand.Stop
+            ServiceCommand.ACTION_PLAY -> ServiceCommand.Play
+            ServiceCommand.ACTION_PAUSE -> ServiceCommand.Pause
+            ServiceCommand.ACTION_SEEK_BACK -> ServiceCommand.SeekBack
+            ServiceCommand.ACTION_SEEK_FORWARD -> ServiceCommand.SeekForward
+            ServiceCommand.ACTION_SEEK_TO -> ServiceCommand.SeekTo(
+                intent.getLongExtra(ServiceCommand.EXTRA_POSITION, 0L)
             )
 
-            StreamService.ACTION_SET_EQ_BAND -> ServiceCommand.SetEqBand(
-                band = intent.getIntExtra(StreamService.EXTRA_BAND, -1),
-                level = intent.getShortExtra(StreamService.EXTRA_LEVEL, 0)
+            ServiceCommand.ACTION_SET_EQ_BAND -> ServiceCommand.SetEqBand(
+                band = intent.getIntExtra(ServiceCommand.EXTRA_BAND, -1),
+                level = intent.getShortExtra(ServiceCommand.EXTRA_LEVEL, 0)
             )
 
             else -> ServiceCommand.None

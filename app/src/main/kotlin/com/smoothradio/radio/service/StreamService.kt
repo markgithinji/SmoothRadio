@@ -331,8 +331,8 @@ class StreamService : MediaSessionService() {
             controller: MediaSession.ControllerInfo
         ): MediaSession.ConnectionResult {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                .add(SessionCommand(COMMAND_SET_EQ_BAND, Bundle.EMPTY))
-                .add(SessionCommand(COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY))
+                .add(SessionCommand(ServiceCommand.COMMAND_SET_EQ_BAND, Bundle.EMPTY))
+                .add(SessionCommand(ServiceCommand.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY))
                 .build()
             
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -347,18 +347,18 @@ class StreamService : MediaSessionService() {
             args: Bundle
         ): ListenableFuture<SessionResult> {
             when (customCommand.customAction) {
-                COMMAND_SET_EQ_BAND -> {
-                    val band = args.getInt(EXTRA_BAND, -1)
-                    val level = args.getShort(EXTRA_LEVEL, 0)
+                ServiceCommand.COMMAND_SET_EQ_BAND -> {
+                    val band = args.getInt(ServiceCommand.EXTRA_BAND, -1)
+                    val level = args.getShort(ServiceCommand.EXTRA_LEVEL, 0)
                     if (band != -1) setEqualizerBand(band, level)
                 }
-                COMMAND_SET_SLEEP_TIMER -> {
+                ServiceCommand.COMMAND_SET_SLEEP_TIMER -> {
                     val minutes = args.getInt("minutes", 0)
                     // We can reuse the existing broadcast logic or implement directly
                     val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
-                    val intent = Intent(ACTION_SET_TIMER).apply {
+                    val intent = Intent(ServiceCommand.ACTION_SET_TIMER).apply {
                         setPackage(packageName)
-                        putExtra(EXTRA_TIME_IN_MILLIS, timeInMillis)
+                        putExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, timeInMillis)
                     }
                     sendBroadcast(intent)
                 }
@@ -411,13 +411,13 @@ class StreamService : MediaSessionService() {
         ContextCompat.registerReceiver(
             this,
             stopPlayFromTimerReceiver,
-            IntentFilter(ACTION_STOP_FROM_TIMER),
+            IntentFilter(ServiceCommand.ACTION_STOP_FROM_TIMER),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         ContextCompat.registerReceiver(
             this,
             setStopTimerReceiver,
-            IntentFilter(ACTION_SET_TIMER),
+            IntentFilter(ServiceCommand.ACTION_SET_TIMER),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
@@ -430,7 +430,7 @@ class StreamService : MediaSessionService() {
         )
 
         val playPauseIntent = Intent(this, StreamService::class.java).apply {
-            action = if (wrappedPlayer.isPlaying) ACTION_PAUSE else ACTION_PLAY
+            action = if (wrappedPlayer.isPlaying) ServiceCommand.ACTION_PAUSE else ServiceCommand.ACTION_PLAY
         }
 
         val playPausePendingIntent = PendingIntent.getService(
@@ -439,7 +439,7 @@ class StreamService : MediaSessionService() {
         )
 
         val stopIntent = Intent(this, StreamService::class.java).apply {
-            action = ACTION_STOP
+            action = ServiceCommand.ACTION_STOP
         }
 
         val stopPendingIntent = PendingIntent.getService(
@@ -498,7 +498,7 @@ class StreamService : MediaSessionService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
             val action = it.action
-            if (action == ACTION_START || action == ACTION_SHOW_AD) {
+            if (action == ServiceCommand.ACTION_START || action == ServiceCommand.ACTION_SHOW_AD) {
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         startForeground(
@@ -873,7 +873,7 @@ class StreamService : MediaSessionService() {
             equalizer = Equalizer(0, sessionId).apply {
                 enabled = true
                 val bands = numberOfBands
-                serviceScope.launch {
+                serviceScope.launch(Dispatchers.IO) {
                     for (i in 0 until bands) {
                         val level = equalizerRepository.getBandLevel(i)
                         if (level != 0.toShort()) {
@@ -970,9 +970,9 @@ class StreamService : MediaSessionService() {
     }
 
     inner class SetStopTimerReceiver : BroadcastReceiver() {
-        private val stopPlayFromTimerIntent = Intent(ACTION_STOP_FROM_TIMER).setPackage(packageName)
+        private val stopPlayFromTimerIntent = Intent(ServiceCommand.ACTION_STOP_FROM_TIMER).setPackage(packageName)
         override fun onReceive(context: Context, intent: Intent) {
-            val timeInMillis = intent.getLongExtra(EXTRA_TIME_IN_MILLIS, 0)
+            val timeInMillis = intent.getLongExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, 0)
             val alarmPendingIntent = PendingIntent.getBroadcast(
                 this@StreamService,
                 0,
@@ -1097,27 +1097,7 @@ class StreamService : MediaSessionService() {
     }
 
     companion object {
-        const val ACTION_START = "SmoothService:Start"
-        const val ACTION_STOP = "SmoothService:Stop"
-        const val ACTION_PLAY = "SmoothService:Play"
-        const val ACTION_PAUSE = "SmoothService:Pause"
-        const val ACTION_SEEK_BACK = "SmoothService:SeekBack"
-        const val ACTION_SEEK_FORWARD = "SmoothService:SeekForward"
-        const val ACTION_SEEK_TO = "SmoothService:SeekTo"
-        const val ACTION_SHOW_AD = "SmoothService:ShowAd"
-        const val ACTION_SET_TIMER = "SmoothService:SetTimer"
-        const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
-        const val COMMAND_SET_EQ_BAND = "SET_EQ_BAND"
-        const val COMMAND_SET_SLEEP_TIMER = "SET_SLEEP_TIMER"
-        private const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         private const val NOTIFICATION_ID = 1
-        const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
-        const val EXTRA_LOGO = "logo"
-        const val EXTRA_STATION_NAME = "stationName"
-        const val EXTRA_LINK = "url"
-        const val EXTRA_POSITION = "position"
-        const val EXTRA_BAND = "band"
-        const val EXTRA_LEVEL = "level"
         private const val CHANNEL_ID = "media_playback_channel"
     }
 }
