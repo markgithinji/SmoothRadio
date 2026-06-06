@@ -2,14 +2,27 @@ package com.smoothradio.radio
 
 import android.app.Application
 import android.os.Build
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.analytics
 import com.smoothradio.radio.core.logging.FirebaseCrashReportingTree
 import dagger.hilt.android.HiltAndroidApp
+import okhttp3.OkHttpClient
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class SmoothRadioApplication : Application() {
+class SmoothRadioApplication : Application(), ImageLoaderFactory {
+
+    @Inject
+    lateinit var okHttpClient: OkHttpClient
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .okHttpClient(okHttpClient)
+            .build()
+    }
 
     override fun onCreate() {
         super.onCreate()

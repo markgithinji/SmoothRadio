@@ -10,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -26,6 +27,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 @Module
@@ -64,19 +66,22 @@ object ServiceModule {
 
     @Provides
     @Singleton
-    fun provideDataSourceFactory(@ApplicationContext context: Context): DataSource.Factory {
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(15000)
+    fun provideDataSourceFactory(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): DataSource.Factory {
+        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
         
         return DefaultDataSource.Factory(context, httpDataSourceFactory)
     }
 
     @Provides
     @Singleton
-    fun provideLocalAudioProxy(@ApplicationContext context: Context): LocalAudioProxy = 
-        LocalAudioProxy(context.cacheDir, Dispatchers.IO)
+    fun provideLocalAudioProxy(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): LocalAudioProxy = 
+        LocalAudioProxy(context.cacheDir, Dispatchers.IO, okHttpClient)
 
     @Provides
     fun provideExoPlayer(

@@ -36,15 +36,9 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class LocalAudioProxy(
     private val cacheDir: File,
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
+    private val okHttpClient: OkHttpClient
 ) {
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
 
     private var serverSocket: ServerSocket? = null
     private val sessionJob = SupervisorJob()
@@ -141,12 +135,12 @@ class LocalAudioProxy(
         withContext(ioDispatcher) {
             var retryCount = 0
             var currentDelay = 1000L
-            val maxRetries = 15
+            val maxRetries = 3 // Fail faster if the station is dead
 
             while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
                 try {
-                    // Increase timeout as we retry
-                    val timeout = if (retryCount > 0) 30 else 15
+                    // Use a shorter timeout for the initial connection
+                    val timeout = if (retryCount > 0) 10 else 7
 
                     var useMetadata = true
                     var response = executeStreamRequest(
@@ -258,10 +252,11 @@ class LocalAudioProxy(
         url: String,
         tag: String,
         requestMetadata: Boolean,
-        timeoutSeconds: Int = 15
+        timeoutSeconds: Int = 8
     ): Response? {
-        val client = if (timeoutSeconds == 10) okHttpClient else okHttpClient.newBuilder()
+        val client = if (timeoutSeconds == 8) okHttpClient else okHttpClient.newBuilder()
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
+            .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .build()
 
         val requestBuilder = Request.Builder()
@@ -305,8 +300,9 @@ class LocalAudioProxy(
             val baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1)
             var retryCount = 0
             var currentDelay = 1000L
+            val maxRetries = 3
 
-            while (isRunning.get() && sessionTag == tag) {
+            while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
                 try {
                     val request =
                         Request.Builder().url(playlistUrl).addHeader("User-Agent", "Mozilla/5.0")
