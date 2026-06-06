@@ -39,6 +39,9 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.smoothradio.radio.MainActivity
@@ -106,6 +109,10 @@ class StreamService : MediaSessionService() {
     @JvmField
     var castPlayer: CastPlayer? = null
 
+    @Inject
+    @JvmField
+    var castContext: CastContext? = null
+
     private lateinit var wrappedPlayer: Player
     private lateinit var exoplayerEventListener: EventListener
     private var mediaSession: MediaSession? = null
@@ -119,6 +126,8 @@ class StreamService : MediaSessionService() {
 
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
+
+    private val castSessionListener = CastSessionListener()
 
     private var jumpToLiveOnReady = false
     private var estimatedBytesPerMs: Double = PlaybackConstants.INITIAL_BITRATE_ESTIMATION
@@ -167,6 +176,12 @@ class StreamService : MediaSessionService() {
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
         syncProgressTracker()
+        
+        // Start listening for Cast sessions
+        castContext?.sessionManager?.addSessionManagerListener(
+            castSessionListener, 
+            CastSession::class.java
+        )
     }
 
     private fun syncProgressTracker() {
@@ -256,7 +271,8 @@ class StreamService : MediaSessionService() {
 
 
     private fun setupWrappedPlayer() {
-        val basePlayer = castPlayer ?: player
+        // ALWAYS start with local player. We will swap to castPlayer dynamically.
+        val basePlayer = player
         wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun getAvailableCommands(): Player.Commands {
                 return super.getAvailableCommands().buildUpon()
@@ -915,6 +931,10 @@ class StreamService : MediaSessionService() {
     }
 
     private fun cleanupResources() {
+        castContext?.sessionManager?.removeSessionManagerListener(
+            castSessionListener,
+            CastSession::class.java
+        )
         localAudioProxy.stop()
         equalizer?.release()
         equalizer = null
@@ -1000,9 +1020,55 @@ class StreamService : MediaSessionService() {
         }
 
         if (stateChange != newState) {
-            Log.d("SmoothSeek", "UI State Update: ${newState.label} (Internal State: $playbackState, isPlaying: $isPlayerPlaying)")
             setState(newState)
         }
+    }
+
+    private inner class CastSessionListener : SessionManagerListener<CastSession> {
+        override fun onSessionStarted(session: CastSession, sessionId: String) {
+            switchToCastPlayer()
+        }
+
+        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) {
+            switchToCastPlayer()
+        }
+
+        override fun onSessionEnded(session: CastSession, error: Int) {
+            switchToLocalPlayer()
+        }
+
+        override fun onSessionStarting(session: CastSession) {}
+        override fun onSessionStartFailed(session: CastSession, error: Int) {}
+        override fun onSessionEnding(session: CastSession) {}
+        override fun onSessionResuming(session: CastSession, sessionId: String) {}
+        override fun onSessionResumeFailed(session: CastSession, error: Int) {}
+        override fun onSessionSuspended(session: CastSession, reason: Int) {}
+    }
+
+    private fun switchToCastPlayer() {
+        val cp = castPlayer ?: return
+        
+        // 1. Transfer current item to Cast
+        if (player.currentMediaItem != null) {
+            cp.setMediaItem(player.currentMediaItem!!, player.currentPosition)
+            cp.prepare()
+            cp.play()
+        }
+        
+        // 2. Update MediaSession to point to the Cast player
+        mediaSession?.setPlayer(cp)
+    }
+
+    private fun switchToLocalPlayer() {
+        // 1. Transfer state back if possible
+        if (castPlayer?.currentMediaItem != null) {
+            player.setMediaItem(castPlayer!!.currentMediaItem!!, castPlayer!!.currentPosition)
+            player.prepare()
+            // We don't auto-play on phone after cast ends to avoid surprising the user
+        }
+        
+        // 2. Point MediaSession back to our wrapped local player
+        mediaSession?.setPlayer(wrappedPlayer)
     }
 
     inner class EventListener : Player.Listener {
