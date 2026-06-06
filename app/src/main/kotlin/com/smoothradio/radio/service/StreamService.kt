@@ -59,6 +59,7 @@ import com.smoothradio.radio.service.util.StationUnreachableException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -113,6 +114,7 @@ class StreamService : MediaSessionService() {
     private var audioSessionId: Int = 0
     private var maxPositionReached: Long = 0L
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var progressUpdateJob: Job? = null
 
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
@@ -163,79 +165,94 @@ class StreamService : MediaSessionService() {
         setupNotificationChannel()
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
-        startProgressUpdate()
+        syncProgressTracker()
+    }
+
+    private fun syncProgressTracker() {
+        val state = wrappedPlayer.playbackState
+        val isPlaying = wrappedPlayer.isPlaying
+        
+        // We should track if we are actively playing, buffering, or preparing (including shadow loading for ads)
+        val shouldTrack = isPreparingForAd || jumpToLiveOnReady || 
+                         state == Player.STATE_BUFFERING || 
+                         (state == Player.STATE_READY && isPlaying)
+
+        if (shouldTrack) {
+            if (progressUpdateJob == null || progressUpdateJob?.isActive == false) {
+                startProgressUpdate()
+            }
+        } else {
+            progressUpdateJob?.cancel()
+            progressUpdateJob = null
+            // Perform one final sync to ensure UI reflects the final stopped/paused state
+            serviceScope.launch { performProgressUpdate() }
+        }
     }
 
     private fun startProgressUpdate() {
-        serviceScope.launch {
+        progressUpdateJob?.cancel()
+        progressUpdateJob = serviceScope.launch {
             while (true) {
-                try {
-                    if (isPreparingForAd) {
-                        kotlinx.coroutines.delay(500)
-                        continue
-                    }
-
-                    val pos = wrappedPlayer.currentPosition
-                    val state = wrappedPlayer.playbackState
-                    val isPlaying = wrappedPlayer.isPlaying
-                    
-                    val isBusy = jumpToLiveOnReady || state == Player.STATE_BUFFERING || (state == Player.STATE_READY && isPlaying)
-                    
-                    if (!isBusy && state == Player.STATE_IDLE && currentStationName == null) {
-                        kotlinx.coroutines.delay(2000)
-                        continue
-                    }
-
-                    if (pos > maxPositionReached) {
-                        maxPositionReached = pos
-                    }
-                    
-                    updateBitrateEstimation()
-
-                    val urlString = activeStreamUrl ?: ""
-                    val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                    val isBuffering = jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING
-
-                    val snapshot = progressCalculator.calculate(
-                        currentPosition = wrappedPlayer.currentPosition,
-                        totalBytesWritten = localAudioProxy.totalBytesWritten,
-                        totalBytesDropped = localAudioProxy.totalBytesDropped,
-                        totalBytesReceived = localAudioProxy.totalBytesReceived,
-                        estimatedBytesPerMs = estimatedBytesPerMs,
-                        isHls = isHls,
-                        totalCapacityBytes = LocalAudioProxy.TOTAL_CAPACITY_BYTES,
-                        isBuffering = isBuffering
-                    )
-
-                    // Update metadata from proxy if available (handles Time Machine seeking)
-                    val byteOffset = (snapshot.position * estimatedBytesPerMs).toLong()
-                    val proxyMetadata = localAudioProxy.getMetadataForOffset(byteOffset)
-                    
-                    if (proxyMetadata != null) {
-                        val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
-                        if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
-                            Log.d("SmoothSeek", "Metadata update at pos ${snapshot.position}: $cleaned")
-                            currentSongTitle = cleaned
-                            stateRepository.updateMetadata(cleaned)
-                            updateNotificationInternal()
-                        }
-                    }
-
-                    stateRepository.updatePosition(snapshot.position)
-                    stateRepository.updateDuration(snapshot.duration)
-                    stateRepository.updateMinPosition(snapshot.minPosition)
-                    stateRepository.updateLoadedPosition(snapshot.loadedPosition)
-                    stateRepository.updateLoadingProgress(snapshot.loadingProgress)
-                } catch (e: Exception) {
-                    Log.e("SmoothSeek", "Error in progress update", e)
-                }
+                performProgressUpdate()
+                
                 val currentState = wrappedPlayer.playbackState
-                val isActuallyBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
-                val delay = if (isActuallyBusy) 100L else 1000L
-                kotlinx.coroutines.delay(delay)
+                val isBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
+                val delayMs = if (isBusy) 100L else 1000L
+                kotlinx.coroutines.delay(delayMs)
             }
         }
     }
+
+    private fun performProgressUpdate() {
+        try {
+            val pos = wrappedPlayer.currentPosition
+            val state = wrappedPlayer.playbackState
+            val isPlaying = wrappedPlayer.isPlaying
+
+            if (pos > maxPositionReached) {
+                maxPositionReached = pos
+            }
+
+            updateBitrateEstimation()
+
+            val urlString = activeStreamUrl ?: ""
+            val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+            val isBuffering = jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING
+
+            val snapshot = progressCalculator.calculate(
+                currentPosition = wrappedPlayer.currentPosition,
+                totalBytesWritten = localAudioProxy.totalBytesWritten,
+                totalBytesDropped = localAudioProxy.totalBytesDropped,
+                totalBytesReceived = localAudioProxy.totalBytesReceived,
+                estimatedBytesPerMs = estimatedBytesPerMs,
+                isHls = isHls,
+                totalCapacityBytes = LocalAudioProxy.TOTAL_CAPACITY_BYTES,
+                isBuffering = isBuffering
+            )
+
+            // Update metadata from proxy if available (handles Time Machine seeking)
+            val byteOffset = (snapshot.position * estimatedBytesPerMs).toLong()
+            val proxyMetadata = localAudioProxy.getMetadataForOffset(byteOffset)
+
+            if (proxyMetadata != null) {
+                val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
+                if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
+                    currentSongTitle = cleaned
+                    stateRepository.updateMetadata(cleaned)
+                    updateNotificationInternal()
+                }
+            }
+
+            stateRepository.updatePosition(snapshot.position)
+            stateRepository.updateDuration(snapshot.duration)
+            stateRepository.updateMinPosition(snapshot.minPosition)
+            stateRepository.updateLoadedPosition(snapshot.loadedPosition)
+            stateRepository.updateLoadingProgress(snapshot.loadingProgress)
+        } catch (e: Exception) {
+            // Silently handle transient errors during state transitions
+        }
+    }
+
 
     private fun setupWrappedPlayer() {
         val basePlayer = castPlayer ?: player
@@ -1004,13 +1021,12 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
-            Log.d("PlaybackLifecycle", "onIsPlayingChanged: isPlaying=$isPlaying")
             if (isPlaying) {
                 val duration = System.currentTimeMillis() - preparationStartTime
-                Log.d("SmoothSeek", "Actual playback started. Time since preparePlayer: ${duration}ms")
             }
             updateNotificationInternal()
             updateUiState()
+            syncProgressTracker()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -1053,20 +1069,13 @@ class StreamService : MediaSessionService() {
         override fun onPlaybackStateChanged(state: Int) {
             val now = System.currentTimeMillis()
             val duration = now - preparationStartTime
-            val stateName = when(state) {
-                Player.STATE_BUFFERING -> "BUFFERING"
-                Player.STATE_READY -> "READY"
-                Player.STATE_IDLE -> "IDLE"
-                Player.STATE_ENDED -> "ENDED"
-                else -> "UNKNOWN"
-            }
-            Log.d("PlaybackLifecycle", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
-
+            
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 performInitialJump()
             } else {
                 updateUiState()
             }
+            syncProgressTracker()
         }
 
         override fun onPositionDiscontinuity(
