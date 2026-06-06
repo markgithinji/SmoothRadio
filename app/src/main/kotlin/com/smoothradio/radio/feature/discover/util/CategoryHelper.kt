@@ -17,7 +17,7 @@ object CategoryHelper {
         "HOT & TRENDING" to listOf(
             1,
             211,
-            228,
+            232,
             129,
             188,
             153,

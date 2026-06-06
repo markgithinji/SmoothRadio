@@ -19,6 +19,7 @@ object LogoMapper {
             7 -> R.drawable.homeboys
             8 -> R.drawable.classic105_logo
             9 -> R.drawable.radiojambologo
+            232 -> R.drawable.radio_generation_logo
             26 -> R.drawable.rogueradiologo
             30 -> R.drawable.tracefmlogo
             10 -> R.drawable.corofmlogo
@@ -124,6 +125,7 @@ object LogoMapper {
             94 -> R.drawable.mugambowamugikuyulogo
             95 -> R.drawable.mwakifmlogo
             96 -> R.drawable.shilohradiologo
+            97 -> R.drawable.cambridge_radio_logo
             98 -> R.drawable.angeladventistlogo
             99 -> R.drawable.utuuroradiologo
             100 -> R.drawable.maneneradiologo

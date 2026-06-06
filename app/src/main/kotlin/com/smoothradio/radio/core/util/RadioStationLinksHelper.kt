@@ -245,6 +245,7 @@ object RadioStationLinksHelper {
         "https://streaming.shoutcast.com/radio-47",  // 228
         "https://stream.zeno.fm/gx9lmgjmoynuv",  // 229
         "https://stream.zeno.fm/883tcz7tqfhvv",  // 230
-        "https://uk4-vn.mixstream.net/:8118/stream/1/" // 231
+        "https://uk4-vn.mixstream.net/:8118/stream/1/", // 231
+        "https://radiogeneration-atunwadigital.streamguys1.com/radiogeneration" // 231
     )
 }
