@@ -12,6 +12,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.annotation.OptIn
 import androidx.media3.datasource.TransferListener
+import com.smoothradio.radio.core.util.PlaybackConstants
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -106,9 +107,9 @@ class ProxyDataSource(
         return when (val bytesRead = proxy.readData(position, buffer, offset, length)) {
             -1 -> C.RESULT_END_OF_INPUT // EOF
             -2 -> throw BufferEvictedException(position)
-            -3 -> throw StationUnreachableException(getUri()?.toString())
-            -4 -> throw EmptyStreamException()
-            -5 -> throw ProxyCacheException("Local buffer read error")
+            PlaybackConstants.ERROR_UNREACHABLE -> throw StationUnreachableException(getUri()?.toString())
+            PlaybackConstants.ERROR_EMPTY_STREAM -> throw EmptyStreamException()
+            PlaybackConstants.ERROR_CACHE_ERROR -> throw ProxyCacheException("Local buffer read error")
             else -> {
                 position += bytesRead
                 bytesTransferred(bytesRead)

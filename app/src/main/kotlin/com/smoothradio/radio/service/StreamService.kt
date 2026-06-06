@@ -46,6 +46,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import com.smoothradio.radio.core.util.PlaybackConstants
 import com.smoothradio.radio.service.util.BitrateEstimator
 import com.smoothradio.radio.service.util.BufferEvictedException
 import com.smoothradio.radio.service.util.EmptyStreamException
@@ -120,7 +121,7 @@ class StreamService : MediaSessionService() {
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
     private var jumpToLiveOnReady = false
-    private var estimatedBytesPerMs: Double = 16.0 // Initial guess (128kbps)
+    private var estimatedBytesPerMs: Double = PlaybackConstants.INITIAL_BITRATE_ESTIMATION
     private var sessionStartTime: Long = 0L
     private var preparationStartTime: Long = 0L
     private var playbackBaseTimeMs: Long = 0L
@@ -197,7 +198,7 @@ class StreamService : MediaSessionService() {
                 
                 val currentState = wrappedPlayer.playbackState
                 val isBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
-                val delayMs = if (isBusy) 100L else 1000L
+                val delayMs = if (isBusy) PlaybackConstants.BUSY_PROGRESS_UPDATE_DELAY_MS else PlaybackConstants.IDLE_PROGRESS_UPDATE_DELAY_MS
                 kotlinx.coroutines.delay(delayMs)
             }
         }
@@ -614,8 +615,8 @@ class StreamService : MediaSessionService() {
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 
-                // Use a larger safety margin for HLS (12s) vs Progressive (2s)
-                val safetyBuffer = if (isHls) 12000L else 2000L
+                // Use a larger safety margin for HLS vs Progressive
+                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
             }
             is ServiceCommand.Pause -> {
@@ -625,7 +626,7 @@ class StreamService : MediaSessionService() {
             is ServiceCommand.SeekBack -> {
                 val current = wrappedPlayer.currentPosition
                 val droppedDur = getDroppedDurationMs()
-                val target = (current - 10000).coerceAtLeast(droppedDur)
+                val target = (current - PlaybackConstants.SEEK_INCREMENT_MS).coerceAtLeast(droppedDur)
                 Log.d("SmoothSeek", "ACTION_SEEK_BACK: current=$current -> target=$target")
                 seekToAbsolute(target)
             }
@@ -636,8 +637,8 @@ class StreamService : MediaSessionService() {
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 
                 // Don't seek past the safety buffer
-                val safetyBuffer = if (isHls) 12000L else 2000L
-                val target = (current + 10000).coerceAtMost(loadedDur - safetyBuffer)
+                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
+                val target = (current + PlaybackConstants.SEEK_INCREMENT_MS).coerceAtMost(loadedDur - safetyBuffer)
                 Log.d("SmoothSeek", "ACTION_SEEK_FORWARD: current=$current -> target=$target")
                 seekToAbsolute(target)
             }
@@ -649,7 +650,7 @@ class StreamService : MediaSessionService() {
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 
                 // Physical coercion: target must be between oldest data and the live safety buffer
-                val safetyBuffer = if (isHls) 12000L else 2000L
+                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 val target = position.coerceIn(droppedDur, (loadedDur - safetyBuffer).coerceAtLeast(droppedDur))
                 
                 Log.d("SmoothSeek", "ACTION_SEEK_TO: requested=$position, available=$droppedDur..$loadedDur, target=$target")
@@ -749,7 +750,7 @@ class StreamService : MediaSessionService() {
             .setCustomCacheKey(cacheKey)
             .setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(2000) // Start after only 2s of buffer
+                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
                     .build()
             )
             .build()
@@ -777,7 +778,7 @@ class StreamService : MediaSessionService() {
             .setCustomCacheKey(cacheKey)
             .setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(2000)
+                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
                     .build()
             )
             .build()
@@ -831,7 +832,7 @@ class StreamService : MediaSessionService() {
             .setCustomCacheKey(cacheKey)
             .setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(2000)
+                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
                     .build()
             )
             .build()
@@ -853,8 +854,8 @@ class StreamService : MediaSessionService() {
         if (isHls) {
             jumpToLiveOnReady = false
             val loadedDur = getLoadedDurationMs()
-            // HLS SAFETY BUFFER: Jump to 12s before end.
-            val target = (loadedDur - 12000).coerceAtLeast(0)
+            // HLS SAFETY BUFFER: Jump back to ensure we don't hit the end of playlist immediately
+            val target = (loadedDur - PlaybackConstants.HLS_SAFETY_BUFFER_MS).coerceAtLeast(0)
             Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
             seekToAbsolute(target)
         } else if (wrappedPlayer.playWhenReady) {
@@ -1049,9 +1050,9 @@ class StreamService : MediaSessionService() {
 
             val message = when {
                 rootCause is StationUnreachableException -> getString(R.string.toast_station_unreachable)
-                rootCause is EmptyStreamException -> "Station connected but no audio stream found"
-                rootCause is BufferEvictedException -> "Seeking range no longer available"
-                rootCause is ProxyCacheException -> "Local storage error, clearing cache..."
+                rootCause is EmptyStreamException -> getString(R.string.toast_empty_stream)
+                rootCause is BufferEvictedException -> getString(R.string.toast_buffer_evicted)
+                rootCause is ProxyCacheException -> getString(R.string.toast_proxy_cache_error)
                 
                 error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                 error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||

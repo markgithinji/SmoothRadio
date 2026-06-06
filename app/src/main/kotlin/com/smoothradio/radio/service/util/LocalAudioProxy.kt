@@ -1,5 +1,6 @@
 package com.smoothradio.radio.service.util
 
+import com.smoothradio.radio.core.util.PlaybackConstants
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -244,7 +245,7 @@ class LocalAudioProxy(
             }
 
             if (retryCount >= maxRetries) {
-                terminalError = -3
+                terminalError = PlaybackConstants.ERROR_UNREACHABLE
                 stop()
             }
         }
@@ -417,7 +418,7 @@ class LocalAudioProxy(
             }
             }
             if (retryCount >= maxRetries) {
-                terminalError = -3
+                terminalError = PlaybackConstants.ERROR_UNREACHABLE
                 stop()
             }
         }

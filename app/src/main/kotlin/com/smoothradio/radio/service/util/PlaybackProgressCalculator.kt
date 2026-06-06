@@ -1,5 +1,6 @@
 package com.smoothradio.radio.service.util
 
+import com.smoothradio.radio.core.util.PlaybackConstants
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,22 +34,24 @@ class PlaybackProgressCalculator @Inject constructor() {
         val loadedDur = (totalBytesWritten / estimatedBytesPerMs).toLong()
 
         // FIXED-WIDTH SLIDING WINDOW:
-        val bufferCapacityMs = totalCapacityBytes / estimatedBytesPerMs.coerceAtLeast(4.0)
+        val bufferCapacityMs = totalCapacityBytes / estimatedBytesPerMs.coerceAtLeast(PlaybackConstants.MIN_BITRATE_BYTES_PER_MS)
         val displayDur = droppedDur + bufferCapacityMs.toLong()
 
-        val safetyBuffer = if (isHls) 12000L else 2000L
+        val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
         
         // We report the "Safe Live Edge" as the loaded position to the UI.
         val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
 
         val loadingProgress = if (isBuffering) {
-            // Target 2s of buffer for initial playback
-            val targetMs = 2000.0
+            // Target buffer for initial playback
+            val targetMs = PlaybackConstants.PROGRESS_TARGET_MS
             val currentMs = totalBytesReceived.toDouble() / estimatedBytesPerMs.coerceAtLeast(1.0)
             val progress = (currentMs / targetMs).toFloat().coerceIn(0f, 1f)
             
-            // Add a small baseline (5%) once we start to show "Connecting..." activity
-            if (progress > 0 || totalBytesReceived > 0) 0.05f + (progress * 0.95f) else 0f
+            // Add a small baseline once we start to show "Connecting..." activity
+            if (progress > 0 || totalBytesReceived > 0) {
+                PlaybackConstants.PROGRESS_BASELINE + (progress * PlaybackConstants.PROGRESS_SCALE)
+            } else 0f
         } else {
             1f
         }
