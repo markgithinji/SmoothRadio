@@ -427,11 +427,17 @@ class LocalAudioProxy(
             Timber.w("Proxy | REJECTED DATA: Incoming tag '$tag' does not match current sessionTag '$sessionTag'")
             return
         }
-        if (!isRunning.get()) return
+        if (!isRunning.get()) {
+            Timber.w("Proxy | REJECTED DATA: isRunning is false for tag '$tag'")
+            return
+        }
         runCatching {
             stateLock.withLock {
                 memoryBuffer.write(data, offset, length)
                 totalBytesWritten += length
+                if (totalBytesWritten % (128 * 1024) == 0L) {
+                    Timber.d("Proxy | Data Received: totalBytesWritten=$totalBytesWritten for tag '$tag'")
+                }
                 if (currentUrl?.let { !it.contains(".m3u8") && !it.contains("playlist") } == true) {
                     totalBytesReceived = totalBytesWritten
                 }

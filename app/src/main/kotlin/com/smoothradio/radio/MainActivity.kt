@@ -132,6 +132,20 @@ class MainActivity : FragmentActivity() {
                 }
 
                 launch {
+                    playerControlViewModel.playingStation.collect { station ->
+                        // Only sync from the flow if we aren't currently playing something else.
+                        // This prevents the "Old station hijack" from the database.
+//                        if (currentStation?.id != station?.id) {
+//                            if (!isPlaying && !isPlaybackRequested) {
+//                                Log.d("MainActivityLogs", "Syncing currentStation from flow: ${station?.stationName}")
+//                                currentStation = station
+//                            }
+//                        }
+                        currentStation = station
+                    }
+                }
+
+                launch {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
@@ -207,8 +221,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun playOrStop() {
+        Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
         if (isPlaying) {
-            Log.d("MainActivityLogs", "  → STOP")
+            Log.d("MainActivityLogs", "  → STOP execution")
             isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = StreamService.ACTION_STOP
@@ -216,7 +231,7 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        Log.d("MainActivityLogs", "  → START")
+        Log.d("MainActivityLogs", "  → START execution | setting isPlaybackRequested=true")
         isPlaybackRequested = true
         serviceIntent.action = StreamService.ACTION_SHOW_AD
         startStreamService()
@@ -225,25 +240,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startNewPlay() {
-        // Fallback: If currentStation is null, try to recover it from the ViewModel
-        if (currentStation == null) {
-            currentStation = playerControlViewModel.playingStation.value
-        }
-        
-        if (currentStation == null) {
-            Log.e("MainActivityLogs", "startNewPlay | ABORTED: No station selected")
-            return
-        }
-
         Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
 
         isPlaybackRequested = true
-
-        // Ensure serviceIntent always has the LATEST station data,
-        // even if an ad logic cycle is currently running.
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(currentStation?.id ?: -1))
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
 
         if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
             Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
@@ -267,17 +266,20 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startStreamService() {
-        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
-        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(currentStation?.id ?: -1))
-        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
+        val station = currentStation
+        if (station == null) {
+            Log.e("MainActivityLogs", "startStreamService | ABORTED: No station available in memory or VM")
+            return
+        }
+
+        Log.d("MainActivityLogs", "startStreamService | Creating Intent for: ${station.stationName} | URL: ${station.streamLink} | action: ${serviceIntent.action}")
+        serviceIntent.putExtra(StreamService.EXTRA_LINK, station.streamLink)
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
+        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, station.stationName)
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun playOnly() {
-        if (!isPlaybackRequested) {
-            Log.d("MainActivityLogsAd", "playOnly() | ABORTED: User cancelled playback during ad")
-            return
-        }
         serviceIntent.action = StreamService.ACTION_START
         startStreamService()
     }

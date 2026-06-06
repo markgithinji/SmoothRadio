@@ -757,7 +757,7 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { translationY = -26f }
+                .graphicsLayer { translationY = -48f }
                 .padding(horizontal = 0.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically

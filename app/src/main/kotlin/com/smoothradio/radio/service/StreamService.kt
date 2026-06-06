@@ -874,6 +874,7 @@ class StreamService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@StreamService.isPlaying = isPlaying
+            Log.d("PlaybackLifecycle", "onIsPlayingChanged: isPlaying=$isPlaying")
             if (isPlaying) {
                 val duration = System.currentTimeMillis() - preparationStartTime
                 Log.d("SmoothSeek", "Actual playback started. Time since preparePlayer: ${duration}ms")
@@ -883,7 +884,7 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e("SmoothSeek", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
+            Log.e("PlaybackLifecycle", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
             jumpToLiveOnReady = false // Stop high-frequency progress polling on error
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                 // If we seek too far back and lose the window, jump to live
@@ -911,7 +912,7 @@ class StreamService : MediaSessionService() {
                 Player.STATE_ENDED -> "ENDED"
                 else -> "UNKNOWN"
             }
-            Log.d("SmoothSeek", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
+            Log.d("PlaybackLifecycle", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 jumpToLiveOnReady = false
@@ -928,6 +929,7 @@ class StreamService : MediaSessionService() {
                     Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
                     seekToAbsolute(target)
                 } else {
+                    Log.d("PlaybackLifecycle", "Station ready, starting play()")
                     wrappedPlayer.play()
                 }
             } else {

@@ -130,7 +130,7 @@ class PlayerControlViewModel @Inject constructor(
             }
         }
 
-        // Debouncing: Process only the latest station request after a period of "silence"
+        // trigger playback with debouncing: Process only the latest station request after a period of "silence"
         viewModelScope.launch {
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             _playRequests
