@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -98,6 +99,7 @@ class LocalAudioProxy(
 
         currentUrl = streamUrl
         sessionTag = UUID.randomUUID().toString().take(8)
+        Timber.d("Proxy START | URL: $streamUrl | New sessionTag: $sessionTag")
         proxyState = ProxyState.Connecting
         cleanupLegacyFiles()
 
@@ -420,7 +422,12 @@ class LocalAudioProxy(
         }
 
     private fun appendData(tag: String, data: ByteArray, length: Int, offset: Int = 0) {
-        if (tag != sessionTag || !isRunning.get()) return
+        if (tag != sessionTag) {
+            // This is a key log for detecting zombie threads from previous stations
+            Timber.w("Proxy | REJECTED DATA: Incoming tag '$tag' does not match current sessionTag '$sessionTag'")
+            return
+        }
+        if (!isRunning.get()) return
         runCatching {
             stateLock.withLock {
                 memoryBuffer.write(data, offset, length)
@@ -679,16 +686,21 @@ class LocalAudioProxy(
     }
 
     fun stop() {
+        val oldTag = sessionTag
         isRunning.set(false)
         sessionTag = ""
         totalBytesWritten = 0L
         totalBytesDropped = 0L
-        scope.launch {
-            stateLock.withLock {
-                flushBufferToDiskInternal()
-                metadataMap.clear()
-            }
+        Timber.d("Proxy STOP | sessionTag was: $oldTag")
+        
+        // FIX: Synchronous cleanup within the lock. This ensures the 'slate is wiped clean' 
+        // before the next station is allowed to start.
+        stateLock.withLock {
+            Timber.d("Proxy CLEANUP | Executing cleanup for $oldTag")
+            flushBufferToDiskInternal()
+            metadataMap.clear()
         }
+
         proxyState = ProxyState.Idle
         downloadJob?.cancel()
         proxyJob?.cancel()

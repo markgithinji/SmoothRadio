@@ -132,18 +132,9 @@ class MainActivity : FragmentActivity() {
                 }
 
                 launch {
-                    playerControlViewModel.playingStation.collect { station ->
-                        if (station != null) {
-                            currentStation = station
-                        }
-                    }
-                }
-
-                launch {
                     playerControlViewModel.playCommand.collect { command ->
                         when (command) {
                             is PlayCommand.PlayStation -> {
-                                Log.d("MainActivityLogs", "▶ New Station Command: ${command.station.stationName}")
                                 currentStation = command.station
                                 startNewPlay()
                             }
@@ -248,9 +239,14 @@ class MainActivity : FragmentActivity() {
 
         isPlaybackRequested = true
 
+        // Ensure serviceIntent always has the LATEST station data,
+        // even if an ad logic cycle is currently running.
+        serviceIntent.putExtra(StreamService.EXTRA_LINK, currentStation?.streamLink)
+        serviceIntent.putExtra(StreamService.EXTRA_LOGO, LogoMapper.getLogoById(currentStation?.id ?: -1))
+        serviceIntent.putExtra(StreamService.EXTRA_STATION_NAME, currentStation?.stationName)
+
         if (serviceIntent.action == StreamService.ACTION_SHOW_AD) {
-            Log.d("MainActivityLogs", "  → BLOCKED: ad already in progress")
-            return
+            Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
         }
 
         serviceIntent.action = StreamService.ACTION_SHOW_AD

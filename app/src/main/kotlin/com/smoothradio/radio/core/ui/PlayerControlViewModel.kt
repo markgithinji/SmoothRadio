@@ -134,7 +134,7 @@ class PlayerControlViewModel @Inject constructor(
         viewModelScope.launch {
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             _playRequests
-                .debounce(250.milliseconds)
+                .debounce(200.milliseconds)
                 .collect { station ->
                     Timber.d("Processing play request for ${station.stationName} after debounce")
                     _canShowAd.value = canShowAdUseCase()
@@ -156,11 +156,12 @@ class PlayerControlViewModel @Inject constructor(
         _stationUiState.value = StationUiState(station, direction)
         _playingStation.value = station
 
-        // Explicitly enter transition mode. This manual override is necessary because 
-        // database updates are asynchronous; we must 'trust' the UI state and ignore 
+        // Explicitly enter transition mode. This manual override is necessary because
+        // database updates are asynchronous; we must 'trust' the UI state and ignore
         // stale DB emissions until the Repository confirms it has received this new ID.
         _isStationChanging.value = true
 
+        // 2. Queue the heavy work via Flow pipeline (Debounced)
         _playRequests.tryEmit(station)
     }
 
