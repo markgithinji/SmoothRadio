@@ -181,11 +181,11 @@ class MainActivity : FragmentActivity() {
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 currentStation = command.station
-                                startNewPlay()
+                                initiatePlayback(PlaybackMode.NEW_PLAY)
                             }
 
-                            is PlayCommand.TogglePlayPause -> playOrStop()
-                            is PlayCommand.Refresh -> refresh()
+                            is PlayCommand.TogglePlayPause -> initiatePlayback(PlaybackMode.TOGGLE)
+                            is PlayCommand.Refresh -> initiatePlayback(PlaybackMode.REFRESH)
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
                                 command.band,
@@ -276,10 +276,13 @@ class MainActivity : FragmentActivity() {
     }
 
 
-    private fun playOrStop() {
-        Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
-        if (isPlaying) {
-            Log.d("MainActivityLogs", "  → STOP execution")
+    private enum class PlaybackMode {
+        NEW_PLAY, REFRESH, TOGGLE
+    }
+
+    private fun initiatePlayback(mode: PlaybackMode) {
+        // Handle stopping for toggle mode
+        if (mode == PlaybackMode.TOGGLE && isPlaying) {
             isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = ServiceCommand.ACTION_STOP
@@ -287,31 +290,7 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        Log.d("MainActivityLogs", "  → START execution | setting isPlaybackRequested=true")
-        isPlaybackRequested = true
-        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-    }
-
-    private fun startNewPlay() {
-        Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
-
-        isPlaybackRequested = true
-
-        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
-            Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
-        }
-
-        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-        startStreamService()
-        loadInterstitialAd()
-        checkInternet()
-//        sendFirebaseAnalytics(currentStation?.stationName ?: "Unknown station") ////////////////////////////////////////////////////////////////////////////////////////////
-    }
-
-    private fun refresh() {
+        // Guard against duplicate ad requests
         if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
         isPlaybackRequested = true
