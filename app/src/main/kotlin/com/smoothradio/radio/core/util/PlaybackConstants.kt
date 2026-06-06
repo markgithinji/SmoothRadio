@@ -18,6 +18,13 @@ object PlaybackConstants {
     const val LIVE_OFFSET_TARGET_MS = 2000L
     const val SEEK_INCREMENT_MS = 10000L
 
+    // Proxy Constants
+    const val PROXY_SCHEME = "proxy"
+    const val PROXY_HOST = "smoothradio"
+    const val PROXY_PATH = "/stream"
+    const val PROXY_PARAM_BYTE_OFFSET = "byteOffset"
+    const val PROXY_URL_BASE = "$PROXY_SCHEME://$PROXY_HOST$PROXY_PATH?$PROXY_PARAM_BYTE_OFFSET="
+
     // Proxy terminal error codes
     const val ERROR_UNREACHABLE = -3
     const val ERROR_EMPTY_STREAM = -4

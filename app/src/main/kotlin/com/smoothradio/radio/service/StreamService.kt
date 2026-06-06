@@ -401,7 +401,7 @@ class StreamService : MediaSessionService() {
                     // We need to handle this like ACTION_START
                     // Note: This is simplified, real logic would need to store metadata
                     item.buildUpon()
-                        .setUri("proxy://smoothradio/stream?byteOffset=0".toUri())
+                        .setUri((PlaybackConstants.PROXY_URL_BASE + "0").toUri())
                         .build()
                 } else item
             }.toMutableList()
@@ -747,7 +747,7 @@ class StreamService : MediaSessionService() {
         }
 
         // Use a custom scheme with byteOffset to ensure our ProxyDataSource is used
-        val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
+        val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0").toUri()
         
         val cacheKey = currentStationName ?: uriString
         
@@ -787,7 +787,7 @@ class StreamService : MediaSessionService() {
         
         // Construct new proxy URI with the specific byte offset
         // This bypasses ExoPlayer's time-to-byte mapping which fails for live streams.
-        val proxyUri = "proxy://smoothradio/stream?byteOffset=$targetByte".toUri()
+        val proxyUri = (PlaybackConstants.PROXY_URL_BASE + targetByte).toUri()
         
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
         val cacheKey = currentStationName ?: urlString
@@ -835,7 +835,7 @@ class StreamService : MediaSessionService() {
         
         val uriString = link
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
-        val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
+        val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0").toUri()
         val cacheKey = currentStationName ?: uriString
         
         val (mimeType, _) = when {

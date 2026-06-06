@@ -34,7 +34,7 @@ class SmoothDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         activeDataSource = when (dataSpec.uri.scheme) {
-            ProxyDataSource.SCHEME -> proxyDataSource
+            PlaybackConstants.PROXY_SCHEME -> proxyDataSource
             else -> baseDataSource
         }
         return activeDataSource!!.open(dataSpec)
@@ -63,10 +63,6 @@ class ProxyDataSource(
     private val proxy: LocalAudioProxy
 ) : BaseDataSource(/* isNetwork= */ false) {
 
-    companion object {
-        const val SCHEME = "proxy"
-    }
-
     class Factory(
         private val context: Context,
         private val proxy: LocalAudioProxy,
@@ -87,7 +83,7 @@ class ProxyDataSource(
         
         // Parse custom byteOffset from URI query parameter if present
         val uri = dataSpec.uri
-        val queryOffset = uri.getQueryParameter("byteOffset")?.toLongOrNull()
+        val queryOffset = uri.getQueryParameter(PlaybackConstants.PROXY_PARAM_BYTE_OFFSET)?.toLongOrNull()
         
         // Use the query offset for seeking, falling back to ExoPlayer's position
         this.position = queryOffset ?: dataSpec.position

@@ -291,7 +291,7 @@ class MainActivity : FragmentActivity() {
         }
 
         // Guard against duplicate ad requests
-        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
+//        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
         isPlaybackRequested = true
         serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
