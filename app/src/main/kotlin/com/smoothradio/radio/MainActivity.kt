@@ -133,15 +133,9 @@ class MainActivity : FragmentActivity() {
 
                 launch {
                     playerControlViewModel.playingStation.collect { station ->
-                        // Only sync from the flow if we aren't currently playing something else.
-                        // This prevents the "Old station hijack" from the database.
-//                        if (currentStation?.id != station?.id) {
-//                            if (!isPlaying && !isPlaybackRequested) {
-//                                Log.d("MainActivityLogs", "Syncing currentStation from flow: ${station?.stationName}")
-//                                currentStation = station
-//                            }
-//                        }
-                        currentStation = station
+                        if (station != null) {
+                            currentStation = station
+                        }
                     }
                 }
 

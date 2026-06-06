@@ -119,6 +119,7 @@ class PlayerControlViewModel @Inject constructor(
                     val currentUi = _stationUiState.value
 
                     if (station.id != currentUi.station?.id && !_isStationChanging.value) {
+                        // Handle initial load from DB or external sync (e.g. Media buttons,Logos etc.)
                         Timber.d("Syncing UI station from DB: ${station.stationName}")
                         _stationUiState.value = StationUiState(station, 0f)
                         _playingStation.value = station
