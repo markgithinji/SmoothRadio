@@ -12,15 +12,20 @@ import androidx.annotation.OptIn
  * Forces ExoPlayer to start playing almost as soon as data starts arriving.
  */
 class UltraFastLoadControl : DefaultLoadControl(
-    DefaultAllocator(true, 65536),
-    2000, 2000, // minBufferMs (standard, local)
-    10000, 10000, // maxBufferMs
-    500, 500,    // bufferForPlaybackMs (CRITICAL: Only wait 0.5s to start)
-    1000, 1000,  // bufferForPlaybackAfterRebufferMs
-    -1,          // targetBufferBytes
-    true, true,  // prioritizeTimeOverSizeThresholds
-    120000,      // backBufferDurationMs
-    true         // retainBackBufferFromKeyframe
+    /* allocator = */ DefaultAllocator(true, 65536),
+    /* minBufferMs = */ 2000,
+    /* minBufferForLocalPlaybackMs = */ 2000, // minBufferMs (standard, local)
+    /* maxBufferMs = */ 10000,
+    /* maxBufferForLocalPlaybackMs = */ 10000, // maxBufferMs
+    /* bufferForPlaybackMs = */ 500,
+    /* bufferForPlaybackForLocalPlaybackMs = */ 500, // bufferForPlaybackMs (CRITICAL: Only wait 0.5s to start)
+    /* bufferForPlaybackAfterRebufferMs = */ 1000,
+    /* bufferForPlaybackAfterRebufferForLocalPlaybackMs = */ 1000, // bufferForPlaybackAfterRebufferMs
+    /* targetBufferBytes = */ -1, // targetBufferBytes
+    /* prioritizeTimeOverSizeThresholds = */ true,
+    /* prioritizeTimeOverSizeThresholdsForLocalPlayback = */ true, // prioritizeTimeOverSizeThresholds
+    /* backBufferDurationMs = */ 120000, // backBufferDurationMs
+    /* retainBackBufferFromKeyframe = */ true // retainBackBufferFromKeyframe
 ) {
 
     @Deprecated("Deprecated in Java")

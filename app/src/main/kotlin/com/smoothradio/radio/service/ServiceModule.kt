@@ -9,18 +9,17 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
+import com.google.android.gms.cast.framework.CastContext
 import com.smoothradio.radio.service.util.LocalAudioProxy
 import com.smoothradio.radio.service.util.ProxyDataSource
 import com.smoothradio.radio.service.util.UltraFastLoadControl
-import com.google.android.gms.cast.framework.CastContext
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,7 +49,7 @@ object ServiceModule {
         castContext: CastContext?,
         exoPlayer: ExoPlayer
     ): CastPlayer? {
-        return castContext?.let { 
+        return castContext?.let {
             CastPlayer.Builder(context)
                 .setLocalPlayer(exoPlayer)
                 .build()
@@ -71,7 +70,7 @@ object ServiceModule {
         okHttpClient: OkHttpClient
     ): DataSource.Factory {
         val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-        
+
         return DefaultDataSource.Factory(context, httpDataSourceFactory)
     }
 
@@ -80,7 +79,7 @@ object ServiceModule {
     fun provideLocalAudioProxy(
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient
-    ): LocalAudioProxy = 
+    ): LocalAudioProxy =
         LocalAudioProxy(context.cacheDir, Dispatchers.IO, okHttpClient)
 
     @Provides
@@ -95,8 +94,9 @@ object ServiceModule {
             .setAdtsExtractorFlags(AdtsExtractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
 
         // Use our custom ProxyDataSource to bypass HTTP layer for local proxy
-        val proxyDataSourceFactory = ProxyDataSource.Factory(context, localAudioProxy, dataSourceFactory)
-        
+        val proxyDataSourceFactory =
+            ProxyDataSource.Factory(context, localAudioProxy, dataSourceFactory)
+
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(proxyDataSourceFactory)
 

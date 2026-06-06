@@ -4,7 +4,6 @@ package com.smoothradio.radio.service.util
 
 import android.content.Context
 import android.net.Uri
-import timber.log.Timber
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
@@ -98,8 +97,6 @@ class ProxyDataSource(
         // Use the query offset for seeking, falling back to ExoPlayer's position
         this.position = queryOffset ?: dataSpec.position
         
-        Timber.d("open() called: uri=%s, requestedPos=%d, effectivePos=%d", uri, dataSpec.position, position)
-
         transferInitializing(dataSpec)
         isOpened.set(true)
         transferStarted(dataSpec)

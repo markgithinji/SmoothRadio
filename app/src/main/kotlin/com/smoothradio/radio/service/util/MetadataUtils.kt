@@ -51,7 +51,7 @@ object MetadataUtils {
     private fun decodeHtmlEntities(text: String): String {
         return text.replace("&amp;", "&")
             .replace("&amp", "&")
-            .replace("&smp;", "&") // Handle user-reported &smp
+            .replace("&smp;", "&")
             .replace("&smp", "&")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")

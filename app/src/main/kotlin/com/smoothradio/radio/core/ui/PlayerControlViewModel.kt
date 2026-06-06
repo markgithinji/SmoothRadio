@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -44,10 +43,11 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
     val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
-    // Flag used as a 'state guard' to:
-    // 1. Mask PLAYING state as BUFFERING during transitions (prevents UI flicker/dimming).
-    // 2. Lock out database emissions until they synchronize with manual user selection.
-    private val _isStationChanging = MutableStateFlow(false)
+    private val _canShowAd = MutableStateFlow(false)
+    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
+
+    private val _toastMessage = MutableSharedFlow<ToastType>()
+    val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
 
     private val _stationUiState = MutableStateFlow(StationUiState(null))
     val stationUiState: StateFlow<StationUiState> = _stationUiState.asStateFlow()
@@ -55,6 +55,11 @@ class PlayerControlViewModel @Inject constructor(
     private val _playingStation = MutableStateFlow<RadioStation?>(null)
     val playingStation: StateFlow<RadioStation?> = _playingStation.asStateFlow()
 
+    // Flag used as a 'state guard' to:
+    // 1. Mask PLAYING state as BUFFERING during transitions (prevents UI flicker/dimming).
+    // 2. Lock out database emissions until they synchronize with manual user selection.
+    private val _isStationChanging = MutableStateFlow(false)
+    
     private val allStations = radioRepository.allStations.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -78,31 +83,25 @@ class PlayerControlViewModel @Inject constructor(
         initialValue = StreamStates.IDLE
     )
 
-    val metadata: StateFlow<String> = stateRepository.metadata
-    val position: StateFlow<Long> = stateRepository.position
-    val duration: StateFlow<Long> = stateRepository.duration
-    val minPosition: StateFlow<Long> = stateRepository.minPosition
-    val loadedPosition: StateFlow<Long> = stateRepository.loadedPosition
-    val loadingProgress: StateFlow<Float> = stateRepository.loadingProgress
-
-    private val _canShowAd = MutableStateFlow(false)
-    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
-
     private val _playRequests = MutableSharedFlow<RadioStation>(
         replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-
-    private val _toastMessage = MutableSharedFlow<ToastType>()
-    val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
-
+    
     val eqBandLevels: StateFlow<Map<Int, Short>> = equalizerRepository.getBandLevelsFlow()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyMap()
         )
+
+    val metadata: StateFlow<String> = stateRepository.metadata
+    val position: StateFlow<Long> = stateRepository.position
+    val duration: StateFlow<Long> = stateRepository.duration
+    val minPosition: StateFlow<Long> = stateRepository.minPosition
+    val loadedPosition: StateFlow<Long> = stateRepository.loadedPosition
+    val loadingProgress: StateFlow<Float> = stateRepository.loadingProgress
 
     init {
         initialize()
@@ -120,7 +119,6 @@ class PlayerControlViewModel @Inject constructor(
 
                     if (station.id != currentUi.station?.id && !_isStationChanging.value) {
                         // Handle initial load from DB or external sync (e.g. Media buttons,Logos etc.)
-                        Timber.d("Syncing UI station from DB: ${station.stationName}")
                         _stationUiState.value = StationUiState(station, 0f)
                         _playingStation.value = station
                     } else if (station.id == currentUi.station?.id) {
@@ -137,7 +135,6 @@ class PlayerControlViewModel @Inject constructor(
             _playRequests
                 .debounce(200.milliseconds)
                 .collect { station ->
-                    Timber.d("Processing play request for ${station.stationName} after debounce")
                     _canShowAd.value = canShowAdUseCase()
                     _playCommand.send(PlayCommand.PlayStation(station))
                     radioRepository.setPlayingStation(station.id)
