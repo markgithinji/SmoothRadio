@@ -510,7 +510,7 @@ class StreamService : MediaSessionService() {
                 stateRepository.updateLoadingProgress(0f)
 
                 setState(StreamStates.PREPARING)
-                prepareShowAd()
+                prepareShowAd(link)
             }
 
             ACTION_STOP -> {
@@ -601,6 +601,16 @@ class StreamService : MediaSessionService() {
             setState(StreamStates.IDLE)
             return
         }
+
+        // INSTANT PLAYBACK: If we are already warming up this link, just hit play
+        if (activeStreamUrl == link && (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING)) {
+            Log.d("SmoothSeek", "Player already warmed up for $link. Activating now.")
+            isPreparingForAd = false
+            wrappedPlayer.playWhenReady = true
+            performInitialJump()
+            return
+        }
+
         isPreparingForAd = false
         activeStreamUrl = link
         sessionStartTime = System.currentTimeMillis()
@@ -711,11 +721,73 @@ class StreamService : MediaSessionService() {
         stateRepository.updatePosition(positionMs)
     }
 
-    private fun prepareShowAd() {
-        wrappedPlayer.stop()
-        wrappedPlayer.clearMediaItems()
+    private fun prepareShowAd(link: String) {
+        if (link.isEmpty()) {
+            wrappedPlayer.stop()
+            wrappedPlayer.clearMediaItems()
+            isPlaying = false
+            updateNotificationInternal()
+            return
+        }
+
+        Log.d("StreamService", "Warming up player for: $link")
+        
+        // Prepare exactly like play() but without playWhenReady
+        maxPositionReached = 0L
+        jumpToLiveOnReady = true
+        playbackBaseTimeMs = 0L
+        preparationStartTime = System.currentTimeMillis()
+        
+        val uriString = link
+        val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
+        val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
+        val cacheKey = currentStationName ?: uriString
+        
+        val (mimeType, _) = when {
+            isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
+            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
+            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
+            else -> MimeTypes.AUDIO_MPEG to "Progressive (Default: MP3)"
+        }
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(proxyUri)
+            .setMimeType(mimeType)
+            .setCustomCacheKey(cacheKey)
+            .setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(2000)
+                    .build()
+            )
+            .build()
+            
+        wrappedPlayer.playWhenReady = false // Stay silent during ad
+        wrappedPlayer.setMediaItem(mediaItem)
+        wrappedPlayer.prepare()
+        
         isPlaying = false
         updateNotificationInternal()
+    }
+
+    private fun performInitialJump() {
+        if (!jumpToLiveOnReady) return
+        
+        val urlString = activeStreamUrl ?: ""
+        val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+        
+        if (isHls) {
+            jumpToLiveOnReady = false
+            val loadedDur = getLoadedDurationMs()
+            // HLS SAFETY BUFFER: Jump to 12s before end.
+            val target = (loadedDur - 12000).coerceAtLeast(0)
+            Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
+            seekToAbsolute(target)
+        } else if (wrappedPlayer.playWhenReady) {
+            // For progressive, just mark as done once user actually hits play
+            jumpToLiveOnReady = false
+            Log.d("PlaybackLifecycle", "Station ready, starting play()")
+            wrappedPlayer.play()
+        }
     }
 
     private fun setupEqualizer(sessionId: Int) {
@@ -915,23 +987,7 @@ class StreamService : MediaSessionService() {
             Log.d("PlaybackLifecycle", "onPlaybackStateChanged: $stateName ($state), duration since prepare: ${duration}ms, Pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
 
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
-                jumpToLiveOnReady = false
-                
-                val urlString = activeStreamUrl ?: ""
-                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                
-                if (isHls) {
-                    val loadedDur = getLoadedDurationMs()
-                    // HLS SAFETY BUFFER: Jump to 12s before end.
-                    // HLS segments are usually 10s. Staying 12s back ensures we don't
-                    // hit the "wall" of the last segment and buffer immediately.
-                    val target = (loadedDur - 12000).coerceAtLeast(0)
-                    Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
-                    seekToAbsolute(target)
-                } else {
-                    Log.d("PlaybackLifecycle", "Station ready, starting play()")
-                    wrappedPlayer.play()
-                }
+                performInitialJump()
             } else {
                 updateUiState()
             }
