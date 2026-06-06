@@ -43,8 +43,12 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import com.smoothradio.radio.service.util.BufferEvictedException
+import com.smoothradio.radio.service.util.EmptyStreamException
 import com.smoothradio.radio.service.util.LocalAudioProxy
 import com.smoothradio.radio.service.util.MetadataUtils
+import com.smoothradio.radio.service.util.ProxyCacheException
+import com.smoothradio.radio.service.util.StationUnreachableException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -958,16 +962,34 @@ class StreamService : MediaSessionService() {
         override fun onPlayerError(error: PlaybackException) {
             Log.e("PlaybackLifecycle", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
             jumpToLiveOnReady = false // Stop high-frequency progress polling on error
+            
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
-                // If we seek too far back and lose the window, jump to live
                 wrappedPlayer.seekToDefaultPosition()
                 wrappedPlayer.prepare()
                 return
             }
-            val message = when (error.errorCode) {
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> getString(R.string.toast_station_unreachable)
+
+            // Unwrap the cause to find our custom exceptions
+            var rootCause: Throwable? = error
+            while (rootCause != null && rootCause !is StationUnreachableException && 
+                   rootCause !is EmptyStreamException && rootCause !is BufferEvictedException && 
+                   rootCause !is ProxyCacheException) {
+                rootCause = rootCause.cause
+            }
+
+            val message = when {
+                rootCause is StationUnreachableException -> getString(R.string.toast_station_unreachable)
+                rootCause is EmptyStreamException -> "Station connected but no audio stream found"
+                rootCause is BufferEvictedException -> "Seeking range no longer available"
+                rootCause is ProxyCacheException -> "Local storage error, clearing cache..."
+                
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
+                error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED ||
+                error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> getString(R.string.toast_station_unreachable)
 
                 else -> getString(R.string.toast_unexpected_error)
             }

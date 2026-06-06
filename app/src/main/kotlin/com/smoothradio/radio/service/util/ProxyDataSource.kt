@@ -12,13 +12,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.annotation.OptIn
 import androidx.media3.datasource.TransferListener
-import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
-
-/**
- * Thrown when the requested stream position has already been purged from the proxy's rolling buffer.
- */
-class BufferEvictedException(position: Long) : IOException("Stream position $position has been purged from history")
 
 /**
  * A wrapper DataSource that handles our custom "proxy://" scheme while delegating others
@@ -112,6 +106,9 @@ class ProxyDataSource(
         return when (val bytesRead = proxy.readData(position, buffer, offset, length)) {
             -1 -> C.RESULT_END_OF_INPUT // EOF
             -2 -> throw BufferEvictedException(position)
+            -3 -> throw StationUnreachableException(getUri()?.toString())
+            -4 -> throw EmptyStreamException()
+            -5 -> throw ProxyCacheException("Local buffer read error")
             else -> {
                 position += bytesRead
                 bytesTransferred(bytesRead)

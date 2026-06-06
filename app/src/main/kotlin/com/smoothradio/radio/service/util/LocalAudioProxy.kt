@@ -57,6 +57,7 @@ class LocalAudioProxy(
     private var sessionTag: String = ""
     
     private var proxyState: ProxyState = ProxyState.Idle
+    private var terminalError: Int = 0 // 0: No error, -3: Unreachable, -4: Empty, -5: Cache Error
 
     val remoteMimeType: String? get() = (proxyState as? ProxyState.Streaming)?.mimeType
     val remoteBitrate: String? get() = (proxyState as? ProxyState.Streaming)?.bitrate
@@ -93,6 +94,7 @@ class LocalAudioProxy(
         currentUrl = streamUrl
         sessionTag = UUID.randomUUID().toString().take(8)
         proxyState = ProxyState.Connecting
+        terminalError = 0
         cleanupLegacyFiles()
 
         part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
@@ -242,6 +244,7 @@ class LocalAudioProxy(
             }
 
             if (retryCount >= maxRetries) {
+                terminalError = -3
                 stop()
             }
         }
@@ -412,6 +415,10 @@ class LocalAudioProxy(
                 delay(currentDelay.milliseconds)
                 currentDelay = (currentDelay * 2).coerceAtMost(30000L)
             }
+            }
+            if (retryCount >= maxRetries) {
+                terminalError = -3
+                stop()
             }
         }
 
@@ -611,6 +618,8 @@ class LocalAudioProxy(
         val tag = sessionTag
         try {
             while (isRunning.get() && sessionTag == tag) {
+                if (terminalError != 0) return terminalError
+
                 var physicalFile: File? = null
                 var physicalOffset = 0L
 
