@@ -66,8 +66,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
 
 /**
  * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
@@ -76,7 +79,6 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class StreamService : MediaSessionService() {
 
-    private var isPlaying = false
     private var stateChange: StreamStates = StreamStates.IDLE
     private var isPreparingForAd = false
 
@@ -146,7 +148,7 @@ class StreamService : MediaSessionService() {
             currentEstimation = estimatedBytesPerMs
         )
         
-        if (Math.abs(newEstimation - estimatedBytesPerMs) > 1.0) {
+        if (abs(newEstimation - estimatedBytesPerMs) > 1.0) {
             Log.d("SmoothSeek", "Bitrate estimation updated: $newEstimation")
         }
         estimatedBytesPerMs = newEstimation
@@ -208,13 +210,17 @@ class StreamService : MediaSessionService() {
     private fun startProgressUpdate() {
         progressUpdateJob?.cancel()
         progressUpdateJob = serviceScope.launch {
-            while (true) {
+            // Ticker Flow: Adaptive delay based on player state
+            flow {
+                while (true) {
+                    emit(Unit)
+                    val currentState = wrappedPlayer.playbackState
+                    val isBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
+                    val delayMs = if (isBusy) PlaybackConstants.BUSY_PROGRESS_UPDATE_DELAY_MS else PlaybackConstants.IDLE_PROGRESS_UPDATE_DELAY_MS
+                    delay(delayMs)
+                }
+            }.collect {
                 performProgressUpdate()
-                
-                val currentState = wrappedPlayer.playbackState
-                val isBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
-                val delayMs = if (isBusy) PlaybackConstants.BUSY_PROGRESS_UPDATE_DELAY_MS else PlaybackConstants.IDLE_PROGRESS_UPDATE_DELAY_MS
-                kotlinx.coroutines.delay(delayMs)
             }
         }
     }
@@ -222,8 +228,6 @@ class StreamService : MediaSessionService() {
     private fun performProgressUpdate() {
         try {
             val pos = wrappedPlayer.currentPosition
-            val state = wrappedPlayer.playbackState
-            val isPlaying = wrappedPlayer.isPlaying
 
             if (pos > maxPositionReached) {
                 maxPositionReached = pos
@@ -465,8 +469,8 @@ class StreamService : MediaSessionService() {
         )
 
         val title = when {
-            isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
-            isPlaying -> getString(R.string.player_playing)
+            wrappedPlayer.isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
+            wrappedPlayer.isPlaying -> getString(R.string.player_playing)
             else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
         }
 
@@ -817,7 +821,6 @@ class StreamService : MediaSessionService() {
         if (link.isEmpty()) {
             wrappedPlayer.stop()
             wrappedPlayer.clearMediaItems()
-            isPlaying = false
             updateNotificationInternal()
             return
         }
@@ -857,7 +860,6 @@ class StreamService : MediaSessionService() {
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
         
-        isPlaying = false
         updateNotificationInternal()
     }
 
@@ -942,7 +944,6 @@ class StreamService : MediaSessionService() {
         wrappedPlayer.release()
         mediaSession?.release()
         mediaSession = null
-        isPlaying = false
         stateChange = StreamStates.IDLE
         
         // Reset repository state on destroy
@@ -1087,10 +1088,6 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            this@StreamService.isPlaying = isPlaying
-            if (isPlaying) {
-                val duration = System.currentTimeMillis() - preparationStartTime
-            }
             updateNotificationInternal()
             updateUiState()
             syncProgressTracker()
