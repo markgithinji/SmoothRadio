@@ -71,8 +71,13 @@ class DiscoverScreenTest {
 
         composeTestRule.waitForIdle()
 
-        // Wait for categories to appear (handles initial loading state and Crossfade)
+        // Wait for content to load and Crossfade to complete
         composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithTag("discover_content").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Wait for specific category to appear
+        composeTestRule.waitUntil(5000) {
             composeTestRule.onAllNodesWithText("HOT & TRENDING").fetchSemanticsNodes().isNotEmpty()
         }
 
@@ -81,6 +86,7 @@ class DiscoverScreenTest {
         composeTestRule.onNodeWithText("KIKUYU").assertIsDisplayed()
 
         // Check stations are visible (ALL CAPS to match production data)
+        // RADIO 47 (ID 228) and INOORO FM (ID 4) should be visible
         composeTestRule.onNodeWithText("RADIO 47").assertIsDisplayed()
         composeTestRule.onNodeWithText("INOORO FM").assertIsDisplayed()
     }
@@ -110,15 +116,18 @@ class DiscoverScreenTest {
         val unfavButtonMatcher = hasContentDescription("Remove from favorites") and 
                 hasAnyAncestor(hasTestTag("radio_station_228"))
 
-        // 1. Initially not favorite, add to favorites
+        // Initially not favorite, add to favorites
         composeTestRule.onNode(favButtonMatcher).assertIsDisplayed()
         composeTestRule.onNode(favButtonMatcher).performClick()
+        
+        // Wait for state update and animation
         advanceUntilIdle()
-
-        // Wait for state update
         composeTestRule.waitForIdle()
 
         // 2. Verify "Your Favorites" category appears and button has changed
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Your Favorites").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("Your Favorites").assertIsDisplayed()
         
         // Use onAllNodes because the station now exists in two categories (Favorites and original)

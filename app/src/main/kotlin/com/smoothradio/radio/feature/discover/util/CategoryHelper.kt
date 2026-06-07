@@ -17,6 +17,7 @@ object CategoryHelper {
         "HOT & TRENDING" to listOf(
             1,
             211,
+            228,
             232,
             129,
             188,
@@ -71,7 +72,7 @@ object CategoryHelper {
             19, 39, 227, 42, 66, 89, 101, 114, 140, 157
         ),
         "TALKS" to listOf(
-            9, 161, 131, 76, 204, 166, 108, 127, 85
+            9, 228, 161, 131, 76, 204, 166, 108, 127, 85
         ),
         "SPORTS" to listOf(
             183, 9

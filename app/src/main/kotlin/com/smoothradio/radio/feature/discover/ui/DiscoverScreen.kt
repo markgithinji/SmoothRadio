@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.discover.ui
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -35,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -125,32 +125,29 @@ fun DiscoverScreen(
                 SimpleTopBar(title = stringResource(R.string.discover_title))
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    Crossfade(
-                        targetState = when {
-                            isLoading -> DiscoverState.Loading
-                            categories.isEmpty() -> DiscoverState.Empty
-                            else -> DiscoverState.Content
-                        },
-                        label = "discoverState"
-                    ) { state ->
-                        when (state) {
-                            DiscoverState.Loading -> DiscoverLoadingView()
-                            DiscoverState.Empty -> DiscoverEmptyView()
-                            DiscoverState.Content -> DiscoverContent(
-                                categories = categories,
-                                discoverScrollState = discoverScrollState,
-                                categoryScrollStates = categoryScrollStates,
-                                playingStation = playingStation,
-                                playbackState = playbackState,
-                                screenHeight = screenHeight,
-                                visualItemWidth = visualItemWidth,
-                                gridItemWidth = gridItemWidth,
-                                onPlayClick = { playerControlViewModel.requestPlayStation(it) },
-                                onFavoriteClick = { station, isFavorite ->
-                                    radioViewModel.toggleFavorite(station.id, isFavorite)
-                                }
-                            )
-                        }
+                    val state = when {
+                        isLoading -> DiscoverState.Loading
+                        categories.isEmpty() -> DiscoverState.Empty
+                        else -> DiscoverState.Content
+                    }
+
+                    when (state) {
+                        DiscoverState.Loading -> DiscoverLoadingView()
+                        DiscoverState.Empty -> DiscoverEmptyView()
+                        DiscoverState.Content -> DiscoverContent(
+                            categories = categories,
+                            discoverScrollState = discoverScrollState,
+                            categoryScrollStates = categoryScrollStates,
+                            playingStation = playingStation,
+                            playbackState = playbackState,
+                            screenHeight = screenHeight,
+                            visualItemWidth = visualItemWidth,
+                            gridItemWidth = gridItemWidth,
+                            onPlayClick = { playerControlViewModel.requestPlayStation(it) },
+                            onFavoriteClick = { station, isFavorite ->
+                                radioViewModel.toggleFavorite(station.id, isFavorite)
+                            }
+                        )
                     }
                 }
             }
@@ -174,7 +171,9 @@ enum class DiscoverState {
 @Composable
 fun DiscoverLoadingView(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("discover_loading_view"),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -192,7 +191,9 @@ fun DiscoverLoadingView(modifier: Modifier = Modifier) {
 @Composable
 fun DiscoverEmptyView(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("discover_empty_view"),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -228,7 +229,9 @@ fun DiscoverContent(
 ) {
     LazyColumn(
         state = discoverScrollState,
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("discover_content"),
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -277,9 +280,13 @@ fun CategoryRow(
         Text(
             text = displayLabel,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
-            fontSize = if (screenHeight < 400.dp) 12.sp else 14.sp,
-            modifier = Modifier.padding(horizontal = 12 .dp)
+            fontWeight = FontWeight.Bold,
+            fontSize = if (screenHeight < 400.dp) 14.sp else 16.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .testTag("category_label_${category.id}")
         )
 
         Spacer(modifier = Modifier.height(8.dp))
