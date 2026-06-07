@@ -62,14 +62,19 @@ class LocalAudioProxy(
     private val stateLock = ReentrantLock()
     private val dataCondition = stateLock.newCondition()
 
+    @Volatile
     private var currentUrl: String? = null
+    @Volatile
     private var sessionTag: String = ""
     
+    @Volatile
     private var proxyState: ProxyState = ProxyState.Idle
+    @Volatile
     private var terminalError: Int = 0 // 0: No error, -3: Unreachable, -4: Empty, -5: Cache Error
 
     val remoteMimeType: String? get() = (proxyState as? ProxyState.Streaming)?.mimeType
     val remoteBitrate: String? get() = (proxyState as? ProxyState.Streaming)?.bitrate
+    @Volatile
     var detectedBitrateKbps: Double? = null
         private set
 
@@ -85,10 +90,14 @@ class LocalAudioProxy(
         private set
     var part3File: File? = null
         private set
+    
+    @Volatile
     var totalBytesDropped = 0L // Total bytes ever purged from history
         private set
+    @Volatile
     var totalBytesWritten = 0L // Total bytes ever written in this session
         private set
+    @Volatile
     var totalBytesReceived = 0L // Total bytes ever fetched from network in this session
         private set
 
@@ -467,13 +476,24 @@ class LocalAudioProxy(
             } else {
                 FileOutputStream(p3, true).use { memoryBuffer.writeTo(it) }
                 if (p3.length() >= PART_SIZE) {
-                    totalBytesDropped += p1.length()
-                    metadataMap.headMap(totalBytesDropped).clear()
                     // Rotate: Delete P1, move P2 to P1, P3 to P2, recreate P3
-                    p1.delete()
-                    p2.renameTo(p1)
-                    p3.renameTo(p2)
-                    p3.createNewFile()
+                    // We only update totalBytesDropped if the rotation actually happens.
+                    val p1Len = p1.length()
+                    if (p1.delete()) {
+                        if (p2.renameTo(p1)) {
+                            if (p3.renameTo(p2)) {
+                                totalBytesDropped += p1Len
+                                metadataMap.headMap(totalBytesDropped).clear()
+                                p3.createNewFile()
+                            } else {
+                                // Restore if possible or handle error? For now just try to recover
+                                p2.renameTo(p3) 
+                            }
+                        } else {
+                            // p1 is gone but p2 couldn't be moved. Recreate p1 from p2 if possible?
+                            // This is a catastrophic failure state.
+                        }
+                    }
                 }
             }
             memoryBuffer.reset()
@@ -640,6 +660,22 @@ class LocalAudioProxy(
                     val relativePos = position - totalBytesDropped
 
                     if (relativePos >= 0) {
+                        // Check memory buffer first for the MOST RECENT data
+                        val memoryPos = (relativePos - totalPhysicalSize).toInt()
+                        val memSize = memoryBuffer.size()
+                        if (memoryPos >= 0 && memoryPos < memSize) {
+                            val toRead = minOf(length, memSize - memoryPos)
+                            System.arraycopy(
+                                memoryBuffer.getInternalBuffer(),
+                                memoryPos,
+                                buffer,
+                                offset,
+                                toRead
+                            )
+                            return@withLock toRead
+                        }
+
+                        // Then check physical files
                         if (relativePos < p1Size) {
                             physicalFile = part1File
                             physicalOffset = relativePos
@@ -649,20 +685,6 @@ class LocalAudioProxy(
                         } else if (relativePos < totalPhysicalSize) {
                             physicalFile = part3File
                             physicalOffset = relativePos - p1Size - p2Size
-                        } else {
-                            val memoryPos = (relativePos - totalPhysicalSize).toInt()
-                            val memSize = memoryBuffer.size()
-                            if (memoryPos < memSize) {
-                                val toRead = minOf(length, memSize - memoryPos)
-                                System.arraycopy(
-                                    memoryBuffer.getInternalBuffer(),
-                                    memoryPos,
-                                    buffer,
-                                    offset,
-                                    toRead
-                                )
-                                return@withLock toRead
-                            }
                         }
                     } else {
                         // Position already dropped
@@ -673,14 +695,18 @@ class LocalAudioProxy(
 
                 if (result != null) return result
 
-                if (physicalFile != null && physicalFile.exists() && physicalFile.length() > physicalOffset) {
-                    RandomAccessFile(physicalFile, "r").use { raf ->
-                        raf.seek(physicalOffset)
-                        return raf.read(buffer, offset, length)
+                if (physicalFile != null && physicalFile.exists()) {
+                    runCatching {
+                        RandomAccessFile(physicalFile, "r").use { raf ->
+                            if (raf.length() > physicalOffset) {
+                                raf.seek(physicalOffset)
+                                return raf.read(buffer, offset, length)
+                            }
+                        }
                     }
                 }
 
-                // No data yet, wait for signaling
+                // No data yet or file was rotated, wait for signaling
                 stateLock.withLock {
                     if (isRunning.get() && sessionTag == tag) {
                         dataCondition.await(500, TimeUnit.MILLISECONDS)
@@ -704,7 +730,10 @@ class LocalAudioProxy(
         stateLock.withLock {
             flushBufferToDiskInternal()
             metadataMap.clear()
+            // WAKE UP any waiting threads so they can exit immediately
+            dataCondition.signalAll()
         }
+        dataSignal.tryEmit(Unit)
 
         proxyState = ProxyState.Idle
         downloadJob?.cancel()
