@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.smoothradio.radio.HiltTestActivity
+import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
@@ -646,7 +647,7 @@ class RadioListScreenTest {
 
         // Set up 20 favorites to hit the limit
         val dummyStations = (1000..1020).map { id ->
-            com.smoothradio.radio.core.domain.model.RadioStation(
+            RadioStation(
                 id = id,
                 stationName = "Station $id",
                 frequency = "0.0",

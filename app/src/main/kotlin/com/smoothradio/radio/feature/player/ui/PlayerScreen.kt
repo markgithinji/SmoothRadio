@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
@@ -89,6 +90,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -803,7 +805,7 @@ fun AudioSeekBar(
                 color = if (isLive && isInteractive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(
                     alpha = 0.5f
                 ),
-                border = if (isLive) null else androidx.compose.foundation.BorderStroke(
+                border = if (isLive) null else BorderStroke(
                     1.dp,
                     colorScheme.outline.copy(alpha = 0.1f)
                 ),
@@ -860,7 +862,7 @@ private fun formatTime(ms: Long): String {
 @Composable
 fun PlaybackControlRow(
     playbackState: StreamStates,
-    playButtonSize: androidx.compose.ui.unit.Dp,
+    playButtonSize: Dp,
     isTinyCompact: Boolean,
     isCompact: Boolean,
     onPrevious: () -> Unit,
@@ -1206,7 +1208,7 @@ fun AnimatedPlayPauseButton(
     playbackState: StreamStates,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 80.dp
+    size: Dp = 80.dp
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isPlaying = playbackState is StreamStates.PLAYING

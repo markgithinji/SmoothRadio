@@ -37,6 +37,7 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.MediaStyleNotificationHelper.MediaStyle
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.android.gms.cast.framework.CastContext
@@ -397,9 +398,8 @@ class StreamService : MediaSessionService() {
                 val uri = item.localConfiguration?.uri.toString()
                 // If it's a real URL, wrap it in our proxy scheme
                 if (uri.startsWith("http")) {
-                    val name = item.mediaMetadata.title?.toString() ?: ""
                     // We need to handle this like ACTION_START
-                    // Note: This is simplified, real logic would need to store metadata
+                    // TODO This is simplified, real logic would need to store metadata.(Support Android Auto)
                     item.buildUpon()
                         .setUri((PlaybackConstants.PROXY_URL_BASE + "0").toUri())
                         .build()
@@ -493,7 +493,7 @@ class StreamService : MediaSessionService() {
             .addAction(R.drawable.ic_stop, getString(R.string.player_stop), stopPendingIntent)
             .setStyle(
                 mediaSession?.let {
-                    androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                    MediaStyle(it)
                         .setShowActionsInCompactView(0, 1)
                 }
             )
@@ -669,7 +669,7 @@ class StreamService : MediaSessionService() {
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 
-                // Physical coercion: target must be between oldest data and the live safety buffer
+                // Physical coercion: target must be between the oldest data and the live safety buffer
                 val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 val target = position.coerceIn(droppedDur, (loadedDur - safetyBuffer).coerceAtLeast(droppedDur))
                 
@@ -715,13 +715,13 @@ class StreamService : MediaSessionService() {
         Log.d("SmoothSeek", "play() called at $preparationStartTime for $link")
         
         val isHls = link.contains(".m3u8") || link.contains("playlist")
-        if (isHls) {
+        jumpToLiveOnReady = if (isHls) {
             // For HLS, we need to wait for at least one segment before jumping to live
             // We'll let preparePlayer start at 0, then jump in onPlaybackStateChanged
-            jumpToLiveOnReady = true
+            true
         } else {
             // For Progressive, we start at the live edge (byte 0) naturally
-            jumpToLiveOnReady = false
+            false
         }
         
         preparePlayer(link.toUri())
@@ -833,16 +833,15 @@ class StreamService : MediaSessionService() {
         jumpToLiveOnReady = true
         playbackBaseTimeMs = 0L
         preparationStartTime = System.currentTimeMillis()
-        
-        val uriString = link
-        val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
+
+        val isHls = link.contains(".m3u8") || link.contains("playlist")
         val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0").toUri()
-        val cacheKey = currentStationName ?: uriString
+        val cacheKey = currentStationName ?: link
         
         val (mimeType, _) = when {
             isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
-            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
-            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
+            link.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
+            link.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
             else -> MimeTypes.AUDIO_MPEG to "Progressive (Default: MP3)"
         }
 
@@ -1013,11 +1012,11 @@ class StreamService : MediaSessionService() {
         val playbackState = wrappedPlayer.playbackState
         val isPlayerPlaying = wrappedPlayer.isPlaying
 
-        val newState = when {
-            playbackState == Player.STATE_BUFFERING -> StreamStates.BUFFERING
-            playbackState == Player.STATE_READY && isPlayerPlaying -> StreamStates.PLAYING
-            playbackState == Player.STATE_READY && !isPlayerPlaying -> StreamStates.IDLE
-            playbackState == Player.STATE_ENDED -> StreamStates.ENDED
+        val newState = when (playbackState) {
+            Player.STATE_BUFFERING -> StreamStates.BUFFERING
+            Player.STATE_READY if isPlayerPlaying -> StreamStates.PLAYING
+            Player.STATE_READY if true -> StreamStates.IDLE
+            Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }
 
@@ -1066,7 +1065,7 @@ class StreamService : MediaSessionService() {
         if (castPlayer?.currentMediaItem != null) {
             player.setMediaItem(castPlayer!!.currentMediaItem!!, castPlayer!!.currentPosition)
             player.prepare()
-            // We don't auto-play on phone after cast ends to avoid surprising the user
+            // We don't autoplay on phone after cast ends to avoid surprising the user
         }
         
         // 2. Point MediaSession back to our wrapped local player
@@ -1132,8 +1131,6 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            val now = System.currentTimeMillis()
-            val duration = now - preparationStartTime
             
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 performInitialJump()

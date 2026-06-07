@@ -13,6 +13,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -54,7 +55,7 @@ class StreamServiceTest {
         }
         context.startService(intent)
         // Give it a moment to stop
-        kotlinx.coroutines.delay(100)
+        delay(100)
         context.stopService(Intent(context, StreamService::class.java))
     }
 

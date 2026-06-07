@@ -2,6 +2,7 @@ package com.smoothradio.radio.service.proxy
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -32,7 +33,7 @@ class LocalAudioProxyTest {
         
         proxy = LocalAudioProxy(
             cacheDir = tempFolder.newFolder(),
-            ioDispatcher = kotlinx.coroutines.Dispatchers.Default,
+            ioDispatcher = Dispatchers.Default,
             okHttpClient = OkHttpClient(),
         )
     }

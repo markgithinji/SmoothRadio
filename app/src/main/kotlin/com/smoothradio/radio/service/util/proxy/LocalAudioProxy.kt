@@ -19,6 +19,7 @@ import okhttp3.Response
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.net.ServerSocket
 import java.net.Socket
@@ -772,7 +773,7 @@ class LocalAudioProxy(
 
         fun getInternalBuffer() = buffer
 
-        fun writeTo(out: java.io.OutputStream) {
+        fun writeTo(out: OutputStream) {
             out.write(buffer, 0, size)
         }
     }

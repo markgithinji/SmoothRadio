@@ -12,6 +12,7 @@ import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -131,7 +132,7 @@ class PlayerControlViewModel @Inject constructor(
 
         // trigger playback with debouncing: Process only the latest station request after a period of "silence"
         viewModelScope.launch {
-            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            @OptIn(FlowPreview::class)
             _playRequests
                 .debounce(200.milliseconds)
                 .collect { station ->
