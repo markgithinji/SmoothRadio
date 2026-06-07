@@ -7,8 +7,8 @@ class FakeAdSettingsRepository : AdSettingsRepository {
     private var lastAdShowTime: Long = 0L
     private var adShowCount: Long = 0L
     private var lastAdHour: Long = 0L
-    private var adShowIntervalMinutes: Int = 0
-    private var maxAdsPerHour: Int = 0
+    private var adShowIntervalMinutes: Int = 4
+    private var maxAdsPerHour: Int = 4
 
     override suspend fun getLastAdShowTime(): Long = lastAdShowTime
 
@@ -35,7 +35,7 @@ class FakeAdSettingsRepository : AdSettingsRepository {
         lastAdShowTime = 0L
         adShowCount = 0L
         lastAdHour = 0L
-        adShowIntervalMinutes = 0
-        maxAdsPerHour = 0
+        adShowIntervalMinutes = 4
+        maxAdsPerHour = 4
     }
 }

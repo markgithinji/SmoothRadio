@@ -16,6 +16,21 @@ class FakePlaybackStateRepository : PlaybackStateRepository {
     private val _stationName = MutableStateFlow<String?>(null)
     override val stationName: StateFlow<String?> = _stationName.asStateFlow()
 
+    private val _position = MutableStateFlow(0L)
+    override val position: StateFlow<Long> = _position.asStateFlow()
+
+    private val _duration = MutableStateFlow(0L)
+    override val duration: StateFlow<Long> = _duration.asStateFlow()
+
+    private val _minPosition = MutableStateFlow(0L)
+    override val minPosition: StateFlow<Long> = _minPosition.asStateFlow()
+
+    private val _loadedPosition = MutableStateFlow(0L)
+    override val loadedPosition: StateFlow<Long> = _loadedPosition.asStateFlow()
+
+    private val _loadingProgress = MutableStateFlow(1f)
+    override val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
+
     override fun updateState(state: StreamStates) {
         _playbackState.value = state
     }
@@ -26,5 +41,25 @@ class FakePlaybackStateRepository : PlaybackStateRepository {
 
     override fun updateStationName(name: String?) {
         _stationName.value = name
+    }
+
+    override fun updatePosition(position: Long) {
+        _position.value = position
+    }
+
+    override fun updateDuration(duration: Long) {
+        _duration.value = duration
+    }
+
+    override fun updateMinPosition(minPos: Long) {
+        _minPosition.value = minPos
+    }
+
+    override fun updateLoadedPosition(loadedPos: Long) {
+        _loadedPosition.value = loadedPos
+    }
+
+    override fun updateLoadingProgress(progress: Float) {
+        _loadingProgress.value = progress
     }
 }

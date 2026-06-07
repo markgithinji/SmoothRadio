@@ -10,7 +10,7 @@ class FakeFirebaseRepository(
     initialLinks: List<String>? = null
 ) : FirebaseRepository {
 
-    private val safeLinks = initialLinks ?: List(232) { i -> "https://stream$i.com" } // 232 links required
+    private val safeLinks = initialLinks ?: List(233) { i -> "https://stream$i.com" } // 233 links required
     var clearCalled: Boolean = false
 
     override fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>> = flow {
