@@ -51,6 +51,16 @@ android {
         viewBinding = true
         compose = true
     }
+
+    configurations.all {
+        resolutionStrategy {
+            val coroutinesVersion = "1.11.0"
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:$coroutinesVersion")
+        }
+    }
 }
 
 detekt {

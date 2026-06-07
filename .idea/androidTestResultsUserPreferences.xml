@@ -938,6 +938,7 @@
                   <entry key="Pixel_5_Andorid_11" value="120" />
                   <entry key="Pixel_9_Android_15" value="120" />
                   <entry key="Tests" value="360" />
+                  <entry key="samsung SM-A525F" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -1331,6 +1332,7 @@
                 <map>
                   <entry key="Duration" value="90" />
                   <entry key="OnePlus LE2100" value="120" />
+                  <entry key="Pixel_5_Andorid_11" value="120" />
                   <entry key="Pixel_9_Android_15" value="120" />
                   <entry key="Tests" value="360" />
                 </map>
