@@ -1,7 +1,7 @@
 package com.smoothradio.radio.feature.player.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,13 +19,16 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class PlayerScreenTest {
@@ -59,10 +62,9 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun playerScreen_showsEmptyState_whenNoStationIsPlaying() {
-        runBlocking {
-            radioRepository.clearAllStations()
-        }
+    fun playerScreen_showsEmptyState_whenNoStationIsPlaying() = runTest {
+        radioRepository.clearAllStations()
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -74,11 +76,10 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun playerScreen_displaysStationInfo_whenStationIsPlaying() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_displaysStationInfo_whenStationIsPlaying() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -86,22 +87,19 @@ class PlayerScreenTest {
             }
         }
 
-        // Wait for content
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("HOPE FM").fetchSemanticsNodes().isNotEmpty()
-        }
+        // Use waitForIdle to ensure hierarchy is attached
+        composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("HOPE FM").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("HOPE FM logo").assertIsDisplayed()
     }
 
     @Test
-    fun playerScreen_showsBufferingState() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_showsBufferingState() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
         playbackStateRepository.updateState(StreamStates.BUFFERING)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -109,9 +107,7 @@ class PlayerScreenTest {
             }
         }
 
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("BUFFERING").fetchSemanticsNodes().isNotEmpty()
-        }
+        composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("BUFFERING").assertIsDisplayed()
         // Check for the dot loading animation (using unmerged tree for nested components)
@@ -119,12 +115,11 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun playerScreen_showsPlayingState() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_showsPlayingState() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
         playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -132,21 +127,18 @@ class PlayerScreenTest {
             }
         }
 
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("NOW PLAYING").fetchSemanticsNodes().isNotEmpty()
-        }
+        composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("NOW PLAYING").assertIsDisplayed()
     }
 
     @Test
-    fun playerScreen_updatesMetadata() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_updatesMetadata() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
         playbackStateRepository.updateState(StreamStates.PLAYING)
         playbackStateRepository.updateMetadata("Artist - Song Title")
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -154,20 +146,17 @@ class PlayerScreenTest {
             }
         }
 
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("Artist - Song Title").fetchSemanticsNodes().isNotEmpty()
-        }
+        composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Artist - Song Title").assertIsDisplayed()
     }
 
     @Test
-    fun playerScreen_clicksPlayPause() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_clicksPlayPause() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
         playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -175,24 +164,19 @@ class PlayerScreenTest {
             }
         }
 
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithContentDescription("Pause").fetchSemanticsNodes().isNotEmpty()
-        }
+        composeTestRule.waitForIdle()
 
         // Initially shows pause button because it's playing
         composeTestRule.onNodeWithContentDescription("Pause").performClick()
-        
-        // Note: The UI won't immediately change to "Play" icon unless our FakeRepo updates.
-        // But we verified the click can be performed.
+        advanceUntilIdle()
     }
 
     @Test
-    fun playerScreen_clicksNextPrevious() {
+    fun playerScreen_clicksNextPrevious() = runTest {
         val secondStation = testStation.copy(id = 2, stationName = "NEXT STATION", orderIndex = 1)
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation, secondStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+        radioRepository.insertStations(listOf(testStation, secondStation))
+        radioRepository.setPlayingStation(testStation.id)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -200,17 +184,21 @@ class PlayerScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.onNodeWithContentDescription("Next").performClick()
+        advanceUntilIdle()
         
-        // Should update to NEXT STATION
+        // Wait for state to flow through
         composeTestRule.waitUntil(5000) {
             composeTestRule.onAllNodesWithText("NEXT STATION").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithText("NEXT STATION").assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription("Previous").performClick()
+        advanceUntilIdle()
 
-        // Should update back to HOPE FM
+        // Wait for back to HOPE FM
         composeTestRule.waitUntil(5000) {
             composeTestRule.onAllNodesWithText("HOPE FM").fetchSemanticsNodes().isNotEmpty()
         }
@@ -218,11 +206,10 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun playerScreen_opensEqualizerDialog() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_showsSeekBar_whenSufficientHeight() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -230,17 +217,62 @@ class PlayerScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
+        // The SeekBar contains text for current time (00:00)
+        composeTestRule.onNodeWithText("00:00").assertIsDisplayed()
+        composeTestRule.onNodeWithText("LIVE").assertIsDisplayed()
+    }
+
+    @Test
+    fun playerScreen_clicksSeekForwardAndBack() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        playbackStateRepository.updatePosition(50000L) // 50s
+        advanceUntilIdle()
+
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                PlayerScreen()
+            }
+        }
+
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithContentDescription("Seek Forward").performClick()
+        advanceUntilIdle()
+        composeTestRule.onNodeWithContentDescription("Seek Back").performClick()
+        advanceUntilIdle()
+        
+        composeTestRule.onNodeWithContentDescription("Seek Forward").assertExists()
+        composeTestRule.onNodeWithContentDescription("Seek Back").assertExists()
+    }
+
+    @Test
+    fun playerScreen_opensEqualizerDialog() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        advanceUntilIdle()
+
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                PlayerScreen()
+            }
+        }
+
+        composeTestRule.waitForIdle()
+
         composeTestRule.onNodeWithContentDescription("Equalizer").performClick()
+        advanceUntilIdle()
         composeTestRule.onNodeWithText("Equalizer").assertIsDisplayed()
         composeTestRule.onNodeWithText("60 Hz").assertIsDisplayed()
     }
 
     @Test
-    fun playerScreen_opensSleepTimerDialog() {
-        runBlocking {
-            radioRepository.insertStations(listOf(testStation))
-            radioRepository.setPlayingStation(testStation.id)
-        }
+    fun playerScreen_opensSleepTimerDialog() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        advanceUntilIdle()
 
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -248,13 +280,11 @@ class PlayerScreenTest {
             }
         }
 
-        // The Sleep button is in the ActionButtonsRow which only shows if layoutConfig.showSecondRow is true.
-        // showSecondRow = screenHeight > 740.dp
-        // On many standard emulators (like Pixel 4), height is enough.
+        composeTestRule.waitForIdle()
 
-        // We use onNodeWithContentDescription to target the IconButton's Icon, which handles the click.
-        // onNodeWithText("Sleep") would target the Text composable which is not clickable.
+        // The Sleep button is in the ActionButtonsRow
         composeTestRule.onNodeWithContentDescription("Sleep").performClick()
+        advanceUntilIdle()
         
         composeTestRule.waitUntil(3000) {
             composeTestRule.onAllNodesWithText("Sleep Timer").fetchSemanticsNodes().isNotEmpty()

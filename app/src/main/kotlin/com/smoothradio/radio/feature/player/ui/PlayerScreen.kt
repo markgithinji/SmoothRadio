@@ -1140,7 +1140,7 @@ fun PlayerLogoSection(
                             .error(R.drawable.ic_radio_default)
                             .fallback(R.drawable.ic_radio_default)
                             .build(),
-                        contentDescription = "Station logo",
+                        contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
