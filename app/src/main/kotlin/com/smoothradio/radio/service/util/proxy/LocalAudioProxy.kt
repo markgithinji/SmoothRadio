@@ -37,8 +37,16 @@ import kotlin.time.Duration.Companion.milliseconds
 class LocalAudioProxy(
     private val cacheDir: File,
     private val ioDispatcher: CoroutineDispatcher,
-    private val okHttpClient: OkHttpClient
+    okHttpClient: OkHttpClient
 ) {
+
+    // Create a stripped-down client for stream downloads to ensure maximum speed and bypass logging
+    private val internalOkHttpClient = okHttpClient.newBuilder()
+        .apply {
+            interceptors().clear()
+            networkInterceptors().clear()
+        }
+        .build()
 
     private var serverSocket: ServerSocket? = null
     private val sessionJob = SupervisorJob()
@@ -256,7 +264,7 @@ class LocalAudioProxy(
         requestMetadata: Boolean,
         timeoutSeconds: Int = 8
     ): Response? {
-        val client = if (timeoutSeconds == 8) okHttpClient else okHttpClient.newBuilder()
+        val client = if (timeoutSeconds == 8) internalOkHttpClient else internalOkHttpClient.newBuilder()
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .build()
@@ -309,7 +317,7 @@ class LocalAudioProxy(
                     val request =
                         Request.Builder().url(playlistUrl).addHeader("User-Agent", "Mozilla/5.0")
                             .build()
-                    val playlistText = okHttpClient.newCall(request).execute().use { response ->
+                    val playlistText = internalOkHttpClient.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
                         response.body.string()
                     }
@@ -358,7 +366,7 @@ class LocalAudioProxy(
                         runCatching {
                             val segRequest = Request.Builder().url(segmentUrl)
                                 .addHeader("User-Agent", "Mozilla/5.0").build()
-                            okHttpClient.newCall(segRequest).execute().use { response ->
+                            internalOkHttpClient.newCall(segRequest).execute().use { response ->
                                 if (!response.isSuccessful) return@use byteArrayOf()
                                 val body = response.body
                                 val out = ByteArrayOutputStream()
@@ -645,7 +653,7 @@ class LocalAudioProxy(
                             val memoryPos = (relativePos - totalPhysicalSize).toInt()
                             val memSize = memoryBuffer.size()
                             if (memoryPos < memSize) {
-                                val toRead = minOf(length, memoryPos)
+                                val toRead = minOf(length, memSize - memoryPos)
                                 System.arraycopy(
                                     memoryBuffer.getInternalBuffer(),
                                     memoryPos,

@@ -725,6 +725,7 @@ class StreamService : MediaSessionService() {
         }
         
         preparePlayer(link.toUri())
+        wrappedPlayer.play()
     }
 
     private fun preparePlayer(uri: Uri) {
