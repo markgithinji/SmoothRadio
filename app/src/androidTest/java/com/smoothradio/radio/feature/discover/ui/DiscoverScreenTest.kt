@@ -7,7 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -22,13 +22,17 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class DiscoverScreenTest {
@@ -51,7 +55,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_displaysExpectedCategoriesAndStations() {
+    fun discoverScreen_displaysExpectedCategoriesAndStations() = runTest(UnconfinedTestDispatcher()) {
         // ViewModel auto-populates data from RadioStationsHelper in androidTest context
 
         composeTestRule.setContent {
@@ -64,6 +68,8 @@ class DiscoverScreenTest {
                 )
             }
         }
+
+        composeTestRule.waitForIdle()
 
         // Wait for categories to appear (handles initial loading state and Crossfade)
         composeTestRule.waitUntil(10000) {
@@ -80,7 +86,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun clickingFavoriteButton_togglesFavoriteStatus() {
+    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val discoverScrollState = remember { LazyListState() }
@@ -91,6 +97,8 @@ class DiscoverScreenTest {
                 )
             }
         }
+
+        composeTestRule.waitForIdle()
 
         // Wait for content (RADIO 47 has ID 228)
         composeTestRule.waitUntil(10000) {
@@ -105,6 +113,7 @@ class DiscoverScreenTest {
         // 1. Initially not favorite, add to favorites
         composeTestRule.onNode(favButtonMatcher).assertIsDisplayed()
         composeTestRule.onNode(favButtonMatcher).performClick()
+        advanceUntilIdle()
 
         // Wait for state update
         composeTestRule.waitForIdle()
@@ -117,6 +126,7 @@ class DiscoverScreenTest {
         
         // 3. Remove from favorites (click the first instance of the unfavorite button)
         composeTestRule.onAllNodes(unfavButtonMatcher).onFirst().performClick()
+        advanceUntilIdle()
 
         // Wait for animation and state update
         composeTestRule.waitForIdle()
@@ -129,7 +139,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun clickStation_shouldShowLoadingIndicatorWhenBuffering() {
+    fun clickStation_shouldShowLoadingIndicatorWhenBuffering() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val discoverScrollState = remember { LazyListState() }
@@ -141,6 +151,8 @@ class DiscoverScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         // Wait for content
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -151,13 +163,13 @@ class DiscoverScreenTest {
 
         // Click to play (RADIO 47 has ID 228)
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         
         // Manually update playback state to BUFFERING for the selected station
         playbackStateRepository.updateState(StreamStates.BUFFERING)
         // Ensure the repo knows which one is "playing"
-        runBlocking {
-            radioRepository.setPlayingStation(228)
-        }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
 
         // Wait for loading animation to appear
         composeTestRule.waitUntil(10000) {

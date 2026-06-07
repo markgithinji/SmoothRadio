@@ -14,6 +14,7 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -24,7 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import javax.inject.Inject
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class StreamServiceTest {
@@ -47,7 +48,7 @@ class StreamServiceTest {
     }
 
     @After
-    fun tearDown() = runTest {
+    fun tearDown() = runTest(UnconfinedTestDispatcher()) {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_STOP
         }
@@ -62,7 +63,7 @@ class StreamServiceTest {
     }
 
     @Test
-    fun startAction_shouldTransitionToPreparing() = runTest {
+    fun startAction_shouldTransitionToPreparing() = runTest(UnconfinedTestDispatcher()) {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -82,7 +83,7 @@ class StreamServiceTest {
     }
 
     @Test
-    fun startPlay_shouldUpdateStationNameInRepository() = runTest {
+    fun startPlay_shouldUpdateStationNameInRepository() = runTest(UnconfinedTestDispatcher()) {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -102,7 +103,7 @@ class StreamServiceTest {
     }
 
     @Test
-    fun stopAction_shouldTransitionToIdle() = runTest {
+    fun stopAction_shouldTransitionToIdle() = runTest(UnconfinedTestDispatcher()) {
         // Start first
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
@@ -133,7 +134,7 @@ class StreamServiceTest {
     }
 
     @Test
-    fun showAdAction_shouldSetPreparingState() = runTest {
+    fun showAdAction_shouldSetPreparingState() = runTest(UnconfinedTestDispatcher()) {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_SHOW_AD
             putExtra(ServiceCommand.EXTRA_STATION_NAME, "Test Station")
@@ -152,14 +153,14 @@ class StreamServiceTest {
     }
 
     @Test
-    fun nullAction_shouldNotCrash() = runTest {
+    fun nullAction_shouldNotCrash() = runTest(UnconfinedTestDispatcher()) {
         val intent = Intent(context, StreamService::class.java)
         startService(intent)
         // No specific state change expected, just ensuring it doesn't crash
     }
 
     @Test
-    fun setEqualizerBand_shouldNotCrash() = runTest {
+    fun setEqualizerBand_shouldNotCrash() = runTest(UnconfinedTestDispatcher()) {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -177,7 +178,7 @@ class StreamServiceTest {
     }
 
     @Test
-    fun playPauseActions_shouldTogglePlayback() = runTest {
+    fun playPauseActions_shouldTogglePlayback() = runTest(UnconfinedTestDispatcher()) {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")

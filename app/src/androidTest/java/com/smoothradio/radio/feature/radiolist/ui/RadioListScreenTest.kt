@@ -8,7 +8,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -22,13 +22,17 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class RadioListScreenTest {
@@ -51,7 +55,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun radioStationsScreen_displaysStationsInList() {
+    fun radioStationsScreen_displaysStationsInList() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -59,6 +63,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         // Wait for data auto-population
         composeTestRule.waitUntil(10000) {
@@ -70,7 +76,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingFavoriteButton_togglesFavoriteStatus() {
+    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -78,6 +84,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -90,17 +98,19 @@ class RadioListScreenTest {
 
         // Add to favorite
         composeTestRule.onNode(favButtonMatcher).performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
         composeTestRule.onNode(unfavButtonMatcher).assertIsDisplayed()
 
         // Remove from favorite
         composeTestRule.onNode(unfavButtonMatcher).performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
         composeTestRule.onNode(favButtonMatcher).assertIsDisplayed()
     }
 
     @Test
-    fun clickingStation_showsLoadingIndicatorInRow_andMiniPlayer() {
+    fun clickingStation_showsLoadingIndicatorInRow_andMiniPlayer() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -109,19 +119,21 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Click station row
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Update state to BUFFERING
         playbackStateRepository.updateState(StreamStates.BUFFERING)
-        runBlocking {
-            radioRepository.setPlayingStation(228)
-        }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Check for loading animation in the row
@@ -150,7 +162,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun playingStation_showsWaveformAndMiniPlayerPlaying() {
+    fun playingStation_showsWaveformAndMiniPlayerPlaying() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -159,13 +171,16 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Set state to PLAYING
         playbackStateRepository.updateState(StreamStates.PLAYING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Wait for PLAYING text in mini player
@@ -186,7 +201,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun toggleGridView_displaysStationsInGrid() {
+    fun toggleGridView_displaysStationsInGrid() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -194,6 +209,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -201,6 +218,7 @@ class RadioListScreenTest {
 
         // Click grid toggle in TopBar
         composeTestRule.onNodeWithContentDescription("Switch to grid view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Stations should still be there
@@ -208,12 +226,13 @@ class RadioListScreenTest {
         
         // Switch back
         composeTestRule.onNodeWithContentDescription("Switch to list view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("RADIO 47").assertIsDisplayed()
     }
 
     @Test
-    fun clickingDifferentStation_clearsPreviousStationState_andShowsNewStationPlaying() {
+    fun clickingDifferentStation_clearsPreviousStationState_andShowsNewStationPlaying() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -222,13 +241,16 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Set RADIO 47 to PLAYING
         playbackStateRepository.updateState(StreamStates.PLAYING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify RADIO 47 shows playing state
@@ -241,11 +263,13 @@ class RadioListScreenTest {
 
         // Click HOPE FM (ID 0) - different station
         composeTestRule.onNodeWithTag("radio_station_0").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Update state to PLAYING for HOPE FM
         playbackStateRepository.updateState(StreamStates.PLAYING)
-        runBlocking { radioRepository.setPlayingStation(0) }
+        radioRepository.setPlayingStation(0)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify RADIO 47 no longer shows waveform (state cleared)
@@ -274,7 +298,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPlayingStation_stopsPlayback() {
+    fun clickingPlayingStation_stopsPlayback() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -283,13 +307,16 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Set RADIO 47 to PLAYING
         playbackStateRepository.updateState(StreamStates.PLAYING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify waveform is showing
@@ -302,10 +329,12 @@ class RadioListScreenTest {
 
         // Click the same station again to stop
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Update state to IDLE to simulate stop
         playbackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify waveform is gone (playback stopped)
@@ -318,7 +347,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingBufferingStation_stopsPlayback() {
+    fun clickingBufferingStation_stopsPlayback() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -327,13 +356,16 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Set RADIO 47 to BUFFERING
         playbackStateRepository.updateState(StreamStates.BUFFERING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify loading animation is showing
@@ -346,10 +378,12 @@ class RadioListScreenTest {
 
         // Click the same station again to stop
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Update state to IDLE to simulate stop
         playbackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify loading animation is gone (playback stopped)
@@ -362,7 +396,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun gridView_showsCorrectStates_forPlayingBufferingIdle() {
+    fun gridView_showsCorrectStates_forPlayingBufferingIdle() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -370,6 +404,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule
@@ -380,6 +416,7 @@ class RadioListScreenTest {
 
         // Switch to grid view
         composeTestRule.onNodeWithContentDescription("Switch to grid view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify station exists in grid
@@ -387,7 +424,8 @@ class RadioListScreenTest {
 
         // Test BUFFERING state
         playbackStateRepository.updateState(StreamStates.BUFFERING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -399,6 +437,7 @@ class RadioListScreenTest {
 
         // Test PLAYING state
         playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -410,6 +449,7 @@ class RadioListScreenTest {
 
         // Switch back to list view
         composeTestRule.onNodeWithContentDescription("Switch to list view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify station still exists via test tag
@@ -417,7 +457,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun miniPlayer_showsCorrectContent_forPlayingBufferingIdle() {
+    fun miniPlayer_showsCorrectContent_forPlayingBufferingIdle() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -426,16 +466,20 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Click station to trigger mini player
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify mini player exists
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -447,6 +491,7 @@ class RadioListScreenTest {
 
         // Test BUFFERING state - station name and status
         playbackStateRepository.updateState(StreamStates.BUFFERING)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -473,6 +518,7 @@ class RadioListScreenTest {
 
         // Test PLAYING state
         playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -491,6 +537,7 @@ class RadioListScreenTest {
 
         // Test IDLE state - mini player still exists with station name
         playbackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(5000) {
@@ -502,7 +549,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun toggleGridView_persistsStations_andAdjustsColumns() {
+    fun toggleGridView_persistsStations_andAdjustsColumns() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -510,6 +557,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -521,6 +570,7 @@ class RadioListScreenTest {
 
         // Switch to grid view
         composeTestRule.onNodeWithContentDescription("Switch to grid view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify same stations still exist
@@ -534,6 +584,7 @@ class RadioListScreenTest {
 
         // Switch back to list view
         composeTestRule.onNodeWithContentDescription("Switch to list view").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify stations still there
@@ -545,7 +596,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun aboutDialog_showsAndDismisses() {
+    fun aboutDialog_showsAndDismisses() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -553,6 +604,8 @@ class RadioListScreenTest {
                 RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
             }
         }
+
+        composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -560,6 +613,7 @@ class RadioListScreenTest {
 
         // Click the info/about button
         composeTestRule.onNodeWithContentDescription("About").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify dialog is shown
@@ -567,6 +621,7 @@ class RadioListScreenTest {
 
         // Dismiss using Close button
         composeTestRule.onNodeWithText("Close").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify stations visible again
@@ -574,7 +629,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun favoriteLimitExceeded_showsErrorToast() {
+    fun favoriteLimitExceeded_showsErrorToast() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -583,32 +638,32 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Set up 20 favorites to hit the limit
-        runBlocking {
-            val dummyStations = (1000..1020).map { id ->
-                com.smoothradio.radio.core.domain.model.RadioStation(
-                    id = id,
-                    stationName = "Station $id",
-                    frequency = "0.0",
-                    location = "Test",
-                    streamLink = "",
-                    isPlaying = false,
-                    isFavorite = true,
-                    orderIndex = id
-                )
-            }
-            radioRepository.insertStations(dummyStations)
+        val dummyStations = (1000..1020).map { id ->
+            com.smoothradio.radio.core.domain.model.RadioStation(
+                id = id,
+                stationName = "Station $id",
+                frequency = "0.0",
+                location = "Test",
+                streamLink = "",
+                isPlaying = false,
+                isFavorite = true,
+                orderIndex = id
+            )
         }
+        radioRepository.insertStations(dummyStations)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Ensure station 228 is NOT a favorite
-        runBlocking {
-            radioRepository.updateFavoriteStatus(228, false)
-        }
+        radioRepository.updateFavoriteStatus(228, false)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Click favorite on station 228 to trigger the limit error
@@ -616,6 +671,7 @@ class RadioListScreenTest {
                 hasAnyAncestor(hasTestTag("radio_station_228"))
 
         composeTestRule.onNode(favButtonMatcher).performClick()
+        advanceUntilIdle()
 
         // Toast appears quickly, check immediately before auto-dismiss
         composeTestRule.waitForIdle()
@@ -628,7 +684,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPauseInMiniPlayer_updatesStateInBothMiniPlayerAndListRow() {
+    fun clickingPauseInMiniPlayer_updatesStateInBothMiniPlayerAndListRow() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -637,17 +693,21 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // 1. Click station to trigger mini player
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 2. Set state to PLAYING
         playbackStateRepository.updateState(StreamStates.PLAYING)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // Verify waveform is in row AND mini player
@@ -666,10 +726,12 @@ class RadioListScreenTest {
 
         // 3. Click Pause button in Mini Player
         composeTestRule.onNodeWithContentDescription("Pause").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 4. Update state to IDLE to simulate pause effect
         playbackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 5. Verify waveforms are gone from both row and mini player
@@ -681,7 +743,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPlayInMiniPlayer_startsPlaybackAndUpdatesUI() {
+    fun clickingPlayInMiniPlayer_startsPlaybackAndUpdatesUI() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -690,25 +752,31 @@ class RadioListScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
         // 1. Click station to trigger mini player
         composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 2. Ensure it's in IDLE state (paused)
         playbackStateRepository.updateState(StreamStates.IDLE)
-        runBlocking { radioRepository.setPlayingStation(228) }
+        radioRepository.setPlayingStation(228)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 3. Click Play button in Mini Player
         composeTestRule.onNodeWithContentDescription("Play").performClick()
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 4. Update state to PLAYING
         playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
         // 5. Verify waveforms are showing in both row and mini player

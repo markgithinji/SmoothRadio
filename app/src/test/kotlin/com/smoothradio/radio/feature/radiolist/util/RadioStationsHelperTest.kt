@@ -27,7 +27,7 @@ class RadioStationsHelperTest {
         assertThat(stations.last().streamLink).isEqualTo("https://stream201.com")
         
         // Count total stations added in code
-        assertThat(stations.size).isEqualTo(213) 
+        assertThat(stations.size).isEqualTo(214)
         
         // Check station at specific index mapping
         assertThat(stations.first { it.id == 231 }.stationName).isEqualTo("KWITU FM")
