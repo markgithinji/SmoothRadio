@@ -11,6 +11,10 @@ import dagger.Provides
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
+import androidx.media3.datasource.DataSource
+import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import okhttp3.OkHttpClient
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -44,4 +48,21 @@ object FakeServiceModule {
         .setAudioAttributes(audioAttributes, true)
         .setLooper(android.os.Looper.getMainLooper())
         .build()
+
+    @Provides
+    @Singleton
+    fun provideLocalAudioProxy(
+        @ApplicationContext context: Context
+    ): LocalAudioProxy = LocalAudioProxy(
+        cacheDir = context.cacheDir,
+        ioDispatcher = kotlinx.coroutines.Dispatchers.IO,
+        okHttpClient = OkHttpClient()
+    )
+
+    @Provides
+    fun provideDataSourceFactory(
+        @ApplicationContext context: Context
+    ): DataSource.Factory = DataSource.Factory { 
+        androidx.media3.datasource.DefaultDataSource.Factory(context).createDataSource()
+    }
 }

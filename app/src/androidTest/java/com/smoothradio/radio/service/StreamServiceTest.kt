@@ -8,6 +8,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
+import com.smoothradio.radio.service.util.command.ServiceCommand
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +49,7 @@ class StreamServiceTest {
     @After
     fun tearDown() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_STOP
+            action = ServiceCommand.ACTION_STOP
         }
         context.startService(intent)
         // Give it a moment to stop
@@ -63,10 +64,10 @@ class StreamServiceTest {
     @Test
     fun startAction_shouldTransitionToPreparing() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(StreamService.EXTRA_LOGO, 0)
-            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_LOGO, 0)
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
 
         startService(intent)
@@ -83,10 +84,10 @@ class StreamServiceTest {
     @Test
     fun startPlay_shouldUpdateStationNameInRepository() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(StreamService.EXTRA_LOGO, 0)
-            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_LOGO, 0)
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
 
         startService(intent)
@@ -104,9 +105,9 @@ class StreamServiceTest {
     fun stopAction_shouldTransitionToIdle() = runTest {
         // Start first
         val startIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
         startService(startIntent)
         
@@ -118,7 +119,7 @@ class StreamServiceTest {
 
         // Then stop
         val stopIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_STOP
+            action = ServiceCommand.ACTION_STOP
         }
         startService(stopIntent)
 
@@ -134,9 +135,9 @@ class StreamServiceTest {
     @Test
     fun showAdAction_shouldSetPreparingState() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_SHOW_AD
-            putExtra(StreamService.EXTRA_STATION_NAME, "Test Station")
-            putExtra(StreamService.EXTRA_LOGO, 0)
+            action = ServiceCommand.ACTION_SHOW_AD
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "Test Station")
+            putExtra(ServiceCommand.EXTRA_LOGO, 0)
         }
 
         startService(intent)
@@ -160,16 +161,16 @@ class StreamServiceTest {
     @Test
     fun setEqualizerBand_shouldNotCrash() = runTest {
         val startIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
         startService(startIntent)
 
         val eqIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_SET_EQ_BAND
-            putExtra(StreamService.EXTRA_BAND, 0)
-            putExtra(StreamService.EXTRA_LEVEL, 500.toShort())
+            action = ServiceCommand.ACTION_SET_EQ_BAND
+            putExtra(ServiceCommand.EXTRA_BAND, 0)
+            putExtra(ServiceCommand.EXTRA_LEVEL, 500.toShort())
         }
         startService(eqIntent)
         // No specific state change expected, just ensuring it doesn't crash
@@ -178,10 +179,10 @@ class StreamServiceTest {
     @Test
     fun playPauseActions_shouldTogglePlayback() = runTest {
         val startIntent = Intent(context, StreamService::class.java).apply {
-            action = StreamService.ACTION_START
-            putExtra(StreamService.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(StreamService.EXTRA_LOGO, 0)
-            putExtra(StreamService.EXTRA_STATION_NAME, "HOPE FM")
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_LOGO, 0)
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
         startService(startIntent)
         
