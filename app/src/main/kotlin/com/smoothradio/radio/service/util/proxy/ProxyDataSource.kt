@@ -4,6 +4,7 @@ package com.smoothradio.radio.service.util.proxy
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
@@ -76,10 +77,15 @@ class ProxyDataSource(
 
     private var dataSpec: DataSpec? = null
     private var position: Long = 0
+    private var sessionTag: String? = null
     private val isOpened = AtomicBoolean(false)
 
     override fun open(dataSpec: DataSpec): Long {
         this.dataSpec = dataSpec
+        
+        // Capture the session tag that is active WHEN this data source is opened.
+        // This ensures this specific instance only reads data for the station it was created for.
+        this.sessionTag = proxy.sessionTag
         
         // Parse custom byteOffset from URI query parameter if present
         val uri = dataSpec.uri
@@ -100,15 +106,46 @@ class ProxyDataSource(
         if (length == 0) return 0
         if (!isOpened.get()) return C.RESULT_END_OF_INPUT
 
-        return when (val bytesRead = proxy.readData(position, buffer, offset, length)) {
-            -1 -> C.RESULT_END_OF_INPUT // EOF
-            -2 -> throw BufferEvictedException(position)
+        val tag = sessionTag ?: return C.RESULT_END_OF_INPUT
+
+        // GHOST ERROR PREVENTION: If the session tag has changed, this DataSource belongs to an 
+        // abandoned station. Instead of returning EOF or an Exception (which triggers 
+        // UnrecognizedInputFormatException during sniffing), we block the loader thread 
+        // until ExoPlayer naturally closes this DataSource.
+        if (tag != proxy.sessionTag) {
+            while (isOpened.get() && tag != proxy.sessionTag) {
+                try {
+                    Thread.sleep(100)
+                } catch (e: InterruptedException) {
+                    return C.RESULT_END_OF_INPUT
+                }
+            }
+            return C.RESULT_END_OF_INPUT
+        }
+
+        return when (val bytesRead = proxy.readData(tag, position, buffer, offset, length)) {
+            -1 -> {
+                // If readData returns -1, it might be due to a session change that occurred DURING the read.
+                if (tag != proxy.sessionTag) {
+                    while (isOpened.get() && tag != proxy.sessionTag) {
+                        try { Thread.sleep(100) } catch (e: InterruptedException) { break }
+                    }
+                    return C.RESULT_END_OF_INPUT
+                }
+                C.RESULT_END_OF_INPUT
+            }
+            -2 -> {
+                Log.e("SmoothSeek", "ProxyDataSource.read: Buffer evicted for tag $tag at $position")
+                throw BufferEvictedException(position)
+            }
             PlaybackConstants.ERROR_UNREACHABLE -> throw StationUnreachableException(getUri()?.toString())
             PlaybackConstants.ERROR_EMPTY_STREAM -> throw EmptyStreamException()
             PlaybackConstants.ERROR_CACHE_ERROR -> throw ProxyCacheException("Local buffer read error")
             else -> {
-                position += bytesRead
-                bytesTransferred(bytesRead)
+                if (bytesRead > 0) {
+                    position += bytesRead
+                    bytesTransferred(bytesRead)
+                }
                 bytesRead
             }
         }

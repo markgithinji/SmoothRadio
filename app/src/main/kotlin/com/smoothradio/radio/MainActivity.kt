@@ -281,8 +281,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun initiatePlayback(mode: PlaybackMode) {
+        val stationName = currentStation?.stationName ?: "Unknown"
+        Log.d("SmoothSeek", "MainActivity.initiatePlayback: mode=$mode, station=$stationName")
         // Handle stopping for toggle mode
         if (mode == PlaybackMode.TOGGLE && isPlaying) {
+            Log.d("SmoothSeek", "MainActivity: Toggling OFF")
             isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = ServiceCommand.ACTION_STOP

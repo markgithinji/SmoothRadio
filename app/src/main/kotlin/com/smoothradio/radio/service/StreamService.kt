@@ -541,6 +541,7 @@ class StreamService : MediaSessionService() {
 
     private fun handleIntent(intent: Intent) {
         val command = commandMapper.map(intent)
+        Log.d("SmoothSeek", "StreamService.handleIntent: command=$command")
 
         // Metadata and notification updates
         when (command) {
@@ -685,7 +686,7 @@ class StreamService : MediaSessionService() {
 
     private fun setState(newState: StreamStates) {
         if (stateChange == newState) return
-        Log.d("StreamService", "  → state: ${newState.label}")
+        Log.d("SmoothSeek", "StreamService: State changed from ${stateChange.label} to ${newState.label}")
         stateChange = newState
         stateRepository.updateState(newState)
         updateNotificationInternal()
@@ -693,115 +694,87 @@ class StreamService : MediaSessionService() {
 
     private fun play(link: String) {
         if (link.isEmpty()) {
-            Log.e("StreamService", "Cannot play: link is empty")
+            Log.e("SmoothSeek", "Cannot play: link is empty")
             setState(StreamStates.IDLE)
             return
         }
 
-        // INSTANT PLAYBACK: If we are already warming up this link, just hit play
-        if (activeStreamUrl == link && (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING)) {
-            Log.d("SmoothSeek", "Player already warmed up for $link. Activating now.")
+        // REDUCED REUSE LOGIC: Only reuse if we are ALREADY playing or very close to it,
+        // and the proxy hasn't been reset.
+        val state = wrappedPlayer.playbackState
+        if (activeStreamUrl == link && 
+            localAudioProxy.isStartedFor(link) && 
+            (state == Player.STATE_READY || state == Player.STATE_BUFFERING)) {
+            
+            Log.d("SmoothSeek", "Player active for $link. State=$state. Ensuring playWhenReady=true")
             isPreparingForAd = false
             wrappedPlayer.playWhenReady = true
-            performInitialJump()
+            if (state == Player.STATE_READY) {
+                performInitialJump()
+            }
+            updateUiState()
             return
         }
 
+        Log.d("SmoothSeek", "play() starting fresh for $link (previous: $activeStreamUrl)")
         isPreparingForAd = false
         activeStreamUrl = link
         sessionStartTime = System.currentTimeMillis()
         preparationStartTime = sessionStartTime
-        estimatedBytesPerMs = 16.0 // Reset to default for fresh calibration
-        Log.d("SmoothSeek", "play() called at $preparationStartTime for $link")
+        estimatedBytesPerMs = 16.0 
         
         val isHls = link.contains(".m3u8") || link.contains("playlist")
-        jumpToLiveOnReady = if (isHls) {
-            // For HLS, we need to wait for at least one segment before jumping to live
-            // We'll let preparePlayer start at 0, then jump in onPlaybackStateChanged
-            true
-        } else {
-            // For Progressive, we start at the live edge (byte 0) naturally
-            false
-        }
+        jumpToLiveOnReady = isHls
         
         preparePlayer(link.toUri())
         wrappedPlayer.play()
     }
 
     private fun preparePlayer(uri: Uri) {
+        val uriString = uri.toString()
+        Log.d("SmoothSeek", "preparePlayer: $uriString")
+        
+        // Decisively stop and clear the player to reset extractors and state
         wrappedPlayer.stop()
+        wrappedPlayer.clearMediaItems()
         
         // Reset seek history for new play
         maxPositionReached = 0L
-        jumpToLiveOnReady = true
         playbackBaseTimeMs = 0L
         preparationStartTime = System.currentTimeMillis()
-        Log.d("SmoothSeek", "preparePlayer() started at $preparationStartTime")
         
-        val uriString = uri.toString()
-        
-        val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
-
-        // Only start if not already shadow loading this specific URL
+        // Only start proxy if not already running for this URL
         if (!localAudioProxy.isStartedFor(uriString)) {
             localAudioProxy.start(uriString)
         }
 
-        // Use a custom scheme with byteOffset to ensure our ProxyDataSource is used
-        val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0").toUri()
-        
-        val cacheKey = currentStationName ?: uriString
-        
-        // MimeType detection:
-        val (mimeType, streamType) = when {
-            isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
-            uriString.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
-            uriString.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
-            else -> MimeTypes.AUDIO_MPEG to "Progressive (Default: MP3)"
-        }
-
-        Log.d("SmoothSeek", "**************************************************")
-        Log.d("SmoothSeek", ">>> STREAM TYPE DETECTED: $streamType")
-        Log.d("SmoothSeek", ">>> URL: $uriString")
-        Log.d("SmoothSeek", "**************************************************")
+        // Construct unique URI to prevent ExoPlayer from using stale cached resources
+        val timestamp = System.currentTimeMillis()
+        val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0&ts=$timestamp").toUri()
+        val cacheKey = (currentStationName ?: uriString) + "_$timestamp"
         
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
-            .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
-            .setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
-                    .build()
-            )
             .build()
+
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
     }
 
     private fun seekToAbsolute(positionMs: Long) {
         val urlString = activeStreamUrl ?: return
-        val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
         
         // Calculate byte offset from time using our calibrated bitrate
         val targetByte = (positionMs * estimatedBytesPerMs).toLong()
         
         // Construct new proxy URI with the specific byte offset
-        // This bypasses ExoPlayer's time-to-byte mapping which fails for live streams.
         val proxyUri = (PlaybackConstants.PROXY_URL_BASE + targetByte).toUri()
-        
-        val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
         val cacheKey = currentStationName ?: urlString
 
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
-            .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
-            .setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
-                    .build()
-            )
             .build()
             
         Log.d("SmoothSeek", "seekToAbsolute: requestedMs=$positionMs -> targetByte=$targetByte")
@@ -812,7 +785,9 @@ class StreamService : MediaSessionService() {
         // Restart playback at the new byte position
         wrappedPlayer.setMediaItem(mediaItem, true) // reset position to 0 in the "new" stream
         wrappedPlayer.prepare()
-        wrappedPlayer.play()
+        if (!isPreparingForAd) {
+            wrappedPlayer.play()
+        }
         
         // Force immediate UI update to show the new seek position
         stateRepository.updatePosition(positionMs)
@@ -826,7 +801,7 @@ class StreamService : MediaSessionService() {
             return
         }
 
-        Log.d("StreamService", "Warming up player for: $link")
+        Log.d("SmoothSeek", "prepareShowAd: warming up $link")
         
         // Prepare exactly like play() but without playWhenReady
         maxPositionReached = 0L
@@ -834,26 +809,12 @@ class StreamService : MediaSessionService() {
         playbackBaseTimeMs = 0L
         preparationStartTime = System.currentTimeMillis()
 
-        val isHls = link.contains(".m3u8") || link.contains("playlist")
         val proxyUri = (PlaybackConstants.PROXY_URL_BASE + "0").toUri()
         val cacheKey = currentStationName ?: link
         
-        val (mimeType, _) = when {
-            isHls -> MimeTypes.AUDIO_AAC to "HLS (AAC)"
-            link.contains(".aac") -> MimeTypes.AUDIO_AAC to "AAC"
-            link.contains(".mp3") -> MimeTypes.AUDIO_MPEG to "MP3"
-            else -> MimeTypes.AUDIO_MPEG to "Progressive (Default: MP3)"
-        }
-
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
-            .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
-            .setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(PlaybackConstants.LIVE_OFFSET_TARGET_MS)
-                    .build()
-            )
             .build()
             
         wrappedPlayer.playWhenReady = false // Stay silent during ad
@@ -864,18 +825,26 @@ class StreamService : MediaSessionService() {
     }
 
     private fun performInitialJump() {
-        if (!jumpToLiveOnReady) return
+        if (!jumpToLiveOnReady || isPreparingForAd) return
         
         val urlString = activeStreamUrl ?: ""
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
         
         if (isHls) {
-            jumpToLiveOnReady = false
             val loadedDur = getLoadedDurationMs()
-            // HLS SAFETY BUFFER: Jump back to ensure we don't hit the end of playlist immediately
-            val target = (loadedDur - PlaybackConstants.HLS_SAFETY_BUFFER_MS).coerceAtLeast(0)
-            Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
-            seekToAbsolute(target)
+            // REDUNDANCY FIX: Only jump if we actually have some data loaded and need to skip forward.
+            // If loadedDur is small, we are already at the beginning of the stream, so jumping to 0 is redundant.
+            if (loadedDur > PlaybackConstants.HLS_SAFETY_BUFFER_MS) {
+                jumpToLiveOnReady = false
+                val target = (loadedDur - PlaybackConstants.HLS_SAFETY_BUFFER_MS)
+                Log.d("SmoothSeek", "HLS Initial Jump: loaded=$loadedDur -> target=$target")
+                seekToAbsolute(target)
+            } else if (wrappedPlayer.playbackState == Player.STATE_READY) {
+                // We have some data but not enough to jump, just mark as done and start
+                jumpToLiveOnReady = false
+                Log.d("SmoothSeek", "HLS: starting without jump (loaded=$loadedDur)")
+                wrappedPlayer.play()
+            }
         } else if (wrappedPlayer.playWhenReady) {
             // For progressive, just mark as done once user actually hits play
             jumpToLiveOnReady = false
@@ -1094,7 +1063,10 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e("PlaybackLifecycle", "Player Error: Code=${error.errorCode}, Message=${error.message}", error)
+            Log.e("SmoothSeek", "StreamService.onPlayerError: Code=${error.errorCode}, Message=${error.message}", error)
+            error.cause?.let { 
+                Log.e("SmoothSeek", "  → Cause: ${it.javaClass.simpleName} - ${it.message}", it)
+            }
             jumpToLiveOnReady = false // Stop high-frequency progress polling on error
             
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
@@ -1131,12 +1103,19 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            val stateName = when(state) {
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+            Log.d("SmoothSeek", "StreamService.onPlaybackStateChanged: state=$stateName, pos=${wrappedPlayer.currentPosition}, jumpToLiveOnReady=$jumpToLiveOnReady")
             
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 performInitialJump()
-            } else {
-                updateUiState()
             }
+            updateUiState()
             syncProgressTracker()
         }
 
