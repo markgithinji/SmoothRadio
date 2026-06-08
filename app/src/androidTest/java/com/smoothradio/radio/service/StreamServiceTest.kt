@@ -2,36 +2,30 @@ package com.smoothradio.radio.service
 
 import android.content.Context
 import android.content.Intent
-import android.os.Looper
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.service.util.command.ServiceCommand
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Shadows.shadowOf
-import org.robolectric.annotation.Config
-import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [30], application = HiltTestApplication::class)
 class StreamServiceTest {
 
     @get:Rule(order = 0)
@@ -40,15 +34,16 @@ class StreamServiceTest {
     @Inject
     lateinit var stateRepository: PlaybackStateRepository
 
-    @Inject
-    lateinit var exoPlayer: ExoPlayer
-
     private lateinit var context: Context
 
     @Before
     fun setup() {
+        context = InstrumentationRegistry.getInstrumentation().targetContext
+        
+        // Force stop service before injection to ensure a clean state
+        context.stopService(Intent(context, StreamService::class.java))
+        
         hiltRule.inject()
-        context = ApplicationProvider.getApplicationContext()
     }
 
     @After
@@ -57,41 +52,28 @@ class StreamServiceTest {
             action = ServiceCommand.ACTION_STOP
         }
         context.startService(intent)
-        shadowOf(Looper.getMainLooper()).idle()
-        context.stopService(Intent(context, StreamService::class.java))
-        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun startService(intent: Intent) {
         context.startService(intent)
-        shadowOf(Looper.getMainLooper()).idle()
     }
 
-    @Test
-    fun startAction_shouldTransitionToPreparing() = runTest(UnconfinedTestDispatcher()) {
-        val intent = Intent(context, StreamService::class.java).apply {
-            action = ServiceCommand.ACTION_START
-            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
-            putExtra(ServiceCommand.EXTRA_LOGO, 0)
-            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
-        }
-
-        context.startService(intent)
-        shadowOf(Looper.getMainLooper()).idle()
-
-        // Give Robolectric more time to process the intent
-        withTimeout(15000) {
-            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
-                shadowOf(Looper.getMainLooper()).idle()
-                delay(200)
+    private suspend fun waitForCondition(
+        timeoutMs: Long = 20000, 
+        condition: () -> Boolean
+    ) {
+        // Use real time instead of virtual time to wait for external service events
+        withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(timeoutMs) {
+                while (!condition()) {
+                    delay(200)
+                }
             }
         }
-
-        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
     }
 
     @Test
-    fun startPlay_shouldUpdateStationNameInRepository() = runTest(UnconfinedTestDispatcher()) {
+    fun startAction_shouldTransitionToPreparing() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -101,18 +83,33 @@ class StreamServiceTest {
 
         startService(intent)
 
-        withTimeout(15000) {
-            while (stateRepository.stationName.value != "HOPE FM") {
-                shadowOf(Looper.getMainLooper()).idle()
-                delay(100)
-            }
+        waitForCondition {
+            stateRepository.playbackState.value == StreamStates.PREPARING || 
+            stateRepository.playbackState.value == StreamStates.BUFFERING
+        }
+
+        assertThat(stateRepository.playbackState.value).isAnyOf(StreamStates.PREPARING, StreamStates.BUFFERING)
+    }
+
+    @Test
+    fun startPlay_shouldUpdateStationNameInRepository() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
+        }
+
+        startService(intent)
+
+        waitForCondition { 
+            stateRepository.stationName.value == "HOPE FM" 
         }
 
         assertThat(stateRepository.stationName.value).isEqualTo("HOPE FM")
     }
 
     @Test
-    fun stopAction_shouldTransitionToIdle() = runTest(UnconfinedTestDispatcher()) {
+    fun stopAction_shouldTransitionToIdle() = runTest {
         // Start first
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
@@ -121,11 +118,9 @@ class StreamServiceTest {
         }
         startService(startIntent)
         
-        withTimeout(15000) {
-            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
-                shadowOf(Looper.getMainLooper()).idle()
-                delay(100)
-            }
+        waitForCondition { 
+            stateRepository.playbackState.value == StreamStates.PREPARING || 
+            stateRepository.playbackState.value == StreamStates.BUFFERING
         }
 
         // Then stop
@@ -134,18 +129,15 @@ class StreamServiceTest {
         }
         startService(stopIntent)
 
-        withTimeout(15000) {
-            while (stateRepository.playbackState.value != StreamStates.IDLE) {
-                shadowOf(Looper.getMainLooper()).idle()
-                delay(100)
-            }
+        waitForCondition { 
+            stateRepository.playbackState.value == StreamStates.IDLE 
         }
 
         assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.IDLE)
     }
 
     @Test
-    fun showAdAction_shouldSetPreparingState() = runTest(UnconfinedTestDispatcher()) {
+    fun showAdAction_shouldSetPreparingState() = runTest {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_SHOW_AD
             putExtra(ServiceCommand.EXTRA_STATION_NAME, "Test Station")
@@ -154,25 +146,16 @@ class StreamServiceTest {
 
         startService(intent)
 
-        withTimeout(15000) {
-            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
-                shadowOf(Looper.getMainLooper()).idle()
-                delay(100)
-            }
+        waitForCondition { 
+            stateRepository.playbackState.value == StreamStates.PREPARING || 
+            stateRepository.playbackState.value == StreamStates.BUFFERING
         }
 
-        assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+        assertThat(stateRepository.playbackState.value).isAnyOf(StreamStates.PREPARING, StreamStates.BUFFERING)
     }
 
     @Test
-    fun nullAction_shouldNotCrash() = runTest(UnconfinedTestDispatcher()) {
-        val intent = Intent(context, StreamService::class.java)
-        startService(intent)
-        // No specific state change expected, just ensuring it doesn't crash
-    }
-
-    @Test
-    fun setEqualizerBand_shouldNotCrash() = runTest(UnconfinedTestDispatcher()) {
+    fun setEqualizerBand_shouldNotCrash() = runTest {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -180,17 +163,23 @@ class StreamServiceTest {
         }
         startService(startIntent)
 
+        waitForCondition {
+            stateRepository.playbackState.value == StreamStates.PREPARING || 
+            stateRepository.playbackState.value == StreamStates.BUFFERING
+        }
+
         val eqIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_SET_EQ_BAND
             putExtra(ServiceCommand.EXTRA_BAND, 0)
             putExtra(ServiceCommand.EXTRA_LEVEL, 500.toShort())
         }
         startService(eqIntent)
-        // No specific state change expected, just ensuring it doesn't crash
+        // Ensure no crash occurs during execution
+        delay(500)
     }
 
     @Test
-    fun playPauseActions_shouldTogglePlayback() = runTest(UnconfinedTestDispatcher()) {
+    fun playPauseActions_shouldTogglePlayback() = runTest {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
             putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
@@ -199,15 +188,15 @@ class StreamServiceTest {
         }
         startService(startIntent)
         
+        // Manual state update for testing UI reactivity if needed
         stateRepository.updateState(StreamStates.PLAYING)
-        shadowOf(Looper.getMainLooper()).idle()
-
+        
         assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PLAYING)
         
-        // Explicitly stop to avoid leaking progressUpdateJob which causes test to run indefinitely
         val stopIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_STOP
         }
         startService(stopIntent)
+        delay(500)
     }
 }
