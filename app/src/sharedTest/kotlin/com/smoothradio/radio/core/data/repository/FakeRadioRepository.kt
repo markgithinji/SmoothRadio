@@ -5,38 +5,58 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class FakeRadioRepositoryAndroidTest : RadioRepository {
+class FakeRadioRepository : RadioRepository {
 
     private val initialStations = listOf(
         RadioStation(
-            id = 1,
+            id = 0,
             stationName = "HOPE FM",
-            frequency = "101.1",
-            location = "Nairobi",
+            frequency = "93.3",
+            location = "NAIROBI",
             streamLink = "https://example.com/hopefm",
             isPlaying = false,
             isFavorite = false,
             orderIndex = 0
         ),
         RadioStation(
-            id = 2,
+            id = 1,
             stationName = "SOUNDCITY RADIO",
-            frequency = "102.2",
-            location = "Mombasa",
+            frequency = "88.5",
+            location = "NAIROBI",
             streamLink = "https://example.com/soundcity",
             isPlaying = false,
             isFavorite = true,
             orderIndex = 1
         ),
-        RadioStation( // KIKUYU
-            id = 38,
-            stationName = "INOORO FM",
-            frequency = "104.4",
-            location = "Nyeri",
-            streamLink = "https://example.com/inooro",
+        RadioStation(
+            id = 228,
+            stationName = "RADIO 47",
+            frequency = "103.0",
+            location = "NAIROBI",
+            streamLink = "https://example.com/radio47",
             isPlaying = false,
             isFavorite = false,
             orderIndex = 2
+        ),
+        RadioStation(
+            id = 4,
+            stationName = "INOORO FM",
+            frequency = "98.9",
+            location = "NAIROBI",
+            streamLink = "https://example.com/inooro",
+            isPlaying = false,
+            isFavorite = false,
+            orderIndex = 3
+        ),
+        RadioStation(
+            id = 11,
+            stationName = "KAMEME FM",
+            frequency = "101.1",
+            location = "NAIROBI",
+            streamLink = "https://example.com/kameme",
+            isPlaying = false,
+            isFavorite = false,
+            orderIndex = 4
         )
     )
 

@@ -1,8 +1,6 @@
 package com.smoothradio.radio.core.ui
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.data.local.FakeRadioStationDao
-import com.smoothradio.radio.core.data.local.RadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.data.repository.FakeViewPreferenceRepository
@@ -14,7 +12,6 @@ import com.smoothradio.radio.testutils.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -33,13 +30,11 @@ class RadioViewModelTest {
     private lateinit var fakeRadioLinkRepository: FakeFirebaseRepository
     private lateinit var fakeViewPreferenceRepository: FakeViewPreferenceRepository
     private lateinit var remoteLinksUseCase: ProcessRemoteLinksUseCase
-    private lateinit var fakeRadioStationDao: RadioStationDao
     private lateinit var toggleFavoriteUseCase: ToggleFavoriteUseCase
 
     @Before
     fun setup() {
-        fakeRadioStationDao = FakeRadioStationDao()
-        fakeRadioRepository = FakeRadioRepository(fakeRadioStationDao)
+        fakeRadioRepository = FakeRadioRepository()
         fakeRadioLinkRepository = FakeFirebaseRepository()
         fakeViewPreferenceRepository = FakeViewPreferenceRepository()
         remoteLinksUseCase =
@@ -137,6 +132,10 @@ class RadioViewModelTest {
             viewModel.favoriteLimitExceeded.collect { messages.add(it) }
         }
         advanceUntilIdle()  // ← Let collector register
+
+        // Clear initial stations to have a predictable count
+        fakeRadioRepository.clearAllStations()
+        advanceUntilIdle()
 
         val stations = (1000..1019).map {
             RadioStation(

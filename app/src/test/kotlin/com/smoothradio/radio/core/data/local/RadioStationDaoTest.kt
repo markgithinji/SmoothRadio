@@ -2,6 +2,7 @@ package com.smoothradio.radio.core.data.local
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.local.model.RadioStationEntity
@@ -12,9 +13,11 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @ExperimentalCoroutinesApi
 @RunWith(AndroidJUnit4::class)
+@Config(sdk = [34], application = Application::class)
 class RadioStationDaoTest {
 
     private lateinit var database: AppDatabase

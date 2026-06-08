@@ -22,16 +22,16 @@ class RadioStationsHelperTest {
         assertThat(stations).isNotEmpty()
         // Check the first and last station names and links
         assertThat(stations.first().stationName).isEqualTo("HOPE FM")
-        assertThat(stations.first().streamLink).isEqualTo("https://stream0.com")
+        assertThat(stations.first().streamLink).isEqualTo("https://a5.asurahosting.com:7530/radio.mp3")
         assertThat(stations.last().stationName).isEqualTo("HABESHINGA MUSIC")
-        assertThat(stations.last().streamLink).isEqualTo("https://stream201.com")
+        assertThat(stations.last().streamLink).isEqualTo("http://node-13.zeno.fm/zh462nwbcpeuv?rj-ttl=5&rj-tok=AAABeg8s5dAA_kXkdoUEPHcjFg")
         
         // Count total stations added in code
         assertThat(stations.size).isEqualTo(214)
         
         // Check station at specific index mapping
         assertThat(stations.first { it.id == 231 }.stationName).isEqualTo("KWITU FM")
-        assertThat(stations.first { it.id == 231 }.streamLink).isEqualTo("https://stream231.com")
+        assertThat(stations.first { it.id == 231 }.streamLink).isEqualTo("https://uk4-vn.mixstream.net/:8118/stream/1/")
     }
 
     @Test

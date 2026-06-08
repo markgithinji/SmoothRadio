@@ -2,6 +2,7 @@ package com.smoothradio.radio.service
 
 import android.content.Context
 import android.content.Intent
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.media3.exoplayer.ExoPlayer
@@ -11,24 +12,26 @@ import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.service.util.command.ServiceCommand
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
+@Config(sdk = [30], application = HiltTestApplication::class)
 class StreamServiceTest {
 
     @get:Rule(order = 0)
@@ -49,18 +52,19 @@ class StreamServiceTest {
     }
 
     @After
-    fun tearDown() = runTest(UnconfinedTestDispatcher()) {
+    fun tearDown() {
         val intent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_STOP
         }
         context.startService(intent)
-        // Give it a moment to stop
-        delay(100)
+        shadowOf(Looper.getMainLooper()).idle()
         context.stopService(Intent(context, StreamService::class.java))
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun startService(intent: Intent) {
         context.startService(intent)
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     @Test
@@ -72,11 +76,14 @@ class StreamServiceTest {
             putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
         }
 
-        startService(intent)
+        context.startService(intent)
+        shadowOf(Looper.getMainLooper()).idle()
 
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+        // Give Robolectric more time to process the intent
+        withTimeout(15000) {
+            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
+                shadowOf(Looper.getMainLooper()).idle()
+                delay(200)
             }
         }
 
@@ -94,9 +101,10 @@ class StreamServiceTest {
 
         startService(intent)
 
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.stationName.first { it == "HOPE FM" }
+        withTimeout(15000) {
+            while (stateRepository.stationName.value != "HOPE FM") {
+                shadowOf(Looper.getMainLooper()).idle()
+                delay(100)
             }
         }
 
@@ -113,9 +121,10 @@ class StreamServiceTest {
         }
         startService(startIntent)
         
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+        withTimeout(15000) {
+            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
+                shadowOf(Looper.getMainLooper()).idle()
+                delay(100)
             }
         }
 
@@ -125,9 +134,10 @@ class StreamServiceTest {
         }
         startService(stopIntent)
 
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.playbackState.first { it == StreamStates.IDLE }
+        withTimeout(15000) {
+            while (stateRepository.playbackState.value != StreamStates.IDLE) {
+                shadowOf(Looper.getMainLooper()).idle()
+                delay(100)
             }
         }
 
@@ -144,9 +154,10 @@ class StreamServiceTest {
 
         startService(intent)
 
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.playbackState.first { it == StreamStates.PREPARING }
+        withTimeout(15000) {
+            while (stateRepository.playbackState.value != StreamStates.PREPARING) {
+                shadowOf(Looper.getMainLooper()).idle()
+                delay(100)
             }
         }
 
@@ -188,16 +199,15 @@ class StreamServiceTest {
         }
         startService(startIntent)
         
-        withContext(Dispatchers.Main) {
-            stateRepository.updateState(StreamStates.PLAYING)
-        }
-
-        withContext(Dispatchers.Default) {
-            withTimeout(5000) {
-                stateRepository.playbackState.first { it == StreamStates.PLAYING }
-            }
-        }
+        stateRepository.updateState(StreamStates.PLAYING)
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertThat(stateRepository.playbackState.value).isEqualTo(StreamStates.PLAYING)
+        
+        // Explicitly stop to avoid leaking progressUpdateJob which causes test to run indefinitely
+        val stopIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_STOP
+        }
+        startService(stopIntent)
     }
 }

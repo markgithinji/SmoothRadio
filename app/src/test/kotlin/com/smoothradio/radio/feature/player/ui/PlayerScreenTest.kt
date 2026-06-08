@@ -26,11 +26,18 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
+@Config(
+    sdk = [34],
+    application = HiltTestApplication::class,
+    qualifiers = "w480dp-h800dp-xxhdpi"
+)
 class PlayerScreenTest {
 
     @get:Rule(order = 0)
@@ -53,7 +60,7 @@ class PlayerScreenTest {
         streamLink = "url",
         isPlaying = true,
         isFavorite = false,
-        orderIndex = 0
+        orderIndex = 0,
     )
 
     @Before

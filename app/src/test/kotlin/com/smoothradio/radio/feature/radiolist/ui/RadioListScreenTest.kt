@@ -31,11 +31,18 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
+@Config(
+    sdk = [34],
+    application = HiltTestApplication::class,
+    qualifiers = "w480dp-h800dp-xxhdpi"
+)
 class RadioListScreenTest {
 
     @get:Rule(order = 0)
@@ -581,7 +588,7 @@ class RadioListScreenTest {
         // Verify grid-specific element (LIVE/Frequency should not be in list items)
         // Grid items have the same test tags as list items
         composeTestRule.onNodeWithTag("radio_station_228").assertExists()
-        composeTestRule.onNodeWithTag("radio_station_11").assertExists()
+        composeTestRule.onNodeWithTag("radio_station_4").assertExists()
 
         // Switch back to list view
         composeTestRule.onNodeWithContentDescription("Switch to list view").performClick()

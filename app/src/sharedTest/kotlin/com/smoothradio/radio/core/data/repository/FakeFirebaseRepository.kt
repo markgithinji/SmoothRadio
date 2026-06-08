@@ -7,7 +7,7 @@ import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class FakeFirebaseRepositoryAndroidTest : FirebaseRepository {
+class FakeFirebaseRepository : FirebaseRepository {
 
     private val _linksFlow = MutableStateFlow(
         Resource.Success(

@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeRadioRepository
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
@@ -19,7 +18,7 @@ class ToggleFavoriteUseCaseTest {
 
     @Before
     fun setup() {
-        repository = FakeRadioRepository(FakeRadioStationDao())
+        repository = FakeRadioRepository()
         useCase = ToggleFavoriteUseCase(repository)
     }
 
@@ -36,6 +35,8 @@ class ToggleFavoriteUseCaseTest {
 
     @Test
     fun invoke_addFavorite_atLimit_error() = runTest {
+        repository.clearAllStations()
+
         val stations = (1..20).map { 
             RadioStation(it, "S$it", "", "", "", false, true, it)
         }

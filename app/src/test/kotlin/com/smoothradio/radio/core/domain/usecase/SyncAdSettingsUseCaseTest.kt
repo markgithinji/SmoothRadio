@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -25,8 +27,9 @@ class SyncAdSettingsUseCaseTest {
     @Test
     fun invoke_success_updatesRepository() = runTest {
         // FakeFirebaseRepository returns Resource.Success(RemoteAdSettings(4, 4)) by default
-        
-        useCase()
+
+        backgroundScope.launch { useCase() }
+        advanceUntilIdle()
 
         assertThat(adSettingsRepository.getAdShowIntervalMinutes()).isEqualTo(4)
         assertThat(adSettingsRepository.getMaxAdsPerHour()).isEqualTo(4)

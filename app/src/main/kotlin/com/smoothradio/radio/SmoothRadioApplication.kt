@@ -42,12 +42,22 @@ class SmoothRadioApplication : Application(), ImageLoaderFactory {
     }
 
     private fun setupFirebaseAnalytics() {
-        val analytics = Firebase.analytics
+        if (isRobolectric()) return
 
-        // Set user properties for better segmentation
-        analytics.setUserProperty("android_version", Build.VERSION.RELEASE)
-        analytics.setUserProperty("device_model", Build.MODEL)
-        analytics.setUserProperty("app_version", BuildConfig.VERSION_NAME)
-        analytics.setUserProperty("build_type", BuildConfig.BUILD_TYPE)
+        try {
+            val analytics = Firebase.analytics
+
+            // Set user properties for better segmentation
+            analytics.setUserProperty("android_version", Build.VERSION.RELEASE)
+            analytics.setUserProperty("device_model", Build.MODEL)
+            analytics.setUserProperty("app_version", BuildConfig.VERSION_NAME)
+            analytics.setUserProperty("build_type", BuildConfig.BUILD_TYPE)
+        } catch (_: Exception) {
+            // Silently fail if Firebase is not initialized (e.g. in some test environments)
+        }
+    }
+
+    private fun isRobolectric(): Boolean {
+        return Build.FINGERPRINT == "robolectric"
     }
 }

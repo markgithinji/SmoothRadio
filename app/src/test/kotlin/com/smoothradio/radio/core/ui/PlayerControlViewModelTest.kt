@@ -1,7 +1,6 @@
 package com.smoothradio.radio.core.ui
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.core.data.local.FakeRadioStationDao
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.FakeEqualizerRepository
 import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepository
@@ -39,7 +38,7 @@ class PlayerControlViewModelTest {
 
     @Before
     fun setup() {
-        fakeRadioRepository = FakeRadioRepository(FakeRadioStationDao())
+        fakeRadioRepository = FakeRadioRepository()
         fakePlaybackStateRepository = FakePlaybackStateRepository()
         fakeEqualizerRepository = FakeEqualizerRepository()
         fakeAdSettingsRepository = FakeAdSettingsRepository()
@@ -62,6 +61,8 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestPlayStation_shouldEmitCommandAndSaveId() = runTest {
+        fakeRadioRepository.clearAllStations()
+
         val station = RadioStation(
             id = 1,
             stationName = "Test",
@@ -89,6 +90,8 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestNextStation_shouldCalculateNextAndPlay() = runTest {
+        fakeRadioRepository.clearAllStations()
+
         val stations = listOf(
             RadioStation(1, "S1", "", "", "u1", false, false, 0),
             RadioStation(2, "S2", "", "", "u2", false, false, 1),
@@ -112,6 +115,8 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestNextStation_atEnd_shouldWrapToFirst() = runTest {
+        fakeRadioRepository.clearAllStations()
+
         val stations = listOf(
             RadioStation(1, "S1", "", "", "u1", false, false, 0),
             RadioStation(2, "S2", "", "", "u2", false, false, 1)
@@ -129,6 +134,8 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestPreviousStation_shouldCalculatePrevAndPlay() = runTest {
+        fakeRadioRepository.clearAllStations()
+
         val stations = listOf(
             RadioStation(1, "S1", "", "", "u1", false, false, 0),
             RadioStation(2, "S2", "", "", "u2", false, false, 1)
@@ -146,6 +153,8 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestPreviousStation_atStart_shouldWrapToEnd() = runTest {
+        fakeRadioRepository.clearAllStations()
+
         val stations = listOf(
             RadioStation(1, "S1", "", "", "u1", false, false, 0),
             RadioStation(2, "S2", "", "", "u2", false, false, 1)
