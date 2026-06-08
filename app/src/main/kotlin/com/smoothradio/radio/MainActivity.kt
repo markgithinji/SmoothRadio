@@ -1,6 +1,5 @@
 package com.smoothradio.radio
 
-import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.ConnectivityManager
@@ -19,9 +18,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionToken
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -31,8 +27,6 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
@@ -55,11 +49,6 @@ class MainActivity : FragmentActivity() {
 
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
     private lateinit var firebaseAnalytics: FirebaseAnalytics
-
-    // Media3 Controller
-    private var controllerFuture: ListenableFuture<MediaController>? = null
-    private val controller: MediaController?
-        get() = if (controllerFuture?.isDone == true) controllerFuture?.get() else null
 
     // Playback state
     private lateinit var serviceIntent: Intent
@@ -89,31 +78,6 @@ class MainActivity : FragmentActivity() {
         collectPlaybackFlows()
         showConsentForm()
     }
-
-    override fun onStart() {
-        super.onStart()
-        setupMediaController()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        releaseMediaController()
-    }
-
-    private fun setupMediaController() {
-        val sessionToken = SessionToken(this, ComponentName(this, StreamService::class.java))
-        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture?.addListener({
-            // Controller is ready
-        }, MoreExecutors.directExecutor())
-    }
-
-    private fun releaseMediaController() {
-        controllerFuture?.let {
-            MediaController.releaseFuture(it)
-        }
-    }
-
 
     /**
      * Configures system bars (status bar and navigation bar) to match the app's surface color.
@@ -181,11 +145,11 @@ class MainActivity : FragmentActivity() {
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 currentStation = command.station
-                                initiatePlayback(PlaybackMode.NEW_PLAY)
+                                startNewPlay()
                             }
 
-                            is PlayCommand.TogglePlayPause -> initiatePlayback(PlaybackMode.TOGGLE)
-                            is PlayCommand.Refresh -> initiatePlayback(PlaybackMode.REFRESH)
+                            is PlayCommand.TogglePlayPause -> playOrStop()
+                            is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
                                 command.band,
@@ -211,81 +175,53 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun seekTo(position: Long) {
-        controller?.seekTo(position) ?: run {
-            // Fallback to legacy if controller not ready
-            val intent = Intent(this, StreamService::class.java).apply {
-                action = ServiceCommand.ACTION_SEEK_TO
-                putExtra(ServiceCommand.EXTRA_POSITION, position)
-            }
-            startService(intent)
+        Log.d("SmoothSeek", "MainActivity.seekTo: $position")
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_TO
+            putExtra(ServiceCommand.EXTRA_POSITION, position)
         }
+        startService(intent)
     }
 
     private fun seekBack() {
-        controller?.seekBack() ?: run {
-            val intent = Intent(this, StreamService::class.java).apply {
-                action = ServiceCommand.ACTION_SEEK_BACK
-            }
-            startService(intent)
+        Log.d("SmoothSeek", "MainActivity.seekBack")
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_BACK
         }
+        startService(intent)
     }
 
     private fun seekForward() {
-        controller?.seekForward() ?: run {
-            val intent = Intent(this, StreamService::class.java).apply {
-                action = ServiceCommand.ACTION_SEEK_FORWARD
-            }
-            startService(intent)
+        Log.d("SmoothSeek", "MainActivity.seekForward")
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_FORWARD
         }
+        startService(intent)
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
-        val args = Bundle().apply {
-            putInt(ServiceCommand.EXTRA_BAND, band)
-            putShort(ServiceCommand.EXTRA_LEVEL, level)
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SET_EQ_BAND
+            putExtra(ServiceCommand.EXTRA_BAND, band)
+            putExtra(ServiceCommand.EXTRA_LEVEL, level)
         }
-        controller?.sendCustomCommand(
-            SessionCommand(ServiceCommand.COMMAND_SET_EQ_BAND, Bundle.EMPTY),
-            args
-        ) ?: run {
-            val intent = Intent(this, StreamService::class.java).apply {
-                action = ServiceCommand.ACTION_SET_EQ_BAND
-                putExtra(ServiceCommand.EXTRA_BAND, band)
-                putExtra(ServiceCommand.EXTRA_LEVEL, level)
-            }
-            startService(intent)
-        }
+        startService(intent)
     }
 
     private fun setSleepTimer(minutes: Int) {
-        val args = Bundle().apply {
-            putInt("minutes", minutes)
+        val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        val intent = Intent(ServiceCommand.ACTION_SET_TIMER).apply {
+            setPackage(packageName)
+            putExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, timeInMillis)
         }
-        controller?.sendCustomCommand(
-            SessionCommand(ServiceCommand.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
-            args
-        ) ?: run {
-            val timeInMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
-            val intent = Intent(ServiceCommand.ACTION_SET_TIMER).apply {
-                setPackage(packageName)
-                putExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, timeInMillis)
-            }
-            sendBroadcast(intent)
-        }
+        sendBroadcast(intent)
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-
-    private enum class PlaybackMode {
-        NEW_PLAY, REFRESH, TOGGLE
-    }
-
-    private fun initiatePlayback(mode: PlaybackMode) {
-        val stationName = currentStation?.stationName ?: "Unknown"
-        Log.d("SmoothSeek", "MainActivity.initiatePlayback: mode=$mode, station=$stationName")
-        // Handle stopping for toggle mode
-        if (mode == PlaybackMode.TOGGLE && isPlaying) {
-            Log.d("SmoothSeek", "MainActivity: Toggling OFF")
+    private fun playOrStop() {
+        Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
+        if (isPlaying) {
+            Log.d("MainActivityLogs", "  → STOP execution")
             isPlaybackRequested = false
             currentAdRequestId++ // Invalidate any pending ad load requests immediately
             serviceIntent.action = ServiceCommand.ACTION_STOP
@@ -293,8 +229,31 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        // Guard against duplicate ad requests
-//        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
+        Log.d("MainActivityLogs", "  → START execution | setting isPlaybackRequested=true")
+        isPlaybackRequested = true
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+    }
+
+    private fun startNewPlay() {
+        Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
+
+        isPlaybackRequested = true
+
+        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
+            Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
+        }
+
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
+        checkInternet()
+    }
+
+    private fun refresh() {
+        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
         isPlaybackRequested = true
         serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
