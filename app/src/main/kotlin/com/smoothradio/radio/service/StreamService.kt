@@ -239,16 +239,23 @@ class StreamService : MediaSessionService() {
         val basePlayer = castPlayer ?: player
         wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun getAvailableCommands(): Player.Commands {
-                return super.getAvailableCommands().buildUpon()
+                val builder = super.getAvailableCommands().buildUpon()
                     .remove(COMMAND_SEEK_TO_NEXT)
                     .remove(COMMAND_SEEK_TO_PREVIOUS)
                     .remove(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .remove(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .remove(COMMAND_SEEK_BACK)
                     .remove(COMMAND_SEEK_FORWARD)
-                    .add(COMMAND_PLAY_PAUSE)
-                    .add(COMMAND_STOP)
-                    .build()
+                
+                if (isPreparingForAd) {
+                    builder.remove(COMMAND_PLAY_PAUSE)
+                        .remove(COMMAND_STOP)
+                } else {
+                    builder.add(COMMAND_PLAY_PAUSE)
+                        .add(COMMAND_STOP)
+                }
+                
+                return builder.build()
             }
 
             override fun isCommandAvailable(command: Int): Boolean {
@@ -342,7 +349,7 @@ class StreamService : MediaSessionService() {
 
         val stationDisplay = currentStationName ?: getString(R.string.app_name)
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
             .setContentTitle(title)
             .setContentText(stationDisplay)
@@ -351,18 +358,26 @@ class StreamService : MediaSessionService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
-            .addAction(
+
+        if (!isPreparingForAd) {
+            builder.addAction(
                 if (wrappedPlayer.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
                 if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
                 playPausePendingIntent
             )
-            .setStyle(
-                mediaSession?.let {
-                    androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
-                        .setShowActionsInCompactView(0)
+        }
+
+        builder.setStyle(
+            mediaSession?.let {
+                val style = androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                if (!isPreparingForAd) {
+                    style.setShowActionsInCompactView(0)
                 }
-            )
-            .build()
+                style
+            }
+        )
+
+        return builder.build()
     }
 
     private fun getStationLogo(): Bitmap? {
@@ -490,6 +505,7 @@ class StreamService : MediaSessionService() {
             }
 
             is ServiceCommand.Play -> {
+                if (isPreparingForAd) return
                 val loadedDur = getLoadedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
@@ -497,6 +513,7 @@ class StreamService : MediaSessionService() {
                 seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
             }
             is ServiceCommand.Pause -> {
+                if (isPreparingForAd) return
                 wrappedPlayer.pause()
             }
             is ServiceCommand.SeekBack -> {
@@ -658,7 +675,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun performInitialJump() {
-        if (!jumpToLiveOnReady) return
+        if (!jumpToLiveOnReady || isPreparingForAd) return
         
         val urlString = activeStreamUrl ?: ""
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
@@ -820,7 +837,7 @@ class StreamService : MediaSessionService() {
             Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
         }
         override fun onPlaybackStateChanged(state: Int) {
-            if (state == Player.STATE_READY && jumpToLiveOnReady) {
+            if (state == Player.STATE_READY && jumpToLiveOnReady && !isPreparingForAd) {
                 performInitialJump()
             }
             updateUiState()
