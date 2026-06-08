@@ -291,7 +291,7 @@ class LocalAudioProxy(
                         } else null
                     }
                     val bestVariant = variantLines.mapNotNull { (info, url) ->
-                        val bandwidth = Regex("BANDWIDTH=(\\\\d+)").find(info)?.groupValues?.get(1)?.toLongOrNull()
+                        val bandwidth = Regex("BANDWIDTH=(\\d+)").find(info)?.groupValues?.get(1)?.toLongOrNull()
                         if (bandwidth != null) Triple(bandwidth, info, url) else null
                     }.maxByOrNull { it.first }
 
