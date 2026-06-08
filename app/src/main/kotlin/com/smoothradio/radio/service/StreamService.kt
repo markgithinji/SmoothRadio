@@ -671,6 +671,7 @@ class StreamService : MediaSessionService() {
         } else if (wrappedPlayer.playWhenReady) {
             jumpToLiveOnReady = false
             wrappedPlayer.play()
+            updateUiState()
         }
     }
 
@@ -821,9 +822,8 @@ class StreamService : MediaSessionService() {
         override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_READY && jumpToLiveOnReady) {
                 performInitialJump()
-            } else {
-                updateUiState()
             }
+            updateUiState()
         }
         override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
             Log.d("SmoothSeek", "Position Discontinuity: Reason=$reason, Old=${oldPosition.positionMs}, New=${newPosition.positionMs}")
