@@ -112,8 +112,13 @@ class ProxyDataSource(
         // abandoned station. Instead of returning EOF or an Exception (which triggers 
         // UnrecognizedInputFormatException during sniffing), we block the loader thread 
         // until ExoPlayer naturally closes this DataSource.
+        // CRITICAL: We only block if there is NO terminal error. If the station failed, 
+        // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
+            handleTerminalError(proxy.terminalError)
+
             while (isOpened.get() && tag != proxy.sessionTag) {
+                handleTerminalError(proxy.terminalError)
                 try {
                     Thread.sleep(100)
                 } catch (e: InterruptedException) {
@@ -127,7 +132,10 @@ class ProxyDataSource(
             -1 -> {
                 // If readData returns -1, it might be due to a session change that occurred DURING the read.
                 if (tag != proxy.sessionTag) {
+                    handleTerminalError(proxy.terminalError)
+
                     while (isOpened.get() && tag != proxy.sessionTag) {
+                        handleTerminalError(proxy.terminalError)
                         try { Thread.sleep(100) } catch (e: InterruptedException) { break }
                     }
                     return C.RESULT_END_OF_INPUT
@@ -138,16 +146,22 @@ class ProxyDataSource(
                 Log.e("SmoothSeek", "ProxyDataSource.read: Buffer evicted for tag $tag at $position")
                 throw BufferEvictedException(position)
             }
-            PlaybackConstants.ERROR_UNREACHABLE -> throw StationUnreachableException(getUri()?.toString())
-            PlaybackConstants.ERROR_EMPTY_STREAM -> throw EmptyStreamException()
-            PlaybackConstants.ERROR_CACHE_ERROR -> throw ProxyCacheException("Local buffer read error")
             else -> {
+                handleTerminalError(bytesRead)
                 if (bytesRead > 0) {
                     position += bytesRead
                     bytesTransferred(bytesRead)
                 }
                 bytesRead
             }
+        }
+    }
+
+    private fun handleTerminalError(errorCode: Int) {
+        when (errorCode) {
+            PlaybackConstants.ERROR_UNREACHABLE -> throw StationUnreachableException(getUri()?.toString())
+            PlaybackConstants.ERROR_EMPTY_STREAM -> throw EmptyStreamException()
+            PlaybackConstants.ERROR_CACHE_ERROR -> throw ProxyCacheException("Local buffer read error")
         }
     }
 

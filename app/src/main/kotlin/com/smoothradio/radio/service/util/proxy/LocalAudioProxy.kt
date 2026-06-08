@@ -72,8 +72,10 @@ class LocalAudioProxy(
     
     @Volatile
     private var proxyState: ProxyState = ProxyState.Idle
+    
     @Volatile
-    private var terminalError: Int = 0 
+    var terminalError: Int = 0
+        private set
 
     val remoteMimeType: String? get() = (proxyState as? ProxyState.Streaming)?.mimeType
     val remoteBitrate: String? get() = (proxyState as? ProxyState.Streaming)?.bitrate
@@ -153,12 +155,12 @@ class LocalAudioProxy(
     private suspend fun downloadProgressiveStream(streamUrl: String, tag: String) =
         withContext(ioDispatcher) {
             var retryCount = 0
-            var currentDelay = 1000L
-            val maxRetries = 3
+            var currentDelay = 700L
+            val maxRetries = 2
 
             while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
                 try {
-                    val timeout = if (retryCount > 0) 10 else 7
+                    val timeout = if (retryCount > 0) 5 else 4
                     var useMetadata = true
                     var response = executeStreamRequest(streamUrl, tag, true, timeout)
 
@@ -266,8 +268,8 @@ class LocalAudioProxy(
         val downloadedSegments = mutableSetOf<String>()
         val baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1)
         var retryCount = 0
-        var currentDelay = 1000L
-        val maxRetries = 3
+        var currentDelay = 500L
+        val maxRetries = 1
 
         while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
             try {
@@ -612,6 +614,8 @@ class LocalAudioProxy(
                     }
                 }
             }
+            // FINAL ERROR CHECK: If the loop exited, check if it was due to a terminal error
+            if (terminalError != 0) return terminalError
         } catch (e: Exception) { 
             Log.e("SmoothSeek", "LocalAudioProxy.readData error for tag $tag: ${e.message}")
             return -1 
@@ -624,6 +628,7 @@ class LocalAudioProxy(
         isRunning.set(false)
         sessionTag = ""
         totalBytesWritten = 0L
+        totalBytesReceived = 0L
         totalBytesDropped = 0L
         // FIX: Synchronous cleanup within the lock. This ensures the 'slate is wiped clean' 
         // before the next station is allowed to start.
@@ -668,7 +673,7 @@ class LocalAudioProxy(
     }
 
     companion object {
-        const val PART_SIZE = 1 * 1024 * 1024L
+        const val PART_SIZE = 256 * 1024L
         const val TOTAL_CAPACITY_BYTES = PART_SIZE * 3
         const val MAX_PARALLEL_DOWNLOADS = 6
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024
