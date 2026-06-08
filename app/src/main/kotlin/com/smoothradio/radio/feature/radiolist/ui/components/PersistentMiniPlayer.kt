@@ -61,26 +61,28 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
 import com.smoothradio.radio.core.ui.util.LogoMapper
-
 @Composable
 fun PersistentMiniPlayer(
     station: RadioStation?,
     playbackState: StreamStates,
     loadingProgress: Float = 1f,
-    onPlayPauseClick: () -> Unit
+    onPlayPauseClick: () -> Unit,
+    isStationChanging: Boolean = false
 ) {
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering =
-        playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING
-    val isPlaying = playbackState is StreamStates.PLAYING
+    val isBuffering = (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING) && !isStationChanging
+    val isPlaying = playbackState is StreamStates.PLAYING && !isStationChanging
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
 
+    // Use effective progress - force 0 during station changes to prevent flash
+    val effectiveProgress = if (isStationChanging) 0f else loadingProgress
+
     val animatedLoadingProgress by animateFloatAsState(
-        targetValue = loadingProgress,
-        animationSpec = if (loadingProgress < 0.1f) snap() else tween(
+        targetValue = effectiveProgress,
+        animationSpec = if (effectiveProgress == 0f) snap() else tween(
             500,
             easing = FastOutSlowInEasing
         ),
@@ -109,30 +111,33 @@ fun PersistentMiniPlayer(
                 drawContent() // Draw the player content first
 
                 val strokeWidth = 3.dp.toPx()
-                val y = size.height - strokeWidth / 2 // Bottom placement is safer for visibility
+                val y = size.height - strokeWidth / 2
 
-                // Background track
-                drawLine(
-                    color = outlineVariantColor,
-                    start = Offset(0f, y),
-                    end = Offset(size.width, y),
-                    strokeWidth = strokeWidth
-                )
+                // Only show progress bar when NOT changing stations
+                val showProgressBar = !isStationChanging &&
+                        (isBuffering || (effectiveProgress > 0f && effectiveProgress < 0.99f))
 
-                // Initial Loading / Buffering progress (Spotify style)
-                val showProgressBar =
-                    (animatedLoadingProgress > 0f && animatedLoadingProgress < 1f) || isBuffering
                 if (showProgressBar) {
-                    // Avoid flicker of full bar when switching stations by ignoring stale high values during buffering
-                    val displayProgress =
-                        if (isBuffering && loadingProgress < 0.1f) 0f else animatedLoadingProgress
-                    val progressWidth = size.width * displayProgress.coerceIn(0f, 1f)
+                    // 1. Background track
                     drawLine(
-                        color = colorScheme.primary,
+                        color = outlineVariantColor,
                         start = Offset(0f, y),
-                        end = Offset(progressWidth, y),
+                        end = Offset(size.width, y),
                         strokeWidth = strokeWidth
                     )
+
+                    // 2. Progress fill
+                    val displayProgress = if (effectiveProgress <= 0.01f) 0f else animatedLoadingProgress
+                    val progressWidth = size.width * displayProgress.coerceIn(0f, 1f)
+
+                    if (progressWidth > 0f) {
+                        drawLine(
+                            color = colorScheme.primary,
+                            start = Offset(0f, y),
+                            end = Offset(progressWidth, y),
+                            strokeWidth = strokeWidth
+                        )
+                    }
                 }
             }
     ) {
@@ -213,7 +218,6 @@ fun PersistentMiniPlayer(
                                 letterSpacing = 0.5.sp
                             )
                         }
-
                         isPlaying -> {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -236,7 +240,6 @@ fun PersistentMiniPlayer(
                                 )
                             }
                         }
-
                         else -> {
                             Text(
                                 text = station.location,

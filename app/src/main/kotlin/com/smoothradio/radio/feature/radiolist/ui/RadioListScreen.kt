@@ -59,7 +59,6 @@ import com.smoothradio.radio.feature.radiolist.ui.components.PersistentMiniPlaye
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationGridItem
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioStationRow
 import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
-
 @Composable
 fun RadioStationsScreen(
     listScrollState: LazyListState,
@@ -72,6 +71,7 @@ fun RadioStationsScreen(
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val loadingProgress by playerControlViewModel.loadingProgress.collectAsStateWithLifecycle()
+    val isStationChanging by playerControlViewModel.isStationChanging.collectAsStateWithLifecycle()
 
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
@@ -188,11 +188,10 @@ fun RadioStationsScreen(
                                 loadingProgress = loadingProgress,
                                 onPlayPauseClick = {
                                     playingStation?.let {
-                                        playerControlViewModel.requestPlayStation(
-                                            it
-                                        )
+                                        playerControlViewModel.requestPlayStation(it)
                                     }
-                                }
+                                },
+                                isStationChanging = isStationChanging
                             )
                         }
                     }

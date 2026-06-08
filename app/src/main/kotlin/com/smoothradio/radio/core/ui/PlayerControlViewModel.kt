@@ -60,6 +60,7 @@ class PlayerControlViewModel @Inject constructor(
     // 1. Mask PLAYING state as BUFFERING during transitions (prevents UI flicker/dimming).
     // 2. Lock out database emissions until they synchronize with manual user selection.
     private val _isStationChanging = MutableStateFlow(false)
+    val isStationChanging: StateFlow<Boolean> = _isStationChanging.asStateFlow()
     
     private val allStations = radioRepository.allStations.stateIn(
         scope = viewModelScope,
@@ -71,9 +72,9 @@ class PlayerControlViewModel @Inject constructor(
         stateRepository.playbackState,
         _isStationChanging
     ) { state, changing ->
-        // If we are changing stations, force a buffering state until the old stream actually stops.
-        // This keeps the UI (like the seekbar) visually active to avoid dimming "noise".
-        if (changing && state is StreamStates.PLAYING) {
+        // If we are changing stations, force a buffering state immediately.
+        // This ensures the UI knows to show the loading bar.
+        if (changing) {
             StreamStates.BUFFERING
         } else {
             state
@@ -102,6 +103,7 @@ class PlayerControlViewModel @Inject constructor(
     val duration: StateFlow<Long> = stateRepository.duration
     val minPosition: StateFlow<Long> = stateRepository.minPosition
     val loadedPosition: StateFlow<Long> = stateRepository.loadedPosition
+    
     val loadingProgress: StateFlow<Float> = stateRepository.loadingProgress
 
     init {
@@ -160,7 +162,7 @@ class PlayerControlViewModel @Inject constructor(
         // stale DB emissions until the Repository confirms it has received this new ID.
         _isStationChanging.value = true
 
-        // 2. Queue the heavy work via Flow pipeline (Debounced)
+        // Queue the heavy work via Flow pipeline
         _playRequests.tryEmit(station)
     }
 
