@@ -13,14 +13,14 @@ import androidx.annotation.OptIn
  */
 class UltraFastLoadControl : DefaultLoadControl(
     /* allocator = */ DefaultAllocator(true, 65536),
-    /* minBufferMs = */ 2000,
-    /* minBufferForLocalPlaybackMs = */ 2000, // minBufferMs (standard, local)
+    /* minBufferMs = */ 4000,
+    /* minBufferForLocalPlaybackMs = */ 4000, // Increased from 2000ms
     /* maxBufferMs = */ 10000,
     /* maxBufferForLocalPlaybackMs = */ 10000, // maxBufferMs
-    /* bufferForPlaybackMs = */ 500,
-    /* bufferForPlaybackForLocalPlaybackMs = */ 500, // bufferForPlaybackMs (CRITICAL: Only wait 0.5s to start)
-    /* bufferForPlaybackAfterRebufferMs = */ 1000,
-    /* bufferForPlaybackAfterRebufferForLocalPlaybackMs = */ 1000, // bufferForPlaybackAfterRebufferMs
+    /* bufferForPlaybackMs = */ 1500,
+    /* bufferForPlaybackForLocalPlaybackMs = */ 1500, // Increased to 1.5s to prevent flicker
+    /* bufferForPlaybackAfterRebufferMs = */ 3000,
+    /* bufferForPlaybackAfterRebufferForLocalPlaybackMs = */ 3000, // Increased to 3s for stability
     /* targetBufferBytes = */ -1, // targetBufferBytes
     /* prioritizeTimeOverSizeThresholds = */ true,
     /* prioritizeTimeOverSizeThresholdsForLocalPlayback = */ true, // prioritizeTimeOverSizeThresholds
@@ -35,10 +35,10 @@ class UltraFastLoadControl : DefaultLoadControl(
         rebuffering: Boolean,
         targetLiveOffsetUs: Long
     ): Boolean {
-        // FORCE start if we have 500ms
-        val minBufferToStartUs = 500_000L
+        // FORCE start if we have 1500ms
+        val minBufferToStartUs = 1_500_000L
         return if (rebuffering) {
-            bufferedDurationUs >= 1_000_000L
+            bufferedDurationUs >= 3_000_000L
         } else {
             bufferedDurationUs >= minBufferToStartUs
         }

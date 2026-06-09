@@ -108,11 +108,11 @@ class ProxyDataSource(
 
         val tag = sessionTag ?: return C.RESULT_END_OF_INPUT
 
-        // GHOST ERROR PREVENTION: If the session tag has changed, this DataSource belongs to an 
-        // abandoned station. Instead of returning EOF or an Exception (which triggers 
-        // UnrecognizedInputFormatException during sniffing), we block the loader thread 
+        // GHOST ERROR PREVENTION: If the session tag has changed, this DataSource belongs to an
+        // abandoned station. Instead of returning EOF or an Exception (which triggers
+        // UnrecognizedInputFormatException during sniffing), we block the loader thread
         // until ExoPlayer naturally closes this DataSource.
-        // CRITICAL: We only block if there is NO terminal error. If the station failed, 
+        // CRITICAL: We only block if there is NO terminal error. If the station failed,
         // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
             Log.d("SmoothSeek", "ProxyDataSource.read: Session tag mismatch (Current: ${proxy.sessionTag}, Mine: $tag). Checking for errors.")
@@ -123,39 +123,75 @@ class ProxyDataSource(
                 try {
                     Thread.sleep(100)
                 } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
                     return C.RESULT_END_OF_INPUT
                 }
             }
             return C.RESULT_END_OF_INPUT
         }
 
-        return when (val bytesRead = proxy.readData(tag, position, buffer, offset, length)) {
-            -1 -> {
-                // If readData returns -1, it might be due to a session change that occurred DURING the read.
-                if (tag != proxy.sessionTag) {
-                    handleTerminalError(proxy.terminalError)
+        return try {
+            val bytesRead = proxy.readData(tag, position, buffer, offset, length)
 
-                    while (isOpened.get() && tag != proxy.sessionTag) {
+            when (bytesRead) {
+                -1 -> {
+                    // If readData returns -1, it might be due to a session change that occurred DURING the read.
+                    if (tag != proxy.sessionTag) {
                         handleTerminalError(proxy.terminalError)
-                        try { Thread.sleep(100) } catch (e: InterruptedException) { break }
+
+                        while (isOpened.get() && tag != proxy.sessionTag) {
+                            handleTerminalError(proxy.terminalError)
+                            try {
+                                Thread.sleep(100)
+                            } catch (e: InterruptedException) {
+                                Thread.currentThread().interrupt()
+                                break
+                            }
+                        }
+                        return C.RESULT_END_OF_INPUT
                     }
-                    return C.RESULT_END_OF_INPUT
+                    Log.d("SmoothSeek", "ProxyDataSource.read: End of stream reached for tag $tag at position $position")
+                    C.RESULT_END_OF_INPUT
                 }
-                C.RESULT_END_OF_INPUT
-            }
-            -2 -> {
-                Log.e("SmoothSeek", "ProxyDataSource.read: Buffer EVICTED for tag $tag at pos $position. Dropped: ${proxy.totalBytesDropped}")
-                throw BufferEvictedException(position)
-            }
-            else -> {
-                handleTerminalError(bytesRead)
-                if (bytesRead > 0) {
-                    position += bytesRead
-                    proxy.updateLastReadPosition(position)
-                    bytesTransferred(bytesRead)
+
+                -2 -> {
+                    // Buffer evicted - we need to seek to the new start position
+                    // The new valid start position is at totalBytesDropped (byte offset 0 in current buffer)
+                    // We don't have estimatedBytesPerMs here, so we'll throw with the byte offset
+                    // and let StreamService handle the conversion
+                    val newValidStartBytes = proxy.totalBytesDropped
+
+                    Log.e("SmoothSeek", "ProxyDataSource.read: Buffer EVICTED for tag $tag at position ${position}ms. " +
+                            "New valid start byte offset: $newValidStartBytes")
+
+                    // Pass the byte offset - StreamService will convert to milliseconds
+                    throw BufferEvictedException(position, newValidStartBytes)
                 }
-                bytesRead
+
+                -3 -> {
+                    // Terminal error from proxy
+                    Log.e("SmoothSeek", "ProxyDataSource.read: Terminal error for tag $tag")
+                    handleTerminalError(proxy.terminalError)
+                    C.RESULT_END_OF_INPUT
+                }
+
+                else -> {
+                    // Successfully read data
+                    if (bytesRead > 0) {
+                        position += bytesRead
+                        proxy.updateLastReadPosition(position)
+                        bytesTransferred(bytesRead)
+                    }
+                    bytesRead
+                }
             }
+        } catch (e: BufferEvictedException) {
+            // Re-throw to be handled in onPlayerError
+            throw e
+        } catch (e: Exception) {
+            Log.e("SmoothSeek", "ProxyDataSource.read: Unexpected exception", e)
+            handleTerminalError(PlaybackConstants.ERROR_CACHE_ERROR)
+            C.RESULT_END_OF_INPUT
         }
     }
 

@@ -515,27 +515,26 @@ class LocalAudioProxy(
             while (isRunning.get() && sessionTag == tag) {
                 if (terminalError != 0) {
                     Log.e("SmoothSeek", "LocalAudioProxy.readData: terminal error $terminalError for tag $tag")
-                    return terminalError
+                    return -3
                 }
 
                 val result = stateLock.withLock {
                     val p1Size = part1File?.length() ?: 0L
                     val p2Size = part2File?.length() ?: 0L
                     val totalPhysicalSize = p1Size + p2Size
-                    
+
                     var currentRelPos = position - totalBytesDropped
 
                     if (currentRelPos < 0) {
-                        // AUTO-CLAMPING: If the buffer moved past our pause point or seek target,
-                        // jump to the new earliest available byte instead of crashing.
-                        Log.w("SmoothSeek", "LocalAudioProxy: Clamping out-of-range read! Pos=$position, BufferStarts=$totalBytesDropped")
-                        currentRelPos = 0
+                        // Position is evicted from the buffer
+                        Log.w("SmoothSeek", "LocalAudioProxy: EVICTED! Pos=$position, Dropped=$totalBytesDropped")
+                        return@withLock -2 // Signal eviction
                     }
 
-                    val minDataRequired = if (position == 0L) MIN_SNIFF_SIZE.toLong() else 1L
+                    val minDataRequired = if (position == 0L) MIN_SNIFF_SIZE.toLong() else 8192L
                     val memoryPos = (currentRelPos - totalPhysicalSize).toInt()
                     val memSize = memoryBuffer.size().toLong()
-                    
+
                     val availableTotal = if (memoryPos < 0) {
                         (totalPhysicalSize + memSize) - currentRelPos
                     } else {
@@ -543,16 +542,18 @@ class LocalAudioProxy(
                     }
 
                     if (availableTotal < minDataRequired && isRunning.get() && sessionTag == tag) {
-                        return@withLock null 
+                        // Not enough data yet, wait
+                        return@withLock null
                     }
 
                     var totalRead = 0
-                    
+
                     while (totalRead < length) {
                         val remaining = length - totalRead
                         val currentMemPos = (currentRelPos - totalPhysicalSize).toInt()
-                        
+
                         if (currentMemPos >= 0) {
+                            // Read from memory buffer
                             if (currentMemPos < memSize) {
                                 val chunk = minOf(remaining.toLong(), memSize - currentMemPos).toInt()
                                 System.arraycopy(
@@ -566,19 +567,25 @@ class LocalAudioProxy(
                                 currentRelPos += chunk
                             } else break
                         } else {
+                            // Read from physical files
                             val file: File?
                             val fileOffset: Long
                             val fileSize: Long
-                            val fileName: String
-                            
+
                             if (currentRelPos < p1Size) {
-                                file = part1File; fileOffset = currentRelPos; fileSize = p1Size; fileName = "P1"
+                                file = part1File
+                                fileOffset = currentRelPos
+                                fileSize = p1Size
                             } else if (currentRelPos < totalPhysicalSize) {
-                                file = part2File; fileOffset = currentRelPos - p1Size; fileSize = p2Size; fileName = "P2"
+                                file = part2File
+                                fileOffset = currentRelPos - p1Size
+                                fileSize = p2Size
                             } else {
-                                file = null; fileOffset = 0; fileSize = 0; fileName = "NONE"
+                                file = null
+                                fileOffset = 0
+                                fileSize = 0
                             }
-                            
+
                             if (file != null && file.exists()) {
                                 val chunkLimit = (fileSize - fileOffset).toInt()
                                 val chunk = minOf(remaining, chunkLimit)
@@ -590,9 +597,10 @@ class LocalAudioProxy(
                                             read = raf.read(buffer, offset + totalRead, chunk)
                                         }
                                     } catch (e: Exception) {
-                                        Log.e("SmoothSeek", "LocalAudioProxy: Physical read error for $fileName: ${e.message}")
+                                        Log.e("SmoothSeek", "LocalAudioProxy: Physical read error: ${e.message}")
+                                        return@withLock -3
                                     }
-                                    
+
                                     if (read > 0) {
                                         totalRead += read
                                         currentRelPos += read
@@ -601,27 +609,33 @@ class LocalAudioProxy(
                             } else break
                         }
                     }
-                    
+
                     if (totalRead > 0) {
                         lastReadPosition = currentRelPos + totalBytesDropped
                         return@withLock totalRead
                     }
                     null
                 }
-              if (result != null) return result
-                
-                stateLock.withLock { 
-                    if (isRunning.get() && sessionTag == tag) {
-                        dataCondition.await(200, TimeUnit.MILLISECONDS) 
-                        waitCount++
+
+                when (result) {
+                    -2 -> return -2 // Evicted
+                    -3 -> return -3 // Terminal error
+                    is Int -> return result // Bytes read
+                    null -> {
+                        // Wait for more data
+                        stateLock.withLock {
+                            if (isRunning.get() && sessionTag == tag) {
+                                dataCondition.await(200, TimeUnit.MILLISECONDS)
+                                waitCount++
+                            }
+                        }
                     }
                 }
             }
-            // FINAL ERROR CHECK: If the loop exited, check if it was due to a terminal error
-            if (terminalError != 0) return terminalError
-        } catch (e: Exception) { 
+            if (terminalError != 0) return -3
+        } catch (e: Exception) {
             Log.e("SmoothSeek", "LocalAudioProxy.readData error for tag $tag: ${e.message}")
-            return -1 
+            return -1
         }
         return -1
     }

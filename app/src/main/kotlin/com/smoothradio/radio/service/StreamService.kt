@@ -47,6 +47,7 @@ import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
 import com.smoothradio.radio.service.util.metadata.MetadataUtils
 import com.smoothradio.radio.service.util.command.ServiceCommand
 import com.smoothradio.radio.service.util.command.ServiceCommandMapper
+import com.smoothradio.radio.service.util.proxy.BufferEvictedException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -120,14 +121,17 @@ class StreamService : MediaSessionService() {
             val manifestBitrate = localAudioProxy.detectedBitrateKbps?.let { it / 8.0 }
             
             val oldEstimation = estimatedBytesPerMs
-            estimatedBytesPerMs = if (manifestBitrate != null) {
+            val targetEstimation = if (manifestBitrate != null) {
                 // Blend with manifest hint, but favor reality (80% reality, 20% hint)
                 (realTimeBitrate * 0.8) + (manifestBitrate * 0.2)
             } else {
                 realTimeBitrate
             }
+
+            // DAMPING: Only move 10% towards the new target each check to prevent duration/seekbar jitter
+            estimatedBytesPerMs = (oldEstimation * 0.9) + (targetEstimation * 0.1)
             
-            if (Math.abs(oldEstimation - estimatedBytesPerMs) > 1.0) {
+            if (Math.abs(oldEstimation - estimatedBytesPerMs) > 0.5) {
                 Log.d("SmoothSeek", "Bitrate estimation updated: $estimatedBytesPerMs")
             }
         } else if (localAudioProxy.detectedBitrateKbps != null) {
@@ -136,10 +140,10 @@ class StreamService : MediaSessionService() {
     }
 
     private fun getDroppedDurationMs(): Long {
-        // Use a 500ms safety pad to avoid rounding errors leading to BufferEvictedException
-        val droppedMs = (localAudioProxy.totalBytesDropped / estimatedBytesPerMs).toLong()
-        return droppedMs + 500L
+        // No safety pad for eviction calculations
+        return (localAudioProxy.totalBytesDropped / estimatedBytesPerMs.coerceAtLeast(1.0)).toLong()
     }
+
     private fun getLoadedDurationMs(): Long = (localAudioProxy.totalBytesWritten / estimatedBytesPerMs).toLong()
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -508,11 +512,17 @@ class StreamService : MediaSessionService() {
 
             is ServiceCommand.Play -> {
                 if (isPreparingForAd) return
-                val loadedDur = getLoadedDurationMs()
-                val urlString = activeStreamUrl ?: ""
-                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                val safetyBuffer = if (isHls) 12000L else 2000L
-                seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
+                // If we have a media item and are just paused, try to resume first.
+                // If the position is evicted, the onPlayerError handler will auto-seek to live.
+                if (wrappedPlayer.mediaItemCount > 0 && wrappedPlayer.playbackState != Player.STATE_IDLE) {
+                    wrappedPlayer.play()
+                } else {
+                    val loadedDur = getLoadedDurationMs()
+                    val urlString = activeStreamUrl ?: ""
+                    val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                    val safetyBuffer = if (isHls) 12000L else 4000L
+                    seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
+                }
             }
             is ServiceCommand.Pause -> {
                 if (isPreparingForAd) return
@@ -529,7 +539,7 @@ class StreamService : MediaSessionService() {
                 val loadedDur = getLoadedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                val safetyBuffer = if (isHls) 12000L else 2000L
+                val safetyBuffer = if (isHls) 12000L else 4000L
                 val target = (current + 10000).coerceAtMost(loadedDur - safetyBuffer)
                 seekToAbsolute(target)
             }
@@ -538,7 +548,7 @@ class StreamService : MediaSessionService() {
                 val droppedDur = getDroppedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                val safetyBuffer = if (isHls) 12000L else 2000L
+                val safetyBuffer = if (isHls) 12000L else 4000L
                 val target = command.position.coerceIn(droppedDur, (loadedDur - safetyBuffer).coerceAtLeast(droppedDur))
                 seekToAbsolute(target)
             }
@@ -620,15 +630,47 @@ class StreamService : MediaSessionService() {
     private fun seekToAbsolute(positionMs: Long) {
         val urlString = activeStreamUrl ?: return
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-        
-        // Ensure target byte is never less than what has been dropped from the buffer
-        val calculatedByte = (positionMs * estimatedBytesPerMs).toLong()
-        val targetByte = calculatedByte.coerceAtLeast(localAudioProxy.totalBytesDropped)
-        
-        Log.d("SmoothSeek", "StreamService.seekToAbsolute: pos=${positionMs}ms -> byte=$targetByte (Calculated: $calculatedByte, Min: ${localAudioProxy.totalBytesDropped})")
 
-        val proxyUri = "proxy://smoothradio/stream?byteOffset=$targetByte".toUri()
-        
+        // Get current buffer bounds
+        val minValidMs = getDroppedDurationMs()  // Start of buffer (oldest available)
+        val maxValidMs = getLoadedDurationMs()    // End of buffer (newest available)
+
+        // Calculate target byte position
+        val targetByte = (positionMs * estimatedBytesPerMs).toLong()
+        val minValidByte = localAudioProxy.totalBytesDropped
+        val maxValidByte = localAudioProxy.totalBytesWritten
+
+        Log.d("SmoothSeek", "seekToAbsolute: Requested=${positionMs}ms (${targetByte} bytes)")
+        Log.d("SmoothSeek", "seekToAbsolute: Buffer bounds: ${minValidMs}ms-${maxValidMs}ms (${minValidByte}-${maxValidByte} bytes)")
+
+        // CRITICAL: Clamp position to valid range
+        val clampedPosition = when {
+            positionMs < minValidMs -> {
+                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is BEFORE buffer start (${minValidMs}ms). Seeking to buffer start.")
+                minValidMs
+            }
+            positionMs > maxValidMs - 5000 -> { // Leave 5 second safety margin
+                val safePos = (maxValidMs - 5000).coerceAtLeast(minValidMs)
+                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is near buffer end. Seeking to ${safePos}ms")
+                safePos
+            }
+            else -> positionMs
+        }
+
+        // Recalculate byte offset from clamped position
+        val clampedByte = (clampedPosition * estimatedBytesPerMs).toLong()
+
+        Log.d("SmoothSeek", "seekToAbsolute: Clamped to ${clampedPosition}ms (${clampedByte} bytes)")
+
+        // If we're already within a reasonable distance of the target, don't seek
+        val currentPosition = wrappedPlayer.currentPosition
+        if (Math.abs(currentPosition - clampedPosition) < 3000) {
+            Log.d("SmoothSeek", "seekToAbsolute: Already within 3 seconds of target, skipping seek")
+            wrappedPlayer.play()
+            return
+        }
+
+        val proxyUri = "proxy://smoothradio/stream?byteOffset=$clampedByte".toUri()
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
         val cacheKey = currentStationName ?: urlString
 
@@ -642,12 +684,12 @@ class StreamService : MediaSessionService() {
                     .build()
             )
             .build()
-            
-        playbackBaseTimeMs = positionMs
+
+        playbackBaseTimeMs = clampedPosition
         wrappedPlayer.setMediaItem(mediaItem, true)
         wrappedPlayer.prepare()
         wrappedPlayer.play()
-        stateRepository.updatePosition(positionMs)
+        stateRepository.updatePosition(clampedPosition)
     }
 
     private fun prepareShowAd(link: String) {
@@ -833,13 +875,35 @@ class StreamService : MediaSessionService() {
         }
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
-            
-            val cause = error.cause
-            
+
+            // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
+            // automatically seek to the start of the buffer + a small safety margin
+            if (error.cause is BufferEvictedException) {
+                val evicted = error.cause as BufferEvictedException
+
+                // Don't use the byte offset from the exception directly
+                // Instead, get the current buffer start and add a small offset
+                val bufferStartMs = getDroppedDurationMs()
+                val safetyOffset = 2000L // Start 2 seconds into the buffer to avoid eviction edge
+                val newPositionMs = bufferStartMs + safetyOffset
+
+                Log.w("SmoothSeek", "EventListener: Buffer evicted. " +
+                        "Buffer start: ${bufferStartMs}ms, " +
+                        "Seeking to: ${newPositionMs}ms " +
+                        "(evicted from: ${evicted.evictedPositionMs}ms)")
+
+                // Update UI state to show buffering during seek
+                setState(StreamStates.BUFFERING)
+
+                // Perform the seek to the new position (NOT the byte offset from exception)
+                seekToAbsolute(newPositionMs)
+                return
+            }
+
             // IGNORE ERRORS AFTER STOP: If the user explicitly stopped the radio, suppress
             // any delayed connection or eviction errors to prevent UI flicker.
             if (activeStreamUrl == null) {
-                Log.d("StreamService", "Suppressing error after explicit stop: ${cause?.message}")
+                Log.d("StreamService", "Suppressing error after explicit stop: ${error.cause?.message}")
                 return
             }
 
@@ -848,6 +912,7 @@ class StreamService : MediaSessionService() {
                 wrappedPlayer.prepare()
                 return
             }
+
             val message = when (error.errorCode) {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
