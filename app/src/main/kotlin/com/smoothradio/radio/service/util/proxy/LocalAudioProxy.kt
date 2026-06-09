@@ -523,19 +523,21 @@ class LocalAudioProxy(
                     val p2Size = part2File?.length() ?: 0L
                     val totalPhysicalSize = p1Size + p2Size
                     
-                    val relativePos = position - totalBytesDropped
+                    var currentRelPos = position - totalBytesDropped
 
-                    if (relativePos < 0) {
-                        Log.e("SmoothSeek", "LocalAudioProxy: EVICTED! Pos=$position, Dropped=$totalBytesDropped. Returning -2 to trigger auto-seek.")
-                        return@withLock -2
+                    if (currentRelPos < 0) {
+                        // AUTO-CLAMPING: If the buffer moved past our pause point or seek target,
+                        // jump to the new earliest available byte instead of crashing.
+                        Log.w("SmoothSeek", "LocalAudioProxy: Clamping out-of-range read! Pos=$position, BufferStarts=$totalBytesDropped")
+                        currentRelPos = 0
                     }
 
                     val minDataRequired = if (position == 0L) MIN_SNIFF_SIZE.toLong() else 1L
-                    val memoryPos = (relativePos - totalPhysicalSize).toInt()
+                    val memoryPos = (currentRelPos - totalPhysicalSize).toInt()
                     val memSize = memoryBuffer.size().toLong()
                     
                     val availableTotal = if (memoryPos < 0) {
-                        (totalPhysicalSize + memSize) - relativePos
+                        (totalPhysicalSize + memSize) - currentRelPos
                     } else {
                         memSize - memoryPos.toLong()
                     }
@@ -545,7 +547,6 @@ class LocalAudioProxy(
                     }
 
                     var totalRead = 0
-                    var currentRelPos = relativePos
                     
                     while (totalRead < length) {
                         val remaining = length - totalRead
@@ -607,8 +608,7 @@ class LocalAudioProxy(
                     }
                     null
                 }
-
-                if (result != null) return result
+              if (result != null) return result
                 
                 stateLock.withLock { 
                     if (isRunning.get() && sessionTag == tag) {

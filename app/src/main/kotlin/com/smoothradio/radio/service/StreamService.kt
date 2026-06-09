@@ -843,15 +843,6 @@ class StreamService : MediaSessionService() {
                 return
             }
 
-            // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
-            // automatically seek to the new start of the buffer.
-            if (cause is com.smoothradio.radio.service.util.proxy.BufferEvictedException) {
-                val droppedDur = getDroppedDurationMs()
-                Log.w("SmoothSeek", "EventListener: Buffer evicted. Auto-seeking to new start: ${droppedDur}ms")
-                seekToAbsolute(droppedDur)
-                return
-            }
-
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                 wrappedPlayer.seekToDefaultPosition()
                 wrappedPlayer.prepare()
