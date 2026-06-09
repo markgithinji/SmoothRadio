@@ -115,6 +115,7 @@ class ProxyDataSource(
         // CRITICAL: We only block if there is NO terminal error. If the station failed, 
         // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
+            Log.d("SmoothSeek", "ProxyDataSource.read: Session tag mismatch (Current: ${proxy.sessionTag}, Mine: $tag). Checking for errors.")
             handleTerminalError(proxy.terminalError)
 
             while (isOpened.get() && tag != proxy.sessionTag) {
@@ -128,8 +129,10 @@ class ProxyDataSource(
             return C.RESULT_END_OF_INPUT
         }
 
+        Log.v("SmoothSeek", "ProxyDataSource.read: Requesting $length bytes at pos $position")
         return when (val bytesRead = proxy.readData(tag, position, buffer, offset, length)) {
             -1 -> {
+                Log.d("SmoothSeek", "ProxyDataSource.read: readData returned -1 (EOF or session change)")
                 // If readData returns -1, it might be due to a session change that occurred DURING the read.
                 if (tag != proxy.sessionTag) {
                     handleTerminalError(proxy.terminalError)
@@ -143,13 +146,14 @@ class ProxyDataSource(
                 C.RESULT_END_OF_INPUT
             }
             -2 -> {
-                Log.e("SmoothSeek", "ProxyDataSource.read: Buffer evicted for tag $tag at $position")
+                Log.e("SmoothSeek", "ProxyDataSource.read: Buffer EVICTED for tag $tag at pos $position. Dropped: ${proxy.totalBytesDropped}")
                 throw BufferEvictedException(position)
             }
             else -> {
                 handleTerminalError(bytesRead)
                 if (bytesRead > 0) {
                     position += bytesRead
+                    proxy.updateLastReadPosition(position)
                     bytesTransferred(bytesRead)
                 }
                 bytesRead

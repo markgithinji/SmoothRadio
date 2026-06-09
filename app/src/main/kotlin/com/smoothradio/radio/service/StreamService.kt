@@ -135,7 +135,11 @@ class StreamService : MediaSessionService() {
         }
     }
 
-    private fun getDroppedDurationMs(): Long = (localAudioProxy.totalBytesDropped / estimatedBytesPerMs).toLong()
+    private fun getDroppedDurationMs(): Long {
+        // Use a 500ms safety pad to avoid rounding errors leading to BufferEvictedException
+        val droppedMs = (localAudioProxy.totalBytesDropped / estimatedBytesPerMs).toLong()
+        return droppedMs + 500L
+    }
     private fun getLoadedDurationMs(): Long = (localAudioProxy.totalBytesWritten / estimatedBytesPerMs).toLong()
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -200,16 +204,13 @@ class StreamService : MediaSessionService() {
                         }
                     }
 
-                    // FIXED-WIDTH SLIDING WINDOW:
-                    val bufferCapacityMs = LocalAudioProxy.TOTAL_CAPACITY_BYTES / estimatedBytesPerMs.coerceAtLeast(4.0)
-                    val displayDur = droppedDur + bufferCapacityMs.toLong()
-                    
+                    // Seekbar reflects actual downloaded range [dropped, loaded]
                     val urlString = activeStreamUrl ?: ""
                     val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                     val safetyBuffer = if (isHls) 12000L else 2000L
 
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
-                    stateRepository.updateDuration(displayDur)
+                    stateRepository.updateDuration(loadedDur)
                     stateRepository.updateMinPosition(droppedDur)
                     
                     val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
@@ -616,7 +617,12 @@ class StreamService : MediaSessionService() {
         val urlString = activeStreamUrl ?: return
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
         
-        val targetByte = (positionMs * estimatedBytesPerMs).toLong()
+        // Ensure target byte is never less than what has been dropped from the buffer
+        val calculatedByte = (positionMs * estimatedBytesPerMs).toLong()
+        val targetByte = calculatedByte.coerceAtLeast(localAudioProxy.totalBytesDropped)
+        
+        Log.d("SmoothSeek", "StreamService.seekToAbsolute: pos=${positionMs}ms -> byte=$targetByte (Calculated: $calculatedByte, Min: ${localAudioProxy.totalBytesDropped})")
+
         val proxyUri = "proxy://smoothradio/stream?byteOffset=$targetByte".toUri()
         
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
@@ -823,6 +829,17 @@ class StreamService : MediaSessionService() {
         }
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
+            
+            // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
+            // automatically seek to the new start of the buffer.
+            val cause = error.cause
+            if (cause is com.smoothradio.radio.service.util.proxy.BufferEvictedException) {
+                val droppedDur = getDroppedDurationMs()
+                Log.w("SmoothSeek", "EventListener: Buffer evicted. Auto-seeking to new start: ${droppedDur}ms")
+                seekToAbsolute(droppedDur)
+                return
+            }
+
             if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                 wrappedPlayer.seekToDefaultPosition()
                 wrappedPlayer.prepare()
