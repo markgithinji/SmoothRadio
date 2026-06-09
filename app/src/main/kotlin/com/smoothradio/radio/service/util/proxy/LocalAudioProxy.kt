@@ -4,10 +4,10 @@ import android.util.Log
 import com.smoothradio.radio.core.util.PlaybackConstants
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -52,8 +53,6 @@ class LocalAudioProxy(
     private var serverSocket: ServerSocket? = null
     private val sessionJob = SupervisorJob()
     private val scope = CoroutineScope(ioDispatcher + sessionJob)
-    private var downloadJob: Job? = null
-    private var proxyJob: Job? = null
     private val isRunning = AtomicBoolean(false)
 
     // Signal for handleClient to wake up when new data is available
@@ -62,6 +61,12 @@ class LocalAudioProxy(
     // Lock for state and metadata synchronization
     private val stateLock = ReentrantLock()
     private val dataCondition = stateLock.newCondition()
+
+    @Volatile
+    var estimatedBytesPerMs: Double = PlaybackConstants.INITIAL_BITRATE_ESTIMATION
+
+    @Volatile
+    private var sessionStartTime: Long = 0L
 
     @Volatile
     private var currentUrl: String? = null
@@ -121,25 +126,26 @@ class LocalAudioProxy(
         terminalError = 0
         stop()
 
-        currentUrl = streamUrl
-        sessionTag = tagAtStart
-        proxyState = ProxyState.Connecting
-        cleanupLegacyFiles()
-
-        part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
-        part2File = File(cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
-        totalBytesDropped = 0L
-        totalBytesWritten = 0L
-        totalBytesReceived = 0L
-
         stateLock.withLock {
+            currentUrl = streamUrl
+            sessionTag = tagAtStart
+            proxyState = ProxyState.Connecting
+            estimatedBytesPerMs = PlaybackConstants.INITIAL_BITRATE_ESTIMATION
+            sessionStartTime = System.currentTimeMillis()
+            cleanupLegacyFiles()
+
+            part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
+            part2File = File(cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
+            totalBytesDropped = 0L
+            totalBytesWritten = 0L
+            totalBytesReceived = 0L
             metadataMap.clear()
+            isRunning.set(true)
         }
 
-        isRunning.set(true)
         serverSocket = ServerSocket(0)
 
-        downloadJob = scope.launch {
+        scope.launch {
             val isHls = streamUrl.contains(".m3u8") || streamUrl.contains("playlist")
             if (isHls) downloadHlsStream(streamUrl, tagAtStart) else downloadProgressiveStream(
                 streamUrl,
@@ -147,7 +153,7 @@ class LocalAudioProxy(
             )
         }
 
-        proxyJob = scope.launch {
+        scope.launch {
             while (isRunning.get() && sessionTag == tagAtStart) {
                 runCatching {
                     val client = serverSocket?.accept() ?: return@launch
@@ -160,25 +166,25 @@ class LocalAudioProxy(
     private suspend fun downloadProgressiveStream(streamUrl: String, tag: String) =
         withContext(ioDispatcher) {
             var retryCount = 0
-            var currentDelay = 700L
-            val maxRetries = 2 // Increased back to 2 to handle transient network blips
+            var currentDelay = INITIAL_RETRY_DELAY_MS
+            val maxRetries = 2
 
             while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
                 try {
-                    val timeout = if (retryCount > 0) 8 else 6 // Increased slightly for stability
+                    val timeout = if (retryCount > 0) RETRY_READ_TIMEOUT_SEC else DEFAULT_READ_TIMEOUT_SEC
                     var useMetadata = true
-                    var response = executeStreamRequest(streamUrl, tag, true, timeout)
+                    var response = executeStreamRequest(streamUrl, true, timeout)
 
                     if (response != null && (response.code == 401 || response.code == 403)) {
                         response.close()
                         useMetadata = false
-                        response = executeStreamRequest(streamUrl, tag, false, timeout)
+                        response = executeStreamRequest(streamUrl, false, timeout)
                     }
 
                     response?.use { res ->
                         if (!res.isSuccessful) throw Exception("HTTP ${res.code}")
                         retryCount = 0
-                        currentDelay = 1000L
+                        currentDelay = SUCCESS_RETRY_DELAY_MS
                         
                         proxyState = ProxyState.Streaming(res.header("Content-Type"), res.header("icy-br"))
                         val inputStream = res.body.byteStream()
@@ -232,7 +238,7 @@ class LocalAudioProxy(
                     if (!isRunning.get() || sessionTag != tag) break
                     retryCount++
                     delay(currentDelay.milliseconds)
-                    currentDelay = (currentDelay * 2).coerceAtMost(30000L)
+                    currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
                 }
             }
 
@@ -242,7 +248,7 @@ class LocalAudioProxy(
             }
         }
 
-    private fun executeStreamRequest(url: String, tag: String, requestMetadata: Boolean, timeoutSeconds: Int): Response? {
+    private fun executeStreamRequest(url: String, requestMetadata: Boolean, timeoutSeconds: Int): Response? {
         val client = internalOkHttpClient.newBuilder()
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
@@ -273,8 +279,8 @@ class LocalAudioProxy(
         val downloadedSegments = mutableSetOf<String>()
         val baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf("/") + 1)
         var retryCount = 0
-        var currentDelay = 500L
-        val maxRetries = 2 // Increased back to 2
+        var currentDelay = HLS_SEGMENT_DOWNLOAD_DELAY_MS
+        val maxRetries = 2
 
         while (isRunning.get() && sessionTag == tag && retryCount < maxRetries) {
             try {
@@ -285,9 +291,9 @@ class LocalAudioProxy(
                     response.body.string()
                 }
                 retryCount = 0
-                currentDelay = 1000L
+                currentDelay = SUCCESS_RETRY_DELAY_MS
 
-                if (playlistText.isEmpty()) { delay(2000.milliseconds); continue }
+                if (playlistText.isEmpty()) { delay(HLS_PLAYLIST_RETRY_DELAY_MS.milliseconds); continue }
 
                 val lines = playlistText.lines().map { it.trim() }.filter { it.isNotEmpty() }
                 if (playlistText.contains("#EXT-X-STREAM-INF")) {
@@ -361,13 +367,13 @@ class LocalAudioProxy(
                         downloadedSegments.add(segmentPath)
                     }
                 }
-                if (newSegments.isNotEmpty()) delay(500.milliseconds) else delay(4000.milliseconds)
+                if (newSegments.isNotEmpty()) delay(HLS_SEGMENT_DOWNLOAD_DELAY_MS.milliseconds) else delay(HLS_EMPTY_PLAYLIST_DELAY_MS.milliseconds)
             } catch (e: Exception) {
                 if (!isRunning.get() || sessionTag != tag) break
                 Log.e("SmoothSeek", "LocalAudioProxy: HLS download error: ${e.message}")
                 retryCount++
                 delay(currentDelay.milliseconds)
-                currentDelay = (currentDelay * 2).coerceAtMost(30000L)
+                currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
             }
         }
         if (retryCount >= maxRetries) {
@@ -422,7 +428,20 @@ class LocalAudioProxy(
                         p2.createNewFile()
                         Log.d("SmoothSeek", "LocalAudioProxy: Rotation complete. Total dropped: $totalBytesDropped")
                     } else {
-                        Log.e("SmoothSeek", "LocalAudioProxy: Failed to rename P2 to P1 during rotation!")
+                        Log.e("SmoothSeek", "LocalAudioProxy: Failed to rename P2 to P1 during rotation! Attempting manual copy.")
+                        try {
+                            p2.inputStream().use { input ->
+                                p1.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            totalBytesDropped += p1Len
+                            metadataMap.headMap(totalBytesDropped).clear()
+                            p2.delete()
+                            p2.createNewFile()
+                        } catch (e: Exception) {
+                            Log.e("SmoothSeek", "LocalAudioProxy: Manual copy failed too!", e)
+                        }
                     }
                 } else {
                     Log.e("SmoothSeek", "LocalAudioProxy: Failed to delete P1 during rotation!")
@@ -490,7 +509,7 @@ class LocalAudioProxy(
                         out.write(buffer, 0, bytesFromMemory)
                         lastReadPos += bytesFromMemory
                     } else {
-                        withContext(ioDispatcher) { withTimeoutOrNull(500.milliseconds) { dataSignal.first() } }
+                        withContext(ioDispatcher) { withTimeoutOrNull(DATA_WAIT_TIMEOUT_MS.milliseconds) { dataSignal.first() } }
                     }
                 }
             } catch (e: Exception) {} finally { runCatching { socket.close() } }
@@ -625,7 +644,7 @@ class LocalAudioProxy(
                         // Wait for more data
                         stateLock.withLock {
                             if (isRunning.get() && sessionTag == tag) {
-                                dataCondition.await(200, TimeUnit.MILLISECONDS)
+                                dataCondition.await(READ_DATA_AWAIT_MS, TimeUnit.MILLISECONDS)
                                 waitCount++
                             }
                         }
@@ -644,9 +663,8 @@ class LocalAudioProxy(
         Log.d("SmoothSeek", "LocalAudioProxy.stop (wasRunning=${isRunning.get()}, tag=$sessionTag)")
         isRunning.set(false)
         
-        // Cancel jobs BEFORE clearing sessionTag to allow current reads to finish/fail gracefully
-        downloadJob?.cancel()
-        proxyJob?.cancel()
+        // Cancel all coroutines under sessionJob (download, proxy, and client handlers)
+        sessionJob.cancelChildren()
         
         stateLock.withLock {
             flushBufferToDiskInternal()
@@ -654,16 +672,50 @@ class LocalAudioProxy(
             part1File = null
             part2File = null
             dataCondition.signalAll()
+            sessionTag = "" // Clear tag while holding lock
         }
         
-        sessionTag = "" // Clear tag AFTER jobs are cancelled
         totalBytesWritten = 0L
         totalBytesReceived = 0L
         totalBytesDropped = 0L
+        sessionStartTime = 0L
         dataSignal.tryEmit(Unit)
         proxyState = ProxyState.Idle
         try { serverSocket?.close() } catch (e: Exception) {}
         cleanupLegacyFiles()
+    }
+
+    fun updateBitrateEstimation() {
+        if (sessionStartTime == 0L) return
+        
+        val bytes = totalBytesWritten
+        val elapsed = System.currentTimeMillis() - sessionStartTime
+        
+        // Start trusting reality after calibration period to correct for lying manifests
+        if (elapsed > PlaybackConstants.BITRATE_CALIBRATION_THRESHOLD_MS && bytes > 0) {
+            val realTimeBitrate = (bytes.toDouble() / elapsed.toDouble())
+                .coerceIn(PlaybackConstants.MIN_BITRATE_BYTES_PER_MS, PlaybackConstants.MAX_BITRATE_BYTES_PER_MS)
+            
+            val manifestBitrate = detectedBitrateKbps?.let { it / PlaybackConstants.BITS_PER_BYTE }
+            
+            val oldEstimation = estimatedBytesPerMs
+            val targetEstimation = if (manifestBitrate != null) {
+                // Blend reality with manifest hint
+                (realTimeBitrate * PlaybackConstants.BITRATE_REALITY_WEIGHT) + 
+                (manifestBitrate * PlaybackConstants.BITRATE_HINT_WEIGHT)
+            } else {
+                realTimeBitrate
+            }
+
+            // DAMPING: Only move 10% towards the new target each check to prevent duration jitter
+            estimatedBytesPerMs = (oldEstimation * 0.9) + (targetEstimation * 0.1)
+            
+            if (abs(oldEstimation - estimatedBytesPerMs) > 0.5) {
+                Log.d("SmoothSeek", "LocalAudioProxy: Bitrate estimation updated: $estimatedBytesPerMs")
+            }
+        } else if (detectedBitrateKbps != null) {
+            estimatedBytesPerMs = detectedBitrateKbps!! / PlaybackConstants.BITS_PER_BYTE
+        }
     }
 
     private class FastMemoryBuffer(initialCapacity: Int) {
@@ -687,7 +739,6 @@ class LocalAudioProxy(
         object Idle : ProxyState()
         object Connecting : ProxyState()
         data class Streaming(val mimeType: String?, val bitrate: String?) : ProxyState()
-        data class Error(val message: String) : ProxyState()
     }
 
     companion object {
@@ -697,5 +748,16 @@ class LocalAudioProxy(
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024
         const val INITIAL_BURST_SIZE = 256 * 1024
         const val MIN_SNIFF_SIZE = 32 * 1024
+
+        private const val DEFAULT_READ_TIMEOUT_SEC = 6
+        private const val RETRY_READ_TIMEOUT_SEC = 8
+        private const val INITIAL_RETRY_DELAY_MS = 700L
+        private const val SUCCESS_RETRY_DELAY_MS = 1000L
+        private const val MAX_RETRY_DELAY_MS = 30000L
+        private const val HLS_PLAYLIST_RETRY_DELAY_MS = 2000L
+        private const val HLS_SEGMENT_DOWNLOAD_DELAY_MS = 500L
+        private const val HLS_EMPTY_PLAYLIST_DELAY_MS = 4000L
+        private const val DATA_WAIT_TIMEOUT_MS = 500L
+        private const val READ_DATA_AWAIT_MS = 200L
     }
 }
