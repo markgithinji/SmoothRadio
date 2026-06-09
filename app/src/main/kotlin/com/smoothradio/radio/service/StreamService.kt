@@ -490,6 +490,7 @@ class StreamService : MediaSessionService() {
             is ServiceCommand.Stop -> {
                 Log.d("StreamService", " ACTION_STOP")
                 isPreparingForAd = false
+                activeStreamUrl = null
                 wrappedPlayer.pause()
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
@@ -549,6 +550,9 @@ class StreamService : MediaSessionService() {
     }
 
     private fun setState(newState: StreamStates) {
+        if ((newState == StreamStates.PREPARING || newState == StreamStates.BUFFERING) && activeStreamUrl == null) {
+            return
+        }
         if (stateChange == newState) return
         stateChange = newState
         stateRepository.updateState(newState)
@@ -830,9 +834,17 @@ class StreamService : MediaSessionService() {
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
             
+            val cause = error.cause
+            
+            // IGNORE ERRORS AFTER STOP: If the user explicitly stopped the radio, suppress
+            // any delayed connection or eviction errors to prevent UI flicker.
+            if (activeStreamUrl == null) {
+                Log.d("StreamService", "Suppressing error after explicit stop: ${cause?.message}")
+                return
+            }
+
             // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
             // automatically seek to the new start of the buffer.
-            val cause = error.cause
             if (cause is com.smoothradio.radio.service.util.proxy.BufferEvictedException) {
                 val droppedDur = getDroppedDurationMs()
                 Log.w("SmoothSeek", "EventListener: Buffer evicted. Auto-seeking to new start: ${droppedDur}ms")

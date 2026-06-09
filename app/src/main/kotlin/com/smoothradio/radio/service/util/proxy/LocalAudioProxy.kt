@@ -116,12 +116,14 @@ class LocalAudioProxy(
     fun start(streamUrl: String) {
         val tagAtStart = UUID.randomUUID().toString().take(8)
         Log.d("SmoothSeek", "LocalAudioProxy.start: station=$streamUrl, tag=$tagAtStart")
+        
+        // Reset terminal error before starting new session to prevent race with old reads
+        terminalError = 0
         stop()
 
         currentUrl = streamUrl
         sessionTag = tagAtStart
         proxyState = ProxyState.Connecting
-        terminalError = 0
         cleanupLegacyFiles()
 
         part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }

@@ -129,10 +129,8 @@ class ProxyDataSource(
             return C.RESULT_END_OF_INPUT
         }
 
-        Log.v("SmoothSeek", "ProxyDataSource.read: Requesting $length bytes at pos $position")
         return when (val bytesRead = proxy.readData(tag, position, buffer, offset, length)) {
             -1 -> {
-                Log.d("SmoothSeek", "ProxyDataSource.read: readData returned -1 (EOF or session change)")
                 // If readData returns -1, it might be due to a session change that occurred DURING the read.
                 if (tag != proxy.sessionTag) {
                     handleTerminalError(proxy.terminalError)
