@@ -17,7 +17,8 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
 import com.google.android.gms.cast.framework.CastContext
-import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import com.smoothradio.radio.service.util.proxy.AudioProxy
+import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
 import com.smoothradio.radio.service.util.proxy.ProxyDataSource
 import com.smoothradio.radio.service.util.playback.UltraFastLoadControl
 import dagger.Module
@@ -76,18 +77,18 @@ object ServiceModule {
 
     @Provides
     @Singleton
-    fun provideLocalAudioProxy(
+    fun provideAudioProxy(
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient
-    ): LocalAudioProxy =
-        LocalAudioProxy(context.cacheDir, Dispatchers.IO, okHttpClient)
+    ): AudioProxy =
+        DefaultAudioProxy(context.cacheDir, Dispatchers.IO, okHttpClient)
 
     @Provides
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
         dataSourceFactory: DataSource.Factory,
-        localAudioProxy: LocalAudioProxy
+        audioProxy: AudioProxy
     ): ExoPlayer {
         val extractorsFactory = DefaultExtractorsFactory()
             .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
@@ -95,7 +96,7 @@ object ServiceModule {
 
         // Use our custom ProxyDataSource to bypass HTTP layer for local proxy
         val proxyDataSourceFactory =
-            ProxyDataSource.Factory(context, localAudioProxy, dataSourceFactory)
+            ProxyDataSource.Factory(context, audioProxy, dataSourceFactory)
 
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(proxyDataSourceFactory)

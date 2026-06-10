@@ -44,7 +44,7 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.util.PlaybackConstants
-import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import com.smoothradio.radio.service.util.proxy.AudioProxy
 import com.smoothradio.radio.service.util.metadata.MetadataUtils
 import com.smoothradio.radio.service.util.command.ServiceCommand
 import com.smoothradio.radio.service.util.command.ServiceCommandMapper
@@ -83,7 +83,7 @@ class StreamService : MediaSessionService() {
     lateinit var equalizerRepository: EqualizerRepository
 
     @Inject
-    lateinit var localAudioProxy: LocalAudioProxy
+    lateinit var localAudioProxy: AudioProxy
 
     @Inject
     lateinit var commandMapper: ServiceCommandMapper

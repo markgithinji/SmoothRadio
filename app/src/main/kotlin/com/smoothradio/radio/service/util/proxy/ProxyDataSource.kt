@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * to the standard DefaultDataSource.
  */
 class SmoothDataSource(
-    proxy: LocalAudioProxy,
+    proxy: AudioProxy,
     private val baseDataSource: DataSource
 ) : DataSource {
     
@@ -61,12 +61,12 @@ class SmoothDataSource(
  * Bypasses HTTP overhead and provides deterministic stream behavior.
  */
 class ProxyDataSource(
-    private val proxy: LocalAudioProxy
+    private val proxy: AudioProxy
 ) : BaseDataSource(/* isNetwork= */ false) {
 
     class Factory(
         private val context: Context,
-        private val proxy: LocalAudioProxy,
+        private val proxy: AudioProxy,
         private val baseFactory: DataSource.Factory
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {

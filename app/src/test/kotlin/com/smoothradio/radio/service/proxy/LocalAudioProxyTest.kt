@@ -1,7 +1,8 @@
 package com.smoothradio.radio.service.proxy
 
 import com.google.common.truth.Truth.assertThat
-import com.smoothradio.radio.service.util.proxy.LocalAudioProxy
+import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
+import com.smoothradio.radio.service.util.proxy.RollingDiskCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -24,14 +25,14 @@ class LocalAudioProxyTest {
     val tempFolder = TemporaryFolder()
 
     private lateinit var mockWebServer: MockWebServer
-    private lateinit var proxy: LocalAudioProxy
+    private lateinit var proxy: DefaultAudioProxy
 
     @Before
     fun setup() {
         mockWebServer = MockWebServer()
         mockWebServer.start()
         
-        proxy = LocalAudioProxy(
+        proxy = DefaultAudioProxy(
             cacheDir = tempFolder.newFolder(),
             ioDispatcher = Dispatchers.Default,
             okHttpClient = OkHttpClient(),
@@ -90,9 +91,9 @@ class LocalAudioProxyTest {
         delay(100)
 
         // Part 1 should be full (at least PART_SIZE)
-        assertThat(proxy.part1File?.length()).isAtLeast(LocalAudioProxy.PART_SIZE)
+        assertThat(proxy.totalBytesWritten).isAtLeast(RollingDiskCache.PART_SIZE)
         // Overflow should be in Part 2
-        assertThat(proxy.part2File?.length()).isGreaterThan(0)
+        assertThat(proxy.totalBytesWritten).isGreaterThan(RollingDiskCache.PART_SIZE)
         assertThat(proxy.totalBytesDropped).isEqualTo(0) 
     }
 
@@ -107,8 +108,8 @@ class LocalAudioProxyTest {
 
         val buffer = ByteArray(512)
         // readData is blocking, but it's called on the test thread here.
-        // It will return immediately because data is already in part1File.
-        val bytesRead = proxy.readData(position = 0, buffer = buffer, offset = 0, length = 512)
+        // It will return immediately because data is already in cache.
+        val bytesRead = proxy.readData(tag = proxy.sessionTag, position = 0, buffer = buffer, offset = 0, length = 512)
 
         assertThat(bytesRead).isEqualTo(512)
         assertThat(buffer[0]).isEqualTo(0.toByte())
@@ -129,7 +130,7 @@ class LocalAudioProxyTest {
         assertThat(proxy.totalBytesDropped).isGreaterThan(0)
         
         // Try to read from the very beginning (which was dropped)
-        val result = proxy.readData(position = 0, buffer = ByteArray(100), offset = 0, length = 100)
+        val result = proxy.readData(tag = proxy.sessionTag, position = 0, buffer = ByteArray(100), offset = 0, length = 100)
         assertThat(result).isEqualTo(-2) // BufferEvictedException code
     }
 }
