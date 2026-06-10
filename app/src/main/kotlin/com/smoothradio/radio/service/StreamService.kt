@@ -175,9 +175,8 @@ class StreamService : MediaSessionService() {
                     if (proxyMetadata != null) {
                         val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
                         if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
-                            currentSongTitle = cleaned
-                            stateRepository.updateMetadata(cleaned)
-                            updateNotificationInternal()
+                            Log.d("SmoothMetadata", "New song detected: $cleaned")
+                            onSongTitleChanged(cleaned)
                         }
                     }
 
@@ -253,9 +252,49 @@ class StreamService : MediaSessionService() {
 
             override fun getMediaMetadata(): MediaMetadata {
                 val metadata = super.getMediaMetadata()
-                val rawTitle = metadata.title?.toString() ?: ""
-                val cleanedTitle = MetadataUtils.extractSongTitle(rawTitle)
-                return metadata.buildUpon().setTitle(cleanedTitle).build()
+                val stationName = currentStationName ?: getString(R.string.app_name)
+                
+                val currentStateLabel = when {
+                    isPlaying -> getString(R.string.player_playing)
+                    playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
+                    else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
+                }
+
+                val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+                val subtitle = stationName
+                
+                return metadata.buildUpon()
+                    .setTitle(title)
+                    .setArtist(subtitle)
+                    .setDisplayTitle(title)
+                    .setSubtitle(subtitle)
+                    .setAlbumTitle(stationName)
+                    .build()
+            }
+
+            override fun getCurrentMediaItem(): MediaItem? {
+                val item = super.getCurrentMediaItem() ?: return null
+                val stationName = currentStationName ?: getString(R.string.app_name)
+                
+                val currentStateLabel = when {
+                    isPlaying -> getString(R.string.player_playing)
+                    playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
+                    else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
+                }
+
+                val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+                val subtitle = stationName
+                
+                return item.buildUpon()
+                    .setMediaMetadata(
+                        item.mediaMetadata.buildUpon()
+                            .setTitle(title)
+                            .setArtist(subtitle)
+                            .setDisplayTitle(title)
+                            .setSubtitle(subtitle)
+                            .build()
+                    )
+                    .build()
             }
         }
     }
@@ -305,6 +344,14 @@ class StreamService : MediaSessionService() {
         )
     }
 
+    private fun getCurrentStatusLabel(): String {
+        return when {
+            wrappedPlayer.isPlaying -> getString(R.string.player_playing)
+            wrappedPlayer.playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
+            else -> stateChange.label
+        }
+    }
+
     private fun createMediaStyleNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
             this, 0,
@@ -321,13 +368,18 @@ class StreamService : MediaSessionService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = when {
-            isPlaying && currentSongTitle.isNotEmpty() -> currentSongTitle
-            isPlaying -> getString(R.string.player_playing)
-            else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
+        val stationName = currentStationName ?: getString(R.string.app_name)
+        val currentStateLabel = getCurrentStatusLabel()
+
+        // TITLE: Show Song Title if available, otherwise current state (Playing/Buffering)
+        val title = if (currentSongTitle.isNotEmpty()) {
+            currentSongTitle
+        } else {
+            currentStateLabel
         }
 
-        val stationDisplay = currentStationName ?: getString(R.string.app_name)
+        // SUBTITLE: Always show Station Name
+        val stationDisplay = stationName
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.notificationicon)
@@ -338,6 +390,8 @@ class StreamService : MediaSessionService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
+            
+        Log.d("SmoothDebug", "Notification Build: Title=$title, Subtitle=$stationDisplay, isPlaying=${wrappedPlayer.isPlaying}, State=${wrappedPlayer.playbackState}")
 
         if (!isPreparingForAd) {
             builder.addAction(
@@ -368,12 +422,89 @@ class StreamService : MediaSessionService() {
 
     private fun updateNotificationInternal() {
         val notification = createMediaStyleNotification()
+        val stationName = currentStationName ?: "Unknown"
+        val state = wrappedPlayer.playbackState
+        val playing = wrappedPlayer.isPlaying
+        
+        Log.d("SmoothDebug", "!!! NOTIFY !!! Station: $stationName | Song: $currentSongTitle | PlayerState: $state | isPlaying: $playing")
+
+        // Explicitly notify for all versions to ensure immediate UI updates (Fix for Android 14)
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
 
         notificationCallback?.onNotificationChanged(
             MediaNotification(NOTIFICATION_ID, notification)
         )
+    }
+
+    private fun refreshMediaSessionMetadata() {
+        val stationName = currentStationName ?: getString(R.string.app_name)
+        val currentStateLabel = getCurrentStatusLabel()
+
+        val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+        val subtitle = stationName
+        
+        Log.d("SmoothDebug", "Refreshing MediaSession Metadata: Title=$title, Subtitle=$subtitle")
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(subtitle)
+            .setDisplayTitle(title)
+            .setSubtitle(subtitle)
+            .setAlbumTitle(stationName)
+            .build()
+            
+        // 1. Update playlist metadata
+        wrappedPlayer.playlistMetadata = metadata
+        
+        // 2. Update current media item metadata (Fix for Android 11 media controls)
+        wrappedPlayer.currentMediaItem?.let { item ->
+            val updatedItem = item.buildUpon()
+                .setMediaMetadata(
+                    item.mediaMetadata.buildUpon()
+                        .setTitle(title)
+                        .setArtist(subtitle)
+                        .build()
+                )
+                .build()
+            
+            wrappedPlayer.replaceMediaItem(wrappedPlayer.currentMediaItemIndex, updatedItem)
+        }
+    }
+
+    private fun onSongTitleChanged(newTitle: String) {
+        val stationName = currentStationName ?: getString(R.string.app_name)
+        
+        // Define status labels to ignore if they appear in metadata events
+        val statusLabels = listOf(
+            getString(R.string.player_playing),
+            getString(R.string.player_buffering),
+            getString(R.string.player_preparing_audio)
+        )
+        
+        // 1. Ignore if it's a status label (prevents circular feedback loop)
+        if (statusLabels.any { it.equals(newTitle, ignoreCase = true) }) {
+            return
+        }
+
+        // 2. If the "song" metadata is just the station name, ignore it (Fix for double name issue)
+        if (newTitle == currentSongTitle || newTitle.equals(stationName, ignoreCase = true)) {
+            if (newTitle.equals(stationName, ignoreCase = true) && currentSongTitle.isNotEmpty()) {
+                Log.d("SmoothDebug", "Song cleared: Metadata matches station name")
+                currentSongTitle = ""
+                stateRepository.updateMetadata("")
+                refreshMediaSessionMetadata()
+                updateNotificationInternal()
+            }
+            return
+        }
+        
+        Log.d("SmoothDebug", "Song Changed: '$currentSongTitle' -> '$newTitle'")
+        currentSongTitle = newTitle
+        stateRepository.updateMetadata(newTitle)
+        
+        refreshMediaSessionMetadata()
+        updateNotificationInternal()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -583,12 +714,19 @@ class StreamService : MediaSessionService() {
         val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
         val cacheKey = currentStationName ?: uriString
         
+        val stationName = currentStationName ?: getString(R.string.app_name)
+        val initialMetadata = MediaMetadata.Builder()
+            .setTitle(stationName)
+            .setArtist(stationName)
+            .build()
+
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
 
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
+            .setMediaMetadata(initialMetadata)
             .setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
                     .setTargetOffsetMs(2000)
@@ -683,10 +821,17 @@ class StreamService : MediaSessionService() {
         val cacheKey = currentStationName ?: uriString
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
 
+        val stationName = currentStationName ?: getString(R.string.app_name)
+        val initialMetadata = MediaMetadata.Builder()
+            .setTitle(stationName)
+            .setArtist(stationName)
+            .build()
+
         val mediaItem = MediaItem.Builder()
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
+            .setMediaMetadata(initialMetadata)
             .build()
             
         wrappedPlayer.playWhenReady = false
@@ -721,18 +866,26 @@ class StreamService : MediaSessionService() {
         try {
             equalizer?.release()
             equalizer = Equalizer(0, sessionId).apply {
-                enabled = true
                 val bands = numberOfBands
                 serviceScope.launch {
+                    // Small delay to let the audio session stabilize
+                    kotlinx.coroutines.delay(500)
+                    
+                    var hasActiveSettings = false
                     for (i in 0 until bands) {
                         val level = equalizerRepository.getBandLevel(i)
                         if (level != 0.toShort()) {
                             try {
                                 setBandLevel(i.toShort(), level)
+                                hasActiveSettings = true
                             } catch (e: Exception) {
                                 Log.e("StreamService", "Failed to apply EQ band $i", e)
                             }
                         }
+                    }
+                    // Enable ONLY after bands are configured to prevent volume jump
+                    if (hasActiveSettings) {
+                        enabled = true
                     }
                 }
             }
@@ -816,6 +969,8 @@ class StreamService : MediaSessionService() {
         if (isPreparingForAd) return
         val playbackState = wrappedPlayer.playbackState
         val isPlayerPlaying = wrappedPlayer.isPlaying
+        val playWhenReady = wrappedPlayer.playWhenReady
+        
         val newState = when {
             playbackState == Player.STATE_BUFFERING -> StreamStates.BUFFERING
             playbackState == Player.STATE_READY && isPlayerPlaying -> StreamStates.PLAYING
@@ -823,7 +978,11 @@ class StreamService : MediaSessionService() {
             playbackState == Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }
-        if (stateChange != newState) setState(newState)
+        
+        if (stateChange != newState) {
+            Log.d("SmoothMetadata", "updateUiState: $stateChange -> $newState (state=$playbackState, playing=$isPlayerPlaying, pwr=$playWhenReady)")
+            setState(newState)
+        }
     }
 
     inner class EventListener : Player.Listener {
@@ -833,16 +992,17 @@ class StreamService : MediaSessionService() {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = MetadataUtils.extractSongTitle(rawTitle)
-            if (currentSongTitle != cleaned) {
-                currentSongTitle = cleaned
-                stateRepository.updateMetadata(cleaned)
-                updateNotificationInternal()
+            Log.d("SmoothMetadata", "onMediaMetadataChanged: raw=$rawTitle -> cleaned=$cleaned")
+            if (cleaned.isNotEmpty() && currentSongTitle != cleaned) {
+                onSongTitleChanged(cleaned)
             }
         }
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            Log.d("SmoothDebug", "onIsPlayingChanged: $isPlaying (State: ${wrappedPlayer.playbackState})")
             this@StreamService.isPlaying = isPlaying
-            updateNotificationInternal()
             updateUiState()
+            refreshMediaSessionMetadata() // Ensure MediaSession is updated when play/pause changes
+            updateNotificationInternal()
         }
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
@@ -894,10 +1054,21 @@ class StreamService : MediaSessionService() {
             Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
         }
         override fun onPlaybackStateChanged(state: Int) {
+            val stateName = when(state) {
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+            Log.d("SmoothDebug", "onPlaybackStateChanged: $stateName (isPlaying: ${wrappedPlayer.isPlaying})")
+
             if (state == Player.STATE_READY && jumpToLiveOnReady && !isPreparingForAd) {
                 performInitialJump()
             }
             updateUiState()
+            refreshMediaSessionMetadata() // Sync MediaSession with new state
+            updateNotificationInternal() // Sync Notification with new state
         }
         override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
             Log.d("SmoothSeek", "Position Discontinuity: Reason=$reason, Old=${oldPosition.positionMs}, New=${newPosition.positionMs}")

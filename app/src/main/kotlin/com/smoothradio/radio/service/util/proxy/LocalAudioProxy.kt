@@ -218,6 +218,7 @@ class LocalAudioProxy(
                                         parseIcyMetadata(metadata)?.let { title ->
                                             stateLock.withLock {
                                                 if (metadataMap.lastEntry()?.value != title) {
+                                                    Log.d("SmoothMetadata", "LocalAudioProxy: Storing metadata at byte $totalBytesWritten: $title")
                                                     metadataMap[totalBytesWritten] = title
                                                 }
                                             }
@@ -524,7 +525,11 @@ class LocalAudioProxy(
     }
 
     fun getMetadataForOffset(offset: Long): String? {
-        return stateLock.withLock { metadataMap.floorEntry(offset)?.value }
+        return stateLock.withLock {
+            val entry = metadataMap.floorEntry(offset)
+            // Log.v("SmoothMetadata", "getMetadataForOffset: offset=$offset -> found=${entry?.value}")
+            entry?.value
+        }
     }
 
     /**
