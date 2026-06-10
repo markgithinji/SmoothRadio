@@ -24,7 +24,7 @@ import kotlin.math.abs
  */
 class DefaultAudioProxy(
     cacheDir: File,
-    private val ioDispatcher: CoroutineDispatcher,
+    ioDispatcher: CoroutineDispatcher,
     okHttpClient: OkHttpClient
 ) : AudioProxy {
     private val internalOkHttpClient = okHttpClient.newBuilder()
@@ -59,21 +59,21 @@ class DefaultAudioProxy(
 
     @Volatile
     private var currentUrl: String? = null
-    
+
     @Volatile
     override var sessionTag: String = ""
         private set
-    
+
     private val _proxyState = MutableStateFlow<ProxyState>(ProxyState.Idle)
     override val proxyState: StateFlow<ProxyState> = _proxyState.asStateFlow()
-    
+
     @Volatile
     override var terminalError: Int = 0
         private set
 
     private val remoteMimeType: String? get() = (proxyState.value as? ProxyState.Streaming)?.mimeType
     private val remoteBitrate: String? get() = (proxyState.value as? ProxyState.Streaming)?.bitrate
-    
+
     @Volatile
     var detectedBitrateKbps: Double? = null
         private set
@@ -81,7 +81,7 @@ class DefaultAudioProxy(
     override val totalBytesDropped: Long get() = cache.totalBytesDropped
     override val totalBytesWritten: Long get() = cache.totalBytesWritten
     override val totalBytesReceived: Long get() = cache.totalBytesReceived
-    
+
     @Volatile
     override var lastReadPosition = 0L
         private set
@@ -92,7 +92,10 @@ class DefaultAudioProxy(
 
     override fun updateLastReadPosition(pos: Long) {
         if (abs(pos - lastReadPosition) > 1024 * 1024) {
-            Log.d("SmoothSeek", "DefaultAudioProxy: lastReadPosition jumped from $lastReadPosition to $pos")
+            Log.d(
+                "SmoothSeek",
+                "DefaultAudioProxy: lastReadPosition jumped from $lastReadPosition to $pos"
+            )
         }
         lastReadPosition = pos
     }
@@ -100,7 +103,7 @@ class DefaultAudioProxy(
     override fun start(streamUrl: String) {
         val tagAtStart = UUID.randomUUID().toString().take(8)
         Log.d("SmoothSeek", "DefaultAudioProxy.start: station=$streamUrl, tag=$tagAtStart")
-        
+
         terminalError = 0
         stop()
 
@@ -131,7 +134,9 @@ class DefaultAudioProxy(
                     internalOkHttpClient, cache,
                     isRunning = { isRunning.get() },
                     sessionTag = { sessionTag },
-                    onStateUpdate = { mime, br -> _proxyState.value = ProxyState.Streaming(mime, br) },
+                    onStateUpdate = { mime, br ->
+                        _proxyState.value = ProxyState.Streaming(mime, br)
+                    },
                     onTerminalError = { handleError(it) },
                     onBitrateDetected = { detectedBitrateKbps = it }
                 )
@@ -147,9 +152,16 @@ class DefaultAudioProxy(
 
     override fun getMetadataForOffset(offset: Long): String? = cache.getMetadataForOffset(offset)
 
-    override fun readData(tag: String, position: Long, buffer: ByteArray, offset: Int, length: Int): Int {
-        return cache.readData(tag, position, buffer, offset, length, 
-            isRunning = { isRunning.get() }, 
+    override fun readData(
+        tag: String,
+        position: Long,
+        buffer: ByteArray,
+        offset: Int,
+        length: Int
+    ): Int {
+        return cache.readData(
+            tag, position, buffer, offset, length,
+            isRunning = { isRunning.get() },
             terminalError = { terminalError }
         ).also { read ->
             if (read > 0) {
@@ -160,16 +172,19 @@ class DefaultAudioProxy(
     }
 
     override fun stop() {
-        Log.d("SmoothSeek", "DefaultAudioProxy.stop (wasRunning=${isRunning.get()}, tag=$sessionTag)")
+        Log.d(
+            "SmoothSeek",
+            "DefaultAudioProxy.stop (wasRunning=${isRunning.get()}, tag=$sessionTag)"
+        )
         isRunning.set(false)
         sessionJob.cancelChildren()
-        
+
         stateLock.withLock {
             cache.cleanup()
             dataCondition.signalAll()
             sessionTag = ""
         }
-        
+
         sessionStartTime = 0L
         dataSignal.tryEmit(Unit)
         _proxyState.value = ProxyState.Idle
@@ -178,28 +193,34 @@ class DefaultAudioProxy(
 
     override fun updateBitrateEstimation() {
         if (sessionStartTime == 0L) return
-        
+
         val bytes = totalBytesWritten
         val elapsed = System.currentTimeMillis() - sessionStartTime
-        
+
         if (elapsed > PlaybackConstants.BITRATE_CALIBRATION_THRESHOLD_MS && bytes > 0) {
             val realTimeBitrate = (bytes.toDouble() / elapsed.toDouble())
-                .coerceIn(PlaybackConstants.MIN_BITRATE_BYTES_PER_MS, PlaybackConstants.MAX_BITRATE_BYTES_PER_MS)
-            
+                .coerceIn(
+                    PlaybackConstants.MIN_BITRATE_BYTES_PER_MS,
+                    PlaybackConstants.MAX_BITRATE_BYTES_PER_MS
+                )
+
             val manifestBitrate = detectedBitrateKbps?.let { it / PlaybackConstants.BITS_PER_BYTE }
-            
+
             val oldEstimation = estimatedBytesPerMs
             val targetEstimation = if (manifestBitrate != null) {
-                (realTimeBitrate * PlaybackConstants.BITRATE_REALITY_WEIGHT) + 
-                (manifestBitrate * PlaybackConstants.BITRATE_HINT_WEIGHT)
+                (realTimeBitrate * PlaybackConstants.BITRATE_REALITY_WEIGHT) +
+                        (manifestBitrate * PlaybackConstants.BITRATE_HINT_WEIGHT)
             } else {
                 realTimeBitrate
             }
 
             estimatedBytesPerMs = (oldEstimation * 0.9) + (targetEstimation * 0.1)
-            
+
             if (abs(oldEstimation - estimatedBytesPerMs) > 0.5) {
-                Log.d("SmoothSeek", "DefaultAudioProxy: Bitrate estimation updated: $estimatedBytesPerMs")
+                Log.d(
+                    "SmoothSeek",
+                    "DefaultAudioProxy: Bitrate estimation updated: $estimatedBytesPerMs"
+                )
             }
         } else if (detectedBitrateKbps != null) {
             estimatedBytesPerMs = detectedBitrateKbps!! / PlaybackConstants.BITS_PER_BYTE

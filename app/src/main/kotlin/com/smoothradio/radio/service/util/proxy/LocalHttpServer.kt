@@ -2,18 +2,13 @@ package com.smoothradio.radio.service.util.proxy
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.File
-import java.io.RandomAccessFile
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.time.Duration.Companion.milliseconds
 
 class LocalHttpServer(
@@ -53,18 +48,24 @@ class LocalHttpServer(
                 var line = input.readLine()
                 while (!line.isNullOrEmpty()) {
                     if (line.lowercase().startsWith("range: bytes=")) {
-                        rangeStart = line.substring("range: bytes=".length).split("-")[0].trim().toLongOrNull() ?: 0L
+                        rangeStart = line.substring("range: bytes=".length).split("-")[0].trim()
+                            .toLongOrNull() ?: 0L
                     }
                     line = input.readLine()
                 }
                 val out = socket.getOutputStream()
-                val isHls = currentUrl()?.contains(".m3u8") == true || currentUrl()?.contains("playlist") == true
+                val isHls =
+                    currentUrl()?.contains(".m3u8") == true || currentUrl()?.contains("playlist") == true
                 val contentType = getMimeType() ?: if (isHls) "audio/aac" else "audio/mpeg"
                 val remoteBitrate = getBitrate()
-                val bitrateHeader = if (remoteBitrate != null) "X-Bitrate: $remoteBitrate\r\n" else ""
-                val statusLine = if (rangeStart > 0) "HTTP/1.1 206 Partial Content\r\n" else "HTTP/1.1 200 OK\r\n"
-                val rangeHeader = if (rangeStart > 0) "Content-Range: bytes $rangeStart-/*\r\n" else ""
-                val header = statusLine + "Content-Type: $contentType\r\n" + "Accept-Ranges: bytes\r\n" + rangeHeader + bitrateHeader + "Connection: close\r\n\r\n"
+                val bitrateHeader =
+                    if (remoteBitrate != null) "X-Bitrate: $remoteBitrate\r\n" else ""
+                val statusLine =
+                    if (rangeStart > 0) "HTTP/1.1 206 Partial Content\r\n" else "HTTP/1.1 200 OK\r\n"
+                val rangeHeader =
+                    if (rangeStart > 0) "Content-Range: bytes $rangeStart-/*\r\n" else ""
+                val header =
+                    statusLine + "Content-Type: $contentType\r\n" + "Accept-Ranges: bytes\r\n" + rangeHeader + bitrateHeader + "Connection: close\r\n\r\n"
                 out.write(header.toByteArray())
 
                 var lastReadPos = rangeStart
@@ -83,12 +84,18 @@ class LocalHttpServer(
                         withContext(ioDispatcher) { withTimeoutOrNull(500.milliseconds) { dataSignal.first() } }
                     }
                 }
-            } catch (e: Exception) {} finally { runCatching { socket.close() } }
+            } catch (e: Exception) {
+            } finally {
+                runCatching { socket.close() }
+            }
         }
     }
 
     fun stop() {
-        try { serverSocket?.close() } catch (e: Exception) {}
+        try {
+            serverSocket?.close()
+        } catch (e: Exception) {
+        }
         serverSocket = null
     }
 }

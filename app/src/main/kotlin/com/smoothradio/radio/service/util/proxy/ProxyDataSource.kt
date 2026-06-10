@@ -5,13 +5,13 @@ package com.smoothradio.radio.service.util.proxy
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
-import androidx.annotation.OptIn
 import androidx.media3.datasource.TransferListener
 import com.smoothradio.radio.core.util.PlaybackConstants
 import java.util.concurrent.atomic.AtomicBoolean
@@ -24,7 +24,7 @@ class SmoothDataSource(
     proxy: AudioProxy,
     private val baseDataSource: DataSource
 ) : DataSource {
-    
+
     private val proxyDataSource = ProxyDataSource(proxy)
     private var activeDataSource: DataSource? = null
 
@@ -47,7 +47,7 @@ class SmoothDataSource(
 
     override fun getUri(): Uri? = activeDataSource?.uri
 
-    override fun getResponseHeaders(): Map<String, List<String>> = 
+    override fun getResponseHeaders(): Map<String, List<String>> =
         activeDataSource?.responseHeaders ?: emptyMap()
 
     override fun close() {
@@ -70,7 +70,8 @@ class ProxyDataSource(
         private val baseFactory: DataSource.Factory
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {
-            val defaultDataSource = DefaultDataSource.Factory(context, baseFactory).createDataSource()
+            val defaultDataSource =
+                DefaultDataSource.Factory(context, baseFactory).createDataSource()
             return SmoothDataSource(proxy, defaultDataSource)
         }
     }
@@ -82,22 +83,23 @@ class ProxyDataSource(
 
     override fun open(dataSpec: DataSpec): Long {
         this.dataSpec = dataSpec
-        
+
         // Capture the session tag that is active WHEN this data source is opened.
         // This ensures this specific instance only reads data for the station it was created for.
         this.sessionTag = proxy.sessionTag
-        
+
         // Parse custom byteOffset from URI query parameter if present
         val uri = dataSpec.uri
-        val queryOffset = uri.getQueryParameter(PlaybackConstants.PROXY_PARAM_BYTE_OFFSET)?.toLongOrNull()
-        
+        val queryOffset =
+            uri.getQueryParameter(PlaybackConstants.PROXY_PARAM_BYTE_OFFSET)?.toLongOrNull()
+
         // Use the query offset for seeking, falling back to ExoPlayer's position
         this.position = queryOffset ?: dataSpec.position
-        
+
         transferInitializing(dataSpec)
         isOpened.set(true)
         transferStarted(dataSpec)
-        
+
         // Return C.LENGTH_UNSET to indicate an unknown/infinite stream length.
         return C.LENGTH_UNSET.toLong()
     }
@@ -115,7 +117,10 @@ class ProxyDataSource(
         // CRITICAL: We only block if there is NO terminal error. If the station failed,
         // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
-            Log.d("SmoothSeek", "ProxyDataSource.read: Session tag mismatch (Current: ${proxy.sessionTag}, Mine: $tag). Checking for errors.")
+            Log.d(
+                "SmoothSeek",
+                "ProxyDataSource.read: Session tag mismatch (Current: ${proxy.sessionTag}, Mine: $tag). Checking for errors."
+            )
             handleTerminalError(proxy.terminalError)
 
             while (isOpened.get() && tag != proxy.sessionTag) {
@@ -150,7 +155,10 @@ class ProxyDataSource(
                         }
                         return C.RESULT_END_OF_INPUT
                     }
-                    Log.d("SmoothSeek", "ProxyDataSource.read: End of stream reached for tag $tag at position $position")
+                    Log.d(
+                        "SmoothSeek",
+                        "ProxyDataSource.read: End of stream reached for tag $tag at position $position"
+                    )
                     C.RESULT_END_OF_INPUT
                 }
 
@@ -161,8 +169,11 @@ class ProxyDataSource(
                     // and let StreamService handle the conversion
                     val newValidStartBytes = proxy.totalBytesDropped
 
-                    Log.e("SmoothSeek", "ProxyDataSource.read: Buffer EVICTED for tag $tag at position ${position}ms. " +
-                            "New valid start byte offset: $newValidStartBytes")
+                    Log.e(
+                        "SmoothSeek",
+                        "ProxyDataSource.read: Buffer EVICTED for tag $tag at position ${position}ms. " +
+                                "New valid start byte offset: $newValidStartBytes"
+                    )
 
                     // Pass the byte offset - StreamService will convert to milliseconds
                     throw BufferEvictedException(position, newValidStartBytes)

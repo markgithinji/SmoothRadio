@@ -7,7 +7,7 @@ import java.io.IOException
  */
 class BufferEvictedException(
     val evictedPositionMs: Long,
-    val newValidPositionBytes: Long  // This is in bytes, not milliseconds
+    newValidPositionBytes: Long  // This is in bytes, not milliseconds
 ) : IOException("Buffer evicted at position ${evictedPositionMs}ms, new start byte offset: $newValidPositionBytes")
 
 /**

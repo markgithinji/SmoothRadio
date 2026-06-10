@@ -35,28 +35,32 @@ class ProgressiveDownloader(
 
         while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
             try {
-                val timeout = if (retryCount > 0) RETRY_READ_TIMEOUT_SEC else DEFAULT_READ_TIMEOUT_SEC
+                val timeout =
+                    if (retryCount > 0) RETRY_READ_TIMEOUT_SEC else DEFAULT_READ_TIMEOUT_SEC
                 var useMetadata = true
-                var response = executeStreamRequest(url, requestMetadata = true, timeoutSeconds = timeout)
+                var response =
+                    executeStreamRequest(url, requestMetadata = true, timeoutSeconds = timeout)
 
                 if (response != null && (response.code == 401 || response.code == 403)) {
                     response.close()
                     useMetadata = false
-                    response = executeStreamRequest(url, requestMetadata = false, timeoutSeconds = timeout)
+                    response =
+                        executeStreamRequest(url, requestMetadata = false, timeoutSeconds = timeout)
                 }
 
                 response?.use { res ->
                     if (!res.isSuccessful) throw Exception("HTTP ${res.code}")
                     retryCount = 0
                     currentDelay = SUCCESS_RETRY_DELAY_MS
-                    
+
                     val contentType = res.header("Content-Type")
                     val bitrateStr = res.header("icy-br")
                     onStateUpdate(contentType, bitrateStr)
                     bitrateStr?.toDoubleOrNull()?.let { onBitrateDetected(it) }
 
                     val inputStream = res.body.byteStream()
-                    val metaint = if (useMetadata) res.header("icy-metaint")?.toIntOrNull() ?: -1 else -1
+                    val metaint =
+                        if (useMetadata) res.header("icy-metaint")?.toIntOrNull() ?: -1 else -1
 
                     if (metaint > 0) {
                         var bytesUntilMetadata = metaint
@@ -75,7 +79,8 @@ class ProgressiveDownloader(
                                     val metaBuf = ByteArray(metaLen)
                                     var metaRead = 0
                                     while (metaRead < metaLen) {
-                                        val r = inputStream.read(metaBuf, metaRead, metaLen - metaRead)
+                                        val r =
+                                            inputStream.read(metaBuf, metaRead, metaLen - metaRead)
                                         if (r == -1) break
                                         metaRead += r
                                     }
@@ -111,7 +116,11 @@ class ProgressiveDownloader(
         }
     }
 
-    private fun executeStreamRequest(url: String, requestMetadata: Boolean, timeoutSeconds: Int): Response? {
+    private fun executeStreamRequest(
+        url: String,
+        requestMetadata: Boolean,
+        timeoutSeconds: Int
+    ): Response? {
         val client = okHttpClient.newBuilder()
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
@@ -121,7 +130,11 @@ class ProgressiveDownloader(
             .addHeader("Accept", "*/*")
             .addHeader("Connection", "keep-alive")
         if (requestMetadata) requestBuilder.addHeader("Icy-MetaData", "1")
-        return try { client.newCall(requestBuilder.build()).execute() } catch (e: Exception) { null }
+        return try {
+            client.newCall(requestBuilder.build()).execute()
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun parseIcyMetadata(metadata: String): String? {
@@ -133,7 +146,8 @@ class ProgressiveDownloader(
                 val artist = Regex("Artist1=\"(.*?)\"").find(rawTitle)?.groupValues?.get(1)
                 if (title != null && artist != null) return "$title - $artist"
                 return title
-            } catch (ignored: Exception) {}
+            } catch (ignored: Exception) {
+            }
         }
         return rawTitle
     }
@@ -166,7 +180,8 @@ class HlsDownloader(
 
         while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
             try {
-                val request = Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
+                val request =
+                    Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
                 val playlistText = okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
                     response.body.string()
@@ -174,7 +189,9 @@ class HlsDownloader(
                 retryCount = 0
                 currentDelay = SUCCESS_RETRY_DELAY_MS
 
-                if (playlistText.isEmpty()) { delay(HLS_PLAYLIST_RETRY_DELAY_MS.milliseconds); continue }
+                if (playlistText.isEmpty()) {
+                    delay(HLS_PLAYLIST_RETRY_DELAY_MS.milliseconds); continue
+                }
 
                 val lines = playlistText.lines().map { it.trim() }.filter { it.isNotEmpty() }
                 if (playlistText.contains("#EXT-X-STREAM-INF")) {
@@ -185,13 +202,15 @@ class HlsDownloader(
                         } else null
                     }
                     val bestVariant = variantLines.mapNotNull { (info, vUrl) ->
-                        val bandwidth = Regex("BANDWIDTH=(\\d+)").find(info)?.groupValues?.get(1)?.toLongOrNull()
+                        val bandwidth = Regex("BANDWIDTH=(\\d+)").find(info)?.groupValues?.get(1)
+                            ?.toLongOrNull()
                         if (bandwidth != null) Triple(bandwidth, info, vUrl) else null
                     }.maxByOrNull { it.first }
 
                     if (bestVariant != null) {
                         onBitrateDetected(bestVariant.first.toDouble() / 1000.0)
-                        val fullUrl = if (bestVariant.third.startsWith("http")) bestVariant.third else baseUrl + bestVariant.third
+                        val fullUrl =
+                            if (bestVariant.third.startsWith("http")) bestVariant.third else baseUrl + bestVariant.third
                         download(fullUrl, tag)
                         return@withContext
                     }
@@ -201,10 +220,12 @@ class HlsDownloader(
                 val newSegments = allSegments.filter { !downloadedSegments.contains(it) }
 
                 val deferreds = newSegments.take(MAX_PARALLEL_DOWNLOADS).map { segmentPath ->
-                    val segmentUrl = if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
+                    val segmentUrl =
+                        if (segmentPath.startsWith("http")) segmentPath else baseUrl + segmentPath
                     scope.async {
                         runCatching {
-                            val segRequest = Request.Builder().url(segmentUrl).addHeader("User-Agent", "Mozilla/5.0").build()
+                            val segRequest = Request.Builder().url(segmentUrl)
+                                .addHeader("User-Agent", "Mozilla/5.0").build()
                             okHttpClient.newCall(segRequest).execute().use { response ->
                                 if (!response.isSuccessful) return@use byteArrayOf()
                                 val out = ByteArrayOutputStream()
@@ -233,20 +254,28 @@ class HlsDownloader(
                         // Large ID3 tags at the start of HLS segments confuse the progressive sniffer.
                         if (data.size > 10 && data[0] == 'I'.code.toByte() && data[1] == 'D'.code.toByte() && data[2] == '3'.code.toByte()) {
                             val id3Size = ((data[6].toInt() and 0x7F) shl 21) or
-                                          ((data[7].toInt() and 0x7F) shl 14) or
-                                          ((data[8].toInt() and 0x7F) shl 7) or
-                                          (data[9].toInt() and 0x7F)
+                                    ((data[7].toInt() and 0x7F) shl 14) or
+                                    ((data[8].toInt() and 0x7F) shl 7) or
+                                    (data[9].toInt() and 0x7F)
                             val totalTagSize = 10 + id3Size
                             if (totalTagSize < data.size) {
                                 headerOffset = totalTagSize
                             }
                         }
-                        
-                        cache.appendData(tag, data, data.size - headerOffset, headerOffset, isHls = true)
+
+                        cache.appendData(
+                            tag,
+                            data,
+                            data.size - headerOffset,
+                            headerOffset,
+                            isHls = true
+                        )
                         downloadedSegments.add(segmentPath)
                     }
                 }
-                if (newSegments.isNotEmpty()) delay(HLS_SEGMENT_DOWNLOAD_DELAY_MS.milliseconds) else delay(HLS_EMPTY_PLAYLIST_DELAY_MS.milliseconds)
+                if (newSegments.isNotEmpty()) delay(HLS_SEGMENT_DOWNLOAD_DELAY_MS.milliseconds) else delay(
+                    HLS_EMPTY_PLAYLIST_DELAY_MS.milliseconds
+                )
             } catch (ignored: Exception) {
                 if (!isRunning() || sessionTag() != tag) break
                 retryCount++

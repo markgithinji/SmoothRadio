@@ -1,15 +1,13 @@
 package com.smoothradio.radio.service.util.proxy
 
 import android.util.Log
-import com.smoothradio.radio.core.util.PlaybackConstants
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.util.TreeMap
-import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 class RollingDiskCache(
@@ -19,22 +17,24 @@ class RollingDiskCache(
 ) {
     private val memoryBuffer = FastMemoryBuffer(INITIAL_BURST_SIZE)
     private val metadataMap = TreeMap<Long, String>()
-    
+
     @Volatile
     private var isDiskDisabled = false
-    
+
     var sessionTag: String = ""
     var part1File: File? = null
         private set
     var part2File: File? = null
         private set
-    
+
     @Volatile
     var totalBytesDropped = 0L
         private set
+
     @Volatile
     var totalBytesWritten = 0L
         private set
+
     @Volatile
     var totalBytesReceived = 0L
 
@@ -55,7 +55,7 @@ class RollingDiskCache(
 
     fun appendData(tag: String, data: ByteArray, length: Int, offset: Int = 0, isHls: Boolean) {
         if (tag != sessionTag) return
-        
+
         stateLock.withLock {
             runCatching {
                 memoryBuffer.write(data, offset, length)
@@ -63,7 +63,7 @@ class RollingDiskCache(
                 if (!isHls) {
                     totalBytesReceived = totalBytesWritten
                 }
-                
+
                 if (isDiskDisabled) {
                     // RAM FULL-PROOF: If disk is dead, keep RAM buffer small to avoid OOM
                     // We allow up to 1MB of "hot" data in RAM, then slide the window.
@@ -72,10 +72,14 @@ class RollingDiskCache(
                         totalBytesDropped += droppedFromRam
                         memoryBuffer.reset()
                         metadataMap.headMap(totalBytesDropped).clear()
-                        Log.w("SmoothSeek", "RollingDiskCache: Disk disabled, sliding RAM window. Dropped $droppedFromRam bytes.")
+                        Log.w(
+                            "SmoothSeek",
+                            "RollingDiskCache: Disk disabled, sliding RAM window. Dropped $droppedFromRam bytes."
+                        )
                     }
                 } else {
-                    val threshold = if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
+                    val threshold =
+                        if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
                     if (memoryBuffer.size() >= threshold) {
                         flushBufferToDiskInternal()
                     }
@@ -95,14 +99,14 @@ class RollingDiskCache(
         if (memoryBuffer.size() == 0 || isDiskDisabled) return
         val p1 = part1File ?: return
         val p2 = part2File ?: return
-        
+
         try {
             if (p1.length() < PART_SIZE) {
                 FileOutputStream(p1, true).use { memoryBuffer.writeTo(it) }
             } else if (p2.length() < PART_SIZE) {
                 FileOutputStream(p2, true).use { memoryBuffer.writeTo(it) }
             }
-            
+
             if (p2.length() >= PART_SIZE) {
                 val p1Len = p1.length()
                 if (p1.delete()) {
@@ -130,13 +134,25 @@ class RollingDiskCache(
             }
             memoryBuffer.reset()
         } catch (e: java.io.IOException) {
-            Log.e("SmoothSeek", "CRITICAL: Disk write failed (Disk full?). Falling back to RAM-only mode.", e)
+            Log.e(
+                "SmoothSeek",
+                "CRITICAL: Disk write failed (Disk full?). Falling back to RAM-only mode.",
+                e
+            )
             isDiskDisabled = true
             // Don't reset memoryBuffer yet, let appendData handle the windowing
         }
     }
 
-    fun readData(tag: String, position: Long, buffer: ByteArray, offset: Int, length: Int, isRunning: () -> Boolean, terminalError: () -> Int): Int {
+    fun readData(
+        tag: String,
+        position: Long,
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+        isRunning: () -> Boolean,
+        terminalError: () -> Int
+    ): Int {
         while (isRunning() && tag == sessionTag) {
             val error = terminalError()
             if (error != 0) return -3
@@ -168,7 +184,8 @@ class RollingDiskCache(
                 return@withLock -2 // Evicted
             }
 
-            val minDataRequired = if (position == 0L) MIN_SNIFF_SIZE.toLong() else 1L // For server, 1 byte is enough to start
+            val minDataRequired =
+                if (position == 0L) MIN_SNIFF_SIZE.toLong() else 1L // For server, 1 byte is enough to start
             val memoryPos = (currentRelPos - totalPhysicalSize).toInt()
             val memSize = memoryBuffer.size().toLong()
 
@@ -193,7 +210,13 @@ class RollingDiskCache(
                     // Read from memory buffer
                     if (currentMemPos < memSize) {
                         val chunk = minOf(remaining.toLong(), memSize - currentMemPos).toInt()
-                        System.arraycopy(memoryBuffer.getInternalBuffer(), currentMemPos, buffer, offset + totalRead, chunk)
+                        System.arraycopy(
+                            memoryBuffer.getInternalBuffer(),
+                            currentMemPos,
+                            buffer,
+                            offset + totalRead,
+                            chunk
+                        )
                         totalRead += chunk
                         tempRelPos += chunk
                     } else break
@@ -228,7 +251,9 @@ class RollingDiskCache(
                                         tempRelPos += read
                                     } else break
                                 }
-                            } catch (e: Exception) { return@withLock -3 }
+                            } catch (e: Exception) {
+                                return@withLock -3
+                            }
                         } else break
                     } else break
                 }
@@ -258,7 +283,10 @@ class RollingDiskCache(
     }
 
     private fun cleanupLegacyFiles() {
-        try { cacheDir.listFiles { f -> f.name.startsWith("proxy_") }?.forEach { it.delete() } } catch (e: Exception) {}
+        try {
+            cacheDir.listFiles { f -> f.name.startsWith("proxy_") }?.forEach { it.delete() }
+        } catch (e: Exception) {
+        }
     }
 
     fun cleanup() {
@@ -280,13 +308,21 @@ class RollingDiskCache(
             System.arraycopy(data, offset, buffer, size, length)
             size += length
         }
+
         private fun ensureCapacity(minCapacity: Int) {
-            if (minCapacity > buffer.size) buffer = buffer.copyOf((buffer.size * 2).coerceAtLeast(minCapacity))
+            if (minCapacity > buffer.size) buffer =
+                buffer.copyOf((buffer.size * 2).coerceAtLeast(minCapacity))
         }
+
         fun size() = size
-        fun reset() { size = 0 }
+        fun reset() {
+            size = 0
+        }
+
         fun getInternalBuffer() = buffer
-        fun writeTo(out: OutputStream) { out.write(buffer, 0, size) }
+        fun writeTo(out: OutputStream) {
+            out.write(buffer, 0, size)
+        }
     }
 
     companion object {
