@@ -65,6 +65,7 @@
     <string name="player_play">Play</string>
     <string name="player_stop">Stop</string>
     <string name="player_playing">PLAYING</string>
+    <string name="player_paused">PAUSED</string>
     <string name="player_preparing_audio">PREPARING AUDIO</string>
 
     <!-- Top Bar Strings -->

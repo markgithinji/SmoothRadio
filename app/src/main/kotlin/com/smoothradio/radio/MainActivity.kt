@@ -58,11 +58,6 @@ class MainActivity : FragmentActivity() {
     private var currentStation: RadioStation? = null
     private var pendingAdStationId: Int? = null
 
-    private enum class PlaybackMode {
-        NEW_PLAY,   // Starting a new station (always show ad)
-        TOGGLE      // Toggle play/pause on current station
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -124,7 +119,9 @@ class MainActivity : FragmentActivity() {
                             StreamStates.PLAYING,
                             StreamStates.BUFFERING,
                             StreamStates.PREPARING -> true
-                            else -> false
+                            StreamStates.PAUSED,
+                            StreamStates.IDLE,
+                            StreamStates.ENDED -> false
                         }
                         Log.d(
                             "MainActivityLogs",
@@ -501,6 +498,11 @@ class MainActivity : FragmentActivity() {
         if (isMobileAdsInitializeCalled.getAndSet(true)) return
         Log.d("MainActivityLogsAd", "Initializing Mobile Ads SDK")
         MobileAds.initialize(this)
+    }
+
+    private enum class PlaybackMode {
+        NEW_PLAY,   // Starting a new station (always show ad)
+        TOGGLE      // Toggle play/pause on current station
     }
 
     companion object {

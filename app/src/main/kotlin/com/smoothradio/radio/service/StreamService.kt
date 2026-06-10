@@ -254,12 +254,7 @@ class StreamService : MediaSessionService() {
                 val metadata = super.getMediaMetadata()
                 val stationName = currentStationName ?: getString(R.string.app_name)
                 
-                val currentStateLabel = when {
-                    isPlaying -> getString(R.string.player_playing)
-                    playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
-                    else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
-                }
-
+                val currentStateLabel = getCurrentStatusLabel()
                 val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
                 val subtitle = stationName
                 
@@ -276,12 +271,7 @@ class StreamService : MediaSessionService() {
                 val item = super.getCurrentMediaItem() ?: return null
                 val stationName = currentStationName ?: getString(R.string.app_name)
                 
-                val currentStateLabel = when {
-                    isPlaying -> getString(R.string.player_playing)
-                    playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
-                    else -> stateChange.label.ifEmpty { getString(R.string.player_preparing_audio) }
-                }
-
+                val currentStateLabel = getCurrentStatusLabel()
                 val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
                 val subtitle = stationName
                 
@@ -348,6 +338,7 @@ class StreamService : MediaSessionService() {
         return when {
             wrappedPlayer.isPlaying -> getString(R.string.player_playing)
             wrappedPlayer.playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
+            stateChange is StreamStates.PAUSED -> getString(R.string.player_paused)
             else -> stateChange.label
         }
     }
@@ -479,7 +470,8 @@ class StreamService : MediaSessionService() {
         val statusLabels = listOf(
             getString(R.string.player_playing),
             getString(R.string.player_buffering),
-            getString(R.string.player_preparing_audio)
+            getString(R.string.player_preparing_audio),
+            getString(R.string.player_paused)
         )
         
         // 1. Ignore if it's a status label (prevents circular feedback loop)
@@ -974,7 +966,7 @@ class StreamService : MediaSessionService() {
         val newState = when {
             playbackState == Player.STATE_BUFFERING -> StreamStates.BUFFERING
             playbackState == Player.STATE_READY && isPlayerPlaying -> StreamStates.PLAYING
-            playbackState == Player.STATE_READY && !isPlayerPlaying -> StreamStates.IDLE
+            playbackState == Player.STATE_READY && !isPlayerPlaying -> StreamStates.PAUSED
             playbackState == Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }

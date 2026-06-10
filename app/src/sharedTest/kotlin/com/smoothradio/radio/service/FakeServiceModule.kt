@@ -1,6 +1,7 @@
 package com.smoothradio.radio.service
 
 import android.content.Context
+import android.os.Looper
 import androidx.media3.cast.CastPlayer
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -48,7 +49,7 @@ object FakeServiceModule {
         audioAttributes: AudioAttributes
     ): ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(audioAttributes, true)
-        .setLooper(android.os.Looper.getMainLooper())
+        .setLooper(Looper.getMainLooper())
         .build()
 
     @Provides

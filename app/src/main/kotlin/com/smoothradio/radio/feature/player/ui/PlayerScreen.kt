@@ -558,6 +558,15 @@ fun StationHeader(
                         color = colorScheme.primary
                     )
 
+                    is StreamStates.PAUSED -> Text(
+                        text = stringResource(R.string.player_paused),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+
                     is StreamStates.BUFFERING, is StreamStates.PREPARING -> {
                         DotLoadingAnimation(
                             dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
