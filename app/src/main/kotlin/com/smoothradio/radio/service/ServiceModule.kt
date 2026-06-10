@@ -17,10 +17,12 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
 import com.google.android.gms.cast.framework.CastContext
+import com.smoothradio.radio.core.util.PlaybackConstants
+import com.smoothradio.radio.service.util.playback.UltraFastLoadControl
 import com.smoothradio.radio.service.util.proxy.AudioProxy
 import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
 import com.smoothradio.radio.service.util.proxy.ProxyDataSource
-import com.smoothradio.radio.service.util.playback.UltraFastLoadControl
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +30,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -48,11 +51,11 @@ object ServiceModule {
     fun provideCastPlayer(
         @ApplicationContext context: Context,
         castContext: CastContext?,
-        exoPlayer: ExoPlayer
+        exoPlayer: Lazy<ExoPlayer>
     ): CastPlayer? {
         return castContext?.let {
             CastPlayer.Builder(context)
-                .setLocalPlayer(exoPlayer)
+                .setLocalPlayer(exoPlayer.get())
                 .build()
         }
     }
@@ -80,8 +83,11 @@ object ServiceModule {
     fun provideAudioProxy(
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient
-    ): AudioProxy =
-        DefaultAudioProxy(context.cacheDir, Dispatchers.IO, okHttpClient)
+    ): AudioProxy {
+        val cacheDir = File(context.cacheDir, "audio_proxy")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        return DefaultAudioProxy(cacheDir, Dispatchers.IO, okHttpClient)
+    }
 
     @Provides
     fun provideExoPlayer(
@@ -108,6 +114,7 @@ object ServiceModule {
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setDeviceVolumeControlEnabled(true)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setLivePlaybackSpeedControl(
@@ -116,8 +123,8 @@ object ServiceModule {
                     .setFallbackMaxPlaybackSpeed(1.0f)
                     .build()
             )
-            .setSeekBackIncrementMs(10000)
-            .setSeekForwardIncrementMs(10000)
+            .setSeekBackIncrementMs(PlaybackConstants.SEEK_INCREMENT_MS)
+            .setSeekForwardIncrementMs(PlaybackConstants.SEEK_INCREMENT_MS)
             .build()
     }
 }
