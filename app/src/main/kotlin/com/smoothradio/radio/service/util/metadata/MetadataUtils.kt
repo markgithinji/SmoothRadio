@@ -4,8 +4,6 @@ object MetadataUtils {
     fun extractSongTitle(rawTitle: String): String {
         val trimmed = rawTitle.trim()
         if (trimmed.isEmpty()) return ""
-        
-        android.util.Log.v("SmoothDebug", "Raw Metadata received: '$rawTitle'")
 
         // 1. Specific logic for LogEvent SONG packets (Zetta/RCS format)
         if (trimmed.contains("<LogEvent") && trimmed.contains("Type=\"SONG\"")) {

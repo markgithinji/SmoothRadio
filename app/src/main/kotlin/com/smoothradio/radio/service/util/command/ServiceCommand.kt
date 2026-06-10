@@ -24,9 +24,7 @@ sealed class ServiceCommand {
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
-        const val COMMAND_SET_EQ_BAND = "SET_EQ_BAND"
-        const val COMMAND_SET_SLEEP_TIMER = "SET_SLEEP_TIMER"
-        
+
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
