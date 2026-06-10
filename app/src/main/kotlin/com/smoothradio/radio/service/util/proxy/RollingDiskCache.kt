@@ -20,6 +20,9 @@ class RollingDiskCache(
     private val memoryBuffer = FastMemoryBuffer(INITIAL_BURST_SIZE)
     private val metadataMap = TreeMap<Long, String>()
     
+    @Volatile
+    private var isDiskDisabled = false
+    
     var sessionTag: String = ""
     var part1File: File? = null
         private set
@@ -38,6 +41,7 @@ class RollingDiskCache(
     fun reset(newTag: String) {
         stateLock.withLock {
             sessionTag = newTag
+            isDiskDisabled = false // Reset fallback on new session
             cleanupLegacyFiles()
             part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
             part2File = File(cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
@@ -60,9 +64,21 @@ class RollingDiskCache(
                     totalBytesReceived = totalBytesWritten
                 }
                 
-                val threshold = if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
-                if (memoryBuffer.size() >= threshold) {
-                    flushBufferToDiskInternal()
+                if (isDiskDisabled) {
+                    // RAM FULL-PROOF: If disk is dead, keep RAM buffer small to avoid OOM
+                    // We allow up to 1MB of "hot" data in RAM, then slide the window.
+                    if (memoryBuffer.size() >= RAM_FALLBACK_LIMIT) {
+                        val droppedFromRam = memoryBuffer.size().toLong()
+                        totalBytesDropped += droppedFromRam
+                        memoryBuffer.reset()
+                        metadataMap.headMap(totalBytesDropped).clear()
+                        Log.w("SmoothSeek", "RollingDiskCache: Disk disabled, sliding RAM window. Dropped $droppedFromRam bytes.")
+                    }
+                } else {
+                    val threshold = if (totalBytesWritten < 128 * 1024) INITIAL_BURST_SIZE else MEMORY_FLUSH_THRESHOLD
+                    if (memoryBuffer.size() >= threshold) {
+                        flushBufferToDiskInternal()
+                    }
                 }
                 dataCondition.signalAll()
             }
@@ -76,11 +92,11 @@ class RollingDiskCache(
     }
 
     fun flushBufferToDiskInternal() {
-        if (memoryBuffer.size() == 0) return
+        if (memoryBuffer.size() == 0 || isDiskDisabled) return
         val p1 = part1File ?: return
         val p2 = part2File ?: return
         
-        runCatching {
+        try {
             if (p1.length() < PART_SIZE) {
                 FileOutputStream(p1, true).use { memoryBuffer.writeTo(it) }
             } else if (p2.length() < PART_SIZE) {
@@ -113,6 +129,10 @@ class RollingDiskCache(
                 }
             }
             memoryBuffer.reset()
+        } catch (e: java.io.IOException) {
+            Log.e("SmoothSeek", "CRITICAL: Disk write failed (Disk full?). Falling back to RAM-only mode.", e)
+            isDiskDisabled = true
+            // Don't reset memoryBuffer yet, let appendData handle the windowing
         }
     }
 
@@ -274,5 +294,6 @@ class RollingDiskCache(
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024
         const val INITIAL_BURST_SIZE = 256 * 1024
         const val MIN_SNIFF_SIZE = 32 * 1024
+        const val RAM_FALLBACK_LIMIT = 1024 * 1024 // 1MB limit when disk is full
     }
 }
