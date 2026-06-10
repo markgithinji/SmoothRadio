@@ -41,7 +41,6 @@ import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
@@ -51,14 +50,13 @@ class MainActivity : FragmentActivity() {
     private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     // Playback state
-    private lateinit var serviceIntent: Intent
     private var interstitialAd: InterstitialAd? = null
     private var currentAdRequestId = 0
     private var adFailedCountdown = 0
     private var canShowAd: Boolean = true
     private var isPlaying = false
-    private var isPlaybackRequested = false // used to prevent playback from starting after user cancels during ad load
     private var currentStation: RadioStation? = null
+    private var pendingAdStationId: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +65,6 @@ class MainActivity : FragmentActivity() {
         setupSystemBars()
 
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
-        serviceIntent = Intent(this, StreamService::class.java)
 
         setContent {
             SmoothRadioTheme {
@@ -122,7 +119,6 @@ class MainActivity : FragmentActivity() {
                             StreamStates.PLAYING,
                             StreamStates.BUFFERING,
                             StreamStates.PREPARING -> true
-
                             else -> false
                         }
                         Log.d(
@@ -147,7 +143,6 @@ class MainActivity : FragmentActivity() {
                                 currentStation = command.station
                                 startNewPlay()
                             }
-
                             is PlayCommand.TogglePlayPause -> playOrStop()
                             is PlayCommand.Refresh -> refresh()
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
@@ -155,7 +150,6 @@ class MainActivity : FragmentActivity() {
                                 command.band,
                                 command.level
                             )
-
                             is PlayCommand.SeekTo -> seekTo(command.position)
                             PlayCommand.SeekBack -> seekBack()
                             PlayCommand.SeekForward -> seekForward()
@@ -220,77 +214,93 @@ class MainActivity : FragmentActivity() {
 
     private fun playOrStop() {
         Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
+
         if (isPlaying) {
             Log.d("MainActivityLogs", "  → STOP execution")
-            isPlaybackRequested = false
-            currentAdRequestId++ // Invalidate any pending ad load requests immediately
-            serviceIntent.action = ServiceCommand.ACTION_STOP
-            startService(serviceIntent)
+            currentAdRequestId++ // Invalidate any pending ad load requests
+            pendingAdStationId = null
+
+            val intent = Intent(this, StreamService::class.java).apply {
+                action = ServiceCommand.ACTION_STOP
+            }
+            startService(intent)
             return
         }
 
-        Log.d("MainActivityLogs", "  → START execution | setting isPlaybackRequested=true")
-        isPlaybackRequested = true
-        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-        startStreamService()
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogs", "playOrStop: No current station!")
+            return
+        }
+
+        Log.d("MainActivityLogs", "  → START execution")
+        pendingAdStationId = station.id
+        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
         loadInterstitialAd()
         checkInternet()
     }
 
     private fun startNewPlay() {
-        Log.d("MainActivityLogs", "startNewPlay | station=${currentStation?.stationName} | isPlaying=$isPlaying")
-
-        isPlaybackRequested = true
-
-        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
-            Log.d("MainActivityLogs", "  → Ad logic already in progress. Overwriting intent with new station: ${currentStation?.stationName}")
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogs", "startNewPlay: No current station!")
+            return
         }
 
-        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-        startStreamService()
+        Log.d("MainActivityLogs", "startNewPlay | station=${station.stationName} | isPlaying=$isPlaying")
+
+        pendingAdStationId = station.id
+        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
         loadInterstitialAd()
         checkInternet()
     }
 
     private fun refresh() {
-        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogs", "refresh: No current station!")
+            return
+        }
 
-        isPlaybackRequested = true
-        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-        startStreamService()
+        pendingAdStationId = station.id
+        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
         loadInterstitialAd()
         checkInternet()
     }
 
-    private fun startStreamService() {
-        val station = currentStation
-        if (station == null) {
-            Log.e("MainActivityLogs", "startStreamService | ABORTED: No station available in memory or VM")
-            return
+    private fun startStreamService(action: String, station: RadioStation) {
+        Log.d("MainActivityLogs", "startStreamService | Creating Intent for: ${station.stationName} | Action: $action")
+        val intent = Intent(this, StreamService::class.java).apply {
+            this.action = action
+            putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
+            putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
         }
-
-        Log.d("MainActivityLogs", "startStreamService | Creating Intent for: ${station.stationName} | URL: ${station.streamLink} | action: ${serviceIntent.action}")
-        serviceIntent.putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
-        serviceIntent.putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
-        serviceIntent.putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
-        ContextCompat.startForegroundService(this, serviceIntent)
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun playOnly() {
-        serviceIntent.action = ServiceCommand.ACTION_START
-        startStreamService()
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogs", "playOnly: No current station!")
+            return
+        }
+        startStreamService(ServiceCommand.ACTION_START, station)
     }
 
     private fun loadInterstitialAd() {
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogsAd", "loadInterstitialAd: No current station!")
+            return
+        }
+
         val requestId = ++currentAdRequestId
+        val stationIdAtRequest = station.id
+
         Log.d(
             "MainActivityLogsAd",
-            "loadInterstitialAd() called (reqId=$requestId) | canShowAd=$canShowAd"
+            "loadInterstitialAd() called (reqId=$requestId) | station=$stationIdAtRequest"
         )
 
         if (interstitialAd != null) {
             Log.d("MainActivityLogsAd", "  → Ad already exists, showing now")
-            if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) showAd()
+            showAd()
             return
         }
 
@@ -301,17 +311,17 @@ class MainActivity : FragmentActivity() {
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
-                    if (requestId != currentAdRequestId) {
+                    if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) {
                         Log.d("MainActivityLogsAd", "  → Stale ad load ignored (reqId=$requestId)")
                         return
                     }
                     Log.d("MainActivityLogsAd", "Ad successfully loaded (reqId=$requestId)")
                     interstitialAd = ad
-                    if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) showAd()
+                    showAd()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    if (requestId != currentAdRequestId) return
+                    if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) return
                     Log.e(
                         "MainActivityLogsAd",
                         "Ad failed to load (reqId=$requestId): ${loadAdError.message}"
@@ -324,7 +334,20 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showAd() {
-        Log.d("MainActivityLogsAd", "showAd() called")
+        val station = currentStation ?: run {
+            Log.d("MainActivityLogsAd", "showAd: No current station")
+            playOnly()
+            return
+        }
+
+        Log.d("MainActivityLogsAd", "showAd() called | pendingId=$pendingAdStationId | current=${station.id}")
+
+        // Final sanity check: Is the station that triggered the ad still the one we are on?
+        if (pendingAdStationId != null && station.id != pendingAdStationId) {
+            Log.d("MainActivityLogsAd", "  → BLOCKED: Station changed during ad load")
+            return
+        }
+
         if (!canShowAd) {
             Log.d("MainActivityLogsAd", "  → BLOCKED: canShowAd is false")
             playOnly()
@@ -332,8 +355,7 @@ class MainActivity : FragmentActivity() {
         }
 
         val ad = interstitialAd ?: run {
-            Log.d("MainActivityLogsAd", "  → BLOCKED: No ad ready, loading one")
-            loadInterstitialAd()
+            Log.d("MainActivityLogsAd", "  → BLOCKED: No ad ready")
             return
         }
 
@@ -341,18 +363,24 @@ class MainActivity : FragmentActivity() {
             override fun onAdDismissedFullScreenContent() {
                 Log.d("MainActivityLogsAd", "Ad dismissed by user")
                 interstitialAd = null
-                playOnly()
+
+                // Only start playback if we still have a pending station request
+                if (pendingAdStationId != null && currentStation?.id == pendingAdStationId) {
+                    playOnly()
+                }
+
+                pendingAdStationId = null
                 preloadInterstitialAd()
                 playerControlViewModel.recordAdShown()
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                Log.e(
-                    "MainActivityLogsAd",
-                    "Ad failed to show: ${adError.message}"
-                )
+                Log.e("MainActivityLogsAd", "Ad failed to show: ${adError.message}")
                 interstitialAd = null
-                stopService(serviceIntent)
+                if (pendingAdStationId != null && currentStation?.id == pendingAdStationId) {
+                    playOnly()
+                }
+                pendingAdStationId = null
             }
         }
 
