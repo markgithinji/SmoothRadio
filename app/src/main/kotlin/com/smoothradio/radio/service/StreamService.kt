@@ -110,8 +110,11 @@ class StreamService : MediaSessionService() {
     private var activeStreamUrl: String? = null
 
     private fun getDroppedDurationMs(): Long {
-        // No safety pad for eviction calculations
-        return (localAudioProxy.totalBytesDropped / localAudioProxy.estimatedBytesPerMs.coerceAtLeast(1.0)).toLong()
+        val dropped = localAudioProxy.totalBytesDropped
+        val est = localAudioProxy.estimatedBytesPerMs.coerceAtLeast(1.0)
+        val dur = (dropped / est).toLong()
+        // Log.v("SmoothSeek", "getDroppedDurationMs: droppedBytes=$dropped, est=$est -> ${dur}ms")
+        return dur
     }
 
     private fun getLoadedDurationMs(): Long = (localAudioProxy.totalBytesWritten / localAudioProxy.estimatedBytesPerMs).toLong()
@@ -604,19 +607,19 @@ class StreamService : MediaSessionService() {
         val minValidMs = getDroppedDurationMs()  // Start of buffer (oldest available)
         val maxValidMs = getLoadedDurationMs()    // End of buffer (newest available)
 
+        Log.d("SmoothSeek", "seekToAbsolute: Requested=${positionMs}ms. Buffer range: ${minValidMs}ms to ${maxValidMs}ms")
+
         // Calculate target byte position
         val targetByte = (positionMs * localAudioProxy.estimatedBytesPerMs).toLong()
         val minValidByte = localAudioProxy.totalBytesDropped
         val maxValidByte = localAudioProxy.totalBytesWritten
 
-        Log.d("SmoothSeek", "seekToAbsolute: Requested=${positionMs}ms (${targetByte} bytes)")
-        Log.d("SmoothSeek", "seekToAbsolute: Buffer bounds: ${minValidMs}ms-${maxValidMs}ms (${minValidByte}-${maxValidByte} bytes)")
-
         // CRITICAL: Clamp position to valid range
         val clampedPosition = when {
-            positionMs < minValidMs -> {
-                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is BEFORE buffer start (${minValidMs}ms). Seeking to buffer start.")
-                minValidMs
+            positionMs < minValidMs + 1000 -> {
+                val safeMin = minValidMs + 1000
+                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is too close to buffer start (${minValidMs}ms). Seeking to safe start: ${safeMin}ms.")
+                safeMin
             }
             positionMs > maxValidMs - 5000 -> { // Leave 5 second safety margin
                 val safePos = (maxValidMs - 5000).coerceAtLeast(minValidMs)
@@ -848,11 +851,12 @@ class StreamService : MediaSessionService() {
             // automatically seek to the start of the buffer + a small safety margin
             if (error.cause is BufferEvictedException) {
                 val evicted = error.cause as BufferEvictedException
+                Log.e("SmoothSeek", "onPlayerError: BufferEvictedException at ${evicted.evictedPositionMs}ms")
 
                 // Don't use the byte offset from the exception directly
                 // Instead, get the current buffer start and add a small offset
                 val bufferStartMs = getDroppedDurationMs()
-                val safetyOffset = 2000L // Start 2 seconds into the buffer to avoid eviction edge
+                val safetyOffset = 1000L // Start 1 second into the buffer to avoid eviction edge
                 val newPositionMs = bufferStartMs + safetyOffset
 
                 Log.w("SmoothSeek", "EventListener: Buffer evicted. " +

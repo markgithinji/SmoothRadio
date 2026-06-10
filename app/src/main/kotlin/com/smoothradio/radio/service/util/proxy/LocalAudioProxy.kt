@@ -115,6 +115,9 @@ class LocalAudioProxy(
     }
 
     fun updateLastReadPosition(pos: Long) {
+        if (abs(pos - lastReadPosition) > 1024 * 1024) {
+            Log.d("SmoothSeek", "LocalAudioProxy: lastReadPosition jumped from $lastReadPosition to $pos")
+        }
         lastReadPosition = pos
     }
 
@@ -420,13 +423,13 @@ class LocalAudioProxy(
             
             if (p2.length() >= PART_SIZE) {
                 val p1Len = p1.length()
-                Log.d("SmoothSeek", "LocalAudioProxy: P2 full ($p1Len bytes). Rotating: deleting P1, P2 -> P1")
+                Log.d("SmoothSeek", "LocalAudioProxy: P2 full. Rotating. P1 was $p1Len bytes. totalBytesDropped before: $totalBytesDropped")
                 if (p1.delete()) {
                     if (p2.renameTo(p1)) {
                         totalBytesDropped += p1Len
                         metadataMap.headMap(totalBytesDropped).clear()
                         p2.createNewFile()
-                        Log.d("SmoothSeek", "LocalAudioProxy: Rotation complete. Total dropped: $totalBytesDropped")
+                        Log.d("SmoothSeek", "LocalAudioProxy: Rotation complete. totalBytesDropped now: $totalBytesDropped")
                     } else {
                         Log.e("SmoothSeek", "LocalAudioProxy: Failed to rename P2 to P1 during rotation! Attempting manual copy.")
                         try {
@@ -546,7 +549,7 @@ class LocalAudioProxy(
 
                     if (currentRelPos < 0) {
                         // Position is evicted from the buffer
-                        Log.w("SmoothSeek", "LocalAudioProxy: EVICTED! Pos=$position, Dropped=$totalBytesDropped")
+                        Log.w("SmoothSeek", "LocalAudioProxy.readData: EVICTED! ReqPos=$position, totalBytesDropped=$totalBytesDropped, diff=${position - totalBytesDropped}")
                         return@withLock -2 // Signal eviction
                     }
 
@@ -653,7 +656,7 @@ class LocalAudioProxy(
             }
             if (terminalError != 0) return -3
         } catch (e: Exception) {
-            Log.e("SmoothSeek", "LocalAudioProxy.readData error for tag $tag: ${e.message}")
+            Log.e("SmoothSeek", "LocalAudioProxy.readData error for tag $tag at position $position: ${e.javaClass.simpleName}: ${e.message}", e)
             return -1
         }
         return -1
