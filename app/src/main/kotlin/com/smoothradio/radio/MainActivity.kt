@@ -58,6 +58,11 @@ class MainActivity : FragmentActivity() {
     private var currentStation: RadioStation? = null
     private var pendingAdStationId: Int? = null
 
+    private enum class PlaybackMode {
+        NEW_PLAY,   // Starting a new station (always show ad)
+        TOGGLE      // Toggle play/pause on current station
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -141,10 +146,10 @@ class MainActivity : FragmentActivity() {
                         when (command) {
                             is PlayCommand.PlayStation -> {
                                 currentStation = command.station
-                                startNewPlay()
+                                initiatePlayback(PlaybackMode.NEW_PLAY)
                             }
-                            is PlayCommand.TogglePlayPause -> playOrStop()
-                            is PlayCommand.Refresh -> refresh()
+                            is PlayCommand.TogglePlayPause -> initiatePlayback(PlaybackMode.TOGGLE)
+                            is PlayCommand.Refresh -> initiatePlayback(PlaybackMode.NEW_PLAY)
                             is PlayCommand.SetSleepTimer -> setSleepTimer(command.minutes)
                             is PlayCommand.SetEqBand -> setEqualizerBand(
                                 command.band,
@@ -212,11 +217,17 @@ class MainActivity : FragmentActivity() {
         playerControlViewModel.showToast(ToastType.Success("Sleep timer set for $minutes minutes"))
     }
 
-    private fun playOrStop() {
-        Log.d("MainActivityLogs", "playOrStop() called | isPlaying=$isPlaying | currentStation=${currentStation?.stationName}")
+    private fun initiatePlayback(mode: PlaybackMode) {
+        val station = currentStation ?: run {
+            Log.e("MainActivityLogs", "initiatePlayback: No current station!")
+            return
+        }
 
-        if (isPlaying) {
-            Log.d("MainActivityLogs", "  → STOP execution")
+        Log.d("MainActivityLogs", "initiatePlayback: mode=$mode, station=${station.stationName}, isPlaying=$isPlaying")
+
+        // Handle toggle mode - stop if currently playing
+        if (mode == PlaybackMode.TOGGLE && isPlaying) {
+            Log.d("MainActivityLogs", "  → Toggling OFF")
             currentAdRequestId++ // Invalidate any pending ad load requests
             pendingAdStationId = null
 
@@ -227,41 +238,18 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        val station = currentStation ?: run {
-            Log.e("MainActivityLogs", "playOrStop: No current station!")
-            return
+        // Start playback (with ad for NEW_PLAY, without ad for TOGGLE resume)
+        pendingAdStationId = station.id
+
+        if (mode == PlaybackMode.NEW_PLAY) {
+            // New station: show ad first
+            startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
+            loadInterstitialAd()
+        } else {
+            // Resuming paused station: play directly without ad
+            startStreamService(ServiceCommand.ACTION_START, station)
         }
 
-        Log.d("MainActivityLogs", "  → START execution")
-        pendingAdStationId = station.id
-        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
-        loadInterstitialAd()
-        checkInternet()
-    }
-
-    private fun startNewPlay() {
-        val station = currentStation ?: run {
-            Log.e("MainActivityLogs", "startNewPlay: No current station!")
-            return
-        }
-
-        Log.d("MainActivityLogs", "startNewPlay | station=${station.stationName} | isPlaying=$isPlaying")
-
-        pendingAdStationId = station.id
-        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
-        loadInterstitialAd()
-        checkInternet()
-    }
-
-    private fun refresh() {
-        val station = currentStation ?: run {
-            Log.e("MainActivityLogs", "refresh: No current station!")
-            return
-        }
-
-        pendingAdStationId = station.id
-        startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
-        loadInterstitialAd()
         checkInternet()
     }
 
@@ -428,7 +416,7 @@ class MainActivity : FragmentActivity() {
                     interstitialAd = null
                     when (loadAdError.code) {
                         AdRequest.ERROR_CODE_NETWORK_ERROR,
-                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> { // Avoid preloading during no ad fill errors
+                        AdRequest.ERROR_CODE_INTERNAL_ERROR -> {
                             adFailedCountdown++
                             if (adFailedCountdown < MAX_AD_LOAD_ATTEMPTS) {
                                 preloadInterstitialAd()
