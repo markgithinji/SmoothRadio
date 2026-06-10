@@ -560,6 +560,7 @@ class StreamService : MediaSessionService() {
         val isHls = link.contains(".m3u8") || link.contains("playlist")
         jumpToLiveOnReady = isHls
         
+        wrappedPlayer.playWhenReady = true
         preparePlayer(link.toUri())
     }
 
