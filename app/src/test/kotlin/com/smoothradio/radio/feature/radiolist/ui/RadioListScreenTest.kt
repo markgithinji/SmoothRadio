@@ -68,7 +68,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -89,7 +93,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -123,7 +131,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -175,7 +187,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -214,7 +230,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -245,7 +265,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -311,7 +335,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -360,7 +388,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -409,7 +441,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -470,7 +506,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -562,7 +602,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -609,7 +653,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -642,7 +690,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -697,7 +749,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 
@@ -756,7 +812,11 @@ class RadioListScreenTest {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
                 val gridState = remember { LazyGridState() }
-                RadioStationsScreen(listScrollState = listState, gridScrollState = gridState)
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
             }
         }
 

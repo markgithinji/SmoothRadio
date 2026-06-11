@@ -18,4 +18,13 @@ class FakeViewPreferenceRepository : ViewPreferenceRepository {
     override fun getIsGridViewFlow(): Flow<Boolean> {
         return _isGridView
     }
+
+    private var lastShownVersion = 0
+    override suspend fun saveLastShownVersion(versionCode: Int) {
+        lastShownVersion = versionCode
+    }
+
+    override suspend fun getLastShownVersion(): Int {
+        return lastShownVersion
+    }
 }
