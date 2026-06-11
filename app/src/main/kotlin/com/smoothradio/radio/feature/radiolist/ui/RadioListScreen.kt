@@ -63,6 +63,7 @@ import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
 fun RadioStationsScreen(
     listScrollState: LazyListState,
     gridScrollState: LazyGridState,
+    onWhatNewClick: () -> Unit,
     modifier: Modifier = Modifier,
     radioViewModel: RadioViewModel = hiltViewModel(),
     playerControlViewModel: PlayerControlViewModel = hiltViewModel()
@@ -210,7 +211,14 @@ fun RadioStationsScreen(
     }
 
     if (showAboutDialog) {
-        AboutDialog(onDismiss = { showAboutDialog = false }, context = context)
+        AboutDialog(
+            onDismiss = { showAboutDialog = false },
+            onWhatNewClick = {
+                showAboutDialog = false
+                onWhatNewClick()
+            },
+            context = context
+        )
     }
 }
 
