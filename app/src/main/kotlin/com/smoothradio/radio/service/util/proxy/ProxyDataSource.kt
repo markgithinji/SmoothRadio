@@ -135,7 +135,7 @@ class ProxyDataSource(
         return try {
             val bytesRead = proxy.readData(tag, position, buffer, offset, length)
 
-            when (bytesRead) {
+            val finalRead = when (bytesRead) {
                 -1 -> {
                     // If readData returns -1, it might be due to a session change that occurred DURING the read.
                     if (tag != proxy.sessionTag) {
@@ -158,14 +158,22 @@ class ProxyDataSource(
                 }
 
                 -2 -> {
-                    // Buffer evicted - we need to seek to the new start position
-                    // The new valid start position is at totalBytesDropped (byte offset 0 in current buffer)
-                    // We don't have estimatedBytesPerMs here, so we'll throw with the byte offset
-                    // and let StreamService handle the conversion
+                    // FUZZY RECOVERY: If the position is evicted (e.g. paused too long),
+                    // automatically jump forward to the new start of the buffer.
+                    // This prevents a crash/toast and just results in a tiny skip.
                     val newValidStartBytes = proxy.totalBytesDropped
 
-                    // Pass the byte offset - StreamService will convert to milliseconds
-                    throw BufferEvictedException(position, newValidStartBytes)
+                    // Update our internal tracking position
+                    this.position = newValidStartBytes
+
+                    // Transparently retry the read at the new valid start position
+                    val retryRead = proxy.readData(tag, position, buffer, offset, length)
+
+                    if (retryRead == -2) {
+                        // If it fails again, throw to let StreamService jump to Live
+                        throw BufferEvictedException(position, newValidStartBytes)
+                    }
+                    retryRead
                 }
 
                 -3 -> {
@@ -176,14 +184,17 @@ class ProxyDataSource(
 
                 else -> {
                     // Successfully read data
-                    if (bytesRead > 0) {
-                        position += bytesRead
-                        proxy.updateLastReadPosition(position)
-                        bytesTransferred(bytesRead)
-                    }
                     bytesRead
                 }
             }
+
+            // Update state and return
+            if (finalRead > 0) {
+                position += finalRead
+                proxy.updateLastReadPosition(position)
+                bytesTransferred(finalRead)
+            }
+            finalRead
         } catch (e: BufferEvictedException) {
             // Re-throw to be handled in onPlayerError
             throw e

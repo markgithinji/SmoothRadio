@@ -1006,19 +1006,21 @@ class StreamService : MediaSessionService() {
             jumpToLiveOnReady = false
 
             // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
-            // automatically seek to the start of the buffer + a small safety margin
+            // automatically jump to the current "Live Edge" to recover playback immediately.
             if (error.cause is BufferEvictedException) {
-                // Don't use the byte offset from the exception directly
-                // Instead, get the current buffer start and add a small offset
-                val bufferStartMs = getDroppedDurationMs()
-                val safetyOffset = PlaybackConstants.BACK_SAFETY_BUFFER_MS
-                val newPositionMs = bufferStartMs + safetyOffset
+                // To recover robustly, we jump to the newest loaded data (Live)
+                val loadedDur = getLoadedDurationMs()
+                val urlString = activeStreamUrl ?: ""
+                val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
+                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
+                
+                val recoveryTarget = (loadedDur - safetyBuffer).coerceAtLeast(0)
 
-                // Update UI state to show buffering during seek
+                // Update UI state to show buffering during recovery
                 setState(StreamStates.BUFFERING)
 
-                // Perform the seek to the new position (NOT the byte offset from exception)
-                seekToAbsolute(newPositionMs)
+                // Perform the jump
+                seekToAbsolute(recoveryTarget)
                 return
             }
 
