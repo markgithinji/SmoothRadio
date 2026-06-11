@@ -118,11 +118,13 @@ class ProxyDataSource(
         if (tag != proxy.sessionTag) {
             handleTerminalError(proxy.terminalError)
 
-            while (isOpened.get() && tag != proxy.sessionTag) {
+            var waitAttempts = 0
+            while (isOpened.get() && tag != proxy.sessionTag && waitAttempts < 4) {
                 handleTerminalError(proxy.terminalError)
                 try {
-                    Thread.sleep(100)
-                } catch (e: InterruptedException) {
+                    Thread.sleep(50)
+                    waitAttempts++
+                } catch (_: InterruptedException) {
                     Thread.currentThread().interrupt()
                     return C.RESULT_END_OF_INPUT
                 }
@@ -139,11 +141,13 @@ class ProxyDataSource(
                     if (tag != proxy.sessionTag) {
                         handleTerminalError(proxy.terminalError)
 
-                        while (isOpened.get() && tag != proxy.sessionTag) {
+                        var innerWaitAttempts = 0
+                        while (isOpened.get() && tag != proxy.sessionTag && innerWaitAttempts < 4) {
                             handleTerminalError(proxy.terminalError)
                             try {
-                                Thread.sleep(100)
-                            } catch (e: InterruptedException) {
+                                Thread.sleep(50)
+                                innerWaitAttempts++
+                            } catch (_: InterruptedException) {
                                 Thread.currentThread().interrupt()
                                 break
                             }
