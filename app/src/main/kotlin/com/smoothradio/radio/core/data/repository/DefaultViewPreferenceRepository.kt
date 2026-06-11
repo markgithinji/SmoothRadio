@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.smoothradio.radio.core.domain.repository.ViewPreferenceRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -32,7 +33,20 @@ class DefaultViewPreferenceRepository @Inject constructor(
         }
     }
 
+    override suspend fun saveLastShownVersion(versionCode: Int) {
+        dataStore.edit { preferences ->
+            preferences[LAST_SHOWN_VERSION_KEY] = versionCode
+        }
+    }
+
+    override suspend fun getLastShownVersion(): Int {
+        return dataStore.data.map { preferences ->
+            preferences[LAST_SHOWN_VERSION_KEY] ?: 0
+        }.first()
+    }
+
     companion object {
         private val IS_GRID_VIEW_KEY = booleanPreferencesKey("is_grid_view")
+        private val LAST_SHOWN_VERSION_KEY = intPreferencesKey("last_shown_version")
     }
 }
