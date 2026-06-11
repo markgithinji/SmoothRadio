@@ -789,7 +789,7 @@ fun AudioSeekBar(
             )
 
             // Function: Offset from live
-            val offsetFromLiveMs = loadedPosition - displayTime
+            val offsetFromLiveMs = (loadedPosition + 1000L) - displayTime // Add 1s to match user-facing live edge
             val isLive = offsetFromLiveMs < 4000
 
             val livePulseAlpha by rememberInfiniteTransition(label = "livePulse").animateFloat(

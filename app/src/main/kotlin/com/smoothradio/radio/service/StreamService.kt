@@ -611,7 +611,7 @@ class StreamService : MediaSessionService() {
                     val loadedDur = getLoadedDurationMs()
                     val urlString = activeStreamUrl ?: ""
                     val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                    val safetyBuffer = if (isHls) 12000L else 4000L
+                    val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                     seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
                 }
             }
@@ -625,7 +625,7 @@ class StreamService : MediaSessionService() {
                 val current = wrappedPlayer.currentPosition
                 val droppedDur = getDroppedDurationMs()
                 val target =
-                    (current - PlaybackConstants.SEEK_INCREMENT_MS).coerceAtLeast(droppedDur)
+                    (current - PlaybackConstants.SEEK_INCREMENT_MS).coerceAtLeast(droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS)
                 seekToAbsolute(target)
             }
 
@@ -635,7 +635,7 @@ class StreamService : MediaSessionService() {
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 val safetyBuffer =
-                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
+                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 val target =
                     (current + PlaybackConstants.SEEK_INCREMENT_MS).coerceAtMost(loadedDur - safetyBuffer)
                 seekToAbsolute(target)
@@ -647,10 +647,10 @@ class StreamService : MediaSessionService() {
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 val safetyBuffer =
-                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
+                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 val target = command.position.coerceIn(
-                    droppedDur,
-                    (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
+                    droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS,
+                    (loadedDur - safetyBuffer).coerceAtLeast(droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS)
                 )
                 seekToAbsolute(target)
             }
@@ -1011,7 +1011,7 @@ class StreamService : MediaSessionService() {
                 // Don't use the byte offset from the exception directly
                 // Instead, get the current buffer start and add a small offset
                 val bufferStartMs = getDroppedDurationMs()
-                val safetyOffset = 1000L // Start 1 second into the buffer to avoid eviction edge
+                val safetyOffset = PlaybackConstants.BACK_SAFETY_BUFFER_MS
                 val newPositionMs = bufferStartMs + safetyOffset
 
                 // Update UI state to show buffering during seek

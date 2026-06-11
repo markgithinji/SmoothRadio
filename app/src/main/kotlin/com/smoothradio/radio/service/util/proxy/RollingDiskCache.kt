@@ -315,10 +315,10 @@ class RollingDiskCache(
     }
 
     companion object {
-        const val PART_SIZE = 256 * 1024L
+        const val PART_SIZE = 1024 * 1024L
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024
         const val INITIAL_BURST_SIZE = 256 * 1024
         const val MIN_SNIFF_SIZE = 32 * 1024
-        const val RAM_FALLBACK_LIMIT = 1024 * 1024 // 1MB limit when disk is full
+        const val RAM_FALLBACK_LIMIT = 2 * 1024 * 1024 // 2MB limit when disk is full
     }
 }

@@ -40,7 +40,7 @@ class PlaybackProgressCalculator @Inject constructor() {
         val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
         
         // We report the "Safe Live Edge" as the loaded position to the UI.
-        val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
+        val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS)
 
         val loadingProgress = if (isBuffering) {
             // Target buffer for initial playback

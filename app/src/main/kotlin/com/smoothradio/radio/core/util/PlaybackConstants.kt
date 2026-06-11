@@ -1,8 +1,8 @@
 package com.smoothradio.radio.core.util
 
 object PlaybackConstants {
-    const val HLS_SAFETY_BUFFER_MS = 12000L
-    const val PROGRESSIVE_SAFETY_BUFFER_MS = 2000L
+    const val HLS_SAFETY_BUFFER_MS = 6000L
+    const val PROGRESSIVE_SAFETY_BUFFER_MS = 1000L
     const val BUSY_PROGRESS_UPDATE_DELAY_MS = 100L
     const val IDLE_PROGRESS_UPDATE_DELAY_MS = 1000L
     const val INITIAL_BITRATE_ESTIMATION = 16.0
@@ -17,6 +17,7 @@ object PlaybackConstants {
     const val PROGRESS_SCALE = 0.95f
     const val LIVE_OFFSET_TARGET_MS = 2000L
     const val SEEK_INCREMENT_MS = 10000L
+    const val BACK_SAFETY_BUFFER_MS = 1000L
 
     // Proxy Constants
     const val PROXY_SCHEME = "proxy"
