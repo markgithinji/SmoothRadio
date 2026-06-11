@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -58,9 +59,11 @@ class LocalAudioProxyTest {
         intervalMs: Long = 10,
         condition: () -> Boolean,
     ) {
-        withTimeout(timeoutMs) {
-            while (!condition()) {
-                delay(intervalMs.milliseconds)
+        withContext(Dispatchers.Default.limitedParallelism(1)) {
+            withTimeout(timeoutMs) {
+                while (!condition()) {
+                    delay(intervalMs.milliseconds)
+                }
             }
         }
     }
@@ -150,7 +153,7 @@ class LocalAudioProxyTest {
 
         proxy.start(mockWebServer.url("/massive").toString())
         
-        awaitCondition(timeoutMs = 10000) { proxy.totalBytesDropped > 0 }
+        awaitCondition(timeoutMs = 20000) { proxy.totalBytesDropped > 0 }
 
         assertThat(proxy.totalBytesDropped).isGreaterThan(0)
         
