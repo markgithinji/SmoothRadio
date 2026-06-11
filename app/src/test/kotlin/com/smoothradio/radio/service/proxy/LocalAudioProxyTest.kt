@@ -2,7 +2,6 @@ package com.smoothradio.radio.service.proxy
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
-import com.smoothradio.radio.service.util.proxy.RollingDiskCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -16,9 +15,14 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class LocalAudioProxyTest {
 
     @get:Rule
@@ -78,8 +82,8 @@ class LocalAudioProxyTest {
 
     @Test
     fun `proxy should rotate files when PART_SIZE is reached`() = runTest {
-        // PART_SIZE is 1MB. Let's send 1.2MB.
-        val largeDataSize = (1024 * 1024 * 1.2).toInt()
+        // PART_SIZE is 256KB. Let's send 600KB to ensure at least one rotation.
+        val largeDataSize = 600 * 1024
         val largeData = ByteArray(largeDataSize) { 0x01.toByte() }
         mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(largeData)))
 
@@ -87,19 +91,38 @@ class LocalAudioProxyTest {
         
         awaitCondition { proxy.totalBytesWritten >= largeDataSize }
 
-        // Give a tiny bit of extra time for the flush to finish if it happened exactly at the threshold
+        // Give a tiny bit of extra time for the flush to finish
         delay(100)
 
-        // Part 1 should be full (at least PART_SIZE)
-        assertThat(proxy.totalBytesWritten).isAtLeast(RollingDiskCache.PART_SIZE)
-        // Overflow should be in Part 2
-        assertThat(proxy.totalBytesWritten).isGreaterThan(RollingDiskCache.PART_SIZE)
-        assertThat(proxy.totalBytesDropped).isEqualTo(0) 
+        // Rotation should have occurred since largeDataSize (600KB) > 2 * PART_SIZE (512KB)
+        assertThat(proxy.totalBytesDropped).isGreaterThan(0)
+        assertThat(proxy.totalBytesWritten).isEqualTo(largeDataSize.toLong())
+    }
+
+    @Test
+    fun `readData from middle of buffer should support seeking`() = runTest {
+        // Write 400KB of data
+        val dataSize = 400 * 1024
+        val dummyData = ByteArray(dataSize) { i -> (i % 256).toByte() }
+        mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(dummyData)))
+
+        proxy.start(mockWebServer.url("/seek-test").toString())
+        
+        awaitCondition { proxy.totalBytesWritten >= dataSize }
+
+        val buffer = ByteArray(1024)
+        // Read from 100KB offset
+        val offset = 100 * 1024L
+        val bytesRead = proxy.readData(tag = proxy.sessionTag, position = offset, buffer = buffer, offset = 0, length = 1024)
+
+        assertThat(bytesRead).isEqualTo(1024)
+        assertThat(buffer[0]).isEqualTo((offset % 256).toByte())
     }
 
     @Test
     fun `readData should return data from the buffer`() = runTest {
-        val dummyData = ByteArray(1024) { i -> (i % 256).toByte() }
+        // Use data larger than MIN_SNIFF_SIZE (32KB) to allow reading from position 0
+        val dummyData = ByteArray(1024 * 40) { i -> (i % 256).toByte() }
         mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(dummyData)))
 
         proxy.start(mockWebServer.url("/read-test").toString())
@@ -119,13 +142,15 @@ class LocalAudioProxyTest {
 
     @Test
     fun `readData should return -2 when position is already dropped`() = runTest {
-        // Force a drop by writing more than 3MB (TOTAL_CAPACITY_BYTES)
-        val massiveData = ByteArray((1024 * 1024 * 3.2).toInt()) { 0x01.toByte() }
+        // Trigger a drop by writing just over 2 * PART_SIZE (512KB)
+        // PART_SIZE = 256KB, so 600KB will fill Part 1, Part 2, and trigger a rotation.
+        val dataSize = 600 * 1024
+        val massiveData = ByteArray(dataSize) { 0x01.toByte() }
         mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(massiveData)))
 
         proxy.start(mockWebServer.url("/massive").toString())
         
-        awaitCondition(timeoutMs = 120000) { proxy.totalBytesDropped > 0 }
+        awaitCondition(timeoutMs = 10000) { proxy.totalBytesDropped > 0 }
 
         assertThat(proxy.totalBytesDropped).isGreaterThan(0)
         
