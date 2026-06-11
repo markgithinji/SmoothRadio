@@ -1,6 +1,5 @@
 package com.smoothradio.radio.service.util.proxy
 
-import android.util.Log
 import com.smoothradio.radio.core.util.PlaybackConstants
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -17,7 +16,6 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.math.abs
 
 /**
  * A local HTTP proxy implementation that downloads a live stream to a rolling two-part buffer.
@@ -64,6 +62,9 @@ class DefaultAudioProxy(
     override var sessionTag: String = ""
         private set
 
+    override val part1File: File? get() = cache.part1File
+    override val part2File: File? get() = cache.part2File
+
     private val _proxyState = MutableStateFlow<ProxyState>(ProxyState.Idle)
     override val proxyState: StateFlow<ProxyState> = _proxyState.asStateFlow()
 
@@ -91,18 +92,11 @@ class DefaultAudioProxy(
     }
 
     override fun updateLastReadPosition(pos: Long) {
-        if (abs(pos - lastReadPosition) > 1024 * 1024) {
-            Log.d(
-                "SmoothSeek",
-                "DefaultAudioProxy: lastReadPosition jumped from $lastReadPosition to $pos"
-            )
-        }
         lastReadPosition = pos
     }
 
     override fun start(streamUrl: String) {
         val tagAtStart = UUID.randomUUID().toString().take(8)
-        Log.d("SmoothSeek", "DefaultAudioProxy.start: station=$streamUrl, tag=$tagAtStart")
 
         terminalError = 0
         stop()
@@ -172,10 +166,6 @@ class DefaultAudioProxy(
     }
 
     override fun stop() {
-        Log.d(
-            "SmoothSeek",
-            "DefaultAudioProxy.stop (wasRunning=${isRunning.get()}, tag=$sessionTag)"
-        )
         isRunning.set(false)
         sessionJob.cancelChildren()
 
@@ -215,13 +205,6 @@ class DefaultAudioProxy(
             }
 
             estimatedBytesPerMs = (oldEstimation * 0.9) + (targetEstimation * 0.1)
-
-            if (abs(oldEstimation - estimatedBytesPerMs) > 0.5) {
-                Log.d(
-                    "SmoothSeek",
-                    "DefaultAudioProxy: Bitrate estimation updated: $estimatedBytesPerMs"
-                )
-            }
         } else if (detectedBitrateKbps != null) {
             estimatedBytesPerMs = detectedBitrateKbps!! / PlaybackConstants.BITS_PER_BYTE
         }

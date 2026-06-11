@@ -18,7 +18,6 @@ import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
@@ -37,6 +36,7 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.MediaStyleNotificationHelper.MediaStyle
 import com.google.common.collect.ImmutableList
 import com.smoothradio.radio.MainActivity
 import com.smoothradio.radio.R
@@ -44,20 +44,20 @@ import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
 import com.smoothradio.radio.core.util.PlaybackConstants
-import com.smoothradio.radio.service.util.proxy.AudioProxy
-import com.smoothradio.radio.service.util.metadata.MetadataUtils
 import com.smoothradio.radio.service.util.command.ServiceCommand
 import com.smoothradio.radio.service.util.command.ServiceCommandMapper
+import com.smoothradio.radio.service.util.metadata.MetadataUtils
+import com.smoothradio.radio.service.util.proxy.AudioProxy
 import com.smoothradio.radio.service.util.proxy.BufferEvictedException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.concurrent.withLock
-import kotlin.math.abs
 import javax.inject.Inject
+import kotlin.math.abs
 
 /**
  * A background service that manages audio streaming using ExoPlayer and Media3 MediaSession.
@@ -117,9 +117,11 @@ class StreamService : MediaSessionService() {
         return dur
     }
 
-    private fun getLoadedDurationMs(): Long = (localAudioProxy.totalBytesWritten / localAudioProxy.estimatedBytesPerMs).toLong()
+    private fun getLoadedDurationMs(): Long =
+        (localAudioProxy.totalBytesWritten / localAudioProxy.estimatedBytesPerMs).toLong()
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (!wrappedPlayer.isPlaying && !wrappedPlayer.playWhenReady) {
@@ -144,25 +146,26 @@ class StreamService : MediaSessionService() {
             while (true) {
                 try {
                     if (isPreparingForAd) {
-                        kotlinx.coroutines.delay(500)
+                        delay(500)
                         continue
                     }
 
                     val pos = wrappedPlayer.currentPosition
                     val state = wrappedPlayer.playbackState
                     val isPlaying = wrappedPlayer.isPlaying
-                    
-                    val isBusy = jumpToLiveOnReady || state == Player.STATE_BUFFERING || (state == Player.STATE_READY && isPlaying)
-                    
+
+                    val isBusy =
+                        jumpToLiveOnReady || state == Player.STATE_BUFFERING || (state == Player.STATE_READY && isPlaying)
+
                     if (!isBusy && state == Player.STATE_IDLE && currentStationName == null) {
-                        kotlinx.coroutines.delay(2000)
+                        delay(2000)
                         continue
                     }
 
                     if (pos > maxPositionReached) {
                         maxPositionReached = pos
                     }
-                    
+
                     localAudioProxy.updateBitrateEstimation()
 
                     val droppedDur = getDroppedDurationMs()
@@ -171,11 +174,10 @@ class StreamService : MediaSessionService() {
                     // Update metadata from proxy if available (handles Time Machine seeking)
                     val byteOffset = (pos * localAudioProxy.estimatedBytesPerMs).toLong()
                     val proxyMetadata = localAudioProxy.getMetadataForOffset(byteOffset)
-                    
+
                     if (proxyMetadata != null) {
                         val cleaned = MetadataUtils.extractSongTitle(proxyMetadata)
                         if (cleaned.isNotEmpty() && cleaned != currentSongTitle) {
-                            Log.d("SmoothMetadata", "New song detected: $cleaned")
                             onSongTitleChanged(cleaned)
                         }
                     }
@@ -188,28 +190,32 @@ class StreamService : MediaSessionService() {
                     stateRepository.updatePosition(if (pos < 0) 0 else pos)
                     stateRepository.updateDuration(loadedDur)
                     stateRepository.updateMinPosition(droppedDur)
-                    
+
                     val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
                     stateRepository.updateLoadedPosition(safeLoadedPos)
 
                     if (jumpToLiveOnReady || stateChange == StreamStates.BUFFERING || stateChange == StreamStates.PREPARING) {
                         val targetMs = PlaybackConstants.PROGRESS_TARGET_MS
-                        val currentMs = localAudioProxy.totalBytesReceived.toDouble() / localAudioProxy.estimatedBytesPerMs.coerceAtLeast(1.0)
+                        val currentMs =
+                            localAudioProxy.totalBytesReceived.toDouble() / localAudioProxy.estimatedBytesPerMs.coerceAtLeast(
+                                1.0
+                            )
                         val progress = (currentMs / targetMs).toFloat().coerceIn(0f, 1f)
-                        val displayProgress = if (progress > 0 || localAudioProxy.totalBytesReceived > 0) {
-                            PlaybackConstants.PROGRESS_BASELINE + (progress * PlaybackConstants.PROGRESS_SCALE)
-                        } else 0f
+                        val displayProgress =
+                            if (progress > 0 || localAudioProxy.totalBytesReceived > 0) {
+                                PlaybackConstants.PROGRESS_BASELINE + (progress * PlaybackConstants.PROGRESS_SCALE)
+                            } else 0f
                         stateRepository.updateLoadingProgress(displayProgress)
                     } else {
                         stateRepository.updateLoadingProgress(1f)
                     }
-                } catch (e: Exception) {
-                    Log.e("SmoothSeek", "Error in progress update", e)
+                } catch (_: Exception) {
                 }
                 val currentState = wrappedPlayer.playbackState
-                val isActuallyBusy = jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
-                val delay = if (isActuallyBusy) 100L else 1000L
-                kotlinx.coroutines.delay(delay)
+                val isActuallyBusy =
+                    jumpToLiveOnReady || currentState == Player.STATE_BUFFERING || (currentState == Player.STATE_READY && wrappedPlayer.isPlaying)
+                val updateInterval = if (isActuallyBusy) 100L else 1000L
+                delay(updateInterval)
             }
         }
     }
@@ -225,7 +231,7 @@ class StreamService : MediaSessionService() {
                     .remove(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                     .remove(COMMAND_SEEK_BACK)
                     .remove(COMMAND_SEEK_FORWARD)
-                
+
                 if (isPreparingForAd) {
                     builder.remove(COMMAND_PLAY_PAUSE)
                         .remove(COMMAND_STOP)
@@ -233,7 +239,7 @@ class StreamService : MediaSessionService() {
                     builder.add(COMMAND_PLAY_PAUSE)
                         .add(COMMAND_STOP)
                 }
-                
+
                 return builder.build()
             }
 
@@ -253,11 +259,12 @@ class StreamService : MediaSessionService() {
             override fun getMediaMetadata(): MediaMetadata {
                 val metadata = super.getMediaMetadata()
                 val stationName = currentStationName ?: getString(R.string.app_name)
-                
+
                 val currentStateLabel = getCurrentStatusLabel()
-                val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+                val title =
+                    currentSongTitle.ifEmpty { currentStateLabel }
                 val subtitle = stationName
-                
+
                 return metadata.buildUpon()
                     .setTitle(title)
                     .setArtist(subtitle)
@@ -270,11 +277,12 @@ class StreamService : MediaSessionService() {
             override fun getCurrentMediaItem(): MediaItem? {
                 val item = super.getCurrentMediaItem() ?: return null
                 val stationName = currentStationName ?: getString(R.string.app_name)
-                
+
                 val currentStateLabel = getCurrentStatusLabel()
-                val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+                val title =
+                    currentSongTitle.ifEmpty { currentStateLabel }
                 val subtitle = stationName
-                
+
                 return item.buildUpon()
                     .setMediaMetadata(
                         item.mediaMetadata.buildUpon()
@@ -351,7 +359,8 @@ class StreamService : MediaSessionService() {
         )
 
         val playPauseIntent = Intent(this, StreamService::class.java).apply {
-            action = if (wrappedPlayer.isPlaying) ServiceCommand.ACTION_PAUSE else ServiceCommand.ACTION_PLAY
+            action =
+                if (wrappedPlayer.isPlaying) ServiceCommand.ACTION_PAUSE else ServiceCommand.ACTION_PLAY
         }
 
         val playPausePendingIntent = PendingIntent.getService(
@@ -363,9 +372,7 @@ class StreamService : MediaSessionService() {
         val currentStateLabel = getCurrentStatusLabel()
 
         // TITLE: Show Song Title if available, otherwise current state (Playing/Buffering)
-        val title = if (currentSongTitle.isNotEmpty()) {
-            currentSongTitle
-        } else {
+        val title = currentSongTitle.ifEmpty {
             currentStateLabel
         }
 
@@ -381,8 +388,6 @@ class StreamService : MediaSessionService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
-            
-        Log.d("SmoothDebug", "Notification Build: Title=$title, Subtitle=$stationDisplay, isPlaying=${wrappedPlayer.isPlaying}, State=${wrappedPlayer.playbackState}")
 
         if (!isPreparingForAd) {
             builder.addAction(
@@ -394,7 +399,7 @@ class StreamService : MediaSessionService() {
 
         builder.setStyle(
             mediaSession?.let {
-                val style = androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(it)
+                val style = MediaStyle(it)
                 if (!isPreparingForAd) {
                     style.setShowActionsInCompactView(0)
                 }
@@ -413,11 +418,6 @@ class StreamService : MediaSessionService() {
 
     private fun updateNotificationInternal() {
         val notification = createMediaStyleNotification()
-        val stationName = currentStationName ?: "Unknown"
-        val state = wrappedPlayer.playbackState
-        val playing = wrappedPlayer.isPlaying
-        
-        Log.d("SmoothDebug", "!!! NOTIFY !!! Station: $stationName | Song: $currentSongTitle | PlayerState: $state | isPlaying: $playing")
 
         // Explicitly notify for all versions to ensure immediate UI updates (Fix for Android 14)
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -432,10 +432,8 @@ class StreamService : MediaSessionService() {
         val stationName = currentStationName ?: getString(R.string.app_name)
         val currentStateLabel = getCurrentStatusLabel()
 
-        val title = if (currentSongTitle.isNotEmpty()) currentSongTitle else currentStateLabel
+        val title = currentSongTitle.ifEmpty { currentStateLabel }
         val subtitle = stationName
-        
-        Log.d("SmoothDebug", "Refreshing MediaSession Metadata: Title=$title, Subtitle=$subtitle")
 
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
@@ -444,10 +442,10 @@ class StreamService : MediaSessionService() {
             .setSubtitle(subtitle)
             .setAlbumTitle(stationName)
             .build()
-            
+
         // 1. Update playlist metadata
         wrappedPlayer.playlistMetadata = metadata
-        
+
         // 2. Update current media item metadata (Fix for Android 11 media controls)
         wrappedPlayer.currentMediaItem?.let { item ->
             val updatedItem = item.buildUpon()
@@ -458,14 +456,14 @@ class StreamService : MediaSessionService() {
                         .build()
                 )
                 .build()
-            
+
             wrappedPlayer.replaceMediaItem(wrappedPlayer.currentMediaItemIndex, updatedItem)
         }
     }
 
     private fun onSongTitleChanged(newTitle: String) {
         val stationName = currentStationName ?: getString(R.string.app_name)
-        
+
         // Define status labels to ignore if they appear in metadata events
         val statusLabels = listOf(
             getString(R.string.player_playing),
@@ -473,7 +471,7 @@ class StreamService : MediaSessionService() {
             getString(R.string.player_preparing_audio),
             getString(R.string.player_paused)
         )
-        
+
         // 1. Ignore if it's a status label (prevents circular feedback loop)
         if (statusLabels.any { it.equals(newTitle, ignoreCase = true) }) {
             return
@@ -482,7 +480,6 @@ class StreamService : MediaSessionService() {
         // 2. If the "song" metadata is just the station name, ignore it (Fix for double name issue)
         if (newTitle == currentSongTitle || newTitle.equals(stationName, ignoreCase = true)) {
             if (newTitle.equals(stationName, ignoreCase = true) && currentSongTitle.isNotEmpty()) {
-                Log.d("SmoothDebug", "Song cleared: Metadata matches station name")
                 currentSongTitle = ""
                 stateRepository.updateMetadata("")
                 refreshMediaSessionMetadata()
@@ -490,11 +487,10 @@ class StreamService : MediaSessionService() {
             }
             return
         }
-        
-        Log.d("SmoothDebug", "Song Changed: '$currentSongTitle' -> '$newTitle'")
+
         currentSongTitle = newTitle
         stateRepository.updateMetadata(newTitle)
-        
+
         refreshMediaSessionMetadata()
         updateNotificationInternal()
     }
@@ -513,8 +509,7 @@ class StreamService : MediaSessionService() {
                     } else {
                         startForeground(NOTIFICATION_ID, createMediaStyleNotification())
                     }
-                } catch (e: Exception) {
-                    Log.e("StreamService", "Failed to start foreground", e)
+                } catch (_: Exception) {
                 }
             }
             handleIntent(it)
@@ -533,11 +528,13 @@ class StreamService : MediaSessionService() {
                 currentStationLogo = command.logo
                 stateRepository.updateStationName(command.name ?: "")
             }
+
             is ServiceCommand.ShowAd -> {
                 currentStationName = command.name
                 currentStationLogo = command.logo
                 stateRepository.updateStationName(command.name ?: "")
             }
+
             else -> {}
         }
 
@@ -547,13 +544,12 @@ class StreamService : MediaSessionService() {
 
         when (command) {
             is ServiceCommand.Start -> {
-                Log.d("StreamService", " ACTION_START → ${currentStationName}")
                 isPreparingForAd = false
                 maxPositionReached = 0L
                 currentSongTitle = ""
                 playbackBaseTimeMs = 0L
                 activeStreamUrl = command.link
-                
+
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
                 stateRepository.updateMinPosition(0L)
@@ -566,17 +562,16 @@ class StreamService : MediaSessionService() {
             }
 
             is ServiceCommand.ShowAd -> {
-                Log.d("StreamService", " ACTION_SHOW_AD → ${currentStationName}")
                 isPreparingForAd = true
                 maxPositionReached = 0L
                 currentSongTitle = ""
                 playbackBaseTimeMs = 0L
                 activeStreamUrl = command.link
-                
+
                 if (command.link.isNotEmpty()) {
                     localAudioProxy.start(command.link)
                 }
-                
+
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
                 stateRepository.updateMinPosition(0L)
@@ -589,14 +584,13 @@ class StreamService : MediaSessionService() {
             }
 
             is ServiceCommand.Stop -> {
-                Log.d("StreamService", " ACTION_STOP")
                 isPreparingForAd = false
                 activeStreamUrl = null
                 wrappedPlayer.pause()
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
                 currentSongTitle = ""
-                
+
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
                 stateRepository.updateMinPosition(0L)
@@ -621,37 +615,50 @@ class StreamService : MediaSessionService() {
                     seekToAbsolute((loadedDur - safetyBuffer).coerceAtLeast(0))
                 }
             }
+
             is ServiceCommand.Pause -> {
                 if (isPreparingForAd) return
                 wrappedPlayer.pause()
             }
+
             is ServiceCommand.SeekBack -> {
                 val current = wrappedPlayer.currentPosition
                 val droppedDur = getDroppedDurationMs()
-                val target = (current - PlaybackConstants.SEEK_INCREMENT_MS).coerceAtLeast(droppedDur)
+                val target =
+                    (current - PlaybackConstants.SEEK_INCREMENT_MS).coerceAtLeast(droppedDur)
                 seekToAbsolute(target)
             }
+
             is ServiceCommand.SeekForward -> {
                 val current = wrappedPlayer.currentPosition
                 val loadedDur = getLoadedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
-                val target = (current + PlaybackConstants.SEEK_INCREMENT_MS).coerceAtMost(loadedDur - safetyBuffer)
+                val safetyBuffer =
+                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
+                val target =
+                    (current + PlaybackConstants.SEEK_INCREMENT_MS).coerceAtMost(loadedDur - safetyBuffer)
                 seekToAbsolute(target)
             }
+
             is ServiceCommand.SeekTo -> {
                 val loadedDur = getLoadedDurationMs()
                 val droppedDur = getDroppedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-                val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
-                val target = command.position.coerceIn(droppedDur, (loadedDur - safetyBuffer).coerceAtLeast(droppedDur))
+                val safetyBuffer =
+                    if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS * 2
+                val target = command.position.coerceIn(
+                    droppedDur,
+                    (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
+                )
                 seekToAbsolute(target)
             }
+
             is ServiceCommand.SetEqBand -> {
                 if (command.band != -1) setEqualizerBand(command.band, command.level)
             }
+
             else -> {}
         }
     }
@@ -682,10 +689,10 @@ class StreamService : MediaSessionService() {
         isPreparingForAd = false
         activeStreamUrl = link
         playbackBaseTimeMs = 0L
-        
+
         val isHls = link.contains(".m3u8") || link.contains("playlist")
         jumpToLiveOnReady = isHls
-        
+
         wrappedPlayer.playWhenReady = true
         preparePlayer(link.toUri())
     }
@@ -695,7 +702,7 @@ class StreamService : MediaSessionService() {
         maxPositionReached = 0L
         jumpToLiveOnReady = true
         playbackBaseTimeMs = 0L
-        
+
         val uriString = uri.toString()
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
 
@@ -705,7 +712,7 @@ class StreamService : MediaSessionService() {
 
         val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
         val cacheKey = currentStationName ?: uriString
-        
+
         val stationName = currentStationName ?: getString(R.string.app_name)
         val initialMetadata = MediaMetadata.Builder()
             .setTitle(stationName)
@@ -737,37 +744,27 @@ class StreamService : MediaSessionService() {
         val minValidMs = getDroppedDurationMs()  // Start of buffer (oldest available)
         val maxValidMs = getLoadedDurationMs()    // End of buffer (newest available)
 
-        Log.d("SmoothSeek", "seekToAbsolute: Requested=${positionMs}ms. Buffer range: ${minValidMs}ms to ${maxValidMs}ms")
-
-        // Calculate target byte position
-        val targetByte = (positionMs * localAudioProxy.estimatedBytesPerMs).toLong()
-        val minValidByte = localAudioProxy.totalBytesDropped
-        val maxValidByte = localAudioProxy.totalBytesWritten
-
         // CRITICAL: Clamp position to valid range
         val clampedPosition = when {
             positionMs < minValidMs + 1000 -> {
                 val safeMin = minValidMs + 1000
-                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is too close to buffer start (${minValidMs}ms). Seeking to safe start: ${safeMin}ms.")
                 safeMin
             }
+
             positionMs > maxValidMs - 5000 -> { // Leave 5 second safety margin
                 val safePos = (maxValidMs - 5000).coerceAtLeast(minValidMs)
-                Log.w("SmoothSeek", "seekToAbsolute: Position ${positionMs}ms is near buffer end. Seeking to ${safePos}ms")
                 safePos
             }
+
             else -> positionMs
         }
 
         // Recalculate byte offset from clamped position
         val clampedByte = (clampedPosition * localAudioProxy.estimatedBytesPerMs).toLong()
 
-        Log.d("SmoothSeek", "seekToAbsolute: Clamped to ${clampedPosition}ms ($clampedByte bytes)")
-
         // If we're already within a reasonable distance of the target, don't seek
         val currentPosition = wrappedPlayer.currentPosition
         if (abs(currentPosition - clampedPosition) < 3000) {
-            Log.d("SmoothSeek", "seekToAbsolute: Already within 3 seconds of target, skipping seek")
             wrappedPlayer.play()
             return
         }
@@ -806,7 +803,7 @@ class StreamService : MediaSessionService() {
         maxPositionReached = 0L
         jumpToLiveOnReady = true
         playbackBaseTimeMs = 0L
-        
+
         val uriString = link
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
         val proxyUri = "proxy://smoothradio/stream?byteOffset=0".toUri()
@@ -825,21 +822,21 @@ class StreamService : MediaSessionService() {
             .setCustomCacheKey(cacheKey)
             .setMediaMetadata(initialMetadata)
             .build()
-            
+
         wrappedPlayer.playWhenReady = false
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
-        
+
         isPlaying = false
         updateNotificationInternal()
     }
 
     private fun performInitialJump() {
         if (!jumpToLiveOnReady || isPreparingForAd) return
-        
+
         val urlString = activeStreamUrl ?: ""
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
-        
+
         if (isHls) {
             jumpToLiveOnReady = false
             val loadedDur = getLoadedDurationMs()
@@ -861,8 +858,8 @@ class StreamService : MediaSessionService() {
                 val bands = numberOfBands
                 serviceScope.launch {
                     // Small delay to let the audio session stabilize
-                    kotlinx.coroutines.delay(500)
-                    
+                    delay(500)
+
                     var hasActiveSettings = false
                     for (i in 0 until bands) {
                         val level = equalizerRepository.getBandLevel(i)
@@ -870,8 +867,7 @@ class StreamService : MediaSessionService() {
                             try {
                                 setBandLevel(i.toShort(), level)
                                 hasActiveSettings = true
-                            } catch (e: Exception) {
-                                Log.e("StreamService", "Failed to apply EQ band $i", e)
+                            } catch (_: Exception) {
                             }
                         }
                     }
@@ -882,15 +878,13 @@ class StreamService : MediaSessionService() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("StreamService", "Failed to initialize Equalizer", e)
         }
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
         try {
             equalizer?.setBandLevel(band.toShort(), level)
-        } catch (e: Exception) {
-            Log.e("StreamService", "Failed to set EQ band $band", e)
+        } catch (_: Exception) {
         }
     }
 
@@ -935,9 +929,17 @@ class StreamService : MediaSessionService() {
             return MediaNotification(NOTIFICATION_ID, createMediaStyleNotification())
         }
 
-        override fun handleCustomCommand(session: MediaSession, action: String, extras: Bundle): Boolean = false
+        override fun handleCustomCommand(
+            session: MediaSession,
+            action: String,
+            extras: Bundle
+        ): Boolean = false
+
         override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo {
-            return MediaNotification.Provider.NotificationChannelInfo(CHANNEL_ID, getString(R.string.notification_channel_name))
+            return MediaNotification.Provider.NotificationChannelInfo(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_name)
+            )
         }
     }
 
@@ -951,7 +953,12 @@ class StreamService : MediaSessionService() {
     inner class SetStopTimerReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val timeInMillis = intent.getLongExtra(ServiceCommand.EXTRA_TIME_IN_MILLIS, 0)
-            val alarmPendingIntent = PendingIntent.getBroadcast(this@StreamService, 0, Intent(ServiceCommand.ACTION_STOP_FROM_TIMER).setPackage(packageName), PendingIntent.FLAG_IMMUTABLE)
+            val alarmPendingIntent = PendingIntent.getBroadcast(
+                this@StreamService,
+                0,
+                Intent(ServiceCommand.ACTION_STOP_FROM_TIMER).setPackage(packageName),
+                PendingIntent.FLAG_IMMUTABLE
+            )
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, alarmPendingIntent)
         }
@@ -961,18 +968,16 @@ class StreamService : MediaSessionService() {
         if (isPreparingForAd) return
         val playbackState = wrappedPlayer.playbackState
         val isPlayerPlaying = wrappedPlayer.isPlaying
-        val playWhenReady = wrappedPlayer.playWhenReady
-        
-        val newState = when {
-            playbackState == Player.STATE_BUFFERING -> StreamStates.BUFFERING
-            playbackState == Player.STATE_READY && isPlayerPlaying -> StreamStates.PLAYING
-            playbackState == Player.STATE_READY && !isPlayerPlaying -> StreamStates.PAUSED
-            playbackState == Player.STATE_ENDED -> StreamStates.ENDED
+
+        val newState = when (playbackState) {
+            Player.STATE_BUFFERING -> StreamStates.BUFFERING
+            Player.STATE_READY if isPlayerPlaying -> StreamStates.PLAYING
+            Player.STATE_READY if true -> StreamStates.PAUSED
+            Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }
-        
+
         if (stateChange != newState) {
-            Log.d("SmoothMetadata", "updateUiState: $stateChange -> $newState (state=$playbackState, playing=$isPlayerPlaying, pwr=$playWhenReady)")
             setState(newState)
         }
     }
@@ -981,40 +986,33 @@ class StreamService : MediaSessionService() {
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             setupEqualizer(audioSessionId)
         }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = MetadataUtils.extractSongTitle(rawTitle)
-            Log.d("SmoothMetadata", "onMediaMetadataChanged: raw=$rawTitle -> cleaned=$cleaned")
             if (cleaned.isNotEmpty() && currentSongTitle != cleaned) {
                 onSongTitleChanged(cleaned)
             }
         }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            Log.d("SmoothDebug", "onIsPlayingChanged: $isPlaying (State: ${wrappedPlayer.playbackState})")
             this@StreamService.isPlaying = isPlaying
             updateUiState()
             refreshMediaSessionMetadata() // Ensure MediaSession is updated when play/pause changes
             updateNotificationInternal()
         }
+
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
 
             // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
             // automatically seek to the start of the buffer + a small safety margin
             if (error.cause is BufferEvictedException) {
-                val evicted = error.cause as BufferEvictedException
-                Log.e("SmoothSeek", "onPlayerError: BufferEvictedException at ${evicted.evictedPositionMs}ms")
-
                 // Don't use the byte offset from the exception directly
                 // Instead, get the current buffer start and add a small offset
                 val bufferStartMs = getDroppedDurationMs()
                 val safetyOffset = 1000L // Start 1 second into the buffer to avoid eviction edge
                 val newPositionMs = bufferStartMs + safetyOffset
-
-                Log.w("SmoothSeek", "EventListener: Buffer evicted. " +
-                        "Buffer start: ${bufferStartMs}ms, " +
-                        "Seeking to: ${newPositionMs}ms " +
-                        "(evicted from: ${evicted.evictedPositionMs}ms)")
 
                 // Update UI state to show buffering during seek
                 setState(StreamStates.BUFFERING)
@@ -1027,7 +1025,6 @@ class StreamService : MediaSessionService() {
             // IGNORE ERRORS AFTER STOP: If the user explicitly stopped the radio, suppress
             // any delayed connection or eviction errors to prevent UI flicker.
             if (activeStreamUrl == null) {
-                Log.d("StreamService", "Suppressing error after explicit stop: ${error.cause?.message}")
                 return
             }
 
@@ -1041,20 +1038,13 @@ class StreamService : MediaSessionService() {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> getString(R.string.toast_station_unreachable)
+
                 else -> getString(R.string.toast_unexpected_error)
             }
             Toast.makeText(this@StreamService, message, Toast.LENGTH_SHORT).show()
         }
-        override fun onPlaybackStateChanged(state: Int) {
-            val stateName = when(state) {
-                Player.STATE_BUFFERING -> "BUFFERING"
-                Player.STATE_READY -> "READY"
-                Player.STATE_IDLE -> "IDLE"
-                Player.STATE_ENDED -> "ENDED"
-                else -> "UNKNOWN"
-            }
-            Log.d("SmoothDebug", "onPlaybackStateChanged: $stateName (isPlaying: ${wrappedPlayer.isPlaying})")
 
+        override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_READY && jumpToLiveOnReady && !isPreparingForAd) {
                 performInitialJump()
             }
@@ -1062,8 +1052,12 @@ class StreamService : MediaSessionService() {
             refreshMediaSessionMetadata() // Sync MediaSession with new state
             updateNotificationInternal() // Sync Notification with new state
         }
-        override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
-            Log.d("SmoothSeek", "Position Discontinuity: Reason=$reason, Old=${oldPosition.positionMs}, New=${newPosition.positionMs}")
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
         }
     }
 

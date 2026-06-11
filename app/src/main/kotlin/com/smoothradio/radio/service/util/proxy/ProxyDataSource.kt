@@ -4,7 +4,6 @@ package com.smoothradio.radio.service.util.proxy
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
@@ -117,10 +116,6 @@ class ProxyDataSource(
         // CRITICAL: We only block if there is NO terminal error. If the station failed,
         // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
-            Log.d(
-                "SmoothSeek",
-                "ProxyDataSource.read: Session tag mismatch (Current: ${proxy.sessionTag}, Mine: $tag). Checking for errors."
-            )
             handleTerminalError(proxy.terminalError)
 
             while (isOpened.get() && tag != proxy.sessionTag) {
@@ -155,10 +150,6 @@ class ProxyDataSource(
                         }
                         return C.RESULT_END_OF_INPUT
                     }
-                    Log.d(
-                        "SmoothSeek",
-                        "ProxyDataSource.read: End of stream reached for tag $tag at position $position"
-                    )
                     C.RESULT_END_OF_INPUT
                 }
 
@@ -169,19 +160,12 @@ class ProxyDataSource(
                     // and let StreamService handle the conversion
                     val newValidStartBytes = proxy.totalBytesDropped
 
-                    Log.e(
-                        "SmoothSeek",
-                        "ProxyDataSource.read: Buffer EVICTED for tag $tag at position ${position}ms. " +
-                                "New valid start byte offset: $newValidStartBytes"
-                    )
-
                     // Pass the byte offset - StreamService will convert to milliseconds
                     throw BufferEvictedException(position, newValidStartBytes)
                 }
 
                 -3 -> {
                     // Terminal error from proxy
-                    Log.e("SmoothSeek", "ProxyDataSource.read: Terminal error for tag $tag")
                     handleTerminalError(proxy.terminalError)
                     C.RESULT_END_OF_INPUT
                 }
@@ -200,7 +184,6 @@ class ProxyDataSource(
             // Re-throw to be handled in onPlayerError
             throw e
         } catch (e: Exception) {
-            Log.e("SmoothSeek", "ProxyDataSource.read: Unexpected exception", e)
             handleTerminalError(PlaybackConstants.ERROR_CACHE_ERROR)
             C.RESULT_END_OF_INPUT
         }

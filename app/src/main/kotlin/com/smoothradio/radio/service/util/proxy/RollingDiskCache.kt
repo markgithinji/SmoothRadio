@@ -1,6 +1,5 @@
 package com.smoothradio.radio.service.util.proxy
 
-import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -72,10 +71,6 @@ class RollingDiskCache(
                         totalBytesDropped += droppedFromRam
                         memoryBuffer.reset()
                         metadataMap.headMap(totalBytesDropped).clear()
-                        Log.w(
-                            "SmoothSeek",
-                            "RollingDiskCache: Disk disabled, sliding RAM window. Dropped $droppedFromRam bytes."
-                        )
                     }
                 } else {
                     val threshold =
@@ -127,18 +122,12 @@ class RollingDiskCache(
                             p2.delete()
                             p2.createNewFile()
                         } catch (e: Exception) {
-                            Log.e("RollingDiskCache", "Manual copy failed during rotation", e)
                         }
                     }
                 }
             }
             memoryBuffer.reset()
         } catch (e: java.io.IOException) {
-            Log.e(
-                "SmoothSeek",
-                "CRITICAL: Disk write failed (Disk full?). Falling back to RAM-only mode.",
-                e
-            )
             isDiskDisabled = true
             // Don't reset memoryBuffer yet, let appendData handle the windowing
         }
