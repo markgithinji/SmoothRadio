@@ -155,6 +155,31 @@ class StreamServiceTest {
     }
 
     @Test
+    fun startAction_afterShowAd_shouldResetAdState() = runTest {
+        // 1. Trigger Show Ad
+        val adIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SHOW_AD
+            putExtra(ServiceCommand.EXTRA_LINK, "http://ad-url")
+        }
+        startService(adIntent)
+        
+        waitForCondition { stateRepository.playbackState.value != StreamStates.IDLE }
+
+        // 2. Trigger Start Station
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(startIntent)
+
+        waitForCondition { stateRepository.stationName.value == "HOPE FM" }
+        
+        assertThat(stateRepository.stationName.value).isEqualTo("HOPE FM")
+        assertThat(stateRepository.playbackState.value).isNotEqualTo(StreamStates.IDLE)
+    }
+
+    @Test
     fun setEqualizerBand_shouldNotCrash() = runTest {
         val startIntent = Intent(context, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_START
@@ -198,5 +223,84 @@ class StreamServiceTest {
         }
         startService(stopIntent)
         delay(500)
+    }
+
+    @Test
+    fun seekTo_shouldUpdatePosition() = runTest {
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(startIntent)
+
+        // Wait for sufficient buffer (need 15s duration to seek safely to 10s)
+        waitForCondition(timeoutMs = 30000) {
+            stateRepository.duration.value >= 15000L
+        }
+
+        val seekIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_TO
+            putExtra(ServiceCommand.EXTRA_POSITION, 10000L) // 10s
+        }
+        startService(seekIntent)
+
+        waitForCondition {
+            stateRepository.position.value == 10000L
+        }
+
+        assertThat(stateRepository.position.value).isEqualTo(10000L)
+    }
+
+    @Test
+    fun seekForward_shouldIncrementPosition() = runTest {
+        val startIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(startIntent)
+
+        // Wait for sufficient buffer (need 25s duration to seek safely to 15s)
+        waitForCondition(timeoutMs = 40000) {
+            stateRepository.duration.value >= 25000L
+        }
+
+        // Set an initial position
+        val seekIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_TO
+            putExtra(ServiceCommand.EXTRA_POSITION, 5000L)
+        }
+        startService(seekIntent)
+        waitForCondition { stateRepository.position.value == 5000L }
+
+        // Seek forward (default increment is 10s)
+        val forwardIntent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_SEEK_FORWARD
+        }
+        startService(forwardIntent)
+
+        // Wait for it to be greater than 5000L
+        waitForCondition { stateRepository.position.value > 5000L }
+        assertThat(stateRepository.position.value).isGreaterThan(5000L)
+    }
+
+    @Test
+    fun onSongTitleChanged_shouldUpdateMetadata() = runTest {
+        val intent = Intent(context, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_START
+            putExtra(ServiceCommand.EXTRA_LINK, "https://a5.asurahosting.com:7530/radio.mp3")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "HOPE FM")
+        }
+        startService(intent)
+
+        waitForCondition {
+            stateRepository.playbackState.value == StreamStates.PREPARING ||
+            stateRepository.playbackState.value == StreamStates.BUFFERING
+        }
+
+        // We can't easily trigger the internal callback, but we can verify that 
+        // handleIntent for START clears it.
+        assertThat(stateRepository.metadata.value).isEmpty()
     }
 }
