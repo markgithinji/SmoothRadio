@@ -35,7 +35,7 @@ class ProgressiveDownloader(
         var hasReceivedAnyData = false
 
         while (isRunning() && sessionTag() == tag) {
-            val maxAllowedRetries = if (hasReceivedAnyData) 10 else 2
+            val maxAllowedRetries = if (hasReceivedAnyData) 5 else 2
             if (retryCount >= maxAllowedRetries) {
                 onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
                 return@withContext
@@ -188,7 +188,7 @@ class HlsDownloader(
         var hasReceivedAnyData = false
 
         while (isRunning() && sessionTag() == tag) {
-            val maxAllowedRetries = if (hasReceivedAnyData) 10 else 2
+            val maxAllowedRetries = if (hasReceivedAnyData) 5 else 2
             if (retryCount >= maxAllowedRetries) {
                 onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
                 return@withContext
@@ -319,7 +319,7 @@ class HlsDownloader(
         private const val SUCCESS_RETRY_DELAY_MS = 1000L
         private const val MAX_RETRY_DELAY_MS = 30000L
         private const val HLS_PLAYLIST_RETRY_DELAY_MS = 2000L
-        private const val HLS_SEGMENT_DOWNLOAD_DELAY_MS = 500L
+        private const val HLS_SEGMENT_DOWNLOAD_DELAY_MS = 700L
         private const val HLS_EMPTY_PLAYLIST_DELAY_MS = 4000L
     }
 }

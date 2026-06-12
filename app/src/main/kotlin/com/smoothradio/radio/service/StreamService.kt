@@ -384,6 +384,14 @@ class StreamService : MediaSessionService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val stopIntent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this, 3, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val stationName = currentStationName ?: getString(R.string.app_name)
         val currentStateLabel = getCurrentStatusLabel()
 
@@ -411,13 +419,18 @@ class StreamService : MediaSessionService() {
                 if (wrappedPlayer.isPlaying) getString(R.string.player_pause) else getString(R.string.player_play),
                 playPausePendingIntent
             )
+            builder.addAction(
+                R.drawable.ic_stop,
+                getString(R.string.player_stop),
+                stopPendingIntent
+            )
         }
 
         builder.setStyle(
             mediaSession?.let {
                 val style = MediaStyle(it)
                 if (!isPreparingForAd) {
-                    style.setShowActionsInCompactView(0)
+                    style.setShowActionsInCompactView(0, 1)
                 }
                 style
             }

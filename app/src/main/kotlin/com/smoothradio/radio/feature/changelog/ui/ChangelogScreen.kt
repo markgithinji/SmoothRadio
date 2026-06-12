@@ -79,12 +79,13 @@ fun ChangelogDialog(
                         Text(
                             text = "What's New",
                             style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Version $versionName",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
