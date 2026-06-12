@@ -31,11 +31,10 @@ class ProgressiveDownloader(
 
     override suspend fun download(url: String, tag: String): Unit = withContext(Dispatchers.IO) {
         var retryCount = 0
-        var currentDelay = INITIAL_RETRY_DELAY_MS
         var hasReceivedAnyData = false
 
         while (isRunning() && sessionTag() == tag) {
-            val maxAllowedRetries = if (hasReceivedAnyData) 5 else 2
+            val maxAllowedRetries = if (hasReceivedAnyData) 15 else 3
             if (retryCount >= maxAllowedRetries) {
                 onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
                 return@withContext
@@ -61,7 +60,6 @@ class ProgressiveDownloader(
                 response?.use { res ->
                     if (!res.isSuccessful) throw Exception("HTTP ${res.code}")
                     retryCount = 0
-                    currentDelay = SUCCESS_RETRY_DELAY_MS
 
                     val contentType = res.header("Content-Type")
                     val bitrateStr = res.header("icy-br")
@@ -80,6 +78,7 @@ class ProgressiveDownloader(
                                 val read = inputStream.read(buf)
                                 if (read == -1) break
                                 hasReceivedAnyData = true
+                                retryCount = 0 // Reset on data
                                 cache.appendData(tag, buf, read, isHls = false)
                                 bytesUntilMetadata -= read
                             } else {
@@ -110,6 +109,7 @@ class ProgressiveDownloader(
                             bytesRead = inputStream.read(buffer)
                             if (bytesRead == -1) break
                             hasReceivedAnyData = true
+                            retryCount = 0 // Reset on data
                             cache.appendData(tag, buffer, bytesRead, isHls = false)
                         }
                     }
@@ -118,8 +118,7 @@ class ProgressiveDownloader(
             } catch (ignored: Exception) {
                 if (!isRunning() || sessionTag() != tag) break
                 retryCount++
-                delay(currentDelay.milliseconds)
-                currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+                delay(RETRY_DELAY_MS.milliseconds)
             }
         }
     }
@@ -161,11 +160,9 @@ class ProgressiveDownloader(
     }
 
     companion object {
-        private const val DEFAULT_READ_TIMEOUT_SEC = 6
-        private const val RETRY_READ_TIMEOUT_SEC = 8
-        private const val INITIAL_RETRY_DELAY_MS = 700L
-        private const val SUCCESS_RETRY_DELAY_MS = 1000L
-        private const val MAX_RETRY_DELAY_MS = 30000L
+        private const val DEFAULT_READ_TIMEOUT_SEC = 10
+        private const val RETRY_READ_TIMEOUT_SEC = 15
+        private const val RETRY_DELAY_MS = 2000L
     }
 }
 
@@ -184,11 +181,10 @@ class HlsDownloader(
         val downloadedSegments = mutableSetOf<String>()
         val baseUrl = url.substring(0, url.lastIndexOf("/") + 1)
         var retryCount = 0
-        var currentDelay = HLS_SEGMENT_DOWNLOAD_DELAY_MS
         var hasReceivedAnyData = false
 
         while (isRunning() && sessionTag() == tag) {
-            val maxAllowedRetries = if (hasReceivedAnyData) 5 else 2
+            val maxAllowedRetries = if (hasReceivedAnyData) 15 else 3
             if (retryCount >= maxAllowedRetries) {
                 onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
                 return@withContext
@@ -199,9 +195,14 @@ class HlsDownloader(
                     onStateUpdate(ProxyState.Retrying)
                 }
 
+                val client = okHttpClient.newBuilder()
+                    .connectTimeout(RETRY_READ_TIMEOUT_SEC.toLong(), TimeUnit.SECONDS)
+                    .readTimeout(RETRY_READ_TIMEOUT_SEC.toLong(), TimeUnit.SECONDS)
+                    .build()
+
                 val request =
                     Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
-                val playlistText = okHttpClient.newCall(request).execute().use { response ->
+                val playlistText = client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         if (response.code == 401 || response.code == 403) {
                             onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
@@ -215,7 +216,6 @@ class HlsDownloader(
                 // If we successfully get the playlist, we are back in streaming mode (conceptually)
                 onStateUpdate(ProxyState.Streaming(MimeTypes.AUDIO_AAC, null))
                 retryCount = 0
-                currentDelay = SUCCESS_RETRY_DELAY_MS
 
                 if (playlistText.isEmpty()) {
                     delay(HLS_PLAYLIST_RETRY_DELAY_MS.milliseconds); continue
@@ -277,6 +277,8 @@ class HlsDownloader(
                     if (!isRunning() || sessionTag() != tag) return@forEachIndexed
                     val data = segmentDataList[index]
                     if (data.isNotEmpty()) {
+                        retryCount = 0 // Reset retry count on any successful data
+                        
                         var headerOffset = 0
                         // SAFER ID3 STRIPPING: Only strip if we find a valid ID3 tag at the very beginning.
                         // Large ID3 tags at the start of HLS segments confuse the progressive sniffer.
@@ -308,16 +310,15 @@ class HlsDownloader(
             } catch (ignored: Exception) {
                 if (!isRunning() || sessionTag() != tag) break
                 retryCount++
-                delay(currentDelay.milliseconds)
-                currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+                delay(RETRY_DELAY_MS.milliseconds)
             }
         }
     }
 
     companion object {
         private const val MAX_PARALLEL_DOWNLOADS = 6
-        private const val SUCCESS_RETRY_DELAY_MS = 1000L
-        private const val MAX_RETRY_DELAY_MS = 30000L
+        private const val RETRY_READ_TIMEOUT_SEC = 15
+        private const val RETRY_DELAY_MS = 2000L
         private const val HLS_PLAYLIST_RETRY_DELAY_MS = 2000L
         private const val HLS_SEGMENT_DOWNLOAD_DELAY_MS = 700L
         private const val HLS_EMPTY_PLAYLIST_DELAY_MS = 4000L
