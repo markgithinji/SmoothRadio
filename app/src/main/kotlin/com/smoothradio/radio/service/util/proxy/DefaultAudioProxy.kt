@@ -120,6 +120,7 @@ class DefaultAudioProxy(
                     internalOkHttpClient, cache, scope,
                     isRunning = { isRunning.get() },
                     sessionTag = { sessionTag },
+                    onStateUpdate = { _proxyState.value = it },
                     onBitrateDetected = { detectedBitrateKbps = it },
                     onTerminalError = { handleError(it) }
                 )
@@ -128,9 +129,7 @@ class DefaultAudioProxy(
                     internalOkHttpClient, cache,
                     isRunning = { isRunning.get() },
                     sessionTag = { sessionTag },
-                    onStateUpdate = { mime, br ->
-                        _proxyState.value = ProxyState.Streaming(mime, br)
-                    },
+                    onStateUpdate = { _proxyState.value = it },
                     onTerminalError = { handleError(it) },
                     onBitrateDetected = { detectedBitrateKbps = it }
                 )

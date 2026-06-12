@@ -1,5 +1,6 @@
 package com.smoothradio.radio.service.util.proxy
 
+import androidx.media3.common.MimeTypes
 import com.smoothradio.radio.core.util.PlaybackConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +24,7 @@ class ProgressiveDownloader(
     private val cache: RollingDiskCache,
     private val isRunning: () -> Boolean,
     private val sessionTag: () -> String,
-    private val onStateUpdate: (mimeType: String?, bitrate: String?) -> Unit,
+    private val onStateUpdate: (ProxyState) -> Unit,
     private val onTerminalError: (Int) -> Unit,
     private val onBitrateDetected: (Double) -> Unit
 ) : StreamDownloader {
@@ -31,21 +32,24 @@ class ProgressiveDownloader(
     override suspend fun download(url: String, tag: String): Unit = withContext(Dispatchers.IO) {
         var retryCount = 0
         var currentDelay = INITIAL_RETRY_DELAY_MS
-        val maxRetries = 2
+        val maxRetries = 10 // Try for ~3-5 minutes, similar to standard player behavior
 
         while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
             try {
                 val timeout =
                     if (retryCount > 0) RETRY_READ_TIMEOUT_SEC else DEFAULT_READ_TIMEOUT_SEC
+                
+                if (retryCount > 0) {
+                    onStateUpdate(ProxyState.Retrying)
+                }
+
                 var useMetadata = true
                 var response =
                     executeStreamRequest(url, requestMetadata = true, timeoutSeconds = timeout)
 
                 if (response != null && (response.code == 401 || response.code == 403)) {
-                    response.close()
-                    useMetadata = false
-                    response =
-                        executeStreamRequest(url, requestMetadata = false, timeoutSeconds = timeout)
+                    onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
+                    return@withContext
                 }
 
                 response?.use { res ->
@@ -55,7 +59,7 @@ class ProgressiveDownloader(
 
                     val contentType = res.header("Content-Type")
                     val bitrateStr = res.header("icy-br")
-                    onStateUpdate(contentType, bitrateStr)
+                    onStateUpdate(ProxyState.Streaming(contentType, bitrateStr))
                     bitrateStr?.toDoubleOrNull()?.let { onBitrateDetected(it) }
 
                     val inputStream = res.body.byteStream()
@@ -167,6 +171,7 @@ class HlsDownloader(
     private val scope: CoroutineScope,
     private val isRunning: () -> Boolean,
     private val sessionTag: () -> String,
+    private val onStateUpdate: (ProxyState) -> Unit,
     private val onBitrateDetected: (Double) -> Unit,
     private val onTerminalError: (Int) -> Unit
 ) : StreamDownloader {
@@ -176,16 +181,29 @@ class HlsDownloader(
         val baseUrl = url.substring(0, url.lastIndexOf("/") + 1)
         var retryCount = 0
         var currentDelay = HLS_SEGMENT_DOWNLOAD_DELAY_MS
-        val maxRetries = 2
+        val maxRetries = 10 // Try for ~3-5 minutes
 
         while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
             try {
+                if (retryCount > 0) {
+                    onStateUpdate(ProxyState.Retrying)
+                }
+
                 val request =
                     Request.Builder().url(url).addHeader("User-Agent", "Mozilla/5.0").build()
                 val playlistText = okHttpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
+                    if (!response.isSuccessful) {
+                        if (response.code == 401 || response.code == 403) {
+                            onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
+                            return@withContext
+                        }
+                        throw Exception("HTTP ${response.code}")
+                    }
                     response.body.string()
                 }
+                
+                // If we successfully get the playlist, we are back in streaming mode (conceptually)
+                onStateUpdate(ProxyState.Streaming(MimeTypes.AUDIO_AAC, null))
                 retryCount = 0
                 currentDelay = SUCCESS_RETRY_DELAY_MS
 

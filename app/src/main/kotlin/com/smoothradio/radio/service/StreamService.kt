@@ -49,6 +49,7 @@ import com.smoothradio.radio.service.util.command.ServiceCommandMapper
 import com.smoothradio.radio.service.util.metadata.MetadataUtils
 import com.smoothradio.radio.service.util.proxy.AudioProxy
 import com.smoothradio.radio.service.util.proxy.BufferEvictedException
+import com.smoothradio.radio.service.util.proxy.ProxyState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -141,6 +142,18 @@ class StreamService : MediaSessionService() {
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
         startProgressUpdate()
+        observeProxyState()
+    }
+
+    private fun observeProxyState() {
+        serviceScope.launch {
+            localAudioProxy.proxyState.collect {
+                // Refresh both metadata and notification on any proxy state change
+                // (e.g. from Retrying back to Streaming)
+                refreshMediaSessionMetadata()
+                updateNotificationInternal()
+            }
+        }
     }
 
     private fun startProgressUpdate() {
@@ -347,6 +360,7 @@ class StreamService : MediaSessionService() {
     private fun getCurrentStatusLabel(): String {
         return when {
             wrappedPlayer.isPlaying -> getString(R.string.player_playing)
+            localAudioProxy.proxyState.value is ProxyState.Retrying -> getString(R.string.player_buffering)
             wrappedPlayer.playbackState == Player.STATE_BUFFERING -> getString(R.string.player_buffering)
             stateChange is StreamStates.PAUSED -> getString(R.string.player_paused)
             else -> stateChange.label
