@@ -113,16 +113,11 @@ class ProxyDataSource(
         // abandoned station. Instead of returning EOF or an Exception (which triggers
         // UnrecognizedInputFormatException during sniffing), we block the loader thread
         // until ExoPlayer naturally closes this DataSource.
-        // CRITICAL: We only block if there is NO terminal error. If the station failed,
-        // we want to report that failure immediately.
         if (tag != proxy.sessionTag) {
-            handleTerminalError(proxy.terminalError)
-
             var waitAttempts = 0
-            while (isOpened.get() && tag != proxy.sessionTag && waitAttempts < 4) {
-                handleTerminalError(proxy.terminalError)
+            while (isOpened.get() && tag != proxy.sessionTag && waitAttempts < 10) {
                 try {
-                    Thread.sleep(50)
+                    Thread.sleep(100)
                     waitAttempts++
                 } catch (_: InterruptedException) {
                     Thread.currentThread().interrupt()

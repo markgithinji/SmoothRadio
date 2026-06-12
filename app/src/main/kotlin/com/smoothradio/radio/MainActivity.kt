@@ -233,7 +233,8 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        // Start playback (with ad for NEW_PLAY, without ad for TOGGLE resume)
+        // Reset fail count and set pending ID when starting a NEW station or resuming
+        adFailedCountdown = 0
         pendingAdStationId = station.id
 
         if (mode == PlaybackMode.NEW_PLAY) {
@@ -266,6 +267,7 @@ class MainActivity : FragmentActivity() {
 
         val requestId = ++currentAdRequestId
         val stationIdAtRequest = station.id
+        android.util.Log.d("SmoothRadio", "loadInterstitialAd: reqId=$requestId, station=${station.stationName}")
 
         if (interstitialAd != null) {
             showAd()
@@ -280,6 +282,7 @@ class MainActivity : FragmentActivity() {
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) {
+                        android.util.Log.d("SmoothRadio", "onAdLoaded: Ignoring stale ad (reqId=$requestId)")
                         return
                     }
                     interstitialAd = ad
@@ -288,8 +291,10 @@ class MainActivity : FragmentActivity() {
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) {
+                        android.util.Log.d("SmoothRadio", "onAdFailedToLoad: Ignoring stale failure (reqId=$requestId)")
                         return
                     }
+                    android.util.Log.e("SmoothRadio", "onAdFailedToLoad: ${loadAdError.message}")
                     interstitialAd = null
                     handleAdLoadFailure()
                 }

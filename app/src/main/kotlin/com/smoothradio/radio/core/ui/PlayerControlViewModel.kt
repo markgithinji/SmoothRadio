@@ -12,8 +12,6 @@ import com.smoothradio.radio.core.domain.usecase.CanShowAdUseCase
 import com.smoothradio.radio.core.domain.usecase.RecordAdShownUseCase
 import com.smoothradio.radio.core.domain.usecase.SyncAdSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,12 +22,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
@@ -85,12 +81,6 @@ class PlayerControlViewModel @Inject constructor(
         initialValue = StreamStates.IDLE
     )
 
-    private val _playRequests = MutableSharedFlow<RadioStation>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    
     val eqBandLevels: StateFlow<Map<Int, Short>> = equalizerRepository.getBandLevelsFlow()
         .stateIn(
             scope = viewModelScope,
@@ -131,18 +121,6 @@ class PlayerControlViewModel @Inject constructor(
                 }
             }
         }
-
-        // trigger playback with debouncing: Process only the latest station request after a period of "silence"
-        viewModelScope.launch {
-            @OptIn(FlowPreview::class)
-            _playRequests
-                .debounce(200.milliseconds)
-                .collect { station ->
-                    _canShowAd.value = canShowAdUseCase()
-                    _playCommand.send(PlayCommand.PlayStation(station))
-                    radioRepository.setPlayingStation(station.id)
-                }
-        }
     }
 
     fun showToast(toastType: ToastType) {
@@ -162,8 +140,15 @@ class PlayerControlViewModel @Inject constructor(
         // stale DB emissions until the Repository confirms it has received this new ID.
         _isStationChanging.value = true
 
-        // Queue the heavy work via Flow pipeline
-        _playRequests.tryEmit(station)
+        requestPlayStation(station)
+    }
+
+    private fun requestPlayStation(station: RadioStation) {
+        viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
+            _playCommand.send(PlayCommand.PlayStation(station))
+            radioRepository.setPlayingStation(station.id)
+        }
     }
 
     fun requestRefresh() {
@@ -184,7 +169,7 @@ class PlayerControlViewModel @Inject constructor(
             else -> 0
         }
 
-        requestPlayStation(stations[nextIndex], direction = 1f)
+        this@PlayerControlViewModel.requestPlayStation(stations[nextIndex], direction = 1f)
     }
 
     fun requestPreviousStation() {
@@ -199,7 +184,7 @@ class PlayerControlViewModel @Inject constructor(
             else -> stations.lastIndex
         }
 
-        requestPlayStation(stations[prevIndex], direction = -1f)
+        this@PlayerControlViewModel.requestPlayStation(stations[prevIndex], direction = -1f)
     }
 
     fun setSleepTimer(minutes: Int) {

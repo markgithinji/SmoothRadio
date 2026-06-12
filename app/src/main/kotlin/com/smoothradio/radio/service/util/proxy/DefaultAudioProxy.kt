@@ -69,6 +69,9 @@ class DefaultAudioProxy(
     override val proxyState: StateFlow<ProxyState> = _proxyState.asStateFlow()
 
     @Volatile
+    private var terminalErrorTag: String = ""
+
+    @Volatile
     override var terminalError: Int = 0
         private set
 
@@ -98,10 +101,9 @@ class DefaultAudioProxy(
     override fun start(streamUrl: String) {
         val tagAtStart = UUID.randomUUID().toString().take(8)
 
-        terminalError = 0
-        stop()
-
         stateLock.withLock {
+            terminalError = 0
+            terminalErrorTag = ""
             currentUrl = streamUrl
             sessionTag = tagAtStart
             _proxyState.value = ProxyState.Connecting
@@ -122,7 +124,7 @@ class DefaultAudioProxy(
                     sessionTag = { sessionTag },
                     onStateUpdate = { _proxyState.value = it },
                     onBitrateDetected = { detectedBitrateKbps = it },
-                    onTerminalError = { handleError(it) }
+                    onTerminalError = { handleError(it, tagAtStart) }
                 )
             } else {
                 ProgressiveDownloader(
@@ -130,7 +132,7 @@ class DefaultAudioProxy(
                     isRunning = { isRunning.get() },
                     sessionTag = { sessionTag },
                     onStateUpdate = { _proxyState.value = it },
-                    onTerminalError = { handleError(it) },
+                    onTerminalError = { handleError(it, tagAtStart) },
                     onBitrateDetected = { detectedBitrateKbps = it }
                 )
             }
@@ -138,8 +140,12 @@ class DefaultAudioProxy(
         }
     }
 
-    private fun handleError(error: Int) {
+    private fun handleError(error: Int, tag: String) {
+        if (tag != sessionTag) {
+            return
+        }
         terminalError = error
+        terminalErrorTag = tag
         stop()
     }
 
@@ -152,10 +158,15 @@ class DefaultAudioProxy(
         offset: Int,
         length: Int
     ): Int {
+        if (tag != sessionTag) {
+            if (tag == terminalErrorTag) return -3
+            return -1
+        }
+
         return cache.readData(
             tag, position, buffer, offset, length,
             isRunning = { isRunning.get() },
-            terminalError = { terminalError }
+            terminalError = { if (tag == terminalErrorTag) terminalError else 0 }
         ).also { read ->
             if (read > 0) {
                 lastReadPosition = position + read

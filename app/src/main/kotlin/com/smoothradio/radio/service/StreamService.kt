@@ -588,6 +588,11 @@ class StreamService : MediaSessionService() {
                 playbackBaseTimeMs = 0L
                 activeStreamUrl = command.link
 
+                // STOP current proxy and clear player to ensure a clean slate
+                localAudioProxy.stop()
+                wrappedPlayer.stop()
+                wrappedPlayer.clearMediaItems()
+
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
                 stateRepository.updateMinPosition(0L)
@@ -605,6 +610,11 @@ class StreamService : MediaSessionService() {
                 currentSongTitle = ""
                 playbackBaseTimeMs = 0L
                 activeStreamUrl = command.link
+
+                // STOP current proxy and clear player to ensure a clean slate
+                localAudioProxy.stop()
+                wrappedPlayer.stop()
+                wrappedPlayer.clearMediaItems()
 
                 if (command.link.isNotEmpty()) {
                     localAudioProxy.start(command.link)
@@ -769,6 +779,7 @@ class StreamService : MediaSessionService() {
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
 
         val mediaItem = MediaItem.Builder()
+            .setMediaId(uriString) // Tag the item with the real URL
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
@@ -817,6 +828,7 @@ class StreamService : MediaSessionService() {
         val cacheKey = currentStationName ?: urlString
 
         val mediaItem = MediaItem.Builder()
+            .setMediaId(urlString) // Tag the item with the real URL
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
@@ -860,6 +872,7 @@ class StreamService : MediaSessionService() {
             .build()
 
         val mediaItem = MediaItem.Builder()
+            .setMediaId(uriString) // Tag the item with the real URL
             .setUri(proxyUri)
             .setMimeType(mimeType)
             .setCustomCacheKey(cacheKey)
@@ -1061,6 +1074,18 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            val failedMediaId = wrappedPlayer.currentMediaItem?.mediaId
+
+            // 1. FILTER STALE ERRORS: If the failed item's ID doesn't match our current active URL, ignore it.
+            if (activeStreamUrl != null && (failedMediaId == null || failedMediaId != activeStreamUrl)) {
+                return
+            }
+
+            // 2. IGNORE ERRORS AFTER STOP
+            if (activeStreamUrl == null) {
+                return
+            }
+
             jumpToLiveOnReady = false
 
             // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
