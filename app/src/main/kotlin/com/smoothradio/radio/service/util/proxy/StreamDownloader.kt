@@ -32,9 +32,15 @@ class ProgressiveDownloader(
     override suspend fun download(url: String, tag: String): Unit = withContext(Dispatchers.IO) {
         var retryCount = 0
         var currentDelay = INITIAL_RETRY_DELAY_MS
-        val maxRetries = 10 // Try for ~3-5 minutes, similar to standard player behavior
+        var hasReceivedAnyData = false
 
-        while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
+        while (isRunning() && sessionTag() == tag) {
+            val maxAllowedRetries = if (hasReceivedAnyData) 10 else 2
+            if (retryCount >= maxAllowedRetries) {
+                onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
+                return@withContext
+            }
+
             try {
                 val timeout =
                     if (retryCount > 0) RETRY_READ_TIMEOUT_SEC else DEFAULT_READ_TIMEOUT_SEC
@@ -73,6 +79,7 @@ class ProgressiveDownloader(
                                 val buf = ByteArray(minOf(bytesUntilMetadata, 8192))
                                 val read = inputStream.read(buf)
                                 if (read == -1) break
+                                hasReceivedAnyData = true
                                 cache.appendData(tag, buf, read, isHls = false)
                                 bytesUntilMetadata -= read
                             } else {
@@ -102,6 +109,7 @@ class ProgressiveDownloader(
                         while (isRunning() && sessionTag() == tag) {
                             bytesRead = inputStream.read(buffer)
                             if (bytesRead == -1) break
+                            hasReceivedAnyData = true
                             cache.appendData(tag, buffer, bytesRead, isHls = false)
                         }
                     }
@@ -113,10 +121,6 @@ class ProgressiveDownloader(
                 delay(currentDelay.milliseconds)
                 currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
             }
-        }
-
-        if (retryCount >= maxRetries) {
-            onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
         }
     }
 
@@ -181,9 +185,15 @@ class HlsDownloader(
         val baseUrl = url.substring(0, url.lastIndexOf("/") + 1)
         var retryCount = 0
         var currentDelay = HLS_SEGMENT_DOWNLOAD_DELAY_MS
-        val maxRetries = 10 // Try for ~3-5 minutes
+        var hasReceivedAnyData = false
 
-        while (isRunning() && sessionTag() == tag && retryCount < maxRetries) {
+        while (isRunning() && sessionTag() == tag) {
+            val maxAllowedRetries = if (hasReceivedAnyData) 10 else 2
+            if (retryCount >= maxAllowedRetries) {
+                onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
+                return@withContext
+            }
+
             try {
                 if (retryCount > 0) {
                     onStateUpdate(ProxyState.Retrying)
@@ -288,6 +298,7 @@ class HlsDownloader(
                             headerOffset,
                             isHls = true
                         )
+                        hasReceivedAnyData = true
                         downloadedSegments.add(segmentPath)
                     }
                 }
@@ -300,9 +311,6 @@ class HlsDownloader(
                 delay(currentDelay.milliseconds)
                 currentDelay = (currentDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
             }
-        }
-        if (retryCount >= maxRetries) {
-            onTerminalError(PlaybackConstants.ERROR_UNREACHABLE)
         }
     }
 
