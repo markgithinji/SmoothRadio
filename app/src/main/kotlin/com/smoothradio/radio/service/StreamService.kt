@@ -52,6 +52,7 @@ import com.smoothradio.radio.service.util.proxy.BufferEvictedException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -100,6 +101,7 @@ class StreamService : MediaSessionService() {
     private var equalizer: Equalizer? = null
     private var audioSessionId: Int = 0
     private var maxPositionReached: Long = 0L
+    private var pauseTimeoutJob: Job? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
@@ -469,17 +471,13 @@ class StreamService : MediaSessionService() {
             getString(R.string.player_playing),
             getString(R.string.player_buffering),
             getString(R.string.player_preparing_audio),
-            getString(R.string.player_paused)
+            getString(R.string.player_paused),
+            "IDLE", "Stopped"
         )
 
-        // 1. Ignore if it's a status label (prevents circular feedback loop)
-        if (statusLabels.any { it.equals(newTitle, ignoreCase = true) }) {
-            return
-        }
-
-        // 2. If the "song" metadata is just the station name, ignore it (Fix for double name issue)
-        if (newTitle == currentSongTitle || newTitle.equals(stationName, ignoreCase = true)) {
-            if (newTitle.equals(stationName, ignoreCase = true) && currentSongTitle.isNotEmpty()) {
+        // 1. If it's a status label, empty, or a dash, clear metadata flow and return
+        if (newTitle.isEmpty() || newTitle == "-" || statusLabels.any { it.equals(newTitle, ignoreCase = true) }) {
+            if (currentSongTitle.isNotEmpty()) {
                 currentSongTitle = ""
                 stateRepository.updateMetadata("")
                 refreshMediaSessionMetadata()
@@ -487,6 +485,19 @@ class StreamService : MediaSessionService() {
             }
             return
         }
+
+        // 2. If the "song" metadata is just the station name, ignore it (Fix for double name issue)
+        if (newTitle.equals(stationName, ignoreCase = true)) {
+            if (currentSongTitle.isNotEmpty()) {
+                currentSongTitle = ""
+                stateRepository.updateMetadata("")
+                refreshMediaSessionMetadata()
+                updateNotificationInternal()
+            }
+            return
+        }
+
+        if (newTitle == currentSongTitle) return
 
         currentSongTitle = newTitle
         stateRepository.updateMetadata(newTitle)
@@ -606,7 +617,14 @@ class StreamService : MediaSessionService() {
                 // If we have a media item and are just paused, try to resume first.
                 // If the position is evicted, the onPlayerError handler will auto-seek to live.
                 if (wrappedPlayer.mediaItemCount > 0 && wrappedPlayer.playbackState != Player.STATE_IDLE) {
-                    wrappedPlayer.play()
+                    val url = activeStreamUrl
+                    if (url != null && !localAudioProxy.isStartedFor(url)) {
+                        // Proxy was stopped due to timeout, restart properly
+                        setState(StreamStates.PREPARING)
+                        play(url)
+                    } else {
+                        wrappedPlayer.play()
+                    }
                 } else {
                     val loadedDur = getLoadedDurationMs()
                     val urlString = activeStreamUrl ?: ""
@@ -679,7 +697,10 @@ class StreamService : MediaSessionService() {
             return
         }
 
-        if (activeStreamUrl == link && (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING)) {
+        if (activeStreamUrl == link && 
+            (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING) &&
+            localAudioProxy.isStartedFor(link)
+        ) {
             isPreparingForAd = false
             wrappedPlayer.playWhenReady = true
             performInitialJump()
@@ -700,7 +721,6 @@ class StreamService : MediaSessionService() {
     private fun preparePlayer(uri: Uri) {
         wrappedPlayer.stop()
         maxPositionReached = 0L
-        jumpToLiveOnReady = true
         playbackBaseTimeMs = 0L
 
         val uriString = uri.toString()
@@ -740,24 +760,20 @@ class StreamService : MediaSessionService() {
         val urlString = activeStreamUrl ?: return
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
 
+        if (!localAudioProxy.isStartedFor(urlString)) {
+            localAudioProxy.start(urlString)
+        }
+
         // Get current buffer bounds
         val minValidMs = getDroppedDurationMs()  // Start of buffer (oldest available)
         val maxValidMs = getLoadedDurationMs()    // End of buffer (newest available)
 
         // CRITICAL: Clamp position to valid range
-        val clampedPosition = when {
-            positionMs < minValidMs + 1000 -> {
-                val safeMin = minValidMs + 1000
-                safeMin
-            }
-
-            positionMs > maxValidMs - 5000 -> { // Leave 5 second safety margin
-                val safePos = (maxValidMs - 5000).coerceAtLeast(minValidMs)
-                safePos
-            }
-
-            else -> positionMs
-        }
+        val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
+        val clampedPosition = positionMs.coerceIn(
+            minValidMs,
+            (maxValidMs - safetyBuffer).coerceAtLeast(minValidMs)
+        )
 
         // Recalculate byte offset from clamped position
         val clampedByte = (clampedPosition * localAudioProxy.estimatedBytesPerMs).toLong()
@@ -990,9 +1006,8 @@ class StreamService : MediaSessionService() {
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val rawTitle = mediaMetadata.title?.toString() ?: ""
             val cleaned = MetadataUtils.extractSongTitle(rawTitle)
-            if (cleaned.isNotEmpty() && currentSongTitle != cleaned) {
-                onSongTitleChanged(cleaned)
-            }
+            // Always pass through to allow clearing metadata when empty
+            onSongTitleChanged(cleaned)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -1000,26 +1015,45 @@ class StreamService : MediaSessionService() {
             updateUiState()
             refreshMediaSessionMetadata() // Ensure MediaSession is updated when play/pause changes
             updateNotificationInternal()
+
+            // SMART DATA SAVING TIMEOUT
+            pauseTimeoutJob?.cancel()
+            if (!isPlaying && !wrappedPlayer.playWhenReady) {
+                pauseTimeoutJob = serviceScope.launch {
+                    // Stage 1: Stop proxy after 3 minutes to save background data
+                    delay(3 * 60 * 1000)
+                    localAudioProxy.stop()
+
+                    // Stage 2: Stop service entirely after 30 minutes of inactivity
+                    delay(27 * 60 * 1000)
+                    if (!this@StreamService.isPlaying && !wrappedPlayer.playWhenReady) {
+                        stopSelf()
+                    }
+                }
+            }
         }
 
         override fun onPlayerError(error: PlaybackException) {
             jumpToLiveOnReady = false
 
             // AUTO-SEEK ON EVICTION: If we hit a BufferEvictedException (history lost during pause),
-            // automatically jump to the current "Live Edge" to recover playback immediately.
+            // we try to seek to the earliest available point in the buffer first (Time Machine recovery),
+            // and only jump to the "Live Edge" as a final resort.
             if (error.cause is BufferEvictedException) {
-                // To recover robustly, we jump to the newest loaded data (Live)
+                val droppedDur = getDroppedDurationMs()
                 val loadedDur = getLoadedDurationMs()
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
                 
-                val recoveryTarget = (loadedDur - safetyBuffer).coerceAtLeast(0)
+                // Earliest point vs Live point
+                val earliestPoint = droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS
+                val livePoint = (loadedDur - safetyBuffer).coerceAtLeast(0)
 
-                // Update UI state to show buffering during recovery
+                // Seek to earliest point if it provides at least some history, otherwise jump to live
+                val recoveryTarget = if (earliestPoint < livePoint - 1000) earliestPoint else livePoint
+
                 setState(StreamStates.BUFFERING)
-
-                // Perform the jump
                 seekToAbsolute(recoveryTarget)
                 return
             }
