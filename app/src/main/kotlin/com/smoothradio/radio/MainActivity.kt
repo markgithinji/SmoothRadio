@@ -236,16 +236,11 @@ class MainActivity : FragmentActivity() {
         // Guard against duplicate ad requests
 //        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
-        if (mode == PlaybackMode.NEW_PLAY) {
-            android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Starting NEW_PLAY flow for ${station.stationName}")
-            serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
-            startStreamService()
-            loadInterstitialAd()
-        } else {
-            android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Starting resume/direct flow")
-            serviceIntent.action = ServiceCommand.ACTION_START
-            startStreamService()
-        }
+        adFailedCountdown = 0
+        android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Starting playback flow with ad for ${station.stationName}")
+        serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
+        startStreamService()
+        loadInterstitialAd()
 
         checkInternet()
     }
