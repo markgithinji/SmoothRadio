@@ -266,6 +266,69 @@ class StreamService : MediaSessionService() {
                 return playbackBaseTimeMs + super.getCurrentPosition()
             }
 
+            override fun play() {
+                if (isPreparingForAd) return
+                val url = activeStreamUrl
+                if (url != null && !localAudioProxy.isStartedFor(url)) {
+                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.play(): Proxy stopped, restarting")
+                    this@StreamService.play(url)
+                } else {
+                    super.play()
+                }
+            }
+
+            override fun setPlayWhenReady(playWhenReady: Boolean) {
+                val url = activeStreamUrl
+                if (playWhenReady && !isPreparingForAd && url != null && !localAudioProxy.isStartedFor(url)) {
+                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.setPlayWhenReady(true): Proxy stopped, restarting")
+                    this@StreamService.play(url)
+                } else {
+                    super.setPlayWhenReady(playWhenReady)
+                }
+            }
+
+            override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+                val url = activeStreamUrl
+                if (url != null && !localAudioProxy.isStartedFor(url)) {
+                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.seekTo(): Proxy stopped, restarting")
+                    this@StreamService.seekToAbsolute(positionMs)
+                } else {
+                    super.seekTo(mediaItemIndex, positionMs)
+                }
+            }
+
+            override fun prepare() {
+                val url = activeStreamUrl
+                if (url != null && !localAudioProxy.isStartedFor(url)) {
+                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.prepare(): Proxy stopped, restarting")
+                    this@StreamService.play(url)
+                } else {
+                    super.prepare()
+                }
+            }
+
+            override fun seekTo(positionMs: Long) {
+                seekTo(currentMediaItemIndex, positionMs)
+            }
+
+            override fun seekBack() {
+                val url = activeStreamUrl
+                if (url != null && !localAudioProxy.isStartedFor(url)) {
+                    this@StreamService.seekToAbsolute(currentPosition - PlaybackConstants.SEEK_INCREMENT_MS)
+                } else {
+                    super.seekBack()
+                }
+            }
+
+            override fun seekForward() {
+                val url = activeStreamUrl
+                if (url != null && !localAudioProxy.isStartedFor(url)) {
+                    this@StreamService.seekToAbsolute(currentPosition + PlaybackConstants.SEEK_INCREMENT_MS)
+                } else {
+                    super.seekForward()
+                }
+            }
+
             override fun getDuration(): Long {
                 val baseDur = super.getDuration()
                 return if (baseDur > 0) baseDur else 24 * 60 * 60 * 1000L
@@ -774,8 +837,9 @@ class StreamService : MediaSessionService() {
         val isHls = link.contains(".m3u8") || link.contains("playlist")
         jumpToLiveOnReady = isHls
 
-        wrappedPlayer.playWhenReady = true
+        // Prepare player first (starts proxy) then set playWhenReady to avoid loops in overrides
         preparePlayer(link.toUri())
+        wrappedPlayer.playWhenReady = true
     }
 
     private fun preparePlayer(uri: Uri) {
