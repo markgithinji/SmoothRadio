@@ -327,22 +327,24 @@ fun MiniPlayerControl(
         label = "controlButton"
     ) { state ->
         Box(
-            modifier = Modifier.size(40.dp),
+            modifier = Modifier
+                .size(40.dp)
+                .testTag("play_pause_container"),
             contentAlignment = Alignment.Center
         ) {
-            if (state == "buffering") {
-                DotLoadingAnimation(
-                    dotSize = 5.dp,
-                    dotSpacing = 3.dp,
-                    color = colorScheme.tertiary,
-                    animationDelay = 150,
-                    animationDuration = 400
-                )
-            } else {
-                IconButton(
-                    onClick = onPlayPauseClick,
-                    modifier = Modifier.size(40.dp)
-                ) {
+            IconButton(
+                onClick = onPlayPauseClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                if (state == "buffering") {
+                    DotLoadingAnimation(
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = colorScheme.tertiary,
+                        animationDelay = 150,
+                        animationDuration = 400
+                    )
+                } else {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(

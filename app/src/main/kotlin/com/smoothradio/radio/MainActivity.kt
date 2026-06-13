@@ -42,6 +42,7 @@ import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -51,14 +52,15 @@ class MainActivity : FragmentActivity() {
     private val isMobileAdsInitializeCalled = AtomicBoolean(false)
     private val firebaseAnalytics: FirebaseAnalytics by lazy { Firebase.analytics }
 
+    private val serviceIntent by lazy { Intent(this, StreamService::class.java) }
+
     // Playback state
     private var interstitialAd: InterstitialAd? = null
-    private var currentAdRequestId = 0
+    private val currentAdRequestId = AtomicInteger(0)
     private var adFailedCountdown = 0
     private var canShowAd: Boolean = true
     private var isPlaying = false
     private var currentStation: RadioStation? = null
-    private var pendingAdStationId: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -220,57 +222,62 @@ class MainActivity : FragmentActivity() {
 
     private fun initiatePlayback(mode: PlaybackMode) {
         val station = currentStation ?: return
+        android.util.Log.d("SmoothRadio_Main", "initiatePlayback: mode=$mode, station=${station.stationName}")
 
-        // Handle toggle mode - stop if currently playing
+        // Handle stopping for toggle mode
         if (mode == PlaybackMode.TOGGLE && isPlaying) {
-            currentAdRequestId++ // Invalidate any pending ad load requests
-            pendingAdStationId = null
-
-            val intent = Intent(this, StreamService::class.java).apply {
-                action = ServiceCommand.ACTION_STOP
-            }
-            startService(intent)
+            android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Stopping playback (toggle)")
+            currentAdRequestId.incrementAndGet() // Invalidate any pending ad load requests immediately
+            serviceIntent.action = ServiceCommand.ACTION_STOP
+            startService(serviceIntent)
             return
         }
 
-        // Reset fail count and set pending ID when starting a NEW station or resuming
-        adFailedCountdown = 0
-        pendingAdStationId = station.id
+        // Guard against duplicate ad requests
+//        if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) return
 
         if (mode == PlaybackMode.NEW_PLAY) {
-            startStreamService(ServiceCommand.ACTION_SHOW_AD, station)
+            android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Starting NEW_PLAY flow for ${station.stationName}")
+            serviceIntent.action = ServiceCommand.ACTION_SHOW_AD
+            startStreamService()
             loadInterstitialAd()
         } else {
-            startStreamService(ServiceCommand.ACTION_START, station)
+            android.util.Log.d("SmoothRadio_Main", "initiatePlayback: Starting resume/direct flow")
+            serviceIntent.action = ServiceCommand.ACTION_START
+            startStreamService()
         }
 
         checkInternet()
     }
 
-    private fun startStreamService(action: String, station: RadioStation) {
-        val intent = Intent(this, StreamService::class.java).apply {
-            this.action = action
-            putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
-            putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
-            putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
-        }
-        ContextCompat.startForegroundService(this, intent)
+    private fun startStreamService() {
+        val station = currentStation ?: return
+        android.util.Log.d("SmoothRadio_Main", "startStreamService: action=${serviceIntent.action}, station=${station.stationName}")
+
+        serviceIntent.putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
+        serviceIntent.putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
+        serviceIntent.putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
+        ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun playOnly() {
-        val station = currentStation ?: return
-        startStreamService(ServiceCommand.ACTION_START, station)
+        android.util.Log.d("SmoothRadio_Main", "playOnly: Switching action to ACTION_START")
+        serviceIntent.action = ServiceCommand.ACTION_START
+        startStreamService()
     }
 
     private fun loadInterstitialAd() {
         val station = currentStation ?: return
 
-        val requestId = ++currentAdRequestId
+        val requestId = currentAdRequestId.incrementAndGet()
         val stationIdAtRequest = station.id
-        android.util.Log.d("SmoothRadio", "loadInterstitialAd: reqId=$requestId, station=${station.stationName}")
+        android.util.Log.d("SmoothRadio_Main", "loadInterstitialAd: requestId=$requestId, station=${station.stationName}")
 
         if (interstitialAd != null) {
-            showAd()
+            android.util.Log.d("SmoothRadio_Main", "loadInterstitialAd: Ad already loaded, showing...")
+            if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
+                showAd(requestId)
+            }
             return
         }
 
@@ -281,20 +288,22 @@ class MainActivity : FragmentActivity() {
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
-                    if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) {
-                        android.util.Log.d("SmoothRadio", "onAdLoaded: Ignoring stale ad (reqId=$requestId)")
+                    android.util.Log.d("SmoothRadio_Main", "onAdLoaded: requestId=$requestId")
+                    if (requestId != currentAdRequestId.get() || currentStation?.id != stationIdAtRequest) {
+                        android.util.Log.d("SmoothRadio_Main", "onAdLoaded: Ignoring stale ad load")
                         return
                     }
                     interstitialAd = ad
-                    showAd()
+                    if (serviceIntent.action == ServiceCommand.ACTION_SHOW_AD) {
+                        showAd(requestId)
+                    }
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    if (requestId != currentAdRequestId || currentStation?.id != stationIdAtRequest) {
-                        android.util.Log.d("SmoothRadio", "onAdFailedToLoad: Ignoring stale failure (reqId=$requestId)")
+                    android.util.Log.e("SmoothRadio_Main", "onAdFailedToLoad: requestId=$requestId, error=${loadAdError.message}")
+                    if (requestId != currentAdRequestId.get() || currentStation?.id != stationIdAtRequest) {
                         return
                     }
-                    android.util.Log.e("SmoothRadio", "onAdFailedToLoad: ${loadAdError.message}")
                     interstitialAd = null
                     handleAdLoadFailure()
                 }
@@ -302,54 +311,56 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    private fun showAd() {
-        val station = currentStation ?: run {
-            playOnly()
+    private fun showAd(requestId: Int) {
+        android.util.Log.d("SmoothRadio_Main", "showAd: requestId=$requestId, currentRequestId=${currentAdRequestId.get()}")
+        if (requestId != currentAdRequestId.get()) {
+            android.util.Log.d("SmoothRadio_Main", "showAd: Ignoring stale requestId")
             return
         }
 
-        // Final sanity check: Is the station that triggered the ad still the one we are on?
-        if (pendingAdStationId != null && station.id != pendingAdStationId) {
+        if (currentStation == null) {
+            android.util.Log.d("SmoothRadio_Main", "showAd: No current station, calling playOnly")
+            playOnly()
             return
         }
 
         if (!canShowAd) {
+            android.util.Log.d("SmoothRadio_Main", "showAd: Ad frequency capped, calling playOnly")
             playOnly()
             return
         }
 
-        val ad = interstitialAd ?: return
+        val ad = interstitialAd ?: run {
+            android.util.Log.d("SmoothRadio_Main", "showAd: No ad available to show")
+            return
+        }
 
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
+                android.util.Log.d("SmoothRadio_Main", "onAdDismissedFullScreenContent")
+                // Start playback for whatever station is currently selected
                 interstitialAd = null
-
-                // Only start playback if we still have a pending station request
-                if (pendingAdStationId != null && currentStation?.id == pendingAdStationId) {
-                    playOnly()
-                }
-
-                pendingAdStationId = null
+                playOnly()
                 preloadInterstitialAd()
                 playerControlViewModel.recordAdShown()
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                interstitialAd = null
-
-                // If the ad is already showing or being shown, DO NOT start playback. 
-                // The onAdDismissed callback (either for this ad or the previous one) will handle it.
+                android.util.Log.e("SmoothRadio_Main", "onAdFailedToShowFullScreenContent: ${adError.message}")
                 if (adError.message.contains("already", ignoreCase = true)) {
                     return
                 }
+                interstitialAd = null
+//                stopService(serviceIntent)
+                playOnly()
+            }
 
-                if (pendingAdStationId != null && currentStation?.id == pendingAdStationId) {
-                    playOnly()
-                }
-                pendingAdStationId = null
+            override fun onAdShowedFullScreenContent() {
+                android.util.Log.d("SmoothRadio_Main", "onAdShowedFullScreenContent")
             }
         }
 
+        android.util.Log.d("SmoothRadio_Main", "Calling ad.show(this)")
         ad.show(this)
     }
 

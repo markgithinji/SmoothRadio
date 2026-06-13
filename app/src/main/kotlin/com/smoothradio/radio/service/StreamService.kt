@@ -557,6 +557,7 @@ class StreamService : MediaSessionService() {
 
     private fun handleIntent(intent: Intent) {
         val command = commandMapper.map(intent)
+        android.util.Log.d("SmoothRadio_Service", "handleIntent: action=${intent.action}, command=${command::class.simpleName}")
         if (command is ServiceCommand.None) return
 
         // Global updates for metadata-bearing commands
@@ -582,6 +583,22 @@ class StreamService : MediaSessionService() {
 
         when (command) {
             is ServiceCommand.Start -> {
+                android.util.Log.d("SmoothRadio_Service", "ServiceCommand.Start: link=${command.link}")
+                
+                // SMART TRANSITION: If we're already preparing this same station (e.g. during an ad),
+                // don't stop the proxy or the player. Just transition out of ad-mode.
+                if (activeStreamUrl == command.link && localAudioProxy.isStartedFor(command.link)) {
+                    android.util.Log.d("SmoothRadio_Service", "ServiceCommand.Start: Already active, transitioning from ad to play")
+                    isPreparingForAd = false
+                    wrappedPlayer.playWhenReady = true
+                    
+                    if (wrappedPlayer.playbackState == Player.STATE_READY) {
+                        performInitialJump()
+                    }
+                    updateUiState()
+                    return
+                }
+
                 isPreparingForAd = false
                 maxPositionReached = 0L
                 currentSongTitle = ""
@@ -605,6 +622,7 @@ class StreamService : MediaSessionService() {
             }
 
             is ServiceCommand.ShowAd -> {
+                android.util.Log.d("SmoothRadio_Service", "ServiceCommand.ShowAd: link=${command.link}")
                 isPreparingForAd = true
                 maxPositionReached = 0L
                 currentSongTitle = ""
@@ -720,16 +738,20 @@ class StreamService : MediaSessionService() {
 
     private fun setState(newState: StreamStates) {
         if ((newState == StreamStates.PREPARING || newState == StreamStates.BUFFERING) && activeStreamUrl == null) {
+            android.util.Log.d("SmoothRadio_Service", "setState: Ignored ${newState.label} (activeStreamUrl is null)")
             return
         }
         if (stateChange == newState) return
+        android.util.Log.d("SmoothRadio_Service", "setState: ${stateChange.label} -> ${newState.label}")
         stateChange = newState
         stateRepository.updateState(newState)
         updateNotificationInternal()
     }
 
     private fun play(link: String) {
+        android.util.Log.d("SmoothRadio_Service", "play: link=$link")
         if (link.isEmpty()) {
+            android.util.Log.w("SmoothRadio_Service", "play: Link is empty, setting IDLE")
             setState(StreamStates.IDLE)
             return
         }
@@ -738,6 +760,7 @@ class StreamService : MediaSessionService() {
             (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING) &&
             localAudioProxy.isStartedFor(link)
         ) {
+            android.util.Log.d("SmoothRadio_Service", "play: Stream already active, just ensuring playWhenReady")
             isPreparingForAd = false
             wrappedPlayer.playWhenReady = true
             performInitialJump()
@@ -756,6 +779,7 @@ class StreamService : MediaSessionService() {
     }
 
     private fun preparePlayer(uri: Uri) {
+        android.util.Log.d("SmoothRadio_Service", "preparePlayer: uri=$uri")
         wrappedPlayer.stop()
         maxPositionReached = 0L
         playbackBaseTimeMs = 0L
@@ -764,6 +788,7 @@ class StreamService : MediaSessionService() {
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
 
         if (!localAudioProxy.isStartedFor(uriString)) {
+            android.util.Log.d("SmoothRadio_Service", "preparePlayer: Starting proxy for $uriString")
             localAudioProxy.start(uriString)
         }
 
@@ -897,8 +922,18 @@ class StreamService : MediaSessionService() {
             jumpToLiveOnReady = false
             val loadedDur = getLoadedDurationMs()
             val target = (loadedDur - PlaybackConstants.HLS_SAFETY_BUFFER_MS).coerceAtLeast(0L)
-            seekToAbsolute(target)
+            
+            android.util.Log.d("SmoothRadio_Service", "performInitialJump (HLS): loadedDur=${loadedDur}ms, target=${target}ms")
+            
+            if (target > 2000) {
+                seekToAbsolute(target)
+            } else {
+                android.util.Log.d("SmoothRadio_Service", "performInitialJump (HLS): target too small, just playing from start")
+                wrappedPlayer.play()
+                updateUiState()
+            }
         } else if (wrappedPlayer.playWhenReady) {
+            android.util.Log.d("SmoothRadio_Service", "performInitialJump (Progressive): playing")
             jumpToLiveOnReady = false
             wrappedPlayer.play()
             updateUiState()
@@ -1021,17 +1056,21 @@ class StreamService : MediaSessionService() {
     }
 
     private fun updateUiState() {
-        if (isPreparingForAd) return
+        if (isPreparingForAd) {
+            android.util.Log.d("SmoothRadio_Service", "updateUiState: Ignored (isPreparingForAd=true)")
+            return
+        }
         val playbackState = wrappedPlayer.playbackState
         val isPlayerPlaying = wrappedPlayer.isPlaying
 
         val newState = when (playbackState) {
             Player.STATE_BUFFERING -> StreamStates.BUFFERING
-            Player.STATE_READY if isPlayerPlaying -> StreamStates.PLAYING
-            Player.STATE_READY if true -> StreamStates.PAUSED
+            Player.STATE_READY -> if (isPlayerPlaying) StreamStates.PLAYING else StreamStates.PAUSED
             Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }
+
+        android.util.Log.d("SmoothRadio_Service", "updateUiState: playbackState=$playbackState, isPlaying=$isPlayerPlaying -> newState=${newState.label} (current=${stateChange.label})")
 
         if (stateChange != newState) {
             setState(newState)
@@ -1051,6 +1090,7 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            android.util.Log.d("SmoothRadio_Service", "onIsPlayingChanged: isPlaying=$isPlaying")
             this@StreamService.isPlaying = isPlaying
             updateUiState()
             refreshMediaSessionMetadata() // Ensure MediaSession is updated when play/pause changes
@@ -1062,11 +1102,13 @@ class StreamService : MediaSessionService() {
                 pauseTimeoutJob = serviceScope.launch {
                     // Stage 1: Stop proxy after 3 minutes to save background data
                     delay(3 * 60 * 1000)
+                    android.util.Log.d("SmoothRadio_Service", "Pause timeout: stopping proxy")
                     localAudioProxy.stop()
 
                     // Stage 2: Stop service entirely after 30 minutes of inactivity
                     delay(27 * 60 * 1000)
                     if (!this@StreamService.isPlaying && !wrappedPlayer.playWhenReady) {
+                        android.util.Log.d("SmoothRadio_Service", "Inactivity timeout: stopping service")
                         stopSelf()
                     }
                 }
@@ -1074,6 +1116,7 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            android.util.Log.e("SmoothRadio_Service", "onPlayerError: ${error.message}", error)
             val failedMediaId = wrappedPlayer.currentMediaItem?.mediaId
 
             // 1. FILTER STALE ERRORS: If the failed item's ID doesn't match our current active URL, ignore it.
@@ -1133,6 +1176,15 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            val stateName = when(state) {
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+            android.util.Log.d("SmoothRadio_Service", "onPlaybackStateChanged: state=$stateName, playWhenReady=${wrappedPlayer.playWhenReady}")
+
             if (state == Player.STATE_READY && jumpToLiveOnReady && !isPreparingForAd) {
                 performInitialJump()
             }
