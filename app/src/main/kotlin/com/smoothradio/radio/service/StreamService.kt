@@ -105,6 +105,23 @@ class StreamService : MediaSessionService() {
     private var pauseTimeoutJob: Job? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private val eqBandCache = mutableMapOf<Int, Short>()
+
+    private fun observeEqualizerSettings() {
+        serviceScope.launch {
+            equalizerRepository.getBandLevelsFlow().collect { levels ->
+                eqBandCache.clear()
+                eqBandCache.putAll(levels)
+                // If equalizer is already active, update it live
+                equalizer?.let { eq ->
+                    levels.forEach { (band, level) ->
+                        try { eq.setBandLevel(band.toShort(), level) } catch (_: Exception) {}
+                    }
+                }
+            }
+        }
+    }
+
     private lateinit var stopPlayFromTimerReceiver: StopPlayFromTimerReceiver
     private lateinit var setStopTimerReceiver: SetStopTimerReceiver
 
@@ -143,6 +160,7 @@ class StreamService : MediaSessionService() {
         setMediaNotificationProvider(CustomNotificationProvider())
         startProgressUpdate()
         observeProxyState()
+        observeEqualizerSettings()
     }
 
     private fun observeProxyState() {
@@ -1009,31 +1027,27 @@ class StreamService : MediaSessionService() {
         audioSessionId = sessionId
         try {
             equalizer?.release()
-            equalizer = Equalizer(0, sessionId).apply {
-                val bands = numberOfBands
-                serviceScope.launch {
-                    // Small delay to let the audio session stabilize
-                    delay(500)
-
-                    var hasActiveSettings = false
-                    for (i in 0 until bands) {
-                        val level = equalizerRepository.getBandLevel(i)
-                        if (level != 0.toShort()) {
-                            try {
-                                setBandLevel(i.toShort(), level)
-                                hasActiveSettings = true
-                            } catch (_: Exception) {
-                            }
-                        }
-                    }
-                    // Enable ONLY after bands are configured to prevent volume jump
-                    if (hasActiveSettings) {
-                        enabled = true
-                    }
+            
+            // APPLY FIX #3: Synchronous configuration using memory cache
+            val newEq = Equalizer(0, sessionId)
+            val bands = newEq.numberOfBands
+            var hasActiveSettings = false
+            for (i in 0 until bands) {
+                val level = eqBandCache[i] ?: 0
+                if (level != 0.toShort()) {
+                    try {
+                        newEq.setBandLevel(i.toShort(), level)
+                        hasActiveSettings = true
+                    } catch (_: Exception) {}
                 }
             }
-        } catch (e: Exception) {
-        }
+            
+            if (hasActiveSettings) {
+                newEq.enabled = true
+            }
+            equalizer = newEq
+            
+        } catch (_: Exception) {}
     }
 
     private fun setEqualizerBand(band: Int, level: Short) {
