@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @HiltViewModel
@@ -57,6 +59,8 @@ class PlayerControlViewModel @Inject constructor(
     // 2. Lock out database emissions until they synchronize with manual user selection.
     private val _isStationChanging = MutableStateFlow(false)
     val isStationChanging: StateFlow<Boolean> = _isStationChanging.asStateFlow()
+
+    private val commandMutex = Mutex()
     
     private val allStations = radioRepository.allStations.stateIn(
         scope = viewModelScope,
@@ -164,9 +168,11 @@ class PlayerControlViewModel @Inject constructor(
 
     private fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            _playCommand.send(PlayCommand.PlayStation(station))
-            radioRepository.setPlayingStation(station.id)
+            commandMutex.withLock {
+                _canShowAd.value = canShowAdUseCase()
+                _playCommand.send(PlayCommand.PlayStation(station))
+                radioRepository.setPlayingStation(station.id)
+            }
         }
     }
 
