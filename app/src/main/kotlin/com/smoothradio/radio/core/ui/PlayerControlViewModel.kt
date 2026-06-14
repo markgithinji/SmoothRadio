@@ -153,6 +153,7 @@ class PlayerControlViewModel @Inject constructor(
 
     fun requestRefresh() {
         viewModelScope.launch {
+            _canShowAd.value = canShowAdUseCase()
             _playCommand.send(PlayCommand.Refresh)
         }
     }
@@ -220,6 +221,12 @@ class PlayerControlViewModel @Inject constructor(
 
     fun togglePlayPause() {
         viewModelScope.launch {
+            if (playbackState.value != StreamStates.PLAYING &&
+                playbackState.value != StreamStates.BUFFERING &&
+                playbackState.value != StreamStates.PREPARING
+            ) {
+                _canShowAd.value = canShowAdUseCase()
+            }
             _playCommand.send(PlayCommand.TogglePlayPause)
         }
     }

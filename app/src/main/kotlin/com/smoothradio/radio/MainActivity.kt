@@ -58,7 +58,6 @@ class MainActivity : FragmentActivity() {
     private var interstitialAd: InterstitialAd? = null
     private val currentAdRequestId = AtomicInteger(0)
     private var adFailedCountdown = 0
-    private var canShowAd: Boolean = true
     private var isPlaying = false
     private var currentStation: RadioStation? = null
 
@@ -166,14 +165,6 @@ class MainActivity : FragmentActivity() {
                             PlayCommand.SeekForward -> seekForward()
                         }
                     }
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                playerControlViewModel.canShowAd.collect { canShow ->
-                    canShowAd = canShow
                 }
             }
         }
@@ -319,7 +310,7 @@ class MainActivity : FragmentActivity() {
             return
         }
 
-        if (!canShowAd) {
+        if (!playerControlViewModel.canShowAd.value) {
             android.util.Log.d("SmoothRadio_Main", "showAd: Ad frequency capped, calling playOnly")
             playOnly()
             return
