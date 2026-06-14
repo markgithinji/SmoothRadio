@@ -23,7 +23,8 @@ import kotlin.concurrent.withLock
 class DefaultAudioProxy(
     cacheDir: File,
     ioDispatcher: CoroutineDispatcher,
-    okHttpClient: OkHttpClient
+    okHttpClient: OkHttpClient,
+    maxPartSize: Long = PlaybackConstants.CACHE_PART_SIZE
 ) : AudioProxy {
     private val internalOkHttpClient = okHttpClient.newBuilder()
         .apply {
@@ -39,7 +40,7 @@ class DefaultAudioProxy(
     private val stateLock = ReentrantLock()
     private val dataCondition = stateLock.newCondition()
 
-    private val cache = RollingDiskCache(cacheDir, stateLock, dataCondition)
+    private val cache = RollingDiskCache(cacheDir, stateLock, dataCondition, maxPartSize)
     private val httpServer = LocalHttpServer(
         scope, ioDispatcher, cache, dataSignal,
         isRunning = { isRunning.get() },

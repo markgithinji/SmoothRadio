@@ -1,5 +1,6 @@
 package com.smoothradio.radio.service.util.proxy
 
+import com.smoothradio.radio.core.util.PlaybackConstants
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -12,7 +13,8 @@ import kotlin.concurrent.withLock
 class RollingDiskCache(
     private val cacheDir: File,
     private val stateLock: ReentrantLock,
-    private val dataCondition: java.util.concurrent.locks.Condition
+    private val dataCondition: java.util.concurrent.locks.Condition,
+    private val maxPartSize: Long = PlaybackConstants.CACHE_PART_SIZE
 ) {
     private val memoryBuffer = FastMemoryBuffer(INITIAL_BURST_SIZE)
     private val metadataMap = TreeMap<Long, String>()
@@ -96,13 +98,13 @@ class RollingDiskCache(
         val p2 = part2File ?: return
 
         try {
-            if (p1.length() < PART_SIZE) {
+            if (p1.length() < maxPartSize) {
                 FileOutputStream(p1, true).use { memoryBuffer.writeTo(it) }
-            } else if (p2.length() < PART_SIZE) {
+            } else if (p2.length() < maxPartSize) {
                 FileOutputStream(p2, true).use { memoryBuffer.writeTo(it) }
             }
 
-            if (p2.length() >= PART_SIZE) {
+            if (p2.length() >= maxPartSize) {
                 val p1Len = p1.length()
                 if (p1.delete()) {
                     if (p2.renameTo(p1)) {
@@ -185,6 +187,9 @@ class RollingDiskCache(
             }
 
             if (availableTotal < minDataRequired) {
+                if (position == 0L) {
+                    android.util.Log.d("SmoothRadio_Cache", "readData (pos=0): waiting for sniff data. available=$availableTotal, required=$minDataRequired")
+                }
                 return@withLock null
             }
 
@@ -315,7 +320,6 @@ class RollingDiskCache(
     }
 
     companion object {
-        const val PART_SIZE = 1024 * 1024L
         const val MEMORY_FLUSH_THRESHOLD = 32 * 1024
         const val INITIAL_BURST_SIZE = 256 * 1024
         const val MIN_SNIFF_SIZE = 32 * 1024

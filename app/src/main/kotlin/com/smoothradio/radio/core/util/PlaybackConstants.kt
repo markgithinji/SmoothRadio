@@ -20,6 +20,7 @@ object PlaybackConstants {
     const val BACK_SAFETY_BUFFER_MS = 1000L
 
     // Proxy Constants
+    const val CACHE_PART_SIZE = 30 * 1024 * 1024L // 30MB = ~30 minutes of history at 128kbps
     const val PROXY_SCHEME = "proxy"
     const val PROXY_HOST = "smoothradio"
     const val PROXY_PATH = "/stream"
