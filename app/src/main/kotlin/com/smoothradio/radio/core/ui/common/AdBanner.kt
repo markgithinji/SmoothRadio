@@ -10,15 +10,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
-import com.smoothradio.radio.core.util.AdConfig
 
 @Composable
 fun AdBanner(
@@ -28,6 +25,13 @@ fun AdBanner(
     alpha: Float = 0.5f
 ) {
     val colorScheme = MaterialTheme.colorScheme
+
+    DisposableEffect(Unit) {
+        onDispose {
+            BannerAdManager.detachAdView()
+        }
+    }
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center
@@ -43,11 +47,7 @@ fun AdBanner(
         ) {
             AndroidView(
                 factory = { ctx ->
-                    AdView(ctx).apply {
-                        adUnitId = AdConfig.bannerAdId
-                        setAdSize(AdSize.BANNER)
-                        loadAd(AdRequest.Builder().build())
-                    }
+                    BannerAdManager.getOrCreateAdView(ctx)
                 },
                 modifier = Modifier.wrapContentWidth()
             )
