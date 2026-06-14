@@ -467,6 +467,7 @@ class StreamService : MediaSessionService() {
 
         val stopIntent = Intent(this, StreamService::class.java).apply {
             action = ServiceCommand.ACTION_STOP
+            putExtra("from_notification", true)
         }
         val stopPendingIntent = PendingIntent.getService(
             this, 3, stopIntent,
@@ -744,6 +745,9 @@ class StreamService : MediaSessionService() {
                 stateRepository.updateLoadedPosition(0L)
 
                 setState(StreamStates.IDLE)
+                if (intent.getBooleanExtra("from_notification", false)) {
+                    Toast.makeText(this, getString(R.string.toast_station_stopped), Toast.LENGTH_SHORT).show()
+                }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -1114,7 +1118,6 @@ class StreamService : MediaSessionService() {
 
     inner class StopPlayFromTimerReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            Toast.makeText(context, getString(R.string.stopped), Toast.LENGTH_SHORT).show()
             stopSelf()
         }
     }
