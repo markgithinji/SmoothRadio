@@ -30,7 +30,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerControlViewModel @Inject constructor(
     private val radioRepository: RadioRepository,
-    stateRepository: PlaybackStateRepository,
+    private val stateRepository: PlaybackStateRepository,
     private val equalizerRepository: EqualizerRepository,
     private val canShowAdUseCase: CanShowAdUseCase,
     private val recordAdShownUseCase: RecordAdShownUseCase,
@@ -68,9 +68,10 @@ class PlayerControlViewModel @Inject constructor(
         stateRepository.playbackState,
         _isStationChanging
     ) { state, changing ->
+        android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] playbackState combine: repoState=${state.label}, changingGuard=$changing")
         // If we are changing stations, force a buffering state immediately.
-        // This ensures the UI knows to show the loading bar.
-        if (changing) {
+        // BUT allow successful PLAYING or terminal IDLE states to bypass the mask.
+        if (changing && state != StreamStates.PLAYING && state != StreamStates.IDLE) {
             StreamStates.BUFFERING
         } else {
             state
@@ -105,8 +106,22 @@ class PlayerControlViewModel @Inject constructor(
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
         }
+
+        // Auto-clear station changing guard when player moves to a stable state
+        viewModelScope.launch {
+            stateRepository.playbackState.collect { state ->
+                if (state == StreamStates.PLAYING || state == StreamStates.IDLE) {
+                    if (_isStationChanging.value) {
+                        android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] Auto-clearing station changing guard (State: ${state.label})")
+                        _isStationChanging.value = false
+                    }
+                }
+            }
+        }
+
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
+                android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] DB playingStation emission: id=${station?.id}, currentUiId=${_stationUiState.value.station?.id}, isStationChanging=${_isStationChanging.value}")
                 if (station != null) {  // Filter out transient nulls during station swaps in the DB - ensure no null stations
                     val currentUi = _stationUiState.value
 
@@ -116,7 +131,10 @@ class PlayerControlViewModel @Inject constructor(
                         _playingStation.value = station
                     } else if (station.id == currentUi.station?.id) {
                         _playingStation.value = station
-                        _isStationChanging.value = false
+                        if (_isStationChanging.value) {
+                            android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] Clearing isStationChanging guard (DB synced)")
+                            _isStationChanging.value = false
+                        }
                     }
                 }
             }
@@ -132,6 +150,7 @@ class PlayerControlViewModel @Inject constructor(
     fun requestPlayStation(station: RadioStation, direction: Float = 0f) {
         if (_playingStation.value?.id == station.id) return togglePlayPause()
 
+        android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] requestPlayStation: ${station.stationName}, setting isStationChanging=true")
         _stationUiState.value = StationUiState(station, direction)
         _playingStation.value = station
 
