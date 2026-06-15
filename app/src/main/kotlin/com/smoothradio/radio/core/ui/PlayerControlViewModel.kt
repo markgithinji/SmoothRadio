@@ -74,8 +74,8 @@ class PlayerControlViewModel @Inject constructor(
     ) { state, changing ->
         android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] playbackState combine: repoState=${state.label}, changingGuard=$changing")
         // If we are changing stations, force a buffering state immediately.
-        // BUT allow successful PLAYING or terminal IDLE states to bypass the mask.
-        if (changing && state != StreamStates.PLAYING && state != StreamStates.IDLE) {
+        // We only allow PLAYING to break this guard. IDLE is masked to prevent flashes during service reset.
+        if (changing && state != StreamStates.PLAYING) {
             StreamStates.BUFFERING
         } else {
             state
@@ -111,12 +111,23 @@ class PlayerControlViewModel @Inject constructor(
             _canShowAd.value = canShowAdUseCase()
         }
 
-        // Auto-clear station changing guard when player moves to a stable state
         viewModelScope.launch {
-            stateRepository.playbackState.collect { state ->
-                if (state == StreamStates.PLAYING || state == StreamStates.IDLE) {
+            combine(
+                stateRepository.playbackState,
+                stateRepository.stationName,
+                _playingStation
+            ) { state, currentName, targetStation ->
+                Triple(state, currentName, targetStation)
+            }.collect { (state, currentName, targetStation) ->
+                android.util.Log.d("SmoothRadio_Guard", "[GUARD_CHECK] state=${state.label}, repoName=$currentName, targetName=${targetStation?.stationName}, changing=${_isStationChanging.value}")
+                
+                // Allow stable states (PLAYING, PAUSED, IDLE, ENDED) to clear the guard
+                // ONLY IF the service has confirmed the station name match.
+                val isStableState = state != StreamStates.PREPARING && state != StreamStates.BUFFERING
+                
+                if (isStableState && currentName == targetStation?.stationName) {
                     if (_isStationChanging.value) {
-                        android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] Auto-clearing station changing guard (State: ${state.label})")
+                        android.util.Log.d("SmoothRadio_Guard", "[GUARD_CLEAR] Success match (${state.label})! Clearing guard for ${targetStation?.stationName}")
                         _isStationChanging.value = false
                     }
                 }
@@ -126,19 +137,16 @@ class PlayerControlViewModel @Inject constructor(
         viewModelScope.launch {
             radioRepository.playingStation.collect { station ->
                 android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] DB playingStation emission: id=${station?.id}, currentUiId=${_stationUiState.value.station?.id}, isStationChanging=${_isStationChanging.value}")
-                if (station != null) {  // Filter out transient nulls during station swaps in the DB - ensure no null stations
+                if (station != null) {
                     val currentUi = _stationUiState.value
 
                     if (station.id != currentUi.station?.id && !_isStationChanging.value) {
-                        // Handle initial load from DB or external sync (e.g. Media buttons,Logos etc.)
+                        // Trust the Database only if not currently clicking something (Bluetooth/Startup path) (ie initial load)
                         _stationUiState.value = StationUiState(station, 0f)
                         _playingStation.value = station
                     } else if (station.id == currentUi.station?.id) {
+                        // Sync data once the Database finally catches up to our manual selection (Manual path)
                         _playingStation.value = station
-                        if (_isStationChanging.value) {
-                            android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] Clearing isStationChanging guard (DB synced)")
-                            _isStationChanging.value = false
-                        }
                     }
                 }
             }
@@ -155,12 +163,18 @@ class PlayerControlViewModel @Inject constructor(
         if (_playingStation.value?.id == station.id) return togglePlayPause()
 
         android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] requestPlayStation: ${station.stationName}, setting isStationChanging=true")
+        
+        // RESET STATE: Immediately reset the repository state to PREPARING
+        // and CLEAR the station name to prevent guard-clearance from stale events.
+        stateRepository.updateState(StreamStates.PREPARING)
+        stateRepository.updateStationName(null)
+        stateRepository.updateLoadingProgress(0f)
+        stateRepository.updateMetadata("")
+        
         _stationUiState.value = StationUiState(station, direction)
         _playingStation.value = station
 
-        // Explicitly enter transition mode. This manual override is necessary because
-        // database updates are asynchronous; we must 'trust' the UI state and ignore
-        // stale DB emissions until the Repository confirms it has received this new ID.
+        // Explicitly enter transition mode.
         _isStationChanging.value = true
 
         requestPlayStation(station)
@@ -179,6 +193,13 @@ class PlayerControlViewModel @Inject constructor(
     fun requestRefresh() {
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
+            
+            // RESET STATE for refresh to show immediate feedback
+            stateRepository.updateState(StreamStates.PREPARING)
+            stateRepository.updateStationName(null)
+            stateRepository.updateLoadingProgress(0f)
+            _isStationChanging.value = true
+
             _playCommand.send(PlayCommand.Refresh)
         }
     }
@@ -252,6 +273,9 @@ class PlayerControlViewModel @Inject constructor(
             ) {
                 _canShowAd.value = canShowAdUseCase()
             }
+            // If the user manually toggles while we are in a "changing" state,
+            // we should clear the guard to allow the IDLE/PAUSED state to show.
+            _isStationChanging.value = false
             _playCommand.send(PlayCommand.TogglePlayPause)
         }
     }

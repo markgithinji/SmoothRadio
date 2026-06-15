@@ -72,8 +72,8 @@ fun PersistentMiniPlayer(
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING) && !isStationChanging
-    val isPlaying = playbackState is StreamStates.PLAYING && !isStationChanging
+    val isBuffering = (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+    val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
 
