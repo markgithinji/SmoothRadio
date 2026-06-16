@@ -30,7 +30,6 @@ class ToggleFavoriteUseCaseTest {
         val result = useCase(1, true)
 
         assertThat(result).isInstanceOf(Resource.Success::class.java)
-        assertThat(repository.updateFavoriteStatus(1, true)) // Verify repository was called
     }
 
     @Test

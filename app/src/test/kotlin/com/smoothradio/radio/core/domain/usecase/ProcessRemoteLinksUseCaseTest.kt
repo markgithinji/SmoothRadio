@@ -69,4 +69,29 @@ class ProcessRemoteLinksUseCaseTest {
         // Verify URL was updated from remote
         assertThat(hopeFm?.streamLink).isEqualTo("https://a5.asurahosting.com:7530/radio.mp3")
     }
+
+    @Test
+    fun invoke_success_shouldDeleteStationsNotInRemoteList() = runTest {
+        // Prepare local stations with one extra station not in predefined list
+        val extraStation = RadioStation(
+            id = 999,
+            stationName = "STALE STATION",
+            frequency = "0.0",
+            location = "UNKNOWN",
+            streamLink = "stale-url",
+            isPlaying = false,
+            isFavorite = false,
+            orderIndex = 1000
+        )
+        repository.insertStations(listOf(extraStation))
+
+        backgroundScope.launch { useCase.invoke() }
+
+        // Wait for update (STALE STATION should be gone)
+        val stations = repository.allStations
+            .filter { list -> list.none { it.id == 999 } }
+            .first()
+
+        assertThat(stations.find { it.id == 999 }).isNull()
+    }
 }

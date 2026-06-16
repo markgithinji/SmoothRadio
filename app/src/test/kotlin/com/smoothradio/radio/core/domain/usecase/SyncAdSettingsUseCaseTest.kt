@@ -31,7 +31,8 @@ class SyncAdSettingsUseCaseTest {
         backgroundScope.launch { useCase() }
         advanceUntilIdle()
 
-        assertThat(adSettingsRepository.getAdShowIntervalMinutes()).isEqualTo(4)
-        assertThat(adSettingsRepository.getMaxAdsPerHour()).isEqualTo(4)
+        val settings = adSettingsRepository.getAdSettings()
+        assertThat(settings.adShowIntervalMinutes).isEqualTo(4)
+        assertThat(settings.maxAdsPerHour).isEqualTo(4)
     }
 }
