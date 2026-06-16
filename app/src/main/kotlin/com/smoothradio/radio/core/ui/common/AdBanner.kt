@@ -1,5 +1,6 @@
 package com.smoothradio.radio.core.ui.common
 
+import android.view.ViewGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,12 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
+import com.smoothradio.radio.core.util.AdConfig
+
+private var cachedAdView: AdView? = null
 
 @Composable
 fun AdBanner(
@@ -28,7 +35,9 @@ fun AdBanner(
 
     DisposableEffect(Unit) {
         onDispose {
-            BannerAdManager.detachAdView()
+            cachedAdView?.let { adView ->
+                (adView.parent as? ViewGroup)?.removeView(adView)
+            }
         }
     }
 
@@ -47,7 +56,14 @@ fun AdBanner(
         ) {
             AndroidView(
                 factory = { ctx ->
-                    BannerAdManager.getOrCreateAdView(ctx)
+                    val adView = cachedAdView ?: AdView(ctx).apply {
+                        adUnitId = AdConfig.bannerAdId
+                        setAdSize(AdSize.BANNER)
+                        loadAd(AdRequest.Builder().build())
+                        cachedAdView = this
+                    }
+                    (adView.parent as? ViewGroup)?.removeView(adView)
+                    adView
                 },
                 modifier = Modifier.wrapContentWidth()
             )
