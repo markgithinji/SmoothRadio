@@ -5,9 +5,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import com.smoothradio.radio.core.data.util.safeGet
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class DefaultAdSettingsRepository @Inject constructor(
@@ -15,21 +15,15 @@ class DefaultAdSettingsRepository @Inject constructor(
 ) : AdSettingsRepository {
 
     override suspend fun getLastAdShowTime(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[LAST_AD_SHOW_TIME_KEY] ?: 0L
-        }.first()
+        return dataStore.safeGet(LAST_AD_SHOW_TIME_KEY, 0L).first()
     }
 
     override suspend fun getAdShowCount(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_COUNT_KEY] ?: 0L
-        }.first()
+        return dataStore.safeGet(AD_SHOW_COUNT_KEY, 0L).first()
     }
 
     override suspend fun getLastAdHour(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_HOUR_KEY] ?: 0L
-        }.first()
+        return dataStore.safeGet(AD_SHOW_HOUR_KEY, 0L).first()
     }
 
     override suspend fun updateAdDataWithCount(
@@ -52,15 +46,11 @@ class DefaultAdSettingsRepository @Inject constructor(
     }
 
     override suspend fun getAdShowIntervalMinutes(): Int {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_INTERVAL_KEY] ?: DEFAULT_INTERVAL_MINUTES
-        }.first()
+        return dataStore.safeGet(AD_SHOW_INTERVAL_KEY, DEFAULT_INTERVAL_MINUTES).first()
     }
 
     override suspend fun getMaxAdsPerHour(): Int {
-        return dataStore.data.map { preferences ->
-            preferences[MAX_ADS_PER_HOUR_KEY] ?: DEFAULT_MAX_ADS_PER_HOUR
-        }.first()
+        return dataStore.safeGet(MAX_ADS_PER_HOUR_KEY, DEFAULT_MAX_ADS_PER_HOUR).first()
     }
 
     override suspend fun clearAll() {

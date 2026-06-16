@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import com.smoothradio.radio.core.data.util.safeData
+import com.smoothradio.radio.core.data.util.safeGet
 import com.smoothradio.radio.core.domain.repository.EqualizerRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -21,13 +23,13 @@ class DefaultEqualizerRepository @Inject constructor(
     }
 
     override suspend fun getBandLevel(band: Int): Short {
-        return dataStore.data.map { preferences ->
-            (preferences[intPreferencesKey("eq_band_$band")] ?: 0).toShort()
-        }.first()
+        return dataStore.safeGet(intPreferencesKey("eq_band_$band"), 0)
+            .map { it.toShort() }
+            .first()
     }
 
     override fun getBandLevelsFlow(): Flow<Map<Int, Short>> {
-        return dataStore.data.map { preferences ->
+        return dataStore.safeData().map { preferences ->
             val bands = mutableMapOf<Int, Short>()
             for (i in 0 until 5) { // 5 bands
                 bands[i] = (preferences[intPreferencesKey("eq_band_$i")] ?: 0).toShort()
