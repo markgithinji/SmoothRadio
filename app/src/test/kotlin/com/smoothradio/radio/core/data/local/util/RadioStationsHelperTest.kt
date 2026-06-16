@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radiolist.util
+package com.smoothradio.radio.core.data.local.util
 
 import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.data.repository.FakeFirebaseRepository
@@ -11,13 +11,13 @@ class RadioStationsHelperTest {
     private val fakeLinkRepository = FakeFirebaseRepository()
 
     @Test
-    fun createRadioStations_generatesCorrectStationsFromLinks() = runTest {
+    fun createRadioStationEntities_generatesCorrectStationsFromLinks() = runTest {
         val resource = fakeLinkRepository.getRemoteStreamLinksFlow().first()
 
         val links = (resource as? Resource.Success)?.data
             ?: error("Expected Resource.Success but got $resource")
 
-        val stations = RadioStationsHelper.createRadioStations(links)
+        val stations = RadioStationsHelper.createRadioStationEntities(links)
 
         assertThat(stations).isNotEmpty()
         // Check the first and last station names and links
@@ -35,8 +35,8 @@ class RadioStationsHelperTest {
     }
 
     @Test
-    fun createRadioStations_withEmptyLinks_usesEmptyStringForStreams() {
-        val stations = RadioStationsHelper.createRadioStations(emptyList())
+    fun createRadioStationEntities_withEmptyLinks_usesEmptyStringForStreams() {
+        val stations = RadioStationsHelper.createRadioStationEntities(emptyList())
         
         assertThat(stations).isNotEmpty()
         assertThat(stations.first().streamLink).isEmpty()
@@ -44,8 +44,8 @@ class RadioStationsHelperTest {
     }
 
     @Test
-    fun createRadioStations_assignsIncrementalOrderIndex() {
-        val stations = RadioStationsHelper.createRadioStations(emptyList())
+    fun createRadioStationEntities_assignsIncrementalOrderIndex() {
+        val stations = RadioStationsHelper.createRadioStationEntities(emptyList())
         
         stations.forEachIndexed { index, radioStation ->
             assertThat(radioStation.orderIndex).isEqualTo(index)
@@ -53,9 +53,9 @@ class RadioStationsHelperTest {
     }
 
     @Test
-    fun createRadioStations_verifiesSpecificStationData() {
+    fun createRadioStationEntities_verifiesSpecificStationData() {
         val links = List(232) { "http://link-$it" }
-        val stations = RadioStationsHelper.createRadioStations(links)
+        val stations = RadioStationsHelper.createRadioStationEntities(links)
         
         // Verify Radio 47 (id 228)
         val radio47 = stations.first { it.id == 228 }

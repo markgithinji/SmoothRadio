@@ -5,7 +5,6 @@ import com.smoothradio.radio.core.domain.repository.FirebaseRepository
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.util.Resource
-import com.smoothradio.radio.feature.radiolist.util.RadioStationsHelper
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,7 +38,7 @@ class ProcessRemoteLinksUseCase @Inject constructor(
                     LoggingHelper.d("Received ${resource.data.size} links from Firestore", TAG)
 
                     val localStations = radioRepository.allStations.first()
-                    val newStations = RadioStationsHelper.createRadioStations(resource.data)
+                    val newStations = radioRepository.getPredefinedStations(resource.data)
 
                     // Delete removed stations
                     val newIds = newStations.map { it.id }.toSet() // Get newly added stations

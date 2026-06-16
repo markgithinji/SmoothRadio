@@ -68,6 +68,10 @@ class FakeRadioRepository : RadioRepository {
     override val favoriteStations: Flow<List<RadioStation>> = _favoriteStations
     override val playingStation: Flow<RadioStation?> = _playingStation
 
+    override fun getPredefinedStations(links: List<String>): List<RadioStation> {
+        return initialStations
+    }
+
     private fun updateFlows(updatedList: List<RadioStation>) {
         val sortedList = updatedList.sortedBy { it.orderIndex }
         _allStations.value = sortedList
