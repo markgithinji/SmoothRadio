@@ -2,15 +2,15 @@ package com.smoothradio.radio.core.domain.usecase
 
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.logging.LoggingHelper
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class CanShowAdUseCase @Inject constructor(
     private val adSettingsRepository: AdSettingsRepository
 ) {
 
-    operator fun invoke(): Flow<Boolean> = adSettingsRepository.adSettings.map { settings ->
+    suspend operator fun invoke(): Boolean {
+        val settings = adSettingsRepository.getAdSettings()
+
         val lastShowTime = settings.lastAdShowTime
         val currentHour = getCurrentHour()
         val lastHour = settings.lastAdHour
@@ -21,7 +21,7 @@ class CanShowAdUseCase @Inject constructor(
 
         // Reset count to 0 if a new hour has started since the last ad was shown.
         // This ensures we don't carry over ad counts from the previous hour,
-        val effectiveCount = if (currentHour != lastHour) 0L else currentCount
+        val effectiveCount = if (currentHour != lastHour) 0 else currentCount
         val timeSinceLastAd = System.currentTimeMillis() - lastShowTime
         val minutesSinceLastAd = timeSinceLastAd / (1000 * 60)
 
@@ -32,7 +32,7 @@ class CanShowAdUseCase @Inject constructor(
             tag = TAG
         )
 
-        canShow
+        return canShow
     }
 
     private fun getCurrentHour(): Long {
