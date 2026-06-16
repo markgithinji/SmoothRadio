@@ -1,8 +1,8 @@
 package com.smoothradio.radio.service.util.command
 
 sealed class ServiceCommand {
-    data class Start(val link: String, val name: String?, val logo: Int) : ServiceCommand()
-    data class ShowAd(val link: String, val name: String?, val logo: Int) : ServiceCommand()
+    data class Start(val link: String, val name: String?, val id: Int, val logo: Int) : ServiceCommand()
+    data class ShowAd(val link: String, val name: String?, val id: Int, val logo: Int) : ServiceCommand()
     object Stop : ServiceCommand()
     object Play : ServiceCommand()
     object Pause : ServiceCommand()
@@ -28,6 +28,7 @@ sealed class ServiceCommand {
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
         const val EXTRA_STATION_NAME = "stationName"
+        const val EXTRA_STATION_ID = "stationId"
         const val EXTRA_LINK = "url"
         const val EXTRA_POSITION = "position"
         const val EXTRA_BAND = "band"

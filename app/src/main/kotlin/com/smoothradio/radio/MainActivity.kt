@@ -243,6 +243,7 @@ class MainActivity : FragmentActivity() {
         serviceIntent.putExtra(ServiceCommand.EXTRA_LINK, station.streamLink)
         serviceIntent.putExtra(ServiceCommand.EXTRA_LOGO, LogoMapper.getLogoById(station.id))
         serviceIntent.putExtra(ServiceCommand.EXTRA_STATION_NAME, station.stationName)
+        serviceIntent.putExtra(ServiceCommand.EXTRA_STATION_ID, station.id)
         ContextCompat.startForegroundService(this, serviceIntent)
     }
 

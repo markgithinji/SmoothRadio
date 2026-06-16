@@ -13,12 +13,14 @@ class ServiceCommandMapper @Inject constructor() {
             ServiceCommand.ACTION_START -> ServiceCommand.Start(
                 link = intent.getStringExtra(ServiceCommand.EXTRA_LINK) ?: "",
                 name = intent.getStringExtra(ServiceCommand.EXTRA_STATION_NAME),
+                id = intent.getIntExtra(ServiceCommand.EXTRA_STATION_ID, -1),
                 logo = intent.getIntExtra(ServiceCommand.EXTRA_LOGO, 0)
             )
 
             ServiceCommand.ACTION_SHOW_AD -> ServiceCommand.ShowAd(
                 link = intent.getStringExtra(ServiceCommand.EXTRA_LINK) ?: "",
                 name = intent.getStringExtra(ServiceCommand.EXTRA_STATION_NAME),
+                id = intent.getIntExtra(ServiceCommand.EXTRA_STATION_ID, -1),
                 logo = intent.getIntExtra(ServiceCommand.EXTRA_LOGO, 0)
             )
 

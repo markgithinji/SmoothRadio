@@ -39,6 +39,8 @@ class PlayerControlViewModel @Inject constructor(
     private val syncAdSettingsUseCase: SyncAdSettingsUseCase
 ) : ViewModel() {
 
+    private val commandMutex = Mutex()
+
     private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
     val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
@@ -59,8 +61,6 @@ class PlayerControlViewModel @Inject constructor(
     // 2. Lock out database emissions until they synchronize with manual user selection.
     private val _isStationChanging = MutableStateFlow(false)
     val isStationChanging: StateFlow<Boolean> = _isStationChanging.asStateFlow()
-
-    private val commandMutex = Mutex()
     
     private val allStations = radioRepository.allStations.stateIn(
         scope = viewModelScope,
@@ -73,7 +73,7 @@ class PlayerControlViewModel @Inject constructor(
         _isStationChanging
     ) { state, changing ->
         android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] playbackState combine: repoState=${state.label}, changingGuard=$changing")
-        // If we are changing stations, force a buffering state immediately.
+        // If we are changing stations, force a buffering state immediately for consistent ui
         // We only allow PLAYING to break this guard. IDLE is masked to prevent flashes during service reset.
         if (changing && state != StreamStates.PLAYING) {
             StreamStates.BUFFERING
@@ -98,7 +98,6 @@ class PlayerControlViewModel @Inject constructor(
     val duration: StateFlow<Long> = stateRepository.duration
     val minPosition: StateFlow<Long> = stateRepository.minPosition
     val loadedPosition: StateFlow<Long> = stateRepository.loadedPosition
-    
     val loadingProgress: StateFlow<Float> = stateRepository.loadingProgress
 
     init {
@@ -114,18 +113,18 @@ class PlayerControlViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 stateRepository.playbackState,
-                stateRepository.stationName,
+                stateRepository.stationId,
                 _playingStation
-            ) { state, currentName, targetStation ->
-                Triple(state, currentName, targetStation)
-            }.collect { (state, currentName, targetStation) ->
-                android.util.Log.d("SmoothRadio_Guard", "[GUARD_CHECK] state=${state.label}, repoName=$currentName, targetName=${targetStation?.stationName}, changing=${_isStationChanging.value}")
+            ) { state, currentId, targetStation ->
+                Triple(state, currentId, targetStation)
+            }.collect { (state, currentId, targetStation) ->
+                android.util.Log.d("SmoothRadio_Guard", "[GUARD_CHECK] state=${state.label}, repoId=$currentId, targetId=${targetStation?.id}, changing=${_isStationChanging.value}")
                 
                 // Allow stable states (PLAYING, PAUSED, IDLE, ENDED) to clear the guard
-                // ONLY IF the service has confirmed the station name match.
+                // ONLY IF the service has confirmed the station ID match.
                 val isStableState = state != StreamStates.PREPARING && state != StreamStates.BUFFERING
                 
-                if (isStableState && currentName == targetStation?.stationName) {
+                if (isStableState && currentId == targetStation?.id) {
                     if (_isStationChanging.value) {
                         android.util.Log.d("SmoothRadio_Guard", "[GUARD_CLEAR] Success match (${state.label})! Clearing guard for ${targetStation?.stationName}")
                         _isStationChanging.value = false
@@ -165,9 +164,10 @@ class PlayerControlViewModel @Inject constructor(
         android.util.Log.d("SmoothRadio_VM", "[DEBUG_LOG] requestPlayStation: ${station.stationName}, setting isStationChanging=true")
         
         // RESET STATE: Immediately reset the repository state to PREPARING
-        // and CLEAR the station name to prevent guard-clearance from stale events.
+        // and CLEAR the station name/id to prevent guard-clearance from stale events.
         stateRepository.updateState(StreamStates.PREPARING)
         stateRepository.updateStationName(null)
+        stateRepository.updateStationId(null)
         stateRepository.updateLoadingProgress(0f)
         stateRepository.updateMetadata("")
         
@@ -197,6 +197,7 @@ class PlayerControlViewModel @Inject constructor(
             // RESET STATE for refresh to show immediate feedback
             stateRepository.updateState(StreamStates.PREPARING)
             stateRepository.updateStationName(null)
+            stateRepository.updateStationId(null)
             stateRepository.updateLoadingProgress(0f)
             _isStationChanging.value = true
 

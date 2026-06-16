@@ -77,6 +77,7 @@ class StreamService : MediaSessionService() {
     private var connectionJob: Job? = null
 
     private var currentStationName: String? = null
+    private var currentStationId: Int? = null
     private var currentStationLogo: Int = 0
     private var currentSongTitle: String = ""
 
@@ -676,14 +677,18 @@ class StreamService : MediaSessionService() {
         when (command) {
             is ServiceCommand.Start -> {
                 currentStationName = command.name
+                currentStationId = command.id
                 currentStationLogo = command.logo
                 stateRepository.updateStationName(command.name ?: "")
+                stateRepository.updateStationId(command.id)
             }
 
             is ServiceCommand.ShowAd -> {
                 currentStationName = command.name
+                currentStationId = command.id
                 currentStationLogo = command.logo
                 stateRepository.updateStationName(command.name ?: "")
+                stateRepository.updateStationId(command.id)
             }
 
             else -> {}
@@ -766,6 +771,7 @@ class StreamService : MediaSessionService() {
                 wrappedPlayer.stop()
                 wrappedPlayer.clearMediaItems()
                 currentSongTitle = ""
+                currentStationId = null
 
                 stateRepository.updatePosition(0L)
                 stateRepository.updateDuration(0L)
@@ -998,7 +1004,6 @@ class StreamService : MediaSessionService() {
     }
 
     private fun seekToAbsolute(positionMs: Long) {
-        applySilenceLock()
         val urlString = activeStreamUrl ?: return
         val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
 
@@ -1017,16 +1022,21 @@ class StreamService : MediaSessionService() {
             (maxValidMs - safetyBuffer).coerceAtLeast(minValidMs)
         )
 
-        // Recalculate byte offset from clamped position
-        val clampedByte = (clampedPosition * localAudioProxy.estimatedBytesPerMs).toLong()
-
         // If we're already within a reasonable distance of the target, don't seek
         val currentPosition = wrappedPlayer.currentPosition
-        if (abs(currentPosition - clampedPosition) < 3000) {
+        if (abs(currentPosition - clampedPosition) < 2000) {
+            // Restore volume if we were muted but didn't actually need a big seek
+            if (isVolumeLocked && wrappedPlayer.isPlaying) {
+                startFadeIn()
+            }
             wrappedPlayer.play()
             return
         }
 
+        // Only mute if we are actually going to re-prepare the player
+        applySilenceLock()
+
+        val clampedByte = (clampedPosition * localAudioProxy.estimatedBytesPerMs).toLong()
         val proxyUri = "proxy://smoothradio/stream?byteOffset=$clampedByte".toUri()
         val mimeType = if (isHls) MimeTypes.AUDIO_AAC else MimeTypes.AUDIO_MPEG
         val cacheKey = currentStationName ?: urlString
@@ -1150,6 +1160,7 @@ class StreamService : MediaSessionService() {
         stateRepository.updateMinPosition(0L)
         stateRepository.updateLoadedPosition(0L)
         stateRepository.updateMetadata("")
+        stateRepository.updateStationId(null)
         isPreparingForAd = false
         unregisterTimerReceivers()
         serviceScope.cancel()
