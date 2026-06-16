@@ -1,5 +1,6 @@
 package com.smoothradio.radio.core.data.repository
 
+import com.smoothradio.radio.core.domain.model.AdSettings
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 
 class FakeAdSettingsRepository : AdSettingsRepository {
@@ -10,21 +11,21 @@ class FakeAdSettingsRepository : AdSettingsRepository {
     private var adShowIntervalMinutes: Int = 4
     private var maxAdsPerHour: Int = 4
 
-    override suspend fun getLastAdShowTime(): Long = lastAdShowTime
-
-    override suspend fun getAdShowCount(): Long = adShowCount
-
-    override suspend fun getLastAdHour(): Long = lastAdHour
+    override suspend fun getAdSettings(): AdSettings {
+        return AdSettings(
+            lastAdShowTime = lastAdShowTime,
+            adShowCount = adShowCount,
+            lastAdHour = lastAdHour,
+            adShowIntervalMinutes = adShowIntervalMinutes,
+            maxAdsPerHour = maxAdsPerHour
+        )
+    }
 
     override suspend fun updateAdDataWithCount(currentTime: Long, currentHour: Long, newCount: Long) {
         lastAdShowTime = currentTime
         lastAdHour = currentHour
         adShowCount = newCount
     }
-
-    override suspend fun getAdShowIntervalMinutes(): Int = adShowIntervalMinutes
-
-    override suspend fun getMaxAdsPerHour(): Int = maxAdsPerHour
 
     override suspend fun updateAdSettings(intervalMinutes: Int, maxAdsPerHour: Int) {
         this.adShowIntervalMinutes = intervalMinutes
