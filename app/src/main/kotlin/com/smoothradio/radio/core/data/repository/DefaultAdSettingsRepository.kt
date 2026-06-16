@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import com.smoothradio.radio.core.data.util.safeData
 import com.smoothradio.radio.core.domain.model.AdSettings
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -16,17 +16,14 @@ class DefaultAdSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) : AdSettingsRepository {
 
-    override suspend fun getAdSettings(): AdSettings {
-        return dataStore.safeData().map { preferences ->
-            AdSettings(
-                lastAdShowTime = preferences[LAST_AD_SHOW_TIME_KEY] ?: 0L,
-                adShowCount = preferences[AD_SHOW_COUNT_KEY] ?: 0L,
-                lastAdHour = preferences[AD_SHOW_HOUR_KEY] ?: 0L,
-                adShowIntervalMinutes = preferences[AD_SHOW_INTERVAL_KEY]
-                    ?: DEFAULT_INTERVAL_MINUTES,
-                maxAdsPerHour = preferences[MAX_ADS_PER_HOUR_KEY] ?: DEFAULT_MAX_ADS_PER_HOUR
-            )
-        }.first()
+    override val adSettings: Flow<AdSettings> = dataStore.safeData().map { preferences ->
+        AdSettings(
+            lastAdShowTime = preferences[LAST_AD_SHOW_TIME_KEY] ?: 0L,
+            adShowCount = preferences[AD_SHOW_COUNT_KEY] ?: 0L,
+            lastAdHour = preferences[AD_SHOW_HOUR_KEY] ?: 0L,
+            adShowIntervalMinutes = preferences[AD_SHOW_INTERVAL_KEY] ?: DEFAULT_INTERVAL_MINUTES,
+            maxAdsPerHour = preferences[MAX_ADS_PER_HOUR_KEY] ?: DEFAULT_MAX_ADS_PER_HOUR
+        )
     }
 
     override suspend fun updateAdDataWithCount(

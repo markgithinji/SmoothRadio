@@ -44,8 +44,12 @@ class PlayerControlViewModel @Inject constructor(
     private val _playCommand = Channel<PlayCommand>(Channel.BUFFERED)
     val playCommand: Flow<PlayCommand> = _playCommand.receiveAsFlow()
 
-    private val _canShowAd = MutableStateFlow(false)
-    val canShowAd: StateFlow<Boolean> = _canShowAd.asStateFlow()
+    val canShowAd: StateFlow<Boolean> = canShowAdUseCase()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     private val _toastMessage = MutableSharedFlow<ToastType>()
     val toastMessage: SharedFlow<ToastType> = _toastMessage.asSharedFlow()
@@ -106,9 +110,6 @@ class PlayerControlViewModel @Inject constructor(
 
     private fun initialize() {
         syncAdSettings()
-        viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-        }
 
         viewModelScope.launch {
             combine(
@@ -183,7 +184,6 @@ class PlayerControlViewModel @Inject constructor(
     private fun requestPlayStation(station: RadioStation) {
         viewModelScope.launch {
             commandMutex.withLock {
-                _canShowAd.value = canShowAdUseCase()
                 _playCommand.send(PlayCommand.PlayStation(station))
                 radioRepository.setPlayingStation(station.id)
             }
@@ -192,8 +192,6 @@ class PlayerControlViewModel @Inject constructor(
 
     fun requestRefresh() {
         viewModelScope.launch {
-            _canShowAd.value = canShowAdUseCase()
-            
             // RESET STATE for refresh to show immediate feedback
             stateRepository.updateState(StreamStates.PREPARING)
             stateRepository.updateStationName(null)
@@ -268,12 +266,6 @@ class PlayerControlViewModel @Inject constructor(
 
     fun togglePlayPause() {
         viewModelScope.launch {
-            if (playbackState.value != StreamStates.PLAYING &&
-                playbackState.value != StreamStates.BUFFERING &&
-                playbackState.value != StreamStates.PREPARING
-            ) {
-                _canShowAd.value = canShowAdUseCase()
-            }
             // If the user manually toggles while we are in a "changing" state,
             // we should clear the guard to allow the IDLE/PAUSED state to show.
             _isStationChanging.value = false

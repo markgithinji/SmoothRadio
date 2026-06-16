@@ -2,6 +2,7 @@ package com.smoothradio.radio.core.domain.usecase
 
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import com.smoothradio.radio.core.logging.LoggingHelper
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class RecordAdShownUseCase @Inject constructor(
@@ -11,7 +12,7 @@ class RecordAdShownUseCase @Inject constructor(
     suspend operator fun invoke() {
         val currentTime = System.currentTimeMillis()
         val currentHour = getCurrentHour()
-        val settings = adSettingsRepository.getAdSettings()
+        val settings = adSettingsRepository.adSettings.first()
 
         val lastHour = settings.lastAdHour
         val currentCount = settings.adShowCount

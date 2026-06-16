@@ -16,13 +16,13 @@ class DefaultRadioRepository @Inject constructor(
     private val dao: RadioStationDao
 ) : RadioRepository {
 
-    override val allStations: Flow<List<RadioStation>> = 
+    override val allStations: Flow<List<RadioStation>> =
         dao.getAllStations().map { entities -> entities.map { it.toDomain() } }
-        
-    override val favoriteStations: Flow<List<RadioStation>> = 
+
+    override val favoriteStations: Flow<List<RadioStation>> =
         dao.getFavoriteStations().map { entities -> entities.map { it.toDomain() } }
-        
-    override val playingStation: Flow<RadioStation?> = 
+
+    override val playingStation: Flow<RadioStation?> =
         dao.getPlayingStation().map { it?.toDomain() }
 
     override fun getPredefinedStations(links: List<String>): List<RadioStation> {
