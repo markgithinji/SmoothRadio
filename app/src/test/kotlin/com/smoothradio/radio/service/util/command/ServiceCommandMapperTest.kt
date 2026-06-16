@@ -37,6 +37,23 @@ class ServiceCommandMapperTest {
     }
 
     @Test
+    fun `map SHOW_AD action should return ShowAd command`() {
+        val intent = Intent(ServiceCommand.ACTION_SHOW_AD).apply {
+            putExtra(ServiceCommand.EXTRA_LINK, "http://ad.com")
+            putExtra(ServiceCommand.EXTRA_STATION_NAME, "Ad Station")
+            putExtra(ServiceCommand.EXTRA_LOGO, 456)
+        }
+
+        val command = mapper.map(intent)
+
+        assertThat(command).isInstanceOf(ServiceCommand.ShowAd::class.java)
+        val showAdCommand = command as ServiceCommand.ShowAd
+        assertThat(showAdCommand.link).isEqualTo("http://ad.com")
+        assertThat(showAdCommand.name).isEqualTo("Ad Station")
+        assertThat(showAdCommand.logo).isEqualTo(456)
+    }
+
+    @Test
     fun `map SEEK_TO action should return SeekTo command`() {
         val intent = Intent(ServiceCommand.ACTION_SEEK_TO).apply {
             putExtra(ServiceCommand.EXTRA_POSITION, 5000L)

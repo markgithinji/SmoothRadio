@@ -1,7 +1,9 @@
 package com.smoothradio.radio.service.proxy
 
 import com.google.common.truth.Truth.assertThat
+import com.smoothradio.radio.core.util.PlaybackConstants
 import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
+import com.smoothradio.radio.service.util.proxy.ProxyState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -41,6 +43,7 @@ class LocalAudioProxyTest {
             cacheDir = tempFolder.newFolder(),
             ioDispatcher = Dispatchers.Default,
             okHttpClient = OkHttpClient(),
+            maxPartSize = 256 * 1024L // Small part size for testing
         )
     }
 
@@ -85,7 +88,7 @@ class LocalAudioProxyTest {
 
     @Test
     fun `proxy should rotate files when PART_SIZE is reached`() = runTest {
-        // PART_SIZE is 256KB. Let's send 600KB to ensure at least one rotation.
+        // PART_SIZE is 256KB (set in setup). Let's send 600KB to ensure at least one rotation.
         val largeDataSize = 600 * 1024
         val largeData = ByteArray(largeDataSize) { 0x01.toByte() }
         mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(largeData)))
@@ -146,7 +149,7 @@ class LocalAudioProxyTest {
     @Test
     fun `readData should return -2 when position is already dropped`() = runTest {
         // Trigger a drop by writing just over 2 * PART_SIZE (512KB)
-        // PART_SIZE = 256KB, so 600KB will fill Part 1, Part 2, and trigger a rotation.
+        // PART_SIZE = 256KB (set in setup), so 600KB will fill Part 1, Part 2, and trigger a rotation.
         val dataSize = 600 * 1024
         val massiveData = ByteArray(dataSize) { 0x01.toByte() }
         mockWebServer.enqueue(MockResponse().setBody(okio.Buffer().write(massiveData)))
@@ -160,5 +163,49 @@ class LocalAudioProxyTest {
         // Try to read from the very beginning (which was dropped)
         val result = proxy.readData(tag = proxy.sessionTag, position = 0, buffer = ByteArray(100), offset = 0, length = 100)
         assertThat(result).isEqualTo(-2) // BufferEvictedException code
+    }
+
+    @Test
+    fun `proxy should handle terminal error 403 from downloader`() = runTest {
+        mockWebServer.enqueue(MockResponse().setResponseCode(403))
+
+        proxy.start(mockWebServer.url("/unreachable").toString())
+
+        awaitCondition { proxy.terminalError != 0 }
+
+        assertThat(proxy.terminalError).isEqualTo(PlaybackConstants.ERROR_UNREACHABLE)
+        assertThat(proxy.proxyState.value).isEqualTo(ProxyState.Idle)
+    }
+
+    @Test
+    fun `proxy should update state to Streaming and detect bitrate`() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .addHeader("Content-Type", "audio/mpeg")
+            .addHeader("icy-br", "128")
+            .setBody(okio.Buffer().write(ByteArray(1024))))
+
+        proxy.start(mockWebServer.url("/stream").toString())
+
+        awaitCondition { proxy.proxyState.value is ProxyState.Streaming }
+
+        val state = proxy.proxyState.value as ProxyState.Streaming
+        assertThat(state.mimeType).isEqualTo("audio/mpeg")
+        assertThat(state.bitrate).isEqualTo("128")
+        assertThat(proxy.detectedBitrateKbps).isEqualTo(128.0)
+    }
+
+    @Test
+    fun `updateBitrateEstimation should update estimatedBytesPerMs`() = runTest {
+        mockWebServer.enqueue(MockResponse()
+            .addHeader("icy-br", "128")
+            .setBody(okio.Buffer().write(ByteArray(1024))))
+
+        proxy.start(mockWebServer.url("/bitrate").toString())
+        awaitCondition { proxy.detectedBitrateKbps != null }
+
+        proxy.updateBitrateEstimation()
+
+        // 128 kbps / 8 = 16.0 bytes/ms
+        assertThat(proxy.estimatedBytesPerMs).isWithin(0.1).of(16.0)
     }
 }

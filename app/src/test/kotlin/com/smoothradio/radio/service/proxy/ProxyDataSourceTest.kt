@@ -6,9 +6,13 @@ import android.net.Uri
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import com.google.common.truth.Truth.assertThat
+import com.smoothradio.radio.core.util.PlaybackConstants
 import com.smoothradio.radio.service.util.proxy.AudioProxy
 import com.smoothradio.radio.service.util.proxy.BufferEvictedException
+import com.smoothradio.radio.service.util.proxy.EmptyStreamException
+import com.smoothradio.radio.service.util.proxy.ProxyCacheException
 import com.smoothradio.radio.service.util.proxy.ProxyDataSource
+import com.smoothradio.radio.service.util.proxy.StationUnreachableException
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -79,5 +83,38 @@ class ProxyDataSourceTest {
 
         val read = dataSource.read(ByteArray(100), 0, 100)
         assertThat(read).isEqualTo(-1) // C.RESULT_END_OF_INPUT
+    }
+
+    @Test(expected = StationUnreachableException::class)
+    fun `read should throw StationUnreachableException when proxy has ERROR_UNREACHABLE`() {
+        whenever(proxy.sessionTag).doReturn("tag1")
+        whenever(proxy.terminalError).doReturn(PlaybackConstants.ERROR_UNREACHABLE)
+        dataSource.open(DataSpec(Uri.parse("proxy://smoothradio/stream")))
+
+        whenever(proxy.readData(org.mockito.kotlin.eq("tag1"), any(), any(), any(), any())).doReturn(-3)
+
+        dataSource.read(ByteArray(100), 0, 100)
+    }
+
+    @Test(expected = EmptyStreamException::class)
+    fun `read should throw EmptyStreamException when proxy has ERROR_EMPTY_STREAM`() {
+        whenever(proxy.sessionTag).doReturn("tag1")
+        whenever(proxy.terminalError).doReturn(PlaybackConstants.ERROR_EMPTY_STREAM)
+        dataSource.open(DataSpec(Uri.parse("proxy://smoothradio/stream")))
+
+        whenever(proxy.readData(org.mockito.kotlin.eq("tag1"), any(), any(), any(), any())).doReturn(-3)
+
+        dataSource.read(ByteArray(100), 0, 100)
+    }
+
+    @Test(expected = ProxyCacheException::class)
+    fun `read should throw ProxyCacheException when proxy has ERROR_CACHE_ERROR`() {
+        whenever(proxy.sessionTag).doReturn("tag1")
+        whenever(proxy.terminalError).doReturn(PlaybackConstants.ERROR_CACHE_ERROR)
+        dataSource.open(DataSpec(Uri.parse("proxy://smoothradio/stream")))
+
+        whenever(proxy.readData(org.mockito.kotlin.eq("tag1"), any(), any(), any(), any())).doReturn(-3)
+
+        dataSource.read(ByteArray(100), 0, 100)
     }
 }
