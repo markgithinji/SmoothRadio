@@ -1,5 +1,7 @@
 package com.smoothradio.radio.core.data.repository
 
+import com.smoothradio.radio.core.data.local.util.RadioStationsHelper
+import com.smoothradio.radio.core.data.mapper.toDomain
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.repository.RadioRepository
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +71,8 @@ class FakeRadioRepository : RadioRepository {
     override val playingStation: Flow<RadioStation?> = _playingStation
 
     override fun getPredefinedStations(links: List<String>): List<RadioStation> {
-        return initialStations
+        return RadioStationsHelper.createRadioStationEntities(links)
+            .map { it.toDomain() }
     }
 
     private fun updateFlows(updatedList: List<RadioStation>) {

@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -40,7 +41,7 @@ class DefaultAdSettingsRepositoryTest {
     }
 
     @Test
-    fun getAdSettings_shouldReturnDefaultValues() = runTest {
+    fun adSettings_shouldReturnDefaultValues() = runTest {
         val settings = repository.getAdSettings()
         assertThat(settings.lastAdShowTime).isEqualTo(0L)
         assertThat(settings.adShowCount).isEqualTo(0L)
