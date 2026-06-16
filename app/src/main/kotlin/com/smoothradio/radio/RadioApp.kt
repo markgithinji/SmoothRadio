@@ -58,6 +58,7 @@ fun RadioApp(
     if (shouldShowChangelog) {
         ChangelogDialog(
             versionName = BuildConfig.VERSION_NAME,
+            changelogItems = changelogViewModel.changelogItems,
             onDismiss = { changelogViewModel.onChangelogDismissed() }
         )
     }

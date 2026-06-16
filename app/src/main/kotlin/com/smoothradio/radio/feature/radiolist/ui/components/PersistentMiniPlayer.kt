@@ -61,6 +61,7 @@ import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.MiniWaveformVisualization
 import com.smoothradio.radio.core.ui.common.pulseAnimation
 import com.smoothradio.radio.core.ui.util.LogoMapper
+
 @Composable
 fun PersistentMiniPlayer(
     station: RadioStation?,
@@ -72,7 +73,8 @@ fun PersistentMiniPlayer(
     // Don't render if no station
     if (station == null) return
 
-    val isBuffering = (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
+    val isBuffering =
+        (playbackState is StreamStates.BUFFERING || playbackState is StreamStates.PREPARING)
     val isPlaying = playbackState is StreamStates.PLAYING
     val colorScheme = MaterialTheme.colorScheme
     val outlineVariantColor = colorScheme.outlineVariant.copy(alpha = 0.2f)
@@ -127,7 +129,8 @@ fun PersistentMiniPlayer(
                     )
 
                     // 2. Progress fill
-                    val displayProgress = if (effectiveProgress <= 0.01f) 0f else animatedLoadingProgress
+                    val displayProgress =
+                        if (effectiveProgress <= 0.01f) 0f else animatedLoadingProgress
                     val progressWidth = size.width * displayProgress.coerceIn(0f, 1f)
 
                     if (progressWidth > 0f) {
@@ -218,6 +221,7 @@ fun PersistentMiniPlayer(
                                 letterSpacing = 0.5.sp
                             )
                         }
+
                         isPlaying -> {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -240,6 +244,7 @@ fun PersistentMiniPlayer(
                                 )
                             }
                         }
+
                         else -> {
                             Text(
                                 text = station.location,

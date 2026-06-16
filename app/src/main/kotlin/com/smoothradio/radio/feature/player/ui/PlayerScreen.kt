@@ -637,8 +637,6 @@ fun AudioSeekBar(
 
     val isInteractive = playbackState !is StreamStates.IDLE && playbackState !is StreamStates.ENDED
 
-    val haptic = LocalHapticFeedback.current
-
     val thumbSize by animateDpAsState(
         targetValue = if (isInteracting) 18.dp else 12.dp,
         animationSpec = spring(
@@ -665,14 +663,10 @@ fun AudioSeekBar(
             interactionSource = interactionSource,
             value = sliderFraction,
             onValueChange = {
-                if (!isDraggingManual) {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                }
                 isDraggingManual = true
                 sliderFraction = it
             },
             onValueChangeFinished = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 // Map the 0..1 fraction back to an absolute timestamp using the locked window
                 val currentMin = lockedWindow?.first ?: minPosition
                 val currentWidth = lockedWindow?.second ?: windowSize
@@ -805,7 +799,6 @@ fun AudioSeekBar(
             Surface(
                 onClick = {
                     if (!isLive) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSeek(loadedPosition)
                     }
                 },
