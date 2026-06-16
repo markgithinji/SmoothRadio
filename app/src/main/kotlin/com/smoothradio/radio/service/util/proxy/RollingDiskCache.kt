@@ -187,9 +187,6 @@ class RollingDiskCache(
             }
 
             if (availableTotal < minDataRequired) {
-                if (position == 0L) {
-                    android.util.Log.d("SmoothRadio_Cache", "readData (pos=0): waiting for sniff data. available=$availableTotal, required=$minDataRequired")
-                }
                 return@withLock null
             }
 

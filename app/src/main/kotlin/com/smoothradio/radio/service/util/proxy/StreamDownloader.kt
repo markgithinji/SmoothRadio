@@ -48,8 +48,8 @@ class ProgressiveDownloader(
                     onStateUpdate(ProxyState.Retrying)
                 }
 
-                var useMetadata = true
-                var response =
+                val useMetadata = true
+                val response =
                     executeStreamRequest(url, requestMetadata = true, timeoutSeconds = timeout)
 
                 if (response != null && (response.code == 401 || response.code == 403)) {

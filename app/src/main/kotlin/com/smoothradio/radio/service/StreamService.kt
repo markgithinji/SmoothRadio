@@ -143,7 +143,6 @@ class StreamService : MediaSessionService() {
         val dropped = localAudioProxy.totalBytesDropped
         val est = localAudioProxy.estimatedBytesPerMs.coerceAtLeast(1.0)
         val dur = (dropped / est).toLong()
-        // Log.v("SmoothSeek", "getDroppedDurationMs: droppedBytes=$dropped, est=$est -> ${dur}ms")
         return dur
     }
 
@@ -271,18 +270,9 @@ class StreamService : MediaSessionService() {
         val basePlayer = castPlayer ?: player
         wrappedPlayer = object : ForwardingPlayer(basePlayer) {
             override fun setVolume(volume: Float) {
-                val currentStation = currentStationName ?: "Unknown"
                 if (isVolumeLocked && volume > 0f) {
-                    android.util.Log.w(
-                        "SmoothRadio_Vol",
-                        "[$currentStation] BLOCKED volume reset to $volume during silence lock!"
-                    )
                     super.setVolume(0f)
                 } else {
-                    android.util.Log.d(
-                        "SmoothRadio_Vol",
-                        "[$currentStation] setVolume($volume) allowed (Locked=$isVolumeLocked)"
-                    )
                     super.setVolume(volume)
                 }
             }
@@ -319,7 +309,6 @@ class StreamService : MediaSessionService() {
                 if (isPreparingForAd) return
                 val url = activeStreamUrl
                 if (url != null && !localAudioProxy.isStartedFor(url)) {
-                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.play(): Proxy stopped, restarting")
                     this@StreamService.play(url)
                 } else {
                     super.play()
@@ -329,7 +318,6 @@ class StreamService : MediaSessionService() {
             override fun setPlayWhenReady(playWhenReady: Boolean) {
                 val url = activeStreamUrl
                 if (playWhenReady && !isPreparingForAd && url != null && !localAudioProxy.isStartedFor(url)) {
-                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.setPlayWhenReady(true): Proxy stopped, restarting")
                     this@StreamService.play(url)
                 } else {
                     super.setPlayWhenReady(playWhenReady)
@@ -339,7 +327,6 @@ class StreamService : MediaSessionService() {
             override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
                 val url = activeStreamUrl
                 if (url != null && !localAudioProxy.isStartedFor(url)) {
-                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.seekTo(): Proxy stopped, restarting")
                     this@StreamService.seekToAbsolute(positionMs)
                 } else {
                     super.seekTo(mediaItemIndex, positionMs)
@@ -349,7 +336,6 @@ class StreamService : MediaSessionService() {
             override fun prepare() {
                 val url = activeStreamUrl
                 if (url != null && !localAudioProxy.isStartedFor(url)) {
-                    android.util.Log.d("SmoothRadio_Service", "wrappedPlayer.prepare(): Proxy stopped, restarting")
                     this@StreamService.play(url)
                 } else {
                     super.prepare()
@@ -670,7 +656,6 @@ class StreamService : MediaSessionService() {
 
     private fun handleIntent(intent: Intent) {
         val command = commandMapper.map(intent)
-        android.util.Log.d("SmoothRadio_Service", "handleIntent: action=${intent.action}, command=${command::class.simpleName}")
         if (command is ServiceCommand.None) return
 
         // Global updates for metadata-bearing commands
@@ -700,11 +685,8 @@ class StreamService : MediaSessionService() {
 
         when (command) {
             is ServiceCommand.Start -> {
-                android.util.Log.d("SmoothRadio_Service", "ServiceCommand.Start: link=${command.link}")
-                
                 // If we are already playing this URL, just ensure it's playing and exit
                 if (activeStreamUrl == command.link && localAudioProxy.isStartedFor(command.link)) {
-                    android.util.Log.d("SmoothRadio_Service", "ServiceCommand.Start: Already active, transitioning from ad to play")
                     isPreparingForAd = false
                     wrappedPlayer.play()
                     updateUiState()
@@ -735,7 +717,6 @@ class StreamService : MediaSessionService() {
             }
 
             is ServiceCommand.ShowAd -> {
-                android.util.Log.d("SmoothRadio_Service", "ServiceCommand.ShowAd: link=${command.link}")
                 connectionJob?.cancel()
                 isPreparingForAd = true
                 maxPositionReached = 0L
@@ -857,11 +838,9 @@ class StreamService : MediaSessionService() {
 
     private fun setState(newState: StreamStates) {
         if ((newState == StreamStates.PREPARING || newState == StreamStates.BUFFERING) && activeStreamUrl == null) {
-            android.util.Log.d("SmoothRadio_Service", "setState: Ignored ${newState.label} (activeStreamUrl is null)")
             return
         }
         if (stateChange == newState) return
-        android.util.Log.d("SmoothRadio_Service", "setState: ${stateChange.label} -> ${newState.label}")
 
         if (newState != StreamStates.PLAYING) {
             applySilenceLock()
@@ -873,7 +852,6 @@ class StreamService : MediaSessionService() {
     }
 
     private fun applySilenceLock() {
-        android.util.Log.d("SmoothRadio_Vol", "Applying silence lock (volume 0.0)")
         volumeFadeJob?.cancel()
         isVolumeLocked = true
         player.volume = 0f
@@ -888,22 +866,13 @@ class StreamService : MediaSessionService() {
             player.volume = 0f
             wrappedPlayer.volume = 0f
 
-            // Stabilization delay removed for testing
-            // val url = activeStreamUrl ?: ""
-            // val isHls = url.contains(".m3u8") || url.contains("playlist")
-            // val stabilizationDelay = if (isHls) 1500L else 400L
-            // delay(stabilizationDelay)
-
             isVolumeLocked = false
             wrappedPlayer.volume = 1.0f
-            android.util.Log.d("SmoothRadio_Vol", "Unmuted immediately (volume 1.0)")
         }
     }
 
     private fun play(link: String) {
-        android.util.Log.d("SmoothRadio_Service", "play: link=$link")
         if (link.isEmpty()) {
-            android.util.Log.w("SmoothRadio_Service", "play: Link is empty, setting IDLE")
             setState(StreamStates.IDLE)
             return
         }
@@ -912,7 +881,6 @@ class StreamService : MediaSessionService() {
             (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING) &&
             localAudioProxy.isStartedFor(link)
         ) {
-            android.util.Log.d("SmoothRadio_Service", "play: Stream already active, just ensuring play()")
             isPreparingForAd = false
             wrappedPlayer.play()
             return
@@ -951,14 +919,12 @@ class StreamService : MediaSessionService() {
                     preparePlayer(link.toUri(), 0L)
                 }
                 wrappedPlayer.play()
-            } catch (e: Exception) {
-                android.util.Log.e("SmoothRadio_Service", "play: Coroutine failed", e)
+            } catch (_: Exception) {
             }
         }
     }
 
     private fun preparePlayer(uri: Uri, startPositionMs: Long = 0L) {
-        android.util.Log.d("SmoothRadio_Service", "preparePlayer: uri=$uri, startPos=$startPositionMs")
         applySilenceLock()
         wrappedPlayer.stop()
         maxPositionReached = 0L
@@ -967,7 +933,6 @@ class StreamService : MediaSessionService() {
         val isHls = uriString.contains(".m3u8") || uriString.contains("playlist")
 
         if (!localAudioProxy.isStartedFor(uriString)) {
-            android.util.Log.d("SmoothRadio_Service", "preparePlayer: Starting proxy for $uriString")
             localAudioProxy.start(uriString)
         }
 
@@ -1107,7 +1072,7 @@ class StreamService : MediaSessionService() {
         try {
             equalizer?.release()
             
-            // APPLY FIX #3: Synchronous configuration using memory cache
+            // FIX for audio spike: Synchronous configuration using memory cache
             val newEq = Equalizer(0, sessionId)
             val bands = newEq.numberOfBands
             var hasActiveSettings = false
@@ -1214,7 +1179,6 @@ class StreamService : MediaSessionService() {
 
     private fun updateUiState() {
         if (isPreparingForAd) {
-            android.util.Log.d("SmoothRadio_Service", "updateUiState: Ignored (isPreparingForAd=true)")
             return
         }
         val playbackState = wrappedPlayer.playbackState
@@ -1226,8 +1190,6 @@ class StreamService : MediaSessionService() {
             Player.STATE_ENDED -> StreamStates.ENDED
             else -> StreamStates.IDLE
         }
-
-        android.util.Log.d("SmoothRadio_Service", "updateUiState: playbackState=$playbackState, isPlaying=$isPlayerPlaying -> newState=${newState.label} (current=${stateChange.label})")
 
         if (stateChange != newState) {
             setState(newState)
@@ -1247,7 +1209,6 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            android.util.Log.d("SmoothRadio_Service", "onIsPlayingChanged: isPlaying=$isPlaying")
             this@StreamService.isPlaying = isPlaying
             if (isPlaying) {
                 startFadeIn()
@@ -1265,13 +1226,11 @@ class StreamService : MediaSessionService() {
                 pauseTimeoutJob = serviceScope.launch {
                     // Stage 1: Stop proxy after 3 minutes to save background data
                     delay(3 * 60 * 1000)
-                    android.util.Log.d("SmoothRadio_Service", "Pause timeout: stopping proxy")
                     localAudioProxy.stop()
 
                     // Stage 2: Stop service entirely after 30 minutes of inactivity
                     delay(27 * 60 * 1000)
                     if (!this@StreamService.isPlaying && !wrappedPlayer.playWhenReady) {
-                        android.util.Log.d("SmoothRadio_Service", "Inactivity timeout: stopping service")
                         stopSelf()
                     }
                 }
@@ -1279,7 +1238,6 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            android.util.Log.e("SmoothRadio_Service", "onPlayerError: ${error.message}", error)
             val failedMediaId = wrappedPlayer.currentMediaItem?.mediaId
 
             // 1. FILTER STALE ERRORS: If the failed item's ID doesn't match our current active URL, ignore it.
@@ -1339,15 +1297,6 @@ class StreamService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
-            val stateName = when(state) {
-                Player.STATE_IDLE -> "IDLE"
-                Player.STATE_BUFFERING -> "BUFFERING"
-                Player.STATE_READY -> "READY"
-                Player.STATE_ENDED -> "ENDED"
-                else -> "UNKNOWN"
-            }
-            android.util.Log.d("SmoothRadio_Service", "onPlaybackStateChanged: state=$stateName, playWhenReady=${wrappedPlayer.playWhenReady}")
-
             updateUiState()
             refreshMediaSessionMetadata() // Sync MediaSession with new state
             updateNotificationInternal() // Sync Notification with new state
