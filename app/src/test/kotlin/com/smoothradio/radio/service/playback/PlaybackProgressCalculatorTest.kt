@@ -39,9 +39,9 @@ class PlaybackProgressCalculatorTest {
         // This means the seek bar shows a fixed window starting from dropped position.
         assertThat(result.duration).isEqualTo(5000)
 
-        // loadedPosition = (loadedDur - safetyBuffer) = 10000 - 2000 = 8000.
+        // loadedPosition = (loadedDur - safetyBuffer) = 10000 - 1000 = 9000.
         // Coerced at least droppedDur (2000).
-        assertThat(result.loadedPosition).isEqualTo(8000)
+        assertThat(result.loadedPosition).isEqualTo(9000)
         assertThat(result.loadingProgress).isEqualTo(1.0f)
     }
 

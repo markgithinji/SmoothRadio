@@ -6,6 +6,7 @@ import com.smoothradio.radio.core.data.repository.FakeViewPreferenceRepository
 import com.smoothradio.radio.testutils.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
@@ -61,6 +62,7 @@ class ChangelogViewModelTest {
 
         // When dismissed
         viewModel.onChangelogDismissed()
+        advanceUntilIdle()
 
         // Then it should be hidden
         assertThat(viewModel.shouldShowChangelog.value).isFalse()

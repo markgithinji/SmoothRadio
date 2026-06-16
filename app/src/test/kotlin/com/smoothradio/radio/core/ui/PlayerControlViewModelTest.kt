@@ -62,7 +62,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestPlayStation_shouldEmitCommandAndSaveId() = runTest {
+    fun requestPlayStation_shouldEmitCommandAndSaveId() = runTest(dispatcherRule.dispatcher) {
         fakeRadioRepository.clearAllStations()
 
         val station = RadioStation(
@@ -91,7 +91,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestNextStation_shouldCalculateNextAndPlay() = runTest {
+    fun requestNextStation_shouldCalculateNextAndPlay() = runTest(dispatcherRule.dispatcher) {
         fakeRadioRepository.clearAllStations()
 
         val stations = listOf(
@@ -116,7 +116,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestNextStation_atEnd_shouldWrapToFirst() = runTest {
+    fun requestNextStation_atEnd_shouldWrapToFirst() = runTest(dispatcherRule.dispatcher) {
         fakeRadioRepository.clearAllStations()
 
         val stations = listOf(
@@ -135,7 +135,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestPreviousStation_shouldCalculatePrevAndPlay() = runTest {
+    fun requestPreviousStation_shouldCalculatePrevAndPlay() = runTest(dispatcherRule.dispatcher) {
         fakeRadioRepository.clearAllStations()
 
         val stations = listOf(
@@ -154,7 +154,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestPreviousStation_atStart_shouldWrapToEnd() = runTest {
+    fun requestPreviousStation_atStart_shouldWrapToEnd() = runTest(dispatcherRule.dispatcher) {
         fakeRadioRepository.clearAllStations()
 
         val stations = listOf(
@@ -173,7 +173,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun setEqualizerBand_shouldCallRepositoryAndEmitCommand() = runTest {
+    fun setEqualizerBand_shouldCallRepositoryAndEmitCommand() = runTest(dispatcherRule.dispatcher) {
         val commands = mutableListOf<PlayCommand>()
         backgroundScope.launch { viewModel.playCommand.toList(commands) }
 
@@ -187,7 +187,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun playbackState_shouldBeBuffering_whenStationIsChanging() = runTest {
+    fun playbackState_shouldBeBuffering_whenStationIsChanging() = runTest(dispatcherRule.dispatcher) {
         val station = RadioStation(1, "S1", "", "", "u1", false, false, 0)
         fakeRadioRepository.insertStations(listOf(station))
 
@@ -216,6 +216,7 @@ class PlayerControlViewModelTest {
         assertThat(viewModel.isStationChanging.value).isTrue()
 
         // Finally simulate player ready
+        fakePlaybackStateRepository.updateStationId(1)
         fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
         advanceUntilIdle()
 
@@ -224,7 +225,7 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun requestRefresh_shouldResetStateAndSetGuard() = runTest {
+    fun requestRefresh_shouldResetStateAndSetGuard() = runTest(dispatcherRule.dispatcher) {
         fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
         fakePlaybackStateRepository.updateLoadingProgress(1f)
         advanceUntilIdle()
@@ -237,14 +238,17 @@ class PlayerControlViewModelTest {
     }
 
     @Test
-    fun showToast_shouldEmitToastType() = runTest {
+    fun showToast_shouldEmitToastType() = runTest(dispatcherRule.dispatcher) {
         val toasts = mutableListOf<ToastType>()
-        backgroundScope.launch { viewModel.toastMessage.toList(toasts) }
+        val job = backgroundScope.launch {
+            viewModel.toastMessage.collect { toasts.add(it) }
+        }
 
         val expectedToast = ToastType.Success("Connected")
         viewModel.showToast(expectedToast)
         advanceUntilIdle()
 
         assertThat(toasts).containsExactly(expectedToast)
+        job.cancel()
     }
 }

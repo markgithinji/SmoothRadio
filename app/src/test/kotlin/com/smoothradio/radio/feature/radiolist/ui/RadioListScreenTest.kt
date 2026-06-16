@@ -832,6 +832,7 @@ class RadioListScreenTest {
         composeTestRule.waitForIdle()
 
         // 2. Ensure it's in IDLE state (paused)
+        playbackStateRepository.updateStationId(228)
         playbackStateRepository.updateState(StreamStates.IDLE)
         radioRepository.setPlayingStation(228)
         advanceUntilIdle()

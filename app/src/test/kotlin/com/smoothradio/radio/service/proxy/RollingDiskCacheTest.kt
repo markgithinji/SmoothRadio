@@ -66,12 +66,10 @@ class RollingDiskCacheTest {
 
     @Test
     fun `flushBufferToDisk writes memory to files`() {
-        // Write enough to trigger a flush (MEMORY_FLUSH_THRESHOLD = 32KB)
-        val data = ByteArray(40 * 1024) { 0x2 }
+        // Threshold for first 128KB is INITIAL_BURST_SIZE (256KB).
+        // To trigger a flush, we need to write 256KB or more.
+        val data = ByteArray(300 * 1024) { 0x2 }
         cache.appendData("test-tag", data, data.size, isHls = false)
-        
-        // flushBufferToDiskInternal is internal, but appendData calls it if threshold reached
-        // Actually, it calls it in appendData.
         
         assertThat(cache.part1File?.length()).isGreaterThan(0L)
     }

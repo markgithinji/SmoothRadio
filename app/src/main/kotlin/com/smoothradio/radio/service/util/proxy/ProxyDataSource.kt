@@ -193,6 +193,12 @@ class ProxyDataSource(
         } catch (e: BufferEvictedException) {
             // Re-throw to be handled in onPlayerError
             throw e
+        } catch (e: StationUnreachableException) {
+            throw e
+        } catch (e: EmptyStreamException) {
+            throw e
+        } catch (e: ProxyCacheException) {
+            throw e
         } catch (e: Exception) {
             handleTerminalError(PlaybackConstants.ERROR_CACHE_ERROR)
             C.RESULT_END_OF_INPUT
