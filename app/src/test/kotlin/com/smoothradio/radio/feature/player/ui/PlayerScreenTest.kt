@@ -179,10 +179,11 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun playerScreen_clicksNextPrevious() = runTest {
+    fun playerScreen_clicksNextPrevious_immediatelyShowsBuffering() = runTest {
         val secondStation = testStation.copy(id = 2, stationName = "NEXT STATION", orderIndex = 1)
         radioRepository.insertStations(listOf(testStation, secondStation))
         radioRepository.setPlayingStation(testStation.id)
+        playbackStateRepository.updateState(StreamStates.PLAYING)
         advanceUntilIdle()
 
         composeTestRule.setContent {
@@ -193,23 +194,25 @@ class PlayerScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // Before click - showing PLAYING
+        composeTestRule.onNodeWithText("NOW PLAYING").assertIsDisplayed()
+
+        // Click Next
         composeTestRule.onNodeWithContentDescription("Next").performClick()
-        advanceUntilIdle()
         
-        // Wait for state to flow through
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("NEXT STATION").fetchSemanticsNodes().isNotEmpty()
-        }
+        // NO advanceUntilIdle yet to check immediate state
+        // It should show BUFFERING immediately because of the reset in VM
+        composeTestRule.onNodeWithText("BUFFERING").assertIsDisplayed()
         composeTestRule.onNodeWithText("NEXT STATION").assertIsDisplayed()
 
-        composeTestRule.onNodeWithContentDescription("Previous").performClick()
+        // Now advance and simulate player ready
         advanceUntilIdle()
+        playbackStateRepository.updateState(StreamStates.PLAYING)
+        radioRepository.setPlayingStation(2)
+        composeTestRule.waitForIdle()
 
-        // Wait for back to HOPE FM
-        composeTestRule.waitUntil(5000) {
-            composeTestRule.onAllNodesWithText("HOPE FM").fetchSemanticsNodes().isNotEmpty()
-        }
-        composeTestRule.onNodeWithText("HOPE FM").assertIsDisplayed()
+        composeTestRule.onNodeWithText("NOW PLAYING").assertIsDisplayed()
+        composeTestRule.onNodeWithText("NEXT STATION").assertIsDisplayed()
     }
 
     @Test

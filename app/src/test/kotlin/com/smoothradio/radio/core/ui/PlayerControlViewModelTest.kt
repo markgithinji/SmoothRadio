@@ -1,6 +1,8 @@
 package com.smoothradio.radio.core.ui
 
 import com.google.common.truth.Truth.assertThat
+import com.smoothradio.radio.core.domain.model.StreamStates
+import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.data.repository.FakeAdSettingsRepository
 import com.smoothradio.radio.core.data.repository.FakeEqualizerRepository
 import com.smoothradio.radio.core.data.repository.FakePlaybackStateRepository
@@ -182,5 +184,67 @@ class PlayerControlViewModelTest {
 
         assertThat(fakeEqualizerRepository.getBandLevel(band)).isEqualTo(level)
         assertThat(commands).containsExactly(PlayCommand.SetEqBand(band, level))
+    }
+
+    @Test
+    fun playbackState_shouldBeBuffering_whenStationIsChanging() = runTest {
+        val station = RadioStation(1, "S1", "", "", "u1", false, false, 0)
+        fakeRadioRepository.insertStations(listOf(station))
+
+        // Initial state
+        fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
+        assertThat(viewModel.playbackState.value).isEqualTo(StreamStates.PLAYING)
+
+        // Request new station
+        viewModel.requestPlayStation(station)
+
+        // VERIFY RESET: repo state should be reset to PREPARING immediately
+        assertThat(fakePlaybackStateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+        
+        // Simulating Service reset: Repo moves to IDLE
+        fakePlaybackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
+
+        // VM should STILL report BUFFERING even if repo is IDLE (because guard is active)
+        assertThat(viewModel.playbackState.value).isEqualTo(StreamStates.BUFFERING)
+        assertThat(viewModel.isStationChanging.value).isTrue()
+
+        // Simulate DB sync - guard should NOT clear yet in the new logic
+        fakeRadioRepository.setPlayingStation(1)
+        advanceUntilIdle()
+        assertThat(viewModel.isStationChanging.value).isTrue()
+
+        // Finally simulate player ready
+        fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
+
+        assertThat(viewModel.isStationChanging.value).isFalse()
+        assertThat(viewModel.playbackState.value).isEqualTo(StreamStates.PLAYING)
+    }
+
+    @Test
+    fun requestRefresh_shouldResetStateAndSetGuard() = runTest {
+        fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
+        fakePlaybackStateRepository.updateLoadingProgress(1f)
+        advanceUntilIdle()
+        
+        viewModel.requestRefresh()
+        
+        assertThat(fakePlaybackStateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+        assertThat(fakePlaybackStateRepository.loadingProgress.value).isEqualTo(0f)
+        assertThat(viewModel.isStationChanging.value).isTrue()
+    }
+
+    @Test
+    fun showToast_shouldEmitToastType() = runTest {
+        val toasts = mutableListOf<ToastType>()
+        backgroundScope.launch { viewModel.toastMessage.toList(toasts) }
+
+        val expectedToast = ToastType.Success("Connected")
+        viewModel.showToast(expectedToast)
+        advanceUntilIdle()
+
+        assertThat(toasts).containsExactly(expectedToast)
     }
 }
