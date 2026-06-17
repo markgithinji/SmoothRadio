@@ -68,6 +68,15 @@ class PlayerScreenTest {
         hiltRule.inject()
     }
 
+    private fun dismissChangelogIfVisible() {
+        composeTestRule.onAllNodesWithText("Got it!").fetchSemanticsNodes().let {
+            if (it.isNotEmpty()) {
+                composeTestRule.onNodeWithText("Got it!").performClick()
+                composeTestRule.waitForIdle()
+            }
+        }
+    }
+
     @Test
     fun playerScreen_showsEmptyState_whenNoStationIsPlaying() = runTest {
         radioRepository.clearAllStations()
@@ -78,6 +87,9 @@ class PlayerScreenTest {
                 PlayerScreen()
             }
         }
+
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.onNodeWithText("No station playing").assertIsDisplayed()
     }
@@ -96,6 +108,7 @@ class PlayerScreenTest {
 
         // Use waitForIdle to ensure hierarchy is attached
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.onNodeWithText("HOPE FM").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("HOPE FM logo").assertIsDisplayed()

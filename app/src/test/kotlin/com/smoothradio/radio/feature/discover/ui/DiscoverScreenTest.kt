@@ -61,6 +61,15 @@ class DiscoverScreenTest {
         hiltRule.inject()
     }
 
+    private fun dismissChangelogIfVisible() {
+        composeTestRule.onAllNodesWithText("Got it!").fetchSemanticsNodes().let {
+            if (it.isNotEmpty()) {
+                composeTestRule.onNodeWithText("Got it!").performClick()
+                composeTestRule.waitForIdle()
+            }
+        }
+    }
+
     @Test
     fun discoverScreen_displaysExpectedCategoriesAndStations() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
@@ -75,6 +84,7 @@ class DiscoverScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         // Wait for content to load and Crossfade to complete
         composeTestRule.waitUntil(10000) {
@@ -104,6 +114,7 @@ class DiscoverScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         // Wait for content (RADIO 47 has ID 228)
         composeTestRule.waitUntil(10000) {
@@ -163,6 +174,7 @@ class DiscoverScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         // Wait for content
         composeTestRule.waitUntil(10000) {

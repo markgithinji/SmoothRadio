@@ -33,9 +33,20 @@ class MainActivityTest {
         hiltRule.inject()
     }
 
+    private fun dismissChangelogIfVisible() {
+        // Use a small wait in case it's still appearing due to the 2s delay
+        composeTestRule.onAllNodesWithText("Got it!").fetchSemanticsNodes().let {
+            if (it.isNotEmpty()) {
+                composeTestRule.onNodeWithText("Got it!").performClick()
+                composeTestRule.waitForIdle()
+            }
+        }
+    }
+
     @Test
     fun bottomNavigation_hasThreeTabs() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
         
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Stations").fetchSemanticsNodes().isNotEmpty()
@@ -49,6 +60,7 @@ class MainActivityTest {
     @Test
     fun clickingLiveTab_showsPlayerScreen_withDefaultStation() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Live").fetchSemanticsNodes().isNotEmpty()
@@ -67,6 +79,7 @@ class MainActivityTest {
     @Test
     fun clickingDiscoverTab_showsDiscoverScreen() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Discover").fetchSemanticsNodes().isNotEmpty()

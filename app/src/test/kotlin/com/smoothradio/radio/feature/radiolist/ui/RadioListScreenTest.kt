@@ -62,6 +62,15 @@ class RadioListScreenTest {
         hiltRule.inject()
     }
 
+    private fun dismissChangelogIfVisible() {
+        composeTestRule.onAllNodesWithText("Got it!").fetchSemanticsNodes().let {
+            if (it.isNotEmpty()) {
+                composeTestRule.onNodeWithText("Got it!").performClick()
+                composeTestRule.waitForIdle()
+            }
+        }
+    }
+
     @Test
     fun radioStationsScreen_displaysStationsInList() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
@@ -77,6 +86,7 @@ class RadioListScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         // Wait for data auto-population
         composeTestRule.waitUntil(10000) {
@@ -102,6 +112,7 @@ class RadioListScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -140,6 +151,7 @@ class RadioListScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
@@ -821,6 +833,7 @@ class RadioListScreenTest {
         }
 
         composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
 
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
