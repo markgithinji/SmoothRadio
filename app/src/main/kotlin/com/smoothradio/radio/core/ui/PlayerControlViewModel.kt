@@ -117,12 +117,11 @@ class PlayerControlViewModel @Inject constructor(
             ) { state, currentId, targetStation ->
                 Triple(state, currentId, targetStation)
             }.collect { (state, currentId, targetStation) ->
-                // Allow stable states (PLAYING, PAUSED, IDLE, ENDED) to clear the guard
-                // ONLY IF the service has confirmed the station ID match.
-                val isStableState =
-                    state != StreamStates.PREPARING && state != StreamStates.BUFFERING
-
-                if (isStableState && currentId == targetStation?.id) {
+                // Allow the 'isStationChanging' guard to clear as soon as the service
+                // has confirmed the station ID match, regardless of whether it's
+                // still preparing or buffering. This ensures the progress bar
+                // shows up immediately during the initial prep phase.
+                if (currentId == targetStation?.id) {
                     if (_isStationChanging.value) {
                         _isStationChanging.value = false
                     }
