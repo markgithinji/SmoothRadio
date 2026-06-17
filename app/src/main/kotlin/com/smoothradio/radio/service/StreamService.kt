@@ -1071,18 +1071,24 @@ class StreamService : MediaSessionService() {
         audioSessionId = sessionId
         try {
             equalizer?.release()
-            
-            // FIX for audio spike: Synchronous configuration using memory cache
-            val newEq = Equalizer(0, sessionId)
-            val bands = newEq.numberOfBands
-            var hasActiveSettings = false
-            for (i in 0 until bands) {
-                val level = eqBandCache[i] ?: 0
-                if (level != 0.toShort()) {
-                    try {
-                        newEq.setBandLevel(i.toShort(), level)
-                        hasActiveSettings = true
-                    } catch (_: Exception) {}
+            equalizer = Equalizer(0, sessionId).apply {
+                val bands = numberOfBands
+                serviceScope.launch {
+                    var hasActiveSettings = false
+                    for (i in 0 until bands) {
+                        val level = equalizerRepository.getBandLevel(i)
+                        if (level != 0.toShort()) {
+                            try {
+                                setBandLevel(i.toShort(), level)
+                                hasActiveSettings = true
+                            } catch (e: Exception) {
+                                Log.e("StreamService", "Failed to apply EQ band $i", e)
+                            }
+                        }
+                    }
+                    if (hasActiveSettings) {
+                        enabled = true
+                    }
                 }
             }
             
