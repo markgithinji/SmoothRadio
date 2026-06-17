@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -40,8 +41,13 @@ class DefaultAdSettingsRepositoryTest {
     }
 
     @Test
-    fun getLastAdShowTime_shouldReturnDefaultZero() = runTest {
-        assertThat(repository.getLastAdShowTime()).isEqualTo(0L)
+    fun adSettings_shouldReturnDefaultValues() = runTest {
+        val settings = repository.getAdSettings()
+        assertThat(settings.lastAdShowTime).isEqualTo(0L)
+        assertThat(settings.adShowCount).isEqualTo(0L)
+        assertThat(settings.lastAdHour).isEqualTo(0L)
+        assertThat(settings.adShowIntervalMinutes).isEqualTo(4)
+        assertThat(settings.maxAdsPerHour).isEqualTo(4)
     }
 
     @Test
@@ -52,9 +58,10 @@ class DefaultAdSettingsRepositoryTest {
 
         repository.updateAdDataWithCount(time, hour, count)
 
-        assertThat(repository.getLastAdShowTime()).isEqualTo(time)
-        assertThat(repository.getLastAdHour()).isEqualTo(hour)
-        assertThat(repository.getAdShowCount()).isEqualTo(count)
+        val settings = repository.getAdSettings()
+        assertThat(settings.lastAdShowTime).isEqualTo(time)
+        assertThat(settings.lastAdHour).isEqualTo(hour)
+        assertThat(settings.adShowCount).isEqualTo(count)
     }
 
     @Test
@@ -64,8 +71,9 @@ class DefaultAdSettingsRepositoryTest {
 
         repository.updateAdSettings(interval, maxAds)
 
-        assertThat(repository.getAdShowIntervalMinutes()).isEqualTo(interval)
-        assertThat(repository.getMaxAdsPerHour()).isEqualTo(maxAds)
+        val settings = repository.getAdSettings()
+        assertThat(settings.adShowIntervalMinutes).isEqualTo(interval)
+        assertThat(settings.maxAdsPerHour).isEqualTo(maxAds)
     }
 
     @Test
@@ -75,8 +83,9 @@ class DefaultAdSettingsRepositoryTest {
 
         repository.clearAll()
 
-        assertThat(repository.getLastAdShowTime()).isEqualTo(0L)
-        assertThat(repository.getAdShowIntervalMinutes()).isEqualTo(4) // Default value
-        assertThat(repository.getMaxAdsPerHour()).isEqualTo(4) // Default value
+        val settings = repository.getAdSettings()
+        assertThat(settings.lastAdShowTime).isEqualTo(0L)
+        assertThat(settings.adShowIntervalMinutes).isEqualTo(4) // Default value
+        assertThat(settings.maxAdsPerHour).isEqualTo(4) // Default value
     }
 }

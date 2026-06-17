@@ -2,14 +2,27 @@ package com.smoothradio.radio
 
 import android.app.Application
 import android.os.Build
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.analytics
 import com.smoothradio.radio.core.logging.FirebaseCrashReportingTree
 import dagger.hilt.android.HiltAndroidApp
+import okhttp3.OkHttpClient
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class SmoothRadioApplication : Application() {
+class SmoothRadioApplication : Application(), ImageLoaderFactory {
+
+    @Inject
+    lateinit var okHttpClient: OkHttpClient
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .okHttpClient(okHttpClient)
+            .build()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -29,12 +42,22 @@ class SmoothRadioApplication : Application() {
     }
 
     private fun setupFirebaseAnalytics() {
-        val analytics = Firebase.analytics
+        if (isRobolectric()) return
 
-        // Set user properties for better segmentation
-        analytics.setUserProperty("android_version", Build.VERSION.RELEASE)
-        analytics.setUserProperty("device_model", Build.MODEL)
-        analytics.setUserProperty("app_version", BuildConfig.VERSION_NAME)
-        analytics.setUserProperty("build_type", BuildConfig.BUILD_TYPE)
+        try {
+            val analytics = Firebase.analytics
+
+            // Set user properties for better segmentation
+            analytics.setUserProperty("android_version", Build.VERSION.RELEASE)
+            analytics.setUserProperty("device_model", Build.MODEL)
+            analytics.setUserProperty("app_version", BuildConfig.VERSION_NAME)
+            analytics.setUserProperty("build_type", BuildConfig.BUILD_TYPE)
+        } catch (_: Exception) {
+            // Silently fail if Firebase is not initialized (e.g. in some test environments)
+        }
+    }
+
+    private fun isRobolectric(): Boolean {
+        return Build.FINGERPRINT == "robolectric"
     }
 }

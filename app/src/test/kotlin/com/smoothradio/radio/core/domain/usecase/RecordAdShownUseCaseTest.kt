@@ -27,8 +27,9 @@ class RecordAdShownUseCaseTest {
         
         useCase()
 
-        assertThat(adSettingsRepository.getAdShowCount()).isEqualTo(1)
-        assertThat(adSettingsRepository.getLastAdHour()).isEqualTo(now / (1000 * 60 * 60))
+        val settings = adSettingsRepository.getAdSettings()
+        assertThat(settings.adShowCount).isEqualTo(1)
+        assertThat(settings.lastAdHour).isEqualTo(now / (1000 * 60 * 60))
     }
 
     @Test
@@ -39,7 +40,8 @@ class RecordAdShownUseCaseTest {
         
         useCase()
 
-        assertThat(adSettingsRepository.getAdShowCount()).isEqualTo(3)
-        assertThat(adSettingsRepository.getLastAdHour()).isEqualTo(currentHour)
+        val settings = adSettingsRepository.getAdSettings()
+        assertThat(settings.adShowCount).isEqualTo(3)
+        assertThat(settings.lastAdHour).isEqualTo(currentHour)
     }
 }

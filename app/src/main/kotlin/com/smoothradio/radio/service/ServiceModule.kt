@@ -9,23 +9,28 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.ts.AdtsExtractor
-import com.smoothradio.radio.service.util.LocalAudioProxy
-import com.smoothradio.radio.service.util.ProxyDataSource
-import com.smoothradio.radio.service.util.UltraFastLoadControl
 import com.google.android.gms.cast.framework.CastContext
+import com.smoothradio.radio.core.util.PlaybackConstants
+import com.smoothradio.radio.service.util.playback.UltraFastLoadControl
+import com.smoothradio.radio.service.util.proxy.AudioProxy
+import com.smoothradio.radio.service.util.proxy.DefaultAudioProxy
+import com.smoothradio.radio.service.util.proxy.ProxyDataSource
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import okhttp3.OkHttpClient
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -46,11 +51,11 @@ object ServiceModule {
     fun provideCastPlayer(
         @ApplicationContext context: Context,
         castContext: CastContext?,
-        exoPlayer: ExoPlayer
+        exoPlayer: Lazy<ExoPlayer>
     ): CastPlayer? {
-        return castContext?.let { 
+        return castContext?.let {
             CastPlayer.Builder(context)
-                .setLocalPlayer(exoPlayer)
+                .setLocalPlayer(exoPlayer.get())
                 .build()
         }
     }
@@ -64,34 +69,41 @@ object ServiceModule {
 
     @Provides
     @Singleton
-    fun provideDataSourceFactory(@ApplicationContext context: Context): DataSource.Factory {
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(15000)
-        
+    fun provideDataSourceFactory(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): DataSource.Factory {
+        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+
         return DefaultDataSource.Factory(context, httpDataSourceFactory)
     }
 
     @Provides
     @Singleton
-    fun provideLocalAudioProxy(@ApplicationContext context: Context): LocalAudioProxy = 
-        LocalAudioProxy(context.cacheDir, Dispatchers.IO)
+    fun provideAudioProxy(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): AudioProxy {
+        val cacheDir = File(context.cacheDir, "audio_proxy")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        return DefaultAudioProxy(cacheDir, Dispatchers.IO, okHttpClient)
+    }
 
     @Provides
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes,
         dataSourceFactory: DataSource.Factory,
-        localAudioProxy: LocalAudioProxy
+        audioProxy: AudioProxy
     ): ExoPlayer {
         val extractorsFactory = DefaultExtractorsFactory()
             .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
             .setAdtsExtractorFlags(AdtsExtractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
 
         // Use our custom ProxyDataSource to bypass HTTP layer for local proxy
-        val proxyDataSourceFactory = ProxyDataSource.Factory(context, localAudioProxy, dataSourceFactory)
-        
+        val proxyDataSourceFactory =
+            ProxyDataSource.Factory(context, audioProxy, dataSourceFactory)
+
         val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
             .setDataSourceFactory(proxyDataSourceFactory)
 
@@ -102,6 +114,7 @@ object ServiceModule {
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setDeviceVolumeControlEnabled(true)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setLivePlaybackSpeedControl(
@@ -110,8 +123,8 @@ object ServiceModule {
                     .setFallbackMaxPlaybackSpeed(1.0f)
                     .build()
             )
-            .setSeekBackIncrementMs(10000)
-            .setSeekForwardIncrementMs(10000)
+            .setSeekBackIncrementMs(PlaybackConstants.SEEK_INCREMENT_MS)
+            .setSeekForwardIncrementMs(PlaybackConstants.SEEK_INCREMENT_MS)
             .build()
     }
 }

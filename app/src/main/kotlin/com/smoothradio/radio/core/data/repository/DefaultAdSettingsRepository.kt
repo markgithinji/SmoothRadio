@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import com.smoothradio.radio.core.data.util.safeData
+import com.smoothradio.radio.core.domain.model.AdSettings
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -14,21 +16,16 @@ class DefaultAdSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) : AdSettingsRepository {
 
-    override suspend fun getLastAdShowTime(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[LAST_AD_SHOW_TIME_KEY] ?: 0L
-        }.first()
-    }
-
-    override suspend fun getAdShowCount(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_COUNT_KEY] ?: 0L
-        }.first()
-    }
-
-    override suspend fun getLastAdHour(): Long {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_HOUR_KEY] ?: 0L
+    override suspend fun getAdSettings(): AdSettings {
+        return dataStore.safeData().map { preferences ->
+            AdSettings(
+                lastAdShowTime = preferences[LAST_AD_SHOW_TIME_KEY] ?: 0L,
+                adShowCount = preferences[AD_SHOW_COUNT_KEY] ?: 0L,
+                lastAdHour = preferences[AD_SHOW_HOUR_KEY] ?: 0L,
+                adShowIntervalMinutes = preferences[AD_SHOW_INTERVAL_KEY]
+                    ?: DEFAULT_INTERVAL_MINUTES,
+                maxAdsPerHour = preferences[MAX_ADS_PER_HOUR_KEY] ?: DEFAULT_MAX_ADS_PER_HOUR
+            )
         }.first()
     }
 
@@ -49,18 +46,6 @@ class DefaultAdSettingsRepository @Inject constructor(
             preferences[AD_SHOW_INTERVAL_KEY] = intervalMinutes
             preferences[MAX_ADS_PER_HOUR_KEY] = maxAdsPerHour
         }
-    }
-
-    override suspend fun getAdShowIntervalMinutes(): Int {
-        return dataStore.data.map { preferences ->
-            preferences[AD_SHOW_INTERVAL_KEY] ?: DEFAULT_INTERVAL_MINUTES
-        }.first()
-    }
-
-    override suspend fun getMaxAdsPerHour(): Int {
-        return dataStore.data.map { preferences ->
-            preferences[MAX_ADS_PER_HOUR_KEY] ?: DEFAULT_MAX_ADS_PER_HOUR
-        }.first()
     }
 
     override suspend fun clearAll() {

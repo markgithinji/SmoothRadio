@@ -111,6 +111,18 @@ class DefaultFirebaseRepositoryTest {
     }
 
     @Test
+    fun getRemoteAdSettingsFlow_shouldEmitDefaults_whenDocumentDoesNotExist() = runTest {
+        simulateAdSettingsNotFound()
+
+        val result = repository.getRemoteAdSettingsFlow().first()
+
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        val data = (result as Resource.Success).data
+        assertThat(data.adShowIntervalMinutes).isEqualTo(4) // Default value
+        assertThat(data.maxAdsPerHour).isEqualTo(4) // Default value
+    }
+
+    @Test
     fun clear_shouldRemoveListener() = runTest {
         simulateFirestoreSuccess()
 
@@ -139,6 +151,23 @@ class DefaultFirebaseRepositoryTest {
                 maxAdsPerHour = 5L
             )
         )
+
+        whenever(firestore.collection("config")).thenReturn(collectionReference)
+        whenever(collectionReference.document("ad_settings")).thenReturn(documentReference)
+
+        whenever(documentReference.addSnapshotListener(any())).thenAnswer { invocation ->
+            val listener: EventListener<DocumentSnapshot> = invocation.getArgument(0)
+            listener.onEvent(snapshot, null)
+            listenerRegistration
+        }
+    }
+
+    private fun simulateAdSettingsNotFound() {
+        val collectionReference: CollectionReference = mock()
+        val documentReference: DocumentReference = mock()
+        val snapshot: DocumentSnapshot = mock()
+
+        whenever(snapshot.exists()).thenReturn(false)
 
         whenever(firestore.collection("config")).thenReturn(collectionReference)
         whenever(collectionReference.document("ad_settings")).thenReturn(documentReference)

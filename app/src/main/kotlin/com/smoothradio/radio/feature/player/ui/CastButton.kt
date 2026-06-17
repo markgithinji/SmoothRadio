@@ -1,6 +1,7 @@
 package com.smoothradio.radio.feature.player.ui
 
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.R as AppCompatR
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,7 +20,7 @@ fun CastButton(
 ) {
     AndroidView(
         factory = { context ->
-            val themedContext = ContextThemeWrapper(context, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
+            val themedContext = ContextThemeWrapper(context, AppCompatR.style.Theme_AppCompat_NoActionBar)
             MediaRouteButton(themedContext).apply {
                 CastButtonFactory.setUpMediaRouteButton(themedContext, this)
             }

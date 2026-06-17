@@ -1,7 +1,7 @@
 package com.smoothradio.radio.core.domain.usecase
 
-import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
+import com.smoothradio.radio.core.logging.LoggingHelper
 import javax.inject.Inject
 
 class RecordAdShownUseCase @Inject constructor(
@@ -11,8 +11,10 @@ class RecordAdShownUseCase @Inject constructor(
     suspend operator fun invoke() {
         val currentTime = System.currentTimeMillis()
         val currentHour = getCurrentHour()
-        val lastHour = adSettingsRepository.getLastAdHour()
-        val currentCount = adSettingsRepository.getAdShowCount()
+        val settings = adSettingsRepository.getAdSettings()
+
+        val lastHour = settings.lastAdHour
+        val currentCount = settings.adShowCount
 
         val isNewHour = currentHour != lastHour
         val newCount = if (isNewHour) {

@@ -8,6 +8,7 @@ interface RadioRepository {
     val favoriteStations: Flow<List<RadioStation>>
     val playingStation: Flow<RadioStation?>
 
+    fun getPredefinedStations(links: List<String>): List<RadioStation>
     suspend fun setPlayingStation(id: Int)
     suspend fun insertStations(stations: List<RadioStation>)
     suspend fun updateFavoriteStatus(id: Int, isFav: Boolean)

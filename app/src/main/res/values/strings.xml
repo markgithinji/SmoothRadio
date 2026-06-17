@@ -14,6 +14,10 @@
 
     <string name="toast_station_unreachable">station unreachable</string>
     <string name="toast_unexpected_error">unexpected error</string>
+    <string name="toast_empty_stream">Station connected but no audio stream found</string>
+    <string name="toast_buffer_evicted">Seeking range no longer available</string>
+    <string name="toast_proxy_cache_error">Local storage error, clearing cache...</string>
+    <string name="toast_station_stopped">Radio stopped</string>
     <string name="notification_channel_name">LIVE</string>
     <string name="stopped">Stopped</string>
 
@@ -62,6 +66,7 @@
     <string name="player_play">Play</string>
     <string name="player_stop">Stop</string>
     <string name="player_playing">PLAYING</string>
+    <string name="player_paused">PAUSED</string>
     <string name="player_preparing_audio">PREPARING AUDIO</string>
 
     <!-- Top Bar Strings -->

@@ -1,6 +1,7 @@
 package com.smoothradio.radio.core.data.repository
 
 import com.smoothradio.radio.core.data.local.RadioStationDao
+import com.smoothradio.radio.core.data.local.util.RadioStationsHelper
 import com.smoothradio.radio.core.data.mapper.toDomain
 import com.smoothradio.radio.core.data.mapper.toEntity
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -23,6 +24,10 @@ class DefaultRadioRepository @Inject constructor(
         
     override val playingStation: Flow<RadioStation?> = 
         dao.getPlayingStation().map { it?.toDomain() }
+
+    override fun getPredefinedStations(links: List<String>): List<RadioStation> {
+        return RadioStationsHelper.createRadioStationEntities(links).map { it.toDomain() }
+    }
 
     override suspend fun setPlayingStation(id: Int) {
         dao.setCurrentPlayingStation(id)

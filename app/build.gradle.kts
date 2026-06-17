@@ -51,6 +51,33 @@ android {
         viewBinding = true
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
+    sourceSets {
+        getByName("test") {
+            java.srcDirs("src/test/kotlin", "src/sharedTest/kotlin")
+            kotlin.srcDirs("src/test/kotlin", "src/sharedTest/kotlin")
+        }
+        getByName("androidTest") {
+            java.srcDirs("src/androidTest/java", "src/sharedTest/kotlin")
+            kotlin.srcDirs("src/androidTest/java", "src/sharedTest/kotlin")
+        }
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            val coroutinesVersion = "1.11.0"
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:$coroutinesVersion")
+        }
+    }
 }
 
 detekt {
@@ -111,6 +138,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.datasource.okhttp)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.cast)
     implementation(libs.play.services.cast.framework)
@@ -147,10 +175,17 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
     // Instrumentation tests
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    ksp(libs.hilt.compiler)
+    kspAndroidTest(libs.hilt.compiler)
     androidTestImplementation(libs.jetbrains.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockito.android)
     androidTestImplementation(libs.truth)
@@ -158,5 +193,4 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.uiautomator)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
@@ -89,6 +90,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,9 +99,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.smoothradio.radio.R
-import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
+import com.smoothradio.radio.core.ui.StationUiState
 import com.smoothradio.radio.core.ui.common.AdBanner
 import com.smoothradio.radio.core.ui.common.DotLoadingAnimation
 import com.smoothradio.radio.core.ui.common.SimpleTopBar
@@ -110,7 +112,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
     playerControlViewModel: PlayerControlViewModel = hiltViewModel()
 ) {
-    val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
+    val stationUiState by playerControlViewModel.stationUiState.collectAsStateWithLifecycle()
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val metadata by playerControlViewModel.metadata.collectAsStateWithLifecycle()
     val position by playerControlViewModel.position.collectAsStateWithLifecycle()
@@ -119,16 +121,13 @@ fun PlayerScreen(
     val loadedPosition by playerControlViewModel.loadedPosition.collectAsStateWithLifecycle()
     val colorScheme = MaterialTheme.colorScheme
 
-    var swipeDirection by remember { mutableFloatStateOf(0f) }
     var showSleepDialog by remember { mutableStateOf(false) }
     var showEqDialog by remember { mutableStateOf(false) }
 
-    if (playingStation == null) {
-        EmptyPlayerContent(modifier = modifier, colorScheme = colorScheme)
-        return
-    }
-
-    val currentStation = playingStation!!
+    val currentStation = stationUiState.station ?: return EmptyPlayerContent(
+        modifier = modifier,
+        colorScheme = colorScheme
+    )
 
     val animatedColor by animateColorAsState(
         targetValue = when (playbackState) {
@@ -274,9 +273,8 @@ fun PlayerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 PlayerLogoSection(
-                                    currentStation = currentStation,
+                                    stationUiState = stationUiState,
                                     playbackState = playbackState,
-                                    swipeDirection = swipeDirection,
                                     modifier = Modifier
                                         .fillMaxHeight(0.9f)
                                         .aspectRatio(1f)
@@ -339,13 +337,8 @@ fun PlayerScreen(
                                 playButtonSize = layoutConfig.btnSize,
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
-                                onPrevious = {
-                                    swipeDirection =
-                                        -1f; playerControlViewModel.requestPreviousStation()
-                                },
-                                onNext = {
-                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                },
+                                onPrevious = { playerControlViewModel.requestPreviousStation() },
+                                onNext = { playerControlViewModel.requestNextStation() },
                                 onPlayPause = { playerControlViewModel.togglePlayPause() },
                                 onSeekBack = { playerControlViewModel.seekBack() },
                                 onSeekForward = { playerControlViewModel.seekForward() },
@@ -388,9 +381,8 @@ fun PlayerScreen(
                             // Logo Section
                             if (layoutConfig.logoAlpha > 0f) {
                                 PlayerLogoSection(
-                                    currentStation = currentStation,
+                                    stationUiState = stationUiState,
                                     playbackState = playbackState,
-                                    swipeDirection = swipeDirection,
                                     modifier = Modifier
                                         .fillMaxWidth(layoutConfig.logoScale)
                                         .fillMaxHeight(if (layoutConfig.showAd) 0.33f else 0.38f)
@@ -466,13 +458,8 @@ fun PlayerScreen(
                                 playButtonSize = layoutConfig.btnSize,
                                 isTinyCompact = layoutConfig.tinyCompact,
                                 isCompact = layoutConfig.compact,
-                                onPrevious = {
-                                    swipeDirection =
-                                        -1f; playerControlViewModel.requestPreviousStation()
-                                },
-                                onNext = {
-                                    swipeDirection = 1f; playerControlViewModel.requestNextStation()
-                                },
+                                onPrevious = { playerControlViewModel.requestPreviousStation() },
+                                onNext = { playerControlViewModel.requestNextStation() },
                                 onPlayPause = {
                                     playerControlViewModel.togglePlayPause()
                                 },
@@ -571,6 +558,15 @@ fun StationHeader(
                         color = colorScheme.primary
                     )
 
+                    is StreamStates.PAUSED -> Text(
+                        text = stringResource(R.string.player_paused),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+
                     is StreamStates.BUFFERING, is StreamStates.PREPARING -> {
                         DotLoadingAnimation(
                             dotSize = if (isCompact || isShrinking) 6.dp else 8.dp,
@@ -641,8 +637,6 @@ fun AudioSeekBar(
 
     val isInteractive = playbackState !is StreamStates.IDLE && playbackState !is StreamStates.ENDED
 
-    val haptic = LocalHapticFeedback.current
-
     val thumbSize by animateDpAsState(
         targetValue = if (isInteracting) 18.dp else 12.dp,
         animationSpec = spring(
@@ -669,14 +663,10 @@ fun AudioSeekBar(
             interactionSource = interactionSource,
             value = sliderFraction,
             onValueChange = {
-                if (!isDraggingManual) {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                }
                 isDraggingManual = true
                 sliderFraction = it
             },
             onValueChangeFinished = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 // Map the 0..1 fraction back to an absolute timestamp using the locked window
                 val currentMin = lockedWindow?.first ?: minPosition
                 val currentWidth = lockedWindow?.second ?: windowSize
@@ -772,7 +762,7 @@ fun AudioSeekBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .graphicsLayer { translationY = -26f }
+                .graphicsLayer { translationY = -48f }
                 .padding(horizontal = 0.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -793,7 +783,7 @@ fun AudioSeekBar(
             )
 
             // Function: Offset from live
-            val offsetFromLiveMs = loadedPosition - displayTime
+            val offsetFromLiveMs = (loadedPosition + 1000L) - displayTime // Add 1s to match user-facing live edge
             val isLive = offsetFromLiveMs < 4000
 
             val livePulseAlpha by rememberInfiniteTransition(label = "livePulse").animateFloat(
@@ -809,7 +799,6 @@ fun AudioSeekBar(
             Surface(
                 onClick = {
                     if (!isLive) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSeek(loadedPosition)
                     }
                 },
@@ -818,7 +807,7 @@ fun AudioSeekBar(
                 color = if (isLive && isInteractive) colorScheme.primary.copy(alpha = 0.12f) else colorScheme.surfaceVariant.copy(
                     alpha = 0.5f
                 ),
-                border = if (isLive) null else androidx.compose.foundation.BorderStroke(
+                border = if (isLive) null else BorderStroke(
                     1.dp,
                     colorScheme.outline.copy(alpha = 0.1f)
                 ),
@@ -860,22 +849,33 @@ fun AudioSeekBar(
 }
 
 private fun formatOffset(ms: Long): String {
-    val seconds = (ms / 1000) % 60
-    val minutes = (ms / (1000 * 60))
-    return if (minutes > 0) "%d:%02d".format(minutes, seconds) else "%ds".format(seconds)
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return when {
+        hours > 0 -> "%d:%02d:%02d".format(hours, minutes, seconds)
+        minutes > 0 -> "%d:%02d".format(minutes, seconds)
+        else -> "%ds".format(seconds)
+    }
 }
 
 private fun formatTime(ms: Long): String {
     val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
+    }
 }
 
 @Composable
 fun PlaybackControlRow(
     playbackState: StreamStates,
-    playButtonSize: androidx.compose.ui.unit.Dp,
+    playButtonSize: Dp,
     isTinyCompact: Boolean,
     isCompact: Boolean,
     onPrevious: () -> Unit,
@@ -1037,9 +1037,8 @@ fun ActionButton(
 
 @Composable
 fun PlayerLogoSection(
-    currentStation: RadioStation,
+    stationUiState: StationUiState,
     playbackState: StreamStates,
-    swipeDirection: Float,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -1125,19 +1124,21 @@ fun PlayerLogoSection(
                 }
         ) {
             Box(contentAlignment = Alignment.Center) {
-                // Use a Pair of ID and logo as targetState to ensure the transition captures the specific logo
-                // and doesn't update the outgoing content's logo when currentStation changes.
+                // Use bundled state for synchronized animation
                 AnimatedContent(
-                    targetState = currentStation.id to LogoMapper.getLogoById(currentStation.id),
+                    targetState = stationUiState,
                     transitionSpec = {
+                        val direction = targetState.swipeDirection
+
                         val springSpec = spring<IntOffset>(
                             dampingRatio = Spring.DampingRatioLowBouncy,
                             stiffness = Spring.StiffnessMediumLow
                         )
-                        if (swipeDirection < 0f) {
+
+                        if (direction < 0f) {
                             (slideInHorizontally(springSpec) { -it } + fadeIn()) togetherWith
                                     (slideOutHorizontally(springSpec) { it } + fadeOut())
-                        } else if (swipeDirection > 0f) {
+                        } else if (direction > 0f) {
                             (slideInHorizontally(springSpec) { it } + fadeIn()) togetherWith
                                     (slideOutHorizontally(springSpec) { -it } + fadeOut())
                         } else {
@@ -1145,14 +1146,16 @@ fun PlayerLogoSection(
                         }
                     },
                     label = "logoTransition"
-                ) { (_, logoRes) ->
+                ) { uiState ->
+                    val station = uiState.station ?: return@AnimatedContent
+                    val logoRes = LogoMapper.getLogoById(station.id)
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(logoRes)
                             .error(R.drawable.ic_radio_default)
                             .fallback(R.drawable.ic_radio_default)
                             .build(),
-                        contentDescription = "Station logo",
+                        contentDescription = "${station.stationName} logo",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(logoSize * 0.2f),
@@ -1218,7 +1221,7 @@ fun AnimatedPlayPauseButton(
     playbackState: StreamStates,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 80.dp
+    size: Dp = 80.dp
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isPlaying = playbackState is StreamStates.PLAYING

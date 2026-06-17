@@ -49,6 +49,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -168,6 +169,7 @@ fun RadioTopBar(
                             onValueChange = onSearchQueryChange,
                             modifier = Modifier
                                 .weight(1f)
+                                .testTag("search_field")
                                 .focusRequester(focusRequester),
                             textStyle = TextStyle(fontSize = 16.sp, color = colorScheme.onSurface),
                             decorationBox = { innerTextField ->

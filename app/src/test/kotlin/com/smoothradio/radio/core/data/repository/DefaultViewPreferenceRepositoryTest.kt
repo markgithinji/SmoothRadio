@@ -62,4 +62,18 @@ class DefaultViewPreferenceRepositoryTest {
         repository.saveIsGridView(false)
         assertThat(repository.getIsGridViewFlow().first()).isFalse()
     }
+
+    @Test
+    fun getLastShownVersion_shouldReturnZeroByDefault() = runTest {
+        assertThat(repository.getLastShownVersion()).isEqualTo(0)
+    }
+
+    @Test
+    fun saveLastShownVersion_shouldPersistValue() = runTest {
+        repository.saveLastShownVersion(10)
+        assertThat(repository.getLastShownVersion()).isEqualTo(10)
+
+        repository.saveLastShownVersion(25)
+        assertThat(repository.getLastShownVersion()).isEqualTo(25)
+    }
 }

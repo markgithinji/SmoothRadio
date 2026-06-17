@@ -131,4 +131,15 @@ class DefaultRadioRepositoryTest {
         val stored = repository.allStations.first()
         assertThat(stored).containsExactly(stations[1])
     }
+
+    @Test
+    fun getPredefinedStations_shouldReturnMappedDomainStations() {
+        val links = listOf("http://link1", "http://link2")
+        
+        val result = repository.getPredefinedStations(links)
+        
+        assertThat(result).isNotEmpty()
+        assertThat(result.first().streamLink).isEqualTo("http://link1")
+        assertThat(result.first().stationName).isEqualTo("HOPE FM")
+    }
 }

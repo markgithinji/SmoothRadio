@@ -1,43 +1,23 @@
 package com.smoothradio.radio
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.test.core.app.ApplicationProvider
-import androidx.test.espresso.Espresso.onIdle
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
-import androidx.test.espresso.action.ViewActions.typeText
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
-import androidx.test.espresso.matcher.ViewMatchers.hasSibling
-import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
-import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.smoothradio.radio.core.data.di.CoreDataModule
-import com.smoothradio.radio.service.StreamService
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import dagger.hilt.android.testing.UninstallModules
-import org.hamcrest.Matchers.allOf
-import org.hamcrest.Matchers.anyOf
-import org.hamcrest.Matchers.containsString
-import org.hamcrest.Matchers.startsWith
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
@@ -53,8 +33,21 @@ class MainActivityTest {
         hiltRule.inject()
     }
 
+    private fun dismissChangelogIfVisible() {
+        // Use a small wait in case it's still appearing due to the 2s delay
+        composeTestRule.onAllNodesWithText("Got it!").fetchSemanticsNodes().let {
+            if (it.isNotEmpty()) {
+                composeTestRule.onNodeWithText("Got it!").performClick()
+                composeTestRule.waitForIdle()
+            }
+        }
+    }
+
     @Test
-    fun bottomNavigation_hasThreeTabs() {
+    fun bottomNavigation_hasThreeTabs() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+        
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Stations").fetchSemanticsNodes().isNotEmpty()
         }
@@ -65,7 +58,10 @@ class MainActivityTest {
     }
 
     @Test
-    fun clickingLiveTab_showsPlayerScreen_withDefaultStation() {
+    fun clickingLiveTab_showsPlayerScreen_withDefaultStation() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Live").fetchSemanticsNodes().isNotEmpty()
         }
@@ -81,7 +77,10 @@ class MainActivityTest {
     }
 
     @Test
-    fun clickingDiscoverTab_showsDiscoverScreen() {
+    fun clickingDiscoverTab_showsDiscoverScreen() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("Discover").fetchSemanticsNodes().isNotEmpty()
         }

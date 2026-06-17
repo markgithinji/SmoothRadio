@@ -154,3 +154,11 @@ class RadioViewModel @Inject constructor(
         firebaseRepository.clear()
     }
 }
+
+data class RadioListUiState(
+    val allStations: List<RadioStation> = emptyList(),
+    val filteredStations: List<RadioStation> = emptyList(),
+    val isGridView: Boolean = false,
+    val searchQuery: String = "",
+    val isSearchActive: Boolean = false
+)

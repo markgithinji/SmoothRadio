@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -48,6 +49,7 @@ import com.smoothradio.radio.R
 @Composable
 fun AboutDialog(
     onDismiss: () -> Unit,
+    onWhatNewClick: () -> Unit,
     context: Context
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -113,6 +115,33 @@ fun AboutDialog(
                     fontWeight = FontWeight.Bold,
                     color = colorScheme.onSurface
                 )
+
+                // What's New
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable {
+                            onWhatNewClick()
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.NewReleases,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "What's New",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
 
                 // Share App
                 Row(

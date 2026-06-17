@@ -64,6 +64,7 @@ import com.smoothradio.radio.feature.radiolist.ui.components.RadioTopBar
 fun RadioStationsScreen(
     listScrollState: LazyListState,
     gridScrollState: LazyGridState,
+    onWhatNewClick: () -> Unit,
     modifier: Modifier = Modifier,
     radioViewModel: RadioViewModel = hiltViewModel(),
     playerControlViewModel: PlayerControlViewModel = hiltViewModel()
@@ -72,6 +73,7 @@ fun RadioStationsScreen(
     val playbackState by playerControlViewModel.playbackState.collectAsStateWithLifecycle()
     val playingStation by playerControlViewModel.playingStation.collectAsStateWithLifecycle()
     val loadingProgress by playerControlViewModel.loadingProgress.collectAsStateWithLifecycle()
+    val isStationChanging by playerControlViewModel.isStationChanging.collectAsStateWithLifecycle()
 
     var toastMessage by remember { mutableStateOf("") }
     var isToastVisible by remember { mutableStateOf(false) }
@@ -188,11 +190,10 @@ fun RadioStationsScreen(
                                 loadingProgress = loadingProgress,
                                 onPlayPauseClick = {
                                     playingStation?.let {
-                                        playerControlViewModel.requestPlayStation(
-                                            it
-                                        )
+                                        playerControlViewModel.requestPlayStation(it)
                                     }
-                                }
+                                },
+                                isStationChanging = isStationChanging
                             )
                         }
                     }
@@ -211,7 +212,14 @@ fun RadioStationsScreen(
     }
 
     if (showAboutDialog) {
-        AboutDialog(onDismiss = { showAboutDialog = false }, context = context)
+        AboutDialog(
+            onDismiss = { showAboutDialog = false },
+            onWhatNewClick = {
+                showAboutDialog = false
+                onWhatNewClick()
+            },
+            context = context
+        )
     }
 }
 

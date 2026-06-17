@@ -1,7 +1,7 @@
 package com.smoothradio.radio.core.domain.usecase
 
-import com.smoothradio.radio.core.logging.LoggingHelper
 import com.smoothradio.radio.core.domain.repository.AdSettingsRepository
+import com.smoothradio.radio.core.logging.LoggingHelper
 import javax.inject.Inject
 
 class CanShowAdUseCase @Inject constructor(
@@ -9,13 +9,15 @@ class CanShowAdUseCase @Inject constructor(
 ) {
 
     suspend operator fun invoke(): Boolean {
-        val lastShowTime = adSettingsRepository.getLastAdShowTime()
-        val currentHour = getCurrentHour()
-        val lastHour = adSettingsRepository.getLastAdHour()
-        val currentCount = adSettingsRepository.getAdShowCount()
+        val settings = adSettingsRepository.getAdSettings()
 
-        val intervalMinutes = adSettingsRepository.getAdShowIntervalMinutes()
-        val maxPerHour = adSettingsRepository.getMaxAdsPerHour()
+        val lastShowTime = settings.lastAdShowTime
+        val currentHour = getCurrentHour()
+        val lastHour = settings.lastAdHour
+        val currentCount = settings.adShowCount
+
+        val intervalMinutes = settings.adShowIntervalMinutes
+        val maxPerHour = settings.maxAdsPerHour
 
         // Reset count to 0 if a new hour has started since the last ad was shown.
         // This ensures we don't carry over ad counts from the previous hour,

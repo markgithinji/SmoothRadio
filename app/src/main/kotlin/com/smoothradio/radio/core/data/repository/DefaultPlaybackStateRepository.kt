@@ -19,6 +19,9 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
     private val _stationName = MutableStateFlow<String?>(null)
     override val stationName: StateFlow<String?> = _stationName.asStateFlow()
 
+    private val _stationId = MutableStateFlow<Int?>(null)
+    override val stationId: StateFlow<Int?> = _stationId.asStateFlow()
+
     private val _position = MutableStateFlow(0L)
     override val position: StateFlow<Long> = _position.asStateFlow()
 
@@ -44,6 +47,10 @@ class DefaultPlaybackStateRepository @Inject constructor() : PlaybackStateReposi
 
     override fun updateStationName(name: String?) {
         _stationName.value = name
+    }
+
+    override fun updateStationId(id: Int?) {
+        _stationId.value = id
     }
 
     override fun updatePosition(position: Long) {
