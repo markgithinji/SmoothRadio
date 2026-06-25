@@ -226,9 +226,16 @@ class PlayerControlViewModelTest {
 
     @Test
     fun requestRefresh_shouldResetStateAndSetGuard() = runTest(dispatcherRule.dispatcher) {
+        // Setup a playing station first so the ViewModel has a 'targetStation'
+        val station = RadioStation(1, "Test", "1.1", "City", "url", true, false, 0)
+        fakeRadioRepository.insertStations(listOf(station))
+        viewModel.requestPlayStation(station)
+        fakePlaybackStateRepository.updateStationId(1)
         fakePlaybackStateRepository.updateState(StreamStates.PLAYING)
-        fakePlaybackStateRepository.updateLoadingProgress(1f)
         advanceUntilIdle()
+        
+        // Ensure guard is cleared after initial play
+        assertThat(viewModel.isStationChanging.value).isFalse()
         
         viewModel.requestRefresh()
         
