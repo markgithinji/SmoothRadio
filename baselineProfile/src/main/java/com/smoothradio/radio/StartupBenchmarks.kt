@@ -66,6 +66,10 @@ class StartupBenchmarks {
             measureBlock = {
                 startActivityAndWait()
 
+                // Dismiss "What's New" dialog if it appears
+                device.wait(Until.findObject(By.text("Got it!")), 5000)?.click()
+                device.waitForIdle()
+
                 // Wait until "HOPE FM" is visible
                 val recycler = UiScrollable(UiSelector().scrollable(true))
                 if (recycler.exists()) {
