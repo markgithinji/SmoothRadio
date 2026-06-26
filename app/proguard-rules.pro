@@ -20,9 +20,13 @@
 
 
 
-# Uncomment this to preserve the line number information for
+# preserve the line number information for
 #debugging stack traces.
 -keepattributes SourceFile,LineNumberTable
+
+# Firestore models need to be kept for reflection
+-keep class com.smoothradio.radio.core.data.model.** { *; }
+-keep class com.smoothradio.radio.core.domain.model.** { *; }
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
