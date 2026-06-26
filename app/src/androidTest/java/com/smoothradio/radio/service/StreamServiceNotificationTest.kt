@@ -50,6 +50,10 @@ class StreamServiceNotificationTest {
         runBlocking {
             adSettingsRepository.updateAdSettings(intervalMinutes = 99999, maxAdsPerHour = 0)
         }
+
+        // Dismiss "What's New" dialog if it appears
+        val gotItButton = device.wait(Until.findObject(By.text("Got it!")), 5000)
+        gotItButton?.click()
     }
 
     @Test

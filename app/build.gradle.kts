@@ -19,8 +19,8 @@ android {
         applicationId = "com.smoothradio.radio"
         minSdk = 25
         targetSdk = 37
-        versionCode = 29
-        versionName = "3.7.6"
+        versionCode = 31
+        versionName = "4.0.1"
         testInstrumentationRunner = "com.smoothradio.radio.CustomTestRunner"
     }
 
@@ -50,6 +50,12 @@ android {
         buildConfig = true
         viewBinding = true
         compose = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     testOptions {

@@ -188,13 +188,12 @@ class PlayerControlViewModel @Inject constructor(
     }
 
     fun requestRefresh() {
+        // RESET STATE for refresh to show immediate feedback
+        resetPlaybackRepositoryState()
+        _isStationChanging.value = true
+
         viewModelScope.launch {
             _canShowAd.value = canShowAdUseCase()
-
-            // RESET STATE for refresh to show immediate feedback
-            resetPlaybackRepositoryState()
-            _isStationChanging.value = true
-
             _playCommand.send(PlayCommand.Refresh)
         }
     }

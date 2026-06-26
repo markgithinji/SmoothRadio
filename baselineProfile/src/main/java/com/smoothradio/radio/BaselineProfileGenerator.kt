@@ -55,6 +55,10 @@ class BaselineProfileGenerator {
             pressHome()
             startActivityAndWait()
 
+            // Dismiss "What's New" dialog if it appears
+            device.wait(Until.findObject(By.text("Got it!")), 5000)?.click()
+            device.waitForIdle()
+
             // 1. Stations Tab (Initial) - Scroll through the list
             val stationList = device.wait(Until.findObject(By.scrollable(true)), 5000)
             stationList?.scroll(Direction.DOWN, 0.5f)

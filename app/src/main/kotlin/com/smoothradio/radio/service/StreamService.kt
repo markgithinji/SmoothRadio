@@ -877,7 +877,7 @@ class StreamService : MediaSessionService() {
             return
         }
 
-        if (activeStreamUrl == link && 
+        if (activeStreamUrl == link &&
             (wrappedPlayer.playbackState == Player.STATE_READY || wrappedPlayer.playbackState == Player.STATE_BUFFERING) &&
             localAudioProxy.isStartedFor(link)
         ) {
@@ -911,7 +911,7 @@ class StreamService : MediaSessionService() {
                     localAudioProxy.updateBitrateEstimation()
                     val loadedMs = getLoadedDurationMs()
                     val target = (loadedMs - PlaybackConstants.HLS_SAFETY_BUFFER_MS).coerceAtLeast(0L)
-                    
+
                     jumpToLiveOnReady = false
                     preparePlayer(link.toUri(), if (target > 2000) target else 0L)
                 } else {
@@ -961,7 +961,7 @@ class StreamService : MediaSessionService() {
                     .build()
             )
             .build()
-        
+
         playbackBaseTimeMs = startPositionMs
         wrappedPlayer.setMediaItem(mediaItem)
         wrappedPlayer.prepare()
@@ -1071,32 +1071,26 @@ class StreamService : MediaSessionService() {
         audioSessionId = sessionId
         try {
             equalizer?.release()
-            equalizer = Equalizer(0, sessionId).apply {
-                val bands = numberOfBands
-                serviceScope.launch {
-                    var hasActiveSettings = false
-                    for (i in 0 until bands) {
-                        val level = equalizerRepository.getBandLevel(i)
-                        if (level != 0.toShort()) {
-                            try {
-                                setBandLevel(i.toShort(), level)
-                                hasActiveSettings = true
-                            } catch (e: Exception) {
-                                Log.e("StreamService", "Failed to apply EQ band $i", e)
-                            }
-                        }
-                    }
-                    if (hasActiveSettings) {
-                        enabled = true
-                    }
+
+            // FIX for audio spike: Synchronous configuration using memory cache
+            val newEq = Equalizer(0, sessionId)
+            val bands = newEq.numberOfBands
+            var hasActiveSettings = false
+            for (i in 0 until bands) {
+                val level = eqBandCache[i] ?: 0
+                if (level != 0.toShort()) {
+                    try {
+                        newEq.setBandLevel(i.toShort(), level)
+                        hasActiveSettings = true
+                    } catch (_: Exception) {}
                 }
             }
-            
+
             if (hasActiveSettings) {
                 newEq.enabled = true
             }
             equalizer = newEq
-            
+
         } catch (_: Exception) {}
     }
 
@@ -1267,7 +1261,7 @@ class StreamService : MediaSessionService() {
                 val urlString = activeStreamUrl ?: ""
                 val isHls = urlString.contains(".m3u8") || urlString.contains("playlist")
                 val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
-                
+
                 // Earliest point vs Live point
                 val earliestPoint = droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS
                 val livePoint = (loadedDur - safetyBuffer).coerceAtLeast(0)
