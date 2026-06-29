@@ -31,4 +31,8 @@ object PlaybackConstants {
     const val ERROR_UNREACHABLE = -3
     const val ERROR_EMPTY_STREAM = -4
     const val ERROR_CACHE_ERROR = -5
+
+    // Proxy Analytics Error Codes
+    const val ERROR_ANALYTICS_PROXY_STORAGE_INIT = 801
+    const val ERROR_ANALYTICS_PROXY_STORAGE_WRITE = 802
 }

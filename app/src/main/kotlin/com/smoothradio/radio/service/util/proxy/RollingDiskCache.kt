@@ -1,5 +1,6 @@
 package com.smoothradio.radio.service.util.proxy
 
+import com.smoothradio.radio.core.logging.AnalyticsHelper
 import com.smoothradio.radio.core.util.PlaybackConstants
 import java.io.File
 import java.io.FileOutputStream
@@ -57,6 +58,14 @@ class RollingDiskCache(
                 isDiskDisabled = true
                 part1File = null
                 part2File = null
+                AnalyticsHelper.trackPlaybackError(
+                    errorCode = PlaybackConstants.ERROR_ANALYTICS_PROXY_STORAGE_INIT,
+                    errorMessage = "RollingDiskCache_InitFailed: ${e.message}",
+                    additionalInfo = mapOf(
+                        "tag" to sessionTag,
+                        "exception" to (e.javaClass.simpleName ?: "Unknown")
+                    )
+                )
             }
 
             totalBytesDropped = 0L
@@ -144,6 +153,14 @@ class RollingDiskCache(
             memoryBuffer.reset()
         } catch (e: java.io.IOException) {
             isDiskDisabled = true
+            AnalyticsHelper.trackPlaybackError(
+                errorCode = PlaybackConstants.ERROR_ANALYTICS_PROXY_STORAGE_WRITE,
+                errorMessage = "RollingDiskCache_FlushFailed: ${e.message}",
+                additionalInfo = mapOf(
+                    "tag" to sessionTag,
+                    "exception" to (e.javaClass.simpleName ?: "Unknown")
+                )
+            )
             // Don't reset memoryBuffer yet, let appendData handle the windowing
         }
     }
