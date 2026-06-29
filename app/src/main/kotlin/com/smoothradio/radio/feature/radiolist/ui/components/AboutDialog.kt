@@ -266,11 +266,10 @@ fun AboutDialog(
 private fun getAppVersion(context: Context): String {
     return try {
         val pm = context.packageManager
-        val appName = context.applicationInfo.loadLabel(pm).toString()
         val version = pm.getPackageInfo(context.packageName, 0).versionName
-        "$appName v$version"
+        "v$version"
     } catch (e: PackageManager.NameNotFoundException) {
-        context.getString(R.string.app_name)
+        ""
     }
 }
 
