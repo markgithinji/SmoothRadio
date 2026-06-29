@@ -43,9 +43,22 @@ class RollingDiskCache(
         stateLock.withLock {
             sessionTag = newTag
             isDiskDisabled = false // Reset fallback on new session
+
+            if (!cacheDir.exists()) {
+                cacheDir.mkdirs()
+            }
+
             cleanupLegacyFiles()
-            part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
-            part2File = File(cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
+
+            try {
+                part1File = File(cacheDir, "proxy_${sessionTag}_p1.mp3").apply { createNewFile() }
+                part2File = File(cacheDir, "proxy_${sessionTag}_p2.mp3").apply { createNewFile() }
+            } catch (e: Exception) {
+                isDiskDisabled = true
+                part1File = null
+                part2File = null
+            }
+
             totalBytesDropped = 0L
             totalBytesWritten = 0L
             totalBytesReceived = 0L
