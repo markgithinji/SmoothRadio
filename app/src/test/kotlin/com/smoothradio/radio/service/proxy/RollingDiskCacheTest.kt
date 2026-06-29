@@ -132,4 +132,53 @@ class RollingDiskCacheTest {
         assertThat(cache.totalBytesWritten).isEqualTo(0L)
         assertThat(cache.getMetadataForOffset(100L)).isNull()
     }
+
+    @Test
+    fun `reset creates missing directory`() {
+        val missingDir = File(cacheDir, "missing_sub_dir")
+        assertThat(missingDir.exists()).isFalse()
+        
+        val newCache = RollingDiskCache(missingDir, stateLock, dataCondition, partSize)
+        newCache.reset("test")
+        
+        assertThat(missingDir.exists()).isTrue()
+        assertThat(newCache.isDiskDisabled).isFalse()
+    }
+
+    @Test
+    fun `reset handles initialization failure with RAM fallback`() {
+        // Create a file where a directory should be to force an error
+        val invalidDir = File(cacheDir, "a_file_not_dir")
+        invalidDir.createNewFile()
+        
+        val newCache = RollingDiskCache(invalidDir, stateLock, dataCondition, partSize)
+        newCache.reset("test")
+        
+        assertThat(newCache.isDiskDisabled).isTrue()
+        assertThat(newCache.part1File).isNull()
+        assertThat(newCache.part2File).isNull()
+    }
+
+    @Test
+    fun `RAM fallback maintains sliding window`() {
+        val invalidDir = File(cacheDir, "broken")
+        invalidDir.createNewFile()
+        val newCache = RollingDiskCache(invalidDir, stateLock, dataCondition, partSize)
+        newCache.reset("test")
+        
+        assertThat(newCache.isDiskDisabled).isTrue()
+        
+        // RAM limit is 2MB. Let's write 2.5MB.
+        val pageSize = 512 * 1024 // 512KB
+        val data = ByteArray(pageSize) { 0 }
+        
+        repeat(5) {
+            newCache.appendData("test", data, data.size, isHls = false)
+        }
+        
+        // Total written = 2.5MB. 
+        // Once it reaches 2MB, it should reset memory buffer and increment dropped.
+        assertThat(newCache.totalBytesDropped).isEqualTo(2 * 1024 * 1024L)
+        assertThat(newCache.totalBytesWritten).isEqualTo(2621440L)
+    }
 }

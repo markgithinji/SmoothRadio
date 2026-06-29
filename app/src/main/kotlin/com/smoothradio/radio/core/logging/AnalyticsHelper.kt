@@ -5,7 +5,7 @@ import com.google.firebase.analytics.analytics
 import com.google.firebase.Firebase
 
 object AnalyticsHelper {
-    private val firebaseAnalytics = Firebase.analytics
+    private val firebaseAnalytics by lazy { Firebase.analytics }
 
     fun trackPlaybackEvent(
         event: String,

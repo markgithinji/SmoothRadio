@@ -21,7 +21,7 @@ class RollingDiskCache(
     private val metadataMap = TreeMap<Long, String>()
 
     @Volatile
-    private var isDiskDisabled = false
+    internal var isDiskDisabled = false
 
     var sessionTag: String = ""
     var part1File: File? = null
