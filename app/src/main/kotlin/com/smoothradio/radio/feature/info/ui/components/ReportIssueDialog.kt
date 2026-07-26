@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.radiolist.ui.components
+package com.smoothradio.radio.feature.info.ui.components
 
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -49,7 +50,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,43 +60,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.smoothradio.radio.R
-
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.smoothradio.radio.core.util.Resource
-import com.smoothradio.radio.feature.radiolist.ui.ReportIssueViewModel
+import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
 
 @Composable
 fun ReportIssueDialog(
     onDismiss: () -> Unit,
     context: Context,
     appVersion: String,
-    viewModel: ReportIssueViewModel = hiltViewModel()
+    viewModel: AppInfoViewModel
 ) {
     var selectedCategory by remember { mutableStateOf("Audio Issues") }
     var description by remember { mutableStateOf("") }
     var screenshotUri by remember { mutableStateOf<Uri?>(null) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
-
-    val submissionState by viewModel.submissionState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(submissionState) {
-        when (submissionState) {
-            is Resource.Success -> {
-                Toast.makeText(context, "Report sent successfully! Thank you.", Toast.LENGTH_LONG).show()
-                viewModel.resetState()
-                onDismiss()
-            }
-            is Resource.Error -> {
-                val error = (submissionState as Resource.Error).message
-                Toast.makeText(context, "Failed to send report: $error", Toast.LENGTH_LONG).show()
-                viewModel.resetState()
-            }
-            else -> {}
-        }
-    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -104,13 +84,23 @@ fun ReportIssueDialog(
         screenshotUri = uri
     }
 
-    val categories = listOf(
-        "Audio Issues",
-        "App Crashing",
-        "Stream Loading Error",
-        "Missing Station",
-        "Other"
-    )
+    val submissionState by viewModel.reportState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(submissionState) {
+        when (submissionState) {
+            is Resource.Success -> {
+                Toast.makeText(context, "Report sent successfully! Thank you.", Toast.LENGTH_LONG).show()
+                viewModel.resetReportState()
+                onDismiss()
+            }
+            is Resource.Error -> {
+                val error = (submissionState as Resource.Error).message
+                Toast.makeText(context, "Failed to send report: $error", Toast.LENGTH_LONG).show()
+                viewModel.resetReportState()
+            }
+            else -> {}
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -388,7 +378,6 @@ fun ReportIssueDialog(
             Button(
                 onClick = {
                     if (screenshotUri != null) {
-                        // If there's a screenshot, fallback to email as we don't have Firebase Storage set up yet
                         sendCustomReport(
                             context,
                             appVersion,
@@ -398,7 +387,6 @@ fun ReportIssueDialog(
                         )
                         onDismiss()
                     } else {
-                        // Silent submission via Firestore
                         viewModel.submitReport(
                             category = selectedCategory,
                             description = description,
@@ -446,6 +434,14 @@ fun ReportIssueDialog(
     )
 }
 
+private val categories = listOf(
+    "Audio Issues",
+    "App Crashing",
+    "Stream Loading Error",
+    "Missing Station",
+    "Other"
+)
+
 private fun sendCustomReport(
     context: Context,
     appVersion: String,
@@ -467,7 +463,6 @@ private fun sendCustomReport(
         append("\n\n--------------------")
     }
 
-    // Use ACTION_SEND if there's an attachment, otherwise ACTION_SENDTO is more reliable for targetting email apps
     val intent = if (attachmentUri != null) {
         Intent(Intent.ACTION_SEND).apply {
             type = "image/*"

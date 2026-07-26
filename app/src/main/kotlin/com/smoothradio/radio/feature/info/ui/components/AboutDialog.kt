@@ -1,10 +1,8 @@
-package com.smoothradio.radio.feature.radiolist.ui.components
+package com.smoothradio.radio.feature.info.ui.components
 
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,15 +42,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.smoothradio.radio.R
+import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
 
 @Composable
 fun AboutDialog(
     onDismiss: () -> Unit,
     onWhatNewClick: () -> Unit,
-    context: Context
+    context: Context,
+    viewModel: AppInfoViewModel = hiltViewModel()
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
@@ -63,7 +64,8 @@ fun AboutDialog(
         ReportIssueDialog(
             onDismiss = { showReportDialog = false },
             context = context,
-            appVersion = appVersion
+            appVersion = appVersion,
+            viewModel = viewModel
         )
     }
 
@@ -125,7 +127,6 @@ fun AboutDialog(
                     color = colorScheme.onSurface
                 )
 
-                // What's New
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -152,7 +153,6 @@ fun AboutDialog(
                     )
                 }
 
-                // Share App
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,7 +179,6 @@ fun AboutDialog(
                     )
                 }
 
-                // Report a Problem
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -214,7 +213,6 @@ fun AboutDialog(
                     }
                 }
 
-                // Follow on Facebook
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

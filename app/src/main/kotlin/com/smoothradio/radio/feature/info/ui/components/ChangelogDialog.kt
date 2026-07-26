@@ -1,4 +1,4 @@
-package com.smoothradio.radio.feature.changelog.ui
+package com.smoothradio.radio.feature.info.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.smoothradio.radio.feature.info.domain.model.ChangelogItem
 
 @Composable
 fun ChangelogDialog(
@@ -52,7 +53,7 @@ fun ChangelogDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .fillMaxHeight(0.8f), // Limit height to ensure it fits and is scrollable
+                .fillMaxHeight(0.8f),
             shape = RoundedCornerShape(24.dp),
             color = Color.Transparent,
             tonalElevation = 8.dp
@@ -70,7 +71,6 @@ fun ChangelogDialog(
                     )
                     .padding(24.dp)
             ) {
-                // Header
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -105,7 +105,6 @@ fun ChangelogDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // List of features
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -144,7 +143,7 @@ fun ChangelogDialog(
                                     text = item.description,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    lineHeight = 16.sp // Reduced line height to bring multiline text closer
+                                    lineHeight = 16.sp
                                 )
                             }
                         }
@@ -153,7 +152,6 @@ fun ChangelogDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Action Button
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier

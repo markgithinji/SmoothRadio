@@ -40,8 +40,8 @@ import com.smoothradio.radio.core.domain.model.ToastType
 import com.smoothradio.radio.core.ui.PlayerControlViewModel
 import com.smoothradio.radio.core.ui.RadioViewModel
 import com.smoothradio.radio.core.ui.common.AppToast
-import com.smoothradio.radio.feature.changelog.ui.ChangelogDialog
-import com.smoothradio.radio.feature.changelog.ui.ChangelogViewModel
+import com.smoothradio.radio.feature.info.ui.components.ChangelogDialog
+import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
 import com.smoothradio.radio.feature.discover.ui.DiscoverScreen
 import com.smoothradio.radio.feature.player.ui.PlayerScreen
 import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
@@ -50,16 +50,16 @@ import com.smoothradio.radio.feature.radiolist.ui.RadioStationsScreen
 fun RadioApp(
     playerControlViewModel: PlayerControlViewModel = hiltViewModel(),
     radioViewModel: RadioViewModel = hiltViewModel(),
-    changelogViewModel: ChangelogViewModel = hiltViewModel()
+    appInfoViewModel: AppInfoViewModel = hiltViewModel()
 ) {
     val selectedTab by radioViewModel.selectedTab.collectAsStateWithLifecycle()
-    val shouldShowChangelog by changelogViewModel.shouldShowChangelog.collectAsStateWithLifecycle()
+    val shouldShowChangelog by appInfoViewModel.shouldShowChangelog.collectAsStateWithLifecycle()
 
     if (shouldShowChangelog) {
         ChangelogDialog(
             versionName = BuildConfig.VERSION_NAME,
-            changelogItems = changelogViewModel.changelogItems,
-            onDismiss = { changelogViewModel.onChangelogDismissed() }
+            changelogItems = appInfoViewModel.changelogItems,
+            onDismiss = { appInfoViewModel.onChangelogDismissed() }
         )
     }
 
@@ -112,7 +112,7 @@ fun RadioApp(
                     0 -> RadioStationsScreen(
                         listScrollState = listScrollState,
                         gridScrollState = gridScrollState,
-                        onWhatNewClick = { changelogViewModel.showChangelog() }
+                        onWhatNewClick = { appInfoViewModel.showChangelog() }
                     )
 
                     1 -> PlayerScreen()
