@@ -39,7 +39,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -197,20 +196,12 @@ fun AboutDialog(
                         tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
-                    Column {
-                        Text(
-                            stringResource(R.string.report_problem),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = colorScheme.onSurface
-                        )
-                        Text(
-                            context.getString(R.string.email_address),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colorScheme.primary,
-                            textDecoration = TextDecoration.Underline
-                        )
-                    }
+                    Text(
+                        stringResource(R.string.report_problem),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = colorScheme.onSurface
+                    )
                 }
 
                 Row(

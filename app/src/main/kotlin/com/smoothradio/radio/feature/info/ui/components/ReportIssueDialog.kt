@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.smoothradio.radio.R
 import com.smoothradio.radio.core.util.Resource
+import com.smoothradio.radio.feature.info.domain.model.IssueCategory
 import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
 
 @Composable
@@ -73,7 +74,7 @@ fun ReportIssueDialog(
     appVersion: String,
     viewModel: AppInfoViewModel
 ) {
-    var selectedCategory by remember { mutableStateOf("Audio Issues") }
+    var selectedCategory by remember { mutableStateOf(IssueCategory.AUDIO_ISSUES) }
     var description by remember { mutableStateOf("") }
     var screenshotUri by remember { mutableStateOf<Uri?>(null) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
@@ -175,7 +176,7 @@ fun ReportIssueDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = selectedCategory,
+                                text = selectedCategory.displayName,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
@@ -202,11 +203,11 @@ fun ReportIssueDialog(
                                     )
                                     .background(MaterialTheme.colorScheme.surface)
                             ) {
-                                categories.forEach { category ->
+                                IssueCategory.entries.forEach { category ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                text = category,
+                                                text = category.displayName,
                                                 style = MaterialTheme.typography.bodyLarge,
                                                 fontWeight = if (category == selectedCategory) FontWeight.Bold else FontWeight.Normal,
                                                 color = if (category == selectedCategory)
@@ -381,14 +382,14 @@ fun ReportIssueDialog(
                         sendCustomReport(
                             context,
                             appVersion,
-                            selectedCategory,
+                            selectedCategory.displayName,
                             description,
                             screenshotUri
                         )
                         onDismiss()
                     } else {
                         viewModel.submitReport(
-                            category = selectedCategory,
+                            category = selectedCategory.displayName,
                             description = description,
                             appVersion = appVersion,
                             deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL}",
@@ -434,14 +435,6 @@ fun ReportIssueDialog(
     )
 }
 
-private val categories = listOf(
-    "Audio Issues",
-    "App Crashing",
-    "Stream Loading Error",
-    "Missing Station",
-    "Other"
-)
-
 private fun sendCustomReport(
     context: Context,
     appVersion: String,
@@ -463,9 +456,13 @@ private fun sendCustomReport(
         append("\n\n--------------------")
     }
 
+    // 1. Create a base "mailto:" intent to act as a filter for email apps only
+    val emailFilterIntent = Intent(Intent.ACTION_SENDTO, "mailto:".toUri())
+
     val intent = if (attachmentUri != null) {
+        // Use ACTION_SEND for attachments, but use the selector to filter for email apps
         Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
+            selector = emailFilterIntent
             putExtra(Intent.EXTRA_EMAIL, arrayOf(context.getString(R.string.email_address)))
             putExtra(Intent.EXTRA_SUBJECT, "[REPORT] $category - Smooth Radio")
             putExtra(Intent.EXTRA_TEXT, emailBody)
@@ -473,7 +470,8 @@ private fun sendCustomReport(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     } else {
-        Intent(Intent.ACTION_SENDTO, "mailto:".toUri()).apply {
+        // Simple mailto for text-only
+        emailFilterIntent.apply {
             putExtra(Intent.EXTRA_EMAIL, arrayOf(context.getString(R.string.email_address)))
             putExtra(Intent.EXTRA_SUBJECT, "[REPORT] $category - Smooth Radio")
             putExtra(Intent.EXTRA_TEXT, emailBody)
@@ -481,7 +479,8 @@ private fun sendCustomReport(
     }
 
     try {
-        context.startActivity(Intent.createChooser(intent, "Send Issue Report..."))
+        // Remove Intent.createChooser to allow the system to use the user's default app directly
+        context.startActivity(intent)
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, "No email client found.", Toast.LENGTH_SHORT).show()
     }
