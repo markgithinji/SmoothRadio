@@ -7,5 +7,12 @@ import kotlinx.coroutines.flow.Flow
 interface FirebaseRepository {
     fun getRemoteStreamLinksFlow(): Flow<Resource<List<String>>>
     fun getRemoteAdSettingsFlow(): Flow<Resource<RemoteAdSettings>>
+    suspend fun submitReport(
+        category: String,
+        description: String,
+        appVersion: String,
+        deviceInfo: String,
+        androidVersion: String
+    ): Resource<Unit>
     fun clear()
 }

@@ -1,6 +1,5 @@
 package com.smoothradio.radio.feature.radiolist.ui.components
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -30,7 +29,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,9 +56,16 @@ fun AboutDialog(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
-    val deviceInfo = remember { "${Build.MANUFACTURER} ${Build.MODEL}" }
-    val androidVersion =
-        remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
+
+    var showReportDialog by remember { mutableStateOf(false) }
+
+    if (showReportDialog) {
+        ReportIssueDialog(
+            onDismiss = { showReportDialog = false },
+            context = context,
+            appVersion = appVersion
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -177,7 +186,7 @@ fun AboutDialog(
                         .clip(RoundedCornerShape(12.dp))
                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .clickable {
-                            sendFeedbackEmail(context, appVersion, deviceInfo, androidVersion)
+                            showReportDialog = true
                         }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -270,20 +279,6 @@ private fun getAppVersion(context: Context): String {
         "v$version"
     } catch (e: PackageManager.NameNotFoundException) {
         ""
-    }
-}
-
-private fun sendFeedbackEmail(context: Context, version: String, device: String, android: String) {
-    val intent = Intent(Intent.ACTION_SENDTO, "mailto:".toUri()).apply {
-        putExtra(Intent.EXTRA_EMAIL, arrayOf(context.getString(R.string.email_address)))
-        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.email_subject))
-        putExtra(Intent.EXTRA_TEXT, "$version\n$device\n$android\n\n")
-    }
-    try {
-        context.startActivity(Intent.createChooser(intent, context.getString(R.string.send_mail)))
-    } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT)
-            .show()
     }
 }
 

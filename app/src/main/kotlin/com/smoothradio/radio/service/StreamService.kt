@@ -283,15 +283,17 @@ class StreamService : MediaSessionService() {
                     .remove(COMMAND_SEEK_TO_PREVIOUS)
                     .remove(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                     .remove(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-                    .remove(COMMAND_SEEK_BACK)
-                    .remove(COMMAND_SEEK_FORWARD)
 
                 if (isPreparingForAd) {
                     builder.remove(COMMAND_PLAY_PAUSE)
                         .remove(COMMAND_STOP)
+                        .remove(COMMAND_SEEK_BACK)
+                        .remove(COMMAND_SEEK_FORWARD)
                 } else {
                     builder.add(COMMAND_PLAY_PAUSE)
                         .add(COMMAND_STOP)
+                        .add(COMMAND_SEEK_BACK)
+                        .add(COMMAND_SEEK_FORWARD)
                 }
 
                 return builder.build()

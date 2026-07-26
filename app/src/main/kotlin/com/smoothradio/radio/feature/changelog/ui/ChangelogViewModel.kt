@@ -50,6 +50,10 @@ class ChangelogViewModel @Inject constructor(
             "Fine-tune your audio with the new integrated equalizer."
         ),
         ChangelogItem(
+            "Bluetooth Headset Support",
+            "Full support for Bluetooth headset media buttons and seamless playback control."
+        ),
+        ChangelogItem(
             "Google Cast Support",
             "Easily cast your favorite stations to your TV or speakers."
         ),

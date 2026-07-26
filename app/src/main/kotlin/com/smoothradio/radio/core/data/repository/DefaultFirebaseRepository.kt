@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.smoothradio.radio.R
+import kotlinx.coroutines.tasks.await
 import com.smoothradio.radio.core.data.mapper.toDomain
 import com.smoothradio.radio.core.data.model.AdSettingsDto
 import com.smoothradio.radio.core.domain.model.RemoteAdSettings
@@ -142,6 +143,30 @@ class DefaultFirebaseRepository @Inject constructor(
 
     private fun getLinksFromHelper(): List<String> {
         return RadioStationLinksHelper.RADIO_STATIONS.toList()
+    }
+
+    override suspend fun submitReport(
+        category: String,
+        description: String,
+        appVersion: String,
+        deviceInfo: String,
+        androidVersion: String
+    ): Resource<Unit> {
+        return try {
+            val report = hashMapOf(
+                "category" to category,
+                "description" to description,
+                "appVersion" to appVersion,
+                "deviceInfo" to deviceInfo,
+                "androidVersion" to androidVersion,
+                "timestamp" to com.google.firebase.Timestamp.now()
+            )
+            
+            firebaseFirestore.collection("reports").add(report).await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: context.getString(R.string.error_unexpected))
+        }
     }
 
     override fun clear() {
