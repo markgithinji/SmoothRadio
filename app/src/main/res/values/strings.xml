@@ -4,7 +4,7 @@
     <!-- Strings used for fragments for navigation -->
 
 
-    <string name="tv_app_package">com.smoothradio.radio</string>
+    <string name="smooth_radio_app_package">com.smoothradio.radio</string>
     <string name="facebook_url">https://web.facebook.com/Smooth-Radio-App-Kenya-102378815380103</string>
     <string name="email_address">smoothradioapp@gmail.com</string>
     <string name="email_subject">SMOOTH RADIO APP FEEDBACK</string>

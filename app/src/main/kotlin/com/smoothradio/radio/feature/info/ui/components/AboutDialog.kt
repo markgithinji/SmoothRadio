@@ -272,7 +272,7 @@ private fun getAppVersion(context: Context): String {
 }
 
 private fun shareApp(context: Context) {
-    val appPackage = context.getString(R.string.tv_app_package)
+    val appPackage = context.getString(R.string.smooth_radio_app_package)
     val shareIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.app_name))
