@@ -33,7 +33,7 @@ class PlaybackProgressCalculator @Inject constructor() {
         val droppedDur = (totalBytesDropped / estimatedBytesPerMs).toLong()
         val loadedDur = (totalBytesWritten / estimatedBytesPerMs).toLong()
 
-        // FIXED-WIDTH SLIDING WINDOW:
+        // fixed-width sliding window:
         val bufferCapacityMs = totalCapacityBytes / estimatedBytesPerMs.coerceAtLeast(PlaybackConstants.MIN_BITRATE_BYTES_PER_MS)
         val displayDur = droppedDur + bufferCapacityMs.toLong()
 

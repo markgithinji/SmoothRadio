@@ -18,6 +18,7 @@ import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
@@ -171,6 +172,11 @@ class StreamService : MediaSessionService() {
         setupNotificationChannel()
         registerTimerReceivers()
         setMediaNotificationProvider(CustomNotificationProvider())
+        
+        // Ensure the service starts in foreground immediately to avoid the 5s crash
+        // especially when the app is loading an ad or buffering.
+        startForegroundSafe()
+        
         startProgressUpdate()
         observeProxyState()
         observeEqualizerSettings()
@@ -635,25 +641,34 @@ class StreamService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        intent?.let {
-            val action = it.action
-            if (action == ServiceCommand.ACTION_START || action == ServiceCommand.ACTION_SHOW_AD) {
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        startForeground(
-                            NOTIFICATION_ID,
-                            createMediaStyleNotification(),
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                        )
-                    } else {
-                        startForeground(NOTIFICATION_ID, createMediaStyleNotification())
-                    }
-                } catch (_: Exception) {
-                }
+        Log.d("StreamService", "onStartCommand: action=${intent?.action ?: "null"}")
+        if (intent == null) {
+            startForegroundSafe()
+        } else {
+            handleIntent(intent)
+            val action = intent.action
+            if (action != ServiceCommand.ACTION_STOP) {
+                startForegroundSafe()
             }
-            handleIntent(it)
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun startForegroundSafe() {
+        try {
+            val notification = createMediaStyleNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            // Log if needed, but this prevents the crash if background start is restricted
+        }
     }
 
     private fun handleIntent(intent: Intent) {
