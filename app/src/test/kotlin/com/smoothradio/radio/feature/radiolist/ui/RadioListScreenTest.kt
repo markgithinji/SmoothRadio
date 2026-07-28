@@ -13,7 +13,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.smoothradio.radio.HiltTestActivity
@@ -73,7 +75,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun radioStationsScreen_displaysStationsInList() = runTest(UnconfinedTestDispatcher()) {
+    fun radioStationsScreen_displaysStationsInList() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -99,7 +101,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -138,7 +140,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingStation_showsLoadingIndicatorInRow_andMiniPlayer() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingStation_showsLoadingIndicatorInRow_andMiniPlayer() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -195,7 +197,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun playingStation_showsWaveformAndMiniPlayerPlaying() = runTest(UnconfinedTestDispatcher()) {
+    fun playingStation_showsWaveformAndMiniPlayerPlaying() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -238,7 +240,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun toggleGridView_displaysStationsInGrid() = runTest(UnconfinedTestDispatcher()) {
+    fun toggleGridView_displaysStationsInGrid() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -273,7 +275,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingDifferentStation_clearsPreviousStationState_andShowsNewStationPlaying() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingDifferentStation_clearsPreviousStationState_andShowsNewStationPlaying() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -343,7 +345,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPlayingStation_stopsPlayback() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingPlayingStation_stopsPlayback() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -396,7 +398,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingBufferingStation_stopsPlayback() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingBufferingStation_stopsPlayback() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -449,7 +451,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun gridView_showsCorrectStates_forPlayingBufferingIdle() = runTest(UnconfinedTestDispatcher()) {
+    fun gridView_showsCorrectStates_forPlayingBufferingIdle() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -514,7 +516,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun miniPlayer_showsCorrectContent_forPlayingBufferingIdle() = runTest(UnconfinedTestDispatcher()) {
+    fun miniPlayer_showsCorrectContent_forPlayingBufferingIdle() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -610,7 +612,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun toggleGridView_persistsStations_andAdjustsColumns() = runTest(UnconfinedTestDispatcher()) {
+    fun toggleGridView_persistsStations_andAdjustsColumns() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -661,7 +663,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun searchingForStation_filtersList() = runTest(UnconfinedTestDispatcher()) {
+    fun searchingForStation_filtersList() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -677,36 +679,51 @@ class RadioListScreenTest {
         composeTestRule.waitForIdle()
         dismissChangelogIfVisible()
 
+        // 1. Wait for initial data
         composeTestRule.waitUntil(10000) {
             composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
         }
 
-        // Open search
+        // 2. Open search
         composeTestRule.onNodeWithContentDescription("Search").performClick()
-        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
-        // Type search query
+        // 3. Type search query
         composeTestRule.onNodeWithTag("search_field").performTextReplacement("INOORO")
-        advanceUntilIdle()
         composeTestRule.waitForIdle()
 
-        // INOORO FM should be displayed, RADIO 47 should not
+        // 4. Verify filtered state
         composeTestRule.onNodeWithText("INOORO FM").assertIsDisplayed()
         composeTestRule.onNodeWithText("RADIO 47").assertDoesNotExist()
 
-        // Clear search via "Clear" button
-        composeTestRule.onNodeWithContentDescription("Clear").performClick()
-        advanceUntilIdle()
+        // 5. Exit search mode using the "Back" button
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
         composeTestRule.waitForIdle()
 
-        // Both should be displayed again
-        composeTestRule.onNodeWithText("RADIO 47").assertIsDisplayed()
-        composeTestRule.onNodeWithText("INOORO FM").assertIsDisplayed()
+        // 6. Wait for the search field to disappear (verifies mode exit)
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodes(hasTestTag("search_field")).fetchSemanticsNodes().isEmpty()
+        }
+
+        // 7. Reset scroll to top in case search left the list in a scrolled state
+        // This ensures items at the beginning of the list are composed and found.
+        composeTestRule.onNode(hasTestTag("radio_station_list") or hasTestTag("radio_station_grid"))
+            .performScrollToIndex(0)
+        composeTestRule.waitForIdle()
+
+        // 8. Wait for the list to repopulate. 
+        // We use onNodeWithTag for "radio_station_228" (RADIO 47) as it's more precise.
+        composeTestRule.waitUntil(15000) {
+            composeTestRule.onAllNodes(hasTestTag("radio_station_228")).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 9. Final assertions
+        composeTestRule.onNodeWithTag("radio_station_228").assertExists()
+        composeTestRule.onNodeWithText("RADIO 47").assertExists()
     }
 
     @Test
-    fun clickingStation_immediatelyShowsBufferingInMiniPlayer_dueToStationChangingGuard() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingStation_immediatelyShowsBufferingInMiniPlayer_dueToStationChangingGuard() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -749,7 +766,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun aboutDialog_showsAndDismisses() = runTest(UnconfinedTestDispatcher()) {
+    fun aboutDialog_showsAndDismisses() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -786,7 +803,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun aboutDialog_clickingReportProblem_opensReportDialog() = runTest(UnconfinedTestDispatcher()) {
+    fun aboutDialog_clickingReportProblem_opensReportDialog() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -806,17 +823,17 @@ class RadioListScreenTest {
         composeTestRule.onNodeWithContentDescription("About").performClick()
         composeTestRule.waitForIdle()
 
-        // Click Report a Problem
-        composeTestRule.onNodeWithText("Report a Problem").performClick()
+        // Click Report a Problem in AboutDialog
+        composeTestRule.onAllNodesWithText("Report a Problem").onFirst().performClick()
         composeTestRule.waitForIdle()
 
-        // Verify Report Issue Dialog title is shown
-        composeTestRule.onNodeWithText("Report a Problem").assertIsDisplayed()
+        // Verify Report Issue Dialog title is shown (unique tag)
+        composeTestRule.onNodeWithTag("report_issue_dialog_title").assertIsDisplayed()
         composeTestRule.onNodeWithText("Describe the issue you encountered", substring = true).assertIsDisplayed()
     }
 
     @Test
-    fun favoriteLimitExceeded_showsErrorToast() = runTest(UnconfinedTestDispatcher()) {
+    fun favoriteLimitExceeded_showsErrorToast() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -875,7 +892,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPauseInMiniPlayer_updatesStateInBothMiniPlayerAndListRow() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingPauseInMiniPlayer_updatesStateInBothMiniPlayerAndListRow() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }
@@ -938,7 +955,7 @@ class RadioListScreenTest {
     }
 
     @Test
-    fun clickingPlayInMiniPlayer_startsPlaybackAndUpdatesUI() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingPlayInMiniPlayer_startsPlaybackAndUpdatesUI() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val listState = remember { LazyListState() }

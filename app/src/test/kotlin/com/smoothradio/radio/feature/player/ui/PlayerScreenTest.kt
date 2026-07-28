@@ -317,3 +317,62 @@ class PlayerScreenTest {
         composeTestRule.onNodeWithText("5 minutes").assertIsDisplayed()
     }
 }
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltAndroidTest
+@RunWith(AndroidJUnit4::class)
+@Config(
+    sdk = [34],
+    application = HiltTestApplication::class,
+    qualifiers = "w800dp-h480dp-xxhdpi" // Landscape
+)
+class PlayerScreenLandscapeTest {
+
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
+    val composeTestRule = createAndroidComposeRule<HiltTestActivity>()
+
+    @Inject
+    lateinit var radioRepository: RadioRepository
+
+    @Inject
+    lateinit var playbackStateRepository: PlaybackStateRepository
+
+    private val testStation = RadioStation(
+        id = 1,
+        stationName = "HOPE FM",
+        frequency = "93.3",
+        location = "Nairobi",
+        streamLink = "url",
+        isPlaying = true,
+        isFavorite = false,
+        orderIndex = 0,
+    )
+
+    @Before
+    fun setup() {
+        hiltRule.inject()
+    }
+
+    @Test
+    fun playerScreen_displaysInLandscape() = runTest {
+        radioRepository.insertStations(listOf(testStation))
+        radioRepository.setPlayingStation(testStation.id)
+        playbackStateRepository.updateState(StreamStates.PLAYING)
+        advanceUntilIdle()
+
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                PlayerScreen()
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        
+        // Verify core elements are still visible in landscape
+        composeTestRule.onNodeWithText("HOPE FM").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Pause").assertIsDisplayed()
+    }
+}

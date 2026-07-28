@@ -301,16 +301,18 @@ class PlayerControlViewModelTest {
         val station = RadioStation(1, "S1", "", "", "u1", false, false, 0)
         fakeRadioRepository.insertStations(listOf(station))
         
+        val commands = mutableListOf<PlayCommand>()
+        backgroundScope.launch { viewModel.playCommand.toList(commands) }
+
         // Initial play
         viewModel.requestPlayStation(station)
         fakePlaybackStateRepository.updateStationId(1)
         advanceUntilIdle()
         assertThat(viewModel.isStationChanging.value).isFalse()
+        assertThat(commands).contains(PlayCommand.PlayStation(station))
+        commands.clear() // Clear the initial PlayStation command
 
         // Request same station again
-        val commands = mutableListOf<PlayCommand>()
-        backgroundScope.launch { viewModel.playCommand.toList(commands) }
-        
         viewModel.requestPlayStation(station)
         advanceUntilIdle()
 

@@ -85,4 +85,45 @@ class ServiceCommandMapperTest {
         val command = mapper.map(intent)
         assertThat(command).isEqualTo(ServiceCommand.Stop)
     }
+
+    @Test
+    fun `map PLAY action should return Play command`() {
+        val intent = Intent(ServiceCommand.ACTION_PLAY)
+        val command = mapper.map(intent)
+        assertThat(command).isEqualTo(ServiceCommand.Play)
+    }
+
+    @Test
+    fun `map PAUSE action should return Pause command`() {
+        val intent = Intent(ServiceCommand.ACTION_PAUSE)
+        val command = mapper.map(intent)
+        assertThat(command).isEqualTo(ServiceCommand.Pause)
+    }
+
+    @Test
+    fun `map SEEK_BACK action should return SeekBack command`() {
+        val intent = Intent(ServiceCommand.ACTION_SEEK_BACK)
+        val command = mapper.map(intent)
+        assertThat(command).isEqualTo(ServiceCommand.SeekBack)
+    }
+
+    @Test
+    fun `map SEEK_FORWARD action should return SeekForward command`() {
+        val intent = Intent(ServiceCommand.ACTION_SEEK_FORWARD)
+        val command = mapper.map(intent)
+        assertThat(command).isEqualTo(ServiceCommand.SeekForward)
+    }
+
+    @Test
+    fun `map SET_EQ_BAND action should return SetEqBand command`() {
+        val intent = Intent(ServiceCommand.ACTION_SET_EQ_BAND).apply {
+            putExtra(ServiceCommand.EXTRA_BAND, 2)
+            putExtra(ServiceCommand.EXTRA_LEVEL, 300.toShort())
+        }
+        val command = mapper.map(intent)
+        assertThat(command).isInstanceOf(ServiceCommand.SetEqBand::class.java)
+        val eqCommand = command as ServiceCommand.SetEqBand
+        assertThat(eqCommand.band).isEqualTo(2)
+        assertThat(eqCommand.level).isEqualTo(300.toShort())
+    }
 }

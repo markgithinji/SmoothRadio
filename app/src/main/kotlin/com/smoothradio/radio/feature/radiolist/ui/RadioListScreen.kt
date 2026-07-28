@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -279,7 +280,9 @@ private fun RadioStationGridContent(
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridColumns),
         state = gridScrollState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("radio_station_grid"),
         contentPadding = PaddingValues(
             start = horizontalSpacing,
             top = 12.dp,
@@ -314,7 +317,9 @@ private fun RadioStationListContent(
 ) {
     LazyColumn(
         state = listScrollState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("radio_station_list"),
         contentPadding = PaddingValues(
             start = 0.dp,
             top = 8.dp,

@@ -137,7 +137,8 @@ fun ReportIssueDialog(
                     "Report a Problem",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.testTag("report_issue_dialog_title")
                 )
             }
         },
