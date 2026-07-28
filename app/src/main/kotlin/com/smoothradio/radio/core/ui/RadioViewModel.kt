@@ -43,14 +43,14 @@ class RadioViewModel @Inject constructor(
     val allStations = radioRepository.allStations
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
     val favoriteStations = radioRepository.favoriteStations
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
@@ -78,7 +78,7 @@ class RadioViewModel @Inject constructor(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = RadioListUiState()
     )
 
@@ -150,7 +150,6 @@ class RadioViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         firebaseRepository.clear()
     }
 }
