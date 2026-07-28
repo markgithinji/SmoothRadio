@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +68,7 @@ import com.smoothradio.radio.R
 import com.smoothradio.radio.core.util.Resource
 import com.smoothradio.radio.feature.info.domain.model.IssueCategory
 import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun ReportIssueDialog(
@@ -90,7 +93,7 @@ fun ReportIssueDialog(
     LaunchedEffect(submissionState) {
         when (submissionState) {
             is Resource.Success -> {
-                Toast.makeText(context, "Report sent successfully! Thank you.", Toast.LENGTH_LONG).show()
+                delay(1500)
                 viewModel.resetReportState()
                 onDismiss()
             }
@@ -154,7 +157,7 @@ fun ReportIssueDialog(
                 )
 
                 // Category Selection
-                Column {
+                Column(modifier = Modifier.testTag("category_selector")) {
                     Text(
                         "Issue Category",
                         style = MaterialTheme.typography.labelMedium,
@@ -253,7 +256,9 @@ fun ReportIssueDialog(
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("report_description"),
                         placeholder = { 
                             Text(
                                 "e.g. The station stops playing after a few minutes...",
@@ -293,6 +298,7 @@ fun ReportIssueDialog(
                                     MaterialTheme.colorScheme.outlineVariant, 
                                     RoundedCornerShape(12.dp)
                                 )
+                                .testTag("attach_screenshot_button")
                                 .clickable {
                                     photoPickerLauncher.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -375,6 +381,12 @@ fun ReportIssueDialog(
         },
         confirmButton = {
             val isLoading = submissionState is Resource.Loading
+            val isSuccess = submissionState is Resource.Success
+
+            val buttonColor by animateColorAsState(
+                targetValue = if (isSuccess) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                label = "buttonColor"
+            )
             
             Button(
                 onClick = {
@@ -399,11 +411,13 @@ fun ReportIssueDialog(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .height(52.dp)
+                    .testTag("submit_report_button"),
                 shape = RoundedCornerShape(12.dp),
-                enabled = description.isNotBlank() && !isLoading,
+                enabled = description.isNotBlank() && !isLoading && !isSuccess,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = buttonColor,
+                    disabledContainerColor = if (isSuccess) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 )
             ) {
                 if (isLoading) {
@@ -412,6 +426,22 @@ fun ReportIssueDialog(
                         color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
+                } else if (isSuccess) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Sent Successfully",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
                 } else {
                     Text(
                         if (screenshotUri != null) "Send via Email" else "Send Report",

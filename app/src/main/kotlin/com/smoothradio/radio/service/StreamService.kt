@@ -18,7 +18,6 @@ import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
@@ -641,7 +640,6 @@ class StreamService : MediaSessionService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d("StreamService", "onStartCommand: action=${intent?.action ?: "null"}")
         if (intent == null) {
             startForegroundSafe()
         } else {

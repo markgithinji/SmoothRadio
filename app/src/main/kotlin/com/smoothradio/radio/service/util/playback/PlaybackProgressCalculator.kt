@@ -27,20 +27,15 @@ class PlaybackProgressCalculator @Inject constructor() {
         totalBytesReceived: Long,
         estimatedBytesPerMs: Double,
         isHls: Boolean,
-        totalCapacityBytes: Long,
         isBuffering: Boolean
     ): ProgressSnapshot {
         val droppedDur = (totalBytesDropped / estimatedBytesPerMs).toLong()
         val loadedDur = (totalBytesWritten / estimatedBytesPerMs).toLong()
 
-        // fixed-width sliding window:
-        val bufferCapacityMs = totalCapacityBytes / estimatedBytesPerMs.coerceAtLeast(PlaybackConstants.MIN_BITRATE_BYTES_PER_MS)
-        val displayDur = droppedDur + bufferCapacityMs.toLong()
-
         val safetyBuffer = if (isHls) PlaybackConstants.HLS_SAFETY_BUFFER_MS else PlaybackConstants.PROGRESSIVE_SAFETY_BUFFER_MS
         
         // We report the "Safe Live Edge" as the loaded position to the UI.
-        val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur + PlaybackConstants.BACK_SAFETY_BUFFER_MS)
+        val safeLoadedPos = (loadedDur - safetyBuffer).coerceAtLeast(droppedDur)
 
         val loadingProgress = if (isBuffering) {
             // Target buffer for initial playback
@@ -58,7 +53,7 @@ class PlaybackProgressCalculator @Inject constructor() {
 
         return ProgressSnapshot(
             position = if (currentPosition < 0) 0 else currentPosition,
-            duration = displayDur,
+            duration = loadedDur,
             minPosition = droppedDur,
             loadedPosition = safeLoadedPos,
             loadingProgress = loadingProgress
