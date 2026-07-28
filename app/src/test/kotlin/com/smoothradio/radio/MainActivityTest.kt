@@ -9,17 +9,23 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
+@Config(
+    sdk = [34],
+    application = HiltTestApplication::class,
+    qualifiers = "w480dp-h800dp-xxhdpi"
+)
 class MainActivityTest {
 
     @get:Rule(order = 0)
@@ -44,7 +50,7 @@ class MainActivityTest {
     }
 
     @Test
-    fun bottomNavigation_hasThreeTabs() = runTest(UnconfinedTestDispatcher()) {
+    fun bottomNavigation_hasThreeTabs() = runTest {
         composeTestRule.waitForIdle()
         dismissChangelogIfVisible()
         
@@ -58,7 +64,7 @@ class MainActivityTest {
     }
 
     @Test
-    fun clickingLiveTab_showsPlayerScreen_withDefaultStation() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingLiveTab_showsPlayerScreen_withDefaultStation() = runTest {
         composeTestRule.waitForIdle()
         dismissChangelogIfVisible()
 
@@ -77,7 +83,7 @@ class MainActivityTest {
     }
 
     @Test
-    fun clickingDiscoverTab_showsDiscoverScreen() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingDiscoverTab_showsDiscoverScreen() = runTest {
         composeTestRule.waitForIdle()
         dismissChangelogIfVisible()
 
