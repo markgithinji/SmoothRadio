@@ -71,7 +71,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun discoverScreen_displaysExpectedCategoriesAndStations() = runTest(UnconfinedTestDispatcher()) {
+    fun discoverScreen_displaysExpectedCategoriesAndStations() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val discoverScrollState = remember { LazyListState() }
@@ -101,7 +101,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest(UnconfinedTestDispatcher()) {
+    fun clickingFavoriteButton_togglesFavoriteStatus() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val discoverScrollState = remember { LazyListState() }
@@ -161,7 +161,7 @@ class DiscoverScreenTest {
     }
 
     @Test
-    fun clickStation_shouldShowLoadingIndicatorWhenBuffering() = runTest(UnconfinedTestDispatcher()) {
+    fun clickStation_shouldShowLoadingIndicatorWhenBuffering() = runTest {
         composeTestRule.setContent {
             SmoothRadioTheme {
                 val discoverScrollState = remember { LazyListState() }

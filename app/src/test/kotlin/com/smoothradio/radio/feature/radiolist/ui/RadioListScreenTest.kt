@@ -711,14 +711,13 @@ class RadioListScreenTest {
             .performScrollToIndex(0)
         composeTestRule.waitForIdle()
 
-        // 8. Wait for the list to repopulate. 
-        // We use onNodeWithTag for "radio_station_228" (RADIO 47) as it's more precise.
-        composeTestRule.waitUntil(15000) {
-            composeTestRule.onAllNodes(hasTestTag("radio_station_228")).fetchSemanticsNodes().isNotEmpty()
+        // 8. Wait for any list item to reappear (verifies UI transition from Empty/Search)
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodes(hasTestTag("radio_station_228"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
 
         // 9. Final assertions
-        composeTestRule.onNodeWithTag("radio_station_228").assertExists()
+        composeTestRule.onNodeWithTag("radio_station_228", useUnmergedTree = true).assertExists()
         composeTestRule.onNodeWithText("RADIO 47").assertExists()
     }
 

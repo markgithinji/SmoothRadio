@@ -80,7 +80,7 @@ class StreamServiceNotificationTest {
         assertThat(notificationTitle).isNotNull()
 
         // Step 5: Assert notification state sequence
-        // It should transition to BUFFERING NOTE: Ads should be disabled
+        // It should transition to BUFFERING
         val bufferingState = device.wait(
             Until.findObject(By.text("BUFFERING")),
             10000
