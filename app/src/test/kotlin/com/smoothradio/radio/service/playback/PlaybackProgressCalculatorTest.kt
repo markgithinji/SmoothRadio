@@ -24,24 +24,18 @@ class PlaybackProgressCalculatorTest {
             totalBytesReceived = 160000,
             estimatedBytesPerMs = 16.0,
             isHls = false,
-            totalCapacityBytes = 48000, // 3000ms at 16 bytes/ms
             isBuffering = false
         )
 
         assertThat(result.position).isEqualTo(5000)
         assertThat(result.minPosition).isEqualTo(2000)
         
-        // duration = droppedDur + bufferCapacityMs = 2000 + 3000 = 5000
-        // Wait, why is duration only 5000? 
-        // totalCapacityBytes = 48000 -> 3000ms. 
-        // Total loaded is 10000ms. 
-        // Logic says displayDur = droppedDur + bufferCapacityMs.
-        // This means the seek bar shows a fixed window starting from dropped position.
-        assertThat(result.duration).isEqualTo(5000)
+        // duration = loadedDur = 10000
+        assertThat(result.duration).isEqualTo(10000)
 
-        // loadedPosition = (loadedDur - safetyBuffer) = 10000 - 1000 = 9000.
+        // loadedPosition = (loadedDur - safetyBuffer) = 10000 - 2000 = 8000.
         // Coerced at least droppedDur (2000).
-        assertThat(result.loadedPosition).isEqualTo(9000)
+        assertThat(result.loadedPosition).isEqualTo(8000)
         assertThat(result.loadingProgress).isEqualTo(1.0f)
     }
 
@@ -54,7 +48,6 @@ class PlaybackProgressCalculatorTest {
             totalBytesReceived = 320000,
             estimatedBytesPerMs = 16.0,
             isHls = true,
-            totalCapacityBytes = 160000,
             isBuffering = false
         )
 
@@ -75,7 +68,6 @@ class PlaybackProgressCalculatorTest {
             totalBytesReceived = 16000,
             estimatedBytesPerMs = estimatedBytesPerMs,
             isHls = false,
-            totalCapacityBytes = 100000,
             isBuffering = true
         )
 
@@ -94,7 +86,6 @@ class PlaybackProgressCalculatorTest {
             totalBytesReceived = 0,
             estimatedBytesPerMs = 16.0,
             isHls = false,
-            totalCapacityBytes = 100000,
             isBuffering = false
         )
         assertThat(result.position).isEqualTo(0)

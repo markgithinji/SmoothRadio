@@ -245,6 +245,80 @@ class PlayerControlViewModelTest {
     }
 
     @Test
+    fun togglePlayPause_shouldEmitCommandAndClearChangingGuard() = runTest(dispatcherRule.dispatcher) {
+        val commands = mutableListOf<PlayCommand>()
+        backgroundScope.launch { viewModel.playCommand.toList(commands) }
+
+        // 1. Enter changing state
+        val station = RadioStation(1, "S1", "", "", "u1", false, false, 0)
+        fakeRadioRepository.insertStations(listOf(station))
+        viewModel.requestPlayStation(station)
+        advanceUntilIdle()
+        assertThat(viewModel.isStationChanging.value).isTrue()
+
+        // 2. Toggle while changing - should clear guard
+        viewModel.togglePlayPause()
+        advanceUntilIdle()
+
+        assertThat(commands).contains(PlayCommand.TogglePlayPause)
+        assertThat(viewModel.isStationChanging.value).isFalse()
+    }
+
+    @Test
+    fun requestNextStation_shouldSetChangingGuard() = runTest(dispatcherRule.dispatcher) {
+        val stations = listOf(
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1)
+        )
+        fakeRadioRepository.insertStations(stations)
+        advanceUntilIdle()
+
+        viewModel.requestNextStation()
+        advanceUntilIdle()
+
+        assertThat(viewModel.isStationChanging.value).isTrue()
+        assertThat(fakePlaybackStateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+    }
+
+    @Test
+    fun requestPreviousStation_shouldSetChangingGuard() = runTest(dispatcherRule.dispatcher) {
+        val stations = listOf(
+            RadioStation(1, "S1", "", "", "u1", false, false, 0),
+            RadioStation(2, "S2", "", "", "u2", false, false, 1)
+        )
+        fakeRadioRepository.insertStations(stations)
+        advanceUntilIdle()
+
+        viewModel.requestPreviousStation()
+        advanceUntilIdle()
+
+        assertThat(viewModel.isStationChanging.value).isTrue()
+        assertThat(fakePlaybackStateRepository.playbackState.value).isEqualTo(StreamStates.PREPARING)
+    }
+
+    @Test
+    fun requestPlayStation_sameStation_shouldToggleAndClearGuard() = runTest(dispatcherRule.dispatcher) {
+        val station = RadioStation(1, "S1", "", "", "u1", false, false, 0)
+        fakeRadioRepository.insertStations(listOf(station))
+        
+        // Initial play
+        viewModel.requestPlayStation(station)
+        fakePlaybackStateRepository.updateStationId(1)
+        advanceUntilIdle()
+        assertThat(viewModel.isStationChanging.value).isFalse()
+
+        // Request same station again
+        val commands = mutableListOf<PlayCommand>()
+        backgroundScope.launch { viewModel.playCommand.toList(commands) }
+        
+        viewModel.requestPlayStation(station)
+        advanceUntilIdle()
+
+        assertThat(commands).containsExactly(PlayCommand.TogglePlayPause)
+        assertThat(viewModel.isStationChanging.value).isFalse()
+    }
+
+    @Test
     fun showToast_shouldEmitToastType() = runTest(dispatcherRule.dispatcher) {
         val toasts = mutableListOf<ToastType>()
         val job = backgroundScope.launch {

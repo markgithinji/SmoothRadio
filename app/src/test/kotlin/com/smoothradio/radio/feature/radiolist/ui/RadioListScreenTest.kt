@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.smoothradio.radio.HiltTestActivity
 import com.smoothradio.radio.core.domain.model.RadioStation
@@ -660,6 +661,94 @@ class RadioListScreenTest {
     }
 
     @Test
+    fun searchingForStation_filtersList() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Open search
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+        advanceUntilIdle()
+        composeTestRule.waitForIdle()
+
+        // Type search query
+        composeTestRule.onNodeWithTag("search_field").performTextReplacement("INOORO")
+        advanceUntilIdle()
+        composeTestRule.waitForIdle()
+
+        // INOORO FM should be displayed, RADIO 47 should not
+        composeTestRule.onNodeWithText("INOORO FM").assertIsDisplayed()
+        composeTestRule.onNodeWithText("RADIO 47").assertDoesNotExist()
+
+        // Clear search via "Clear" button
+        composeTestRule.onNodeWithContentDescription("Clear").performClick()
+        advanceUntilIdle()
+        composeTestRule.waitForIdle()
+
+        // Both should be displayed again
+        composeTestRule.onNodeWithText("RADIO 47").assertIsDisplayed()
+        composeTestRule.onNodeWithText("INOORO FM").assertIsDisplayed()
+    }
+
+    @Test
+    fun clickingStation_immediatelyShowsBufferingInMiniPlayer_dueToStationChangingGuard() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+
+        composeTestRule.waitUntil(10000) {
+            composeTestRule.onAllNodesWithText("RADIO 47").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 1. Ensure initial state is IDLE
+        playbackStateRepository.updateState(StreamStates.IDLE)
+        advanceUntilIdle()
+
+        // 2. Click station
+        composeTestRule.onNodeWithTag("radio_station_228").performClick()
+        advanceUntilIdle()
+        composeTestRule.waitForIdle()
+
+        // 3. Verify mini player shows BUFFERING even before repository updates state
+        // (This is the isStationChanging guard in action)
+        composeTestRule.onNode(
+            hasText("BUFFERING") and hasAnyAncestor(hasTestTag("persistent_mini_player")),
+            useUnmergedTree = true
+        ).assertIsDisplayed()
+
+        // 4. Verify progress bar is NOT visible (loadingProgress should be forced to 0 by guard)
+        // We can't easily check drawWithContent, but we can verify isStationChanging is passed correctly 
+        // if we had a way to inspect the component tree deeper. 
+        // For now, the BUFFERING check is a good proxy for the guard being active.
+    }
+
+    @Test
     fun aboutDialog_showsAndDismisses() = runTest(UnconfinedTestDispatcher()) {
         composeTestRule.setContent {
             SmoothRadioTheme {
@@ -694,6 +783,36 @@ class RadioListScreenTest {
 
         // Verify stations visible again
         composeTestRule.onNodeWithTag("radio_station_228").assertExists()
+    }
+
+    @Test
+    fun aboutDialog_clickingReportProblem_opensReportDialog() = runTest(UnconfinedTestDispatcher()) {
+        composeTestRule.setContent {
+            SmoothRadioTheme {
+                val listState = remember { LazyListState() }
+                val gridState = remember { LazyGridState() }
+                RadioStationsScreen(
+                    listScrollState = listState,
+                    gridScrollState = gridState,
+                    onWhatNewClick = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        dismissChangelogIfVisible()
+
+        // Open About Dialog
+        composeTestRule.onNodeWithContentDescription("About").performClick()
+        composeTestRule.waitForIdle()
+
+        // Click Report a Problem
+        composeTestRule.onNodeWithText("Report a Problem").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify Report Issue Dialog title is shown
+        composeTestRule.onNodeWithText("Report a Problem").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Describe the issue you encountered", substring = true).assertIsDisplayed()
     }
 
     @Test
