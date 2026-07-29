@@ -40,7 +40,7 @@ object MetadataUtils {
 
         // 3. Fallback: Strip all tags and clean up whitespace
         // Handles cases where no Title attribute is found but there is plain text
-        val cleanTitle = trimmed.replace(Regex("<[^>]*>?"), "") // Added ? to handle unclosed tags
+        val cleanTitle = trimmed.replace(Regex("<[^>]*>?"), "")
             .replace("\n", " ")
             .replace("\r", " ")
             .replace("\\s+".toRegex(), " ")

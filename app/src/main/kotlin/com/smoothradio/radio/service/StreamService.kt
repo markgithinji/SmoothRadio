@@ -1086,8 +1086,7 @@ class StreamService : MediaSessionService() {
         audioSessionId = sessionId
         try {
             equalizer?.release()
-
-            // FIX for audio spike: Synchronous configuration using memory cache
+            
             val newEq = Equalizer(0, sessionId)
             val bands = newEq.numberOfBands
             var hasActiveSettings = false

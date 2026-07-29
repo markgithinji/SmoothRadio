@@ -77,8 +77,6 @@ class LocalHttpServer(
                         out.write(buffer, 0, read)
                         lastReadPos += read
                     } else if (read == -2) {
-                        // Evicted - for HTTP client we just close or restart? 
-                        // Usually we close to force a reconnect at new position
                         break
                     } else {
                         withContext(ioDispatcher) { withTimeoutOrNull(500.milliseconds) { dataSignal.first() } }

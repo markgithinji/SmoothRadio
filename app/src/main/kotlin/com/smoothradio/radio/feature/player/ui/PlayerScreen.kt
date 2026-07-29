@@ -782,7 +782,7 @@ fun AudioSeekBar(
                 color = colorScheme.onSurfaceVariant
             )
 
-            // Function: Offset from live
+            // Offset from live
             val offsetFromLiveMs = (loadedPosition + 1000L) - displayTime // Add 1s to match user-facing live edge
             val isLive = offsetFromLiveMs < 4000
 

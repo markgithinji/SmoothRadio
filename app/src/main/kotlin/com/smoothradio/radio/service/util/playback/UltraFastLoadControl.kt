@@ -2,10 +2,10 @@
 
 package com.smoothradio.radio.service.util.playback
 
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.upstream.DefaultAllocator
-import androidx.annotation.OptIn
 
 /**
  * A custom LoadControl that prioritizes absolute minimal latency.
@@ -14,18 +14,18 @@ import androidx.annotation.OptIn
 class UltraFastLoadControl : DefaultLoadControl(
     /* allocator = */ DefaultAllocator(true, 65536),
     /* minBufferMs = */ 4000,
-    /* minBufferForLocalPlaybackMs = */ 4000, // Increased from 2000ms
+    /* minBufferForLocalPlaybackMs = */ 4000,
     /* maxBufferMs = */ 10000,
-    /* maxBufferForLocalPlaybackMs = */ 10000, // maxBufferMs
+    /* maxBufferForLocalPlaybackMs = */ 10000,
     /* bufferForPlaybackMs = */ 1500,
-    /* bufferForPlaybackForLocalPlaybackMs = */ 1500, // Increased to 1.5s to prevent flicker
+    /* bufferForPlaybackForLocalPlaybackMs = */ 1500,
     /* bufferForPlaybackAfterRebufferMs = */ 3000,
-    /* bufferForPlaybackAfterRebufferForLocalPlaybackMs = */ 3000, // Increased to 3s for stability
-    /* targetBufferBytes = */ -1, // targetBufferBytes
+    /* bufferForPlaybackAfterRebufferForLocalPlaybackMs = */ 3000,
+    /* targetBufferBytes = */ -1,
     /* prioritizeTimeOverSizeThresholds = */ true,
-    /* prioritizeTimeOverSizeThresholdsForLocalPlayback = */ true, // prioritizeTimeOverSizeThresholds
-    /* backBufferDurationMs = */ 120000, // backBufferDurationMs
-    /* retainBackBufferFromKeyframe = */ true // retainBackBufferFromKeyframe
+    /* prioritizeTimeOverSizeThresholdsForLocalPlayback = */ true,
+    /* backBufferDurationMs = */ 120000,
+    /* retainBackBufferFromKeyframe = */ true
 ) {
 
     @Deprecated("Deprecated in Java")

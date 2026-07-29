@@ -2,8 +2,6 @@ package com.smoothradio.radio.feature.player.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -11,7 +9,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.smoothradio.radio.HiltTestActivity
-import com.smoothradio.radio.R
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.repository.PlaybackStateRepository
@@ -19,6 +16,7 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -27,7 +25,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
-import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -212,8 +209,7 @@ class PlayerScreenTest {
 
         // Click Next
         composeTestRule.onNodeWithContentDescription("Next").performClick()
-        
-        // NO advanceUntilIdle yet to check immediate state
+
         // It should show BUFFERING immediately because of the reset in VM
         composeTestRule.onNodeWithText("BUFFERING").assertIsDisplayed()
         composeTestRule.onNodeWithText("NEXT STATION").assertIsDisplayed()

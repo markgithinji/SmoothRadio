@@ -1,10 +1,10 @@
 package com.smoothradio.radio.core.data.repository
 
 import android.content.Context
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.smoothradio.radio.R
-import kotlinx.coroutines.tasks.await
 import com.smoothradio.radio.core.data.mapper.toDomain
 import com.smoothradio.radio.core.data.model.AdSettingsDto
 import com.smoothradio.radio.core.domain.model.RemoteAdSettings
@@ -14,6 +14,7 @@ import com.smoothradio.radio.core.util.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -159,7 +160,7 @@ class DefaultFirebaseRepository @Inject constructor(
                 "appVersion" to appVersion,
                 "deviceInfo" to deviceInfo,
                 "androidVersion" to androidVersion,
-                "timestamp" to com.google.firebase.Timestamp.now()
+                "timestamp" to Timestamp.now()
             )
             
             firebaseFirestore.collection("reports").add(report).await()

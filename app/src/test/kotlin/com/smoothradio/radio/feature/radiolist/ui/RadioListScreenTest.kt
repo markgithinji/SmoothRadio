@@ -10,10 +10,10 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
@@ -26,8 +26,8 @@ import com.smoothradio.radio.core.domain.repository.RadioRepository
 import com.smoothradio.radio.ui.theme.SmoothRadioTheme
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -35,7 +35,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
-import dagger.hilt.android.testing.HiltTestApplication
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -759,9 +758,7 @@ class RadioListScreenTest {
         ).assertIsDisplayed()
 
         // 4. Verify progress bar is NOT visible (loadingProgress should be forced to 0 by guard)
-        // We can't easily check drawWithContent, but we can verify isStationChanging is passed correctly 
-        // if we had a way to inspect the component tree deeper. 
-        // For now, the BUFFERING check is a good proxy for the guard being active.
+        // We can't easily check drawWithContent, but we can verify isStationChanging is passed correctly
     }
 
     @Test
