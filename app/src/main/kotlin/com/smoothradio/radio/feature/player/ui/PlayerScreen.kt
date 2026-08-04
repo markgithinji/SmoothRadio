@@ -809,7 +809,7 @@ fun AudioSeekBar(
                 ),
                 border = if (isLive) null else BorderStroke(
                     1.dp,
-                    colorScheme.outline.copy(alpha = 0.1f)
+                    colorScheme.outline.copy(alpha = 0.35f)
                 ),
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
