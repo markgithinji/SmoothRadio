@@ -92,6 +92,13 @@ class PlayerControlViewModel @Inject constructor(
             initialValue = emptyMap()
         )
 
+    val isEqEnabled: StateFlow<Boolean> = equalizerRepository.isEnabledFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     val metadata: StateFlow<String> = stateRepository.metadata
     val position: StateFlow<Long> = stateRepository.position
     val duration: StateFlow<Long> = stateRepository.duration
@@ -241,6 +248,13 @@ class PlayerControlViewModel @Inject constructor(
         }
     }
 
+    fun toggleEqualizer(enabled: Boolean) {
+        viewModelScope.launch {
+            equalizerRepository.setEnabled(enabled)
+            _playCommand.send(PlayCommand.ToggleEq(enabled))
+        }
+    }
+
     fun seekTo(position: Long) {
         viewModelScope.launch {
             _playCommand.send(PlayCommand.SeekTo(position))
@@ -298,6 +312,7 @@ sealed class PlayCommand {
     object TogglePlayPause : PlayCommand()
     data class SetSleepTimer(val minutes: Int) : PlayCommand()
     data class SetEqBand(val band: Int, val level: Short) : PlayCommand()
+    data class ToggleEq(val enabled: Boolean) : PlayCommand()
     data class SeekTo(val position: Long) : PlayCommand()
     object SeekBack : PlayCommand()
     object SeekForward : PlayCommand()

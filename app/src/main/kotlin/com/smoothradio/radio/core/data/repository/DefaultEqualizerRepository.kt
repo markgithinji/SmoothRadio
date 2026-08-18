@@ -2,6 +2,7 @@ package com.smoothradio.radio.core.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.smoothradio.radio.core.data.util.safeData
@@ -36,5 +37,15 @@ class DefaultEqualizerRepository @Inject constructor(
             }
             bands
         }
+    }
+
+    override suspend fun setEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[booleanPreferencesKey("eq_enabled")] = enabled
+        }
+    }
+
+    override fun isEnabledFlow(): Flow<Boolean> {
+        return dataStore.safeGet(booleanPreferencesKey("eq_enabled"), false)
     }
 }

@@ -6,4 +6,6 @@ interface EqualizerRepository {
     suspend fun saveBandLevel(band: Int, level: Short)
     suspend fun getBandLevel(band: Int): Short
     fun getBandLevelsFlow(): Flow<Map<Int, Short>>
+    suspend fun setEnabled(enabled: Boolean)
+    fun isEnabledFlow(): Flow<Boolean>
 }

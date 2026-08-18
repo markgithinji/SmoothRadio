@@ -26,9 +26,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
+import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
-import com.google.firebase.Firebase
 import com.smoothradio.radio.core.domain.model.RadioStation
 import com.smoothradio.radio.core.domain.model.StreamStates
 import com.smoothradio.radio.core.domain.model.ToastType
@@ -159,6 +159,7 @@ class MainActivity : FragmentActivity() {
                                 command.band,
                                 command.level
                             )
+                            is PlayCommand.ToggleEq -> toggleEqualizer(command.enabled)
 
                             is PlayCommand.SeekTo -> seekTo(command.position)
                             PlayCommand.SeekBack -> seekBack()
@@ -197,6 +198,14 @@ class MainActivity : FragmentActivity() {
             action = ServiceCommand.ACTION_SET_EQ_BAND
             putExtra(ServiceCommand.EXTRA_BAND, band)
             putExtra(ServiceCommand.EXTRA_LEVEL, level)
+        }
+        startService(intent)
+    }
+
+    private fun toggleEqualizer(enabled: Boolean) {
+        val intent = Intent(this, StreamService::class.java).apply {
+            action = ServiceCommand.ACTION_TOGGLE_EQ
+            putExtra(ServiceCommand.EXTRA_ENABLED, enabled)
         }
         startService(intent)
     }

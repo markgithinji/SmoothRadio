@@ -57,6 +57,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.abs
@@ -118,16 +119,16 @@ class StreamService : MediaSessionService() {
             equalizerRepository.getBandLevelsFlow().collect { levels ->
                 eqBandCache.clear()
                 eqBandCache.putAll(levels)
-                // If equalizer is already active, update it live
                 equalizer?.let { eq ->
                     levels.forEach { (band, level) ->
                         try { eq.setBandLevel(band.toShort(), level) } catch (_: Exception) {}
                     }
-                    val hasActiveSettings = levels.values.any { it != 0.toShort() }
-                    if (hasActiveSettings && !eq.enabled) {
-                        eq.enabled = true
-                    }
                 }
+            }
+        }
+        serviceScope.launch {
+            equalizerRepository.isEnabledFlow().collect { enabled ->
+                equalizer?.enabled = enabled
             }
         }
     }
@@ -847,6 +848,12 @@ class StreamService : MediaSessionService() {
                 if (command.band != -1) setEqualizerBand(command.band, command.level)
             }
 
+            is ServiceCommand.ToggleEq -> {
+                serviceScope.launch {
+                    equalizerRepository.setEnabled(command.enabled)
+                }
+            }
+
             else -> {}
         }
     }
@@ -1089,19 +1096,17 @@ class StreamService : MediaSessionService() {
             
             val newEq = Equalizer(0, sessionId)
             val bands = newEq.numberOfBands
-            var hasActiveSettings = false
             for (i in 0 until bands) {
                 val level = eqBandCache[i] ?: 0
                 if (level != 0.toShort()) {
                     try {
                         newEq.setBandLevel(i.toShort(), level)
-                        hasActiveSettings = true
                     } catch (_: Exception) {}
                 }
             }
 
-            if (hasActiveSettings) {
-                newEq.enabled = true
+            serviceScope.launch {
+                newEq.enabled = equalizerRepository.isEnabledFlow().first()
             }
             equalizer = newEq
 

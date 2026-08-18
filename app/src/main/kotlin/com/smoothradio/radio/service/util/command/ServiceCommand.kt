@@ -10,6 +10,7 @@ sealed class ServiceCommand {
     object SeekForward : ServiceCommand()
     data class SeekTo(val position: Long) : ServiceCommand()
     data class SetEqBand(val band: Int, val level: Short) : ServiceCommand()
+    data class ToggleEq(val enabled: Boolean) : ServiceCommand()
     object None : ServiceCommand()
 
     companion object {
@@ -24,6 +25,7 @@ sealed class ServiceCommand {
         const val ACTION_SET_TIMER = "SmoothService:SetTimer"
         const val ACTION_STOP_FROM_TIMER = "SmoothService:StopFromTimer"
         const val ACTION_SET_EQ_BAND = "SmoothService:SetEqBand"
+        const val ACTION_TOGGLE_EQ = "SmoothService:ToggleEq"
 
         const val EXTRA_TIME_IN_MILLIS = "timeInMillis"
         const val EXTRA_LOGO = "logo"
@@ -33,5 +35,6 @@ sealed class ServiceCommand {
         const val EXTRA_POSITION = "position"
         const val EXTRA_BAND = "band"
         const val EXTRA_LEVEL = "level"
+        const val EXTRA_ENABLED = "enabled"
     }
 }

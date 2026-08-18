@@ -27,6 +27,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -73,6 +75,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -496,12 +499,15 @@ fun PlayerScreen(
     // Dialogs
     if (showEqDialog) {
         val eqLevels by playerControlViewModel.eqBandLevels.collectAsStateWithLifecycle()
+        val isEqEnabled by playerControlViewModel.isEqEnabled.collectAsStateWithLifecycle()
         EqualizerDialog(
             currentLevels = eqLevels,
+            isEnabled = isEqEnabled,
             onDismiss = { showEqDialog = false },
             onBandChange = { band, level ->
                 playerControlViewModel.setEqualizerBand(band, level)
-            }
+            },
+            onToggle = { playerControlViewModel.toggleEqualizer(it) }
         )
     }
 
@@ -1329,7 +1335,8 @@ fun EqualizerBandSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
-    colorScheme: ColorScheme
+    colorScheme: ColorScheme,
+    enabled: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1352,8 +1359,10 @@ fun EqualizerBandSlider(
 
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        modifier = Modifier.fillMaxWidth()
+        color = colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.3f else 0.1f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(
@@ -1361,17 +1370,22 @@ fun EqualizerBandSlider(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(label, style = MaterialTheme.typography.labelLarge)
                 Text(
-                    "${value.toInt()} dB",
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (enabled) colorScheme.onSurface else colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = "${value.toInt()} dB",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = colorScheme.primary
+                    color = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
 
             Slider(
                 value = value,
+                enabled = enabled,
                 onValueChange = {
                     if (it != value) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1402,7 +1416,10 @@ fun EqualizerBandSlider(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(2.dp)
-                                    .background(colorScheme.primary, CircleShape)
+                                    .background(
+                                        if (enabled) colorScheme.primary else colorScheme.outline,
+                                        CircleShape
+                                    )
                             )
                         }
                     }
@@ -1415,21 +1432,27 @@ fun EqualizerBandSlider(
                             .clip(CircleShape)
                             .background(colorScheme.onSurface.copy(alpha = 0.1f))
                     ) {
-                        // Progress Track with Gradient (Centered at 0dB)
-                        // For EQ, usually we show from the center or from the left. 
-                        // To match AudioSeekBar behavior, we show from left to current value.
                         val fraction = (sliderState.value + 15f) / 30f
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(fraction)
                                 .fillMaxHeight()
                                 .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            colorScheme.primary.copy(alpha = 0.7f),
-                                            colorScheme.primary
+                                    if (enabled) {
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                colorScheme.primary.copy(alpha = 0.7f),
+                                                colorScheme.primary
+                                            )
                                         )
-                                    )
+                                    } else {
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                colorScheme.outline.copy(alpha = 0.7f),
+                                                colorScheme.outline
+                                            )
+                                        )
+                                    }
                                 )
                         )
                     }
@@ -1442,8 +1465,10 @@ fun EqualizerBandSlider(
 @Composable
 fun EqualizerDialog(
     currentLevels: Map<Int, Short>,
+    isEnabled: Boolean,
     onDismiss: () -> Unit,
-    onBandChange: (Int, Short) -> Unit
+    onBandChange: (Int, Short) -> Unit,
+    onToggle: (Boolean) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val bands = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
@@ -1453,13 +1478,24 @@ fun EqualizerDialog(
         shape = RoundedCornerShape(24.dp),
         containerColor = colorScheme.surface,
         title = {
-            Text(
-                text = stringResource(R.string.player_equalizer),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.player_equalizer),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface
+                )
+
+                CustomEqToggle(
+                    checked = isEnabled,
+                    onCheckedChange = onToggle,
+                    colorScheme = colorScheme
+                )
+            }
         },
         text = {
             Column(
@@ -1480,13 +1516,17 @@ fun EqualizerDialog(
                         onValueChangeFinished = {
                             onBandChange(index, (localLevel * 100).toInt().toShort())
                         },
-                        colorScheme = colorScheme
+                        colorScheme = colorScheme,
+                        enabled = isEnabled
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Text(stringResource(R.string.player_done))
             }
         },
@@ -1496,6 +1536,48 @@ fun EqualizerDialog(
             }
         }
     )
+}
+
+@Composable
+private fun CustomEqToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    colorScheme: ColorScheme
+) {
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) colorScheme.primary else colorScheme.surfaceVariant,
+        label = "trackColor"
+    )
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 24.dp else 0.dp,
+        label = "thumbOffset"
+    )
+    val thumbColor by animateColorAsState(
+        targetValue = if (checked) Color.White else colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+        label = "thumbColor"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(width = 48.dp, height = 24.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(trackColor)
+            .border(
+                width = 1.dp,
+                color = if (checked) colorScheme.primary else colorScheme.outline.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable { onCheckedChange(!checked) }
+            .padding(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(thumbColor)
+        )
+    }
 }
 
 @Composable

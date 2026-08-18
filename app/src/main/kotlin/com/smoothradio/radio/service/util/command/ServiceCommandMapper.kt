@@ -38,6 +38,10 @@ class ServiceCommandMapper @Inject constructor() {
                 level = intent.getShortExtra(ServiceCommand.EXTRA_LEVEL, 0)
             )
 
+            ServiceCommand.ACTION_TOGGLE_EQ -> ServiceCommand.ToggleEq(
+                enabled = intent.getBooleanExtra(ServiceCommand.EXTRA_ENABLED, false)
+            )
+
             else -> ServiceCommand.None
         }
     }
