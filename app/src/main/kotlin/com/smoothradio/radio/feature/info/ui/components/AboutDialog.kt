@@ -1,8 +1,11 @@
 package com.smoothradio.radio.feature.info.ui.components
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,10 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,34 +39,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.smoothradio.radio.R
-import com.smoothradio.radio.feature.info.ui.AppInfoViewModel
 
 @Composable
 fun AboutDialog(
     onDismiss: () -> Unit,
     onWhatNewClick: () -> Unit,
-    context: Context,
-    viewModel: AppInfoViewModel = hiltViewModel()
+    context: Context
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val appVersion = remember { getAppVersion(context) }
-
-    var showReportDialog by remember { mutableStateOf(false) }
-
-    if (showReportDialog) {
-        ReportIssueDialog(
-            onDismiss = { showReportDialog = false },
-            context = context,
-            appVersion = appVersion,
-            viewModel = viewModel
-        )
-    }
+    val deviceInfo = remember { "${Build.MANUFACTURER} ${Build.MODEL}" }
+    val androidVersion =
+        remember { "${context.getString(R.string.android_version_label)} ${Build.VERSION.RELEASE}" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -126,6 +116,7 @@ fun AboutDialog(
                     color = colorScheme.onSurface
                 )
 
+                // What's New
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -152,6 +143,7 @@ fun AboutDialog(
                     )
                 }
 
+                // Share App
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -178,13 +170,14 @@ fun AboutDialog(
                     )
                 }
 
+                // Report a Problem
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .clickable {
-                            showReportDialog = true
+                            sendFeedbackEmail(context, appVersion, deviceInfo, androidVersion)
                         }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -196,14 +189,23 @@ fun AboutDialog(
                         tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
-                    Text(
-                        stringResource(R.string.report_problem),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            stringResource(R.string.report_problem),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface
+                        )
+                        Text(
+                            context.getString(R.string.email_address),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
                 }
 
+                // Follow on Facebook
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,6 +270,20 @@ private fun getAppVersion(context: Context): String {
         "v$version"
     } catch (e: PackageManager.NameNotFoundException) {
         ""
+    }
+}
+
+private fun sendFeedbackEmail(context: Context, version: String, device: String, android: String) {
+    val intent = Intent(Intent.ACTION_SENDTO, "mailto:".toUri()).apply {
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(context.getString(R.string.email_address)))
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.email_subject))
+        putExtra(Intent.EXTRA_TEXT, "$version\n$device\n$android\n\n")
+    }
+    try {
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.send_mail)))
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, context.getString(R.string.no_email_client), Toast.LENGTH_SHORT)
+            .show()
     }
 }
 
